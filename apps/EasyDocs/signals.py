@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 import logging
@@ -50,20 +50,41 @@ def client_service_created_handler(sender, instance, created, **kwargs):
                     print(f"❌ Failed to send SMS: {e}")
 
 
+
 @receiver(post_save, sender=ClientServiceProcess)
 def process_status_handler(sender, instance, **kwargs):
+    # If this process was just collected, skip all logic
+    if instance.status == 'collected':
+        return
+
     processes = instance.client_service.service_processes.order_by('process__step_order')
-    completed_processes = processes.filter(status='completed')
-    last_completed_step = completed_processes.last().process.step_order if completed_processes.exists() else 0
+    completed = processes.filter(status='completed')
+    last_completed_step = completed.last().process.step_order if completed.exists() else 0
+    last_step = processes.last()
 
-    for process_instance in processes:
-        if process_instance.process.step_order == last_completed_step + 1 and process_instance.status != 'in_progress':
-            new_status = 'pending' if process_instance == processes.last() else 'in_progress'
-            ClientServiceProcess.objects.filter(pk=process_instance.pk).update(status=new_status)
+    # Track if we just completed the final step
+    just_completed_last = False
 
+    for step in processes:
+        # 1) Mark any earlier steps as completed
+        if step.process.step_order <= last_completed_step and step.status != 'completed':
+            ClientServiceProcess.objects.filter(pk=step.pk).update(
+                status='completed',
+                completed_at=timezone.now()
+            )
+            if step == last_step:
+                just_completed_last = True
+
+        # 2) Kick off the next step
+        elif step.process.step_order == last_completed_step + 1 and step.status == 'pending':
+            # final step stays pending until confirmed; others go in_progress
+            new_status = 'pending' if step == last_step else 'in_progress'
+            ClientServiceProcess.objects.filter(pk=step.pk).update(status=new_status)
+
+            # Send SMS only for non-final in_progress steps
             if new_status == 'in_progress':
                 client_phone = instance.client_service.client.phone
-                message = process_instance.process.message
+                message = step.process.message
                 if client_phone and message:
                     try:
                         sms_api = MobileSasaAPI()
@@ -71,48 +92,55 @@ def process_status_handler(sender, instance, **kwargs):
                     except Exception as e:
                         logger.warning(f"Failed to send SMS to {client_phone}: {e}")
 
-        elif process_instance.process.step_order <= last_completed_step and process_instance.status != 'completed':
-            ClientServiceProcess.objects.filter(pk=process_instance.pk).update(
-                status='completed',
-                completed_at=timezone.now()
-            )
+    # 3) Update the overall ClientService status
+    all_done = all(p.status in ['completed', 'pending'] for p in processes)
+    instance.client_service.__class__.objects.filter(
+        pk=instance.client_service.pk
+    ).update(status='completed' if all_done else 'active')
 
-    # Update the client service status
-    new_service_status = 'completed' if all(p.status in ['completed', 'pending'] for p in processes) else 'active'
-    instance.client_service.__class__.objects.filter(pk=instance.client_service.pk).update(status=new_service_status)
-
-    # Send SMS if the last process is pending
-    last_process = processes.last()
-    if last_process.status == 'pending':
+    # 4) If we just completed the final step, send its SMS
+    if just_completed_last and not instance.client_service.title_deed_collection:
         client_phone = instance.client_service.client.phone
-        message = last_process.process.message
+        message = last_step.process.message
         if client_phone and message:
             try:
                 sms_api = MobileSasaAPI()
                 sms_api.send_sms(client_phone, message)
             except Exception as e:
-                logger.warning(f"Failed to send SMS to {client_phone}: {e}")
+                logger.warning(f"Failed to send final-step SMS to {client_phone}: {e}")
+
 
 @receiver(post_save, sender=TitleDeedCollection)
 def title_deed_collected_handler(sender, instance, created, **kwargs):
-    if created:
-        client_service = instance.client_service
-        last_process = client_service.service_processes.order_by('-process__step_order').first()
-        if last_process and last_process.status in ['completed', 'pending']:
-            last_process.status = 'collected'
-            last_process.completed_at = timezone.now()
-            last_process.save()
+    if not created:
+        return
 
-            client_phone = client_service.client.phone
-            message = f"Your title deed has been collected by {instance.collected_by}"
-            if instance.id_number:
-                message += f" (ID: {instance.id_number})"
-            try:
-                sms_api = MobileSasaAPI()
-                sms_api.send_sms(client_phone, message)
-            except Exception as e:
-                logger.warning(f"Failed to send collection SMS to {client_phone}: {e}")
+    client_service = instance.client_service
+    last_process = client_service.service_processes.order_by('-process__step_order').first()
 
-            # 🟢 UPDATE ClientService status
-            client_service.status = 'collected'
-            client_service.save()
+    if last_process and last_process.status in ['completed', 'pending']:
+        last_process.status = 'collected'
+        # **bump completed_at to now so ordering picks it**
+        last_process.completed_at = instance.collected_at
+        last_process.save()
+
+    # Update the overall ClientService status
+    client_service.status = 'collected'
+    client_service.save()
+
+    # Get the custom message from the TitleDeedCollection model
+    message = instance.message if instance.message else f"Your title deed has been collected by {instance.collected_by}"
+    if instance.id_number:
+        message += f" (ID: {instance.id_number})"
+
+    # Send the SMS notification to the client
+    client_phone = client_service.client.phone
+    try:
+        sms_api = MobileSasaAPI()
+        sms_api.send_sms(client_phone, message)
+    except Exception as e:
+        logger.warning(f"Failed to send collection SMS to {client_phone}: {e}")
+
+
+
+

@@ -42,7 +42,10 @@ def mark_process_completed(request, pk):
     if process.status == 'completed':
         messages.info(request, 'This step is already marked as completed.')
     else:
-        safe_complete_process(process.pk)
+        # Mark this process as completed and update completed_at
+        process.status = 'completed'
+        process.completed_at = timezone.now()
+        process.save()
         messages.success(request, f"Marked '{process.process.name}' as completed.")
 
     return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
@@ -51,16 +54,27 @@ def mark_process_completed(request, pk):
 # @login_required
 # @user_passes_test(is_authorized)
 
+
+
+
 @require_POST
+@login_required
 def collect_title_deed(request, service_id):
     service = get_object_or_404(ClientService, pk=service_id)
     referer = request.META.get('HTTP_REFERER', '/dashboard/')
+
+    if hasattr(service, 'title_deed_collection'):
+        messages.warning(request, "This title deed has already been collected.")
+        return redirect(referer)
 
     form = TitleDeedCollectionForm(request.POST)
     if form.is_valid():
         title_deed = form.save(commit=False)
         title_deed.client_service = service
+        title_deed.submitted_by = request.user
         title_deed.save()
+        service.status = 'collected'
+        service.save(update_fields=['status'])
 
         messages.success(request, "Title deed collection recorded successfully.")
     else:

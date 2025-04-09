@@ -77,75 +77,98 @@
 
                                     </tr>
                                     </thead>
-                                    <tbody>
-                                    {% for item in client_data %}
-                                        {% with client=item.client client_service=item.client_service active_process=item.active_process %}
-                                            <tr>
-                                                <td>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox">
-                                                    </div>
-                                                </td>
-                                                <td>{{ client.first_name }}</td>
-                                                <td>{{ client.last_name }}</td>
-                                                <td>{{ client.phone|default:"-" }}</td>
-                                                <td>{{ client.email }}</td>
-                                                <td>{% if client_service %}
-                                                    {{ client_service.requested_at|date:"Y-m-d" }}{% else %}
-                                                   <span class="text-muted">No service</span>{% endif %}</td>
-                                                <td>{% if client_service %}{{ client_service.service.name }}{% else %}
-                                                    <span class="text-muted">No service</span>{% endif %}</td>
-                                                <td>{% if active_process %}{{ active_process.process.name }}{% else %}
-                                                     <span class="text-muted">N/A</span>{% endif %}</td>
-                                                <td>{% if active_process %}
-                                                    <span class="badge bg-info">{{ active_process.status|capfirst }}</span>{% else %} <span class="text-muted">N/A</span> {% endif %}</td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                                            data-bs-target="#editClientModal{{ client.id }}">
-                                                        Edit
-                                                    </button>
-                                                </td>
-                                            <td><a href="{% url 'client_details' client.id %}" ><i class="ti ti-eye-check"></i></a></td>
-                                            </tr>
+                          <tbody>
+  {% for item in client_data %}
+    {% with client=item.client client_service=item.client_service current_process=item.current_process %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ client.first_name }}</td>
+        <td>{{ client.last_name }}</td>
+        <td>{{ client.phone|default:"-" }}</td>
+        <td>{{ client.email }}</td>
+        <td>
+          {% if client_service %}
+            {{ client_service.requested_at|date:"Y-m-d" }}
+          {% else %}
+            <span class="text-muted">No service</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if client_service %}
+            {{ client_service.service.name }}
+          {% else %}
+            <span class="text-muted">No service</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if current_process %}
+            {{ current_process.process.name }}
+          {% else %}
+            <span class="text-muted">N/A</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if current_process %}
+            <span class="badge 
+              {% if current_process.status == 'in_progress' %}bg-info
+              {% elif current_process.status == 'pending' %}bg-secondary
+              {% elif current_process.status == 'completed' %}bg-success
+              {% elif current_process.status == 'collected' %}bg-primary
+              {% else %}bg-light text-dark{% endif %}">
+              {{ current_process.get_status_display }}
+            </span>
+          {% else %}
+            <span class="text-muted">N/A</span>
+          {% endif %}
+        </td>
+        <td>
+          <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                  data-bs-target="#editClientModal{{ client.id }}">
+            Edit
+          </button>
+        </td>
+        <td>
+          <a href="{% url 'client_details' client.id %}">
+            <i class="ti ti-eye-check"></i>
+          </a>
+        </td>
+      </tr>
 
-                                            <!-- Modal belongs here -->
-                                            <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
-                                                 aria-labelledby="editClientModalLabel{{ client.id }}"
-                                                 aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <form method="POST" action="{% url 'edit_client' client.id %}">
-                                                            {% csrf_token %}
-                                                            <div class="modal-header bg-warning">
-                                                                <h5 class="modal-title"
-                                                                    id="editClientModalLabel{{ client.id }}">Edit
-                                                                    Client</h5>
-                                                                <button type="button" class="btn-close"
-                                                                        data-bs-dismiss="modal"
-                                                                        aria-label="Close"></button>
-                                                            </div>
+      <!-- Edit Client Modal -->
+      <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
+           aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form method="POST" action="{% url 'edit_client' client.id %}">
+              {% csrf_token %}
+              <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">
+                  Edit Client
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                {{ item.form.as_p }}
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endwith %}
+  {% empty %}
+    <tr>
+      <td colspan="11" class="text-center">No clients found.</td>
+    </tr>
+  {% endfor %}
+</tbody>
 
-                                                            <div class="modal-body">
-                                                                {{ item.form.as_p }}
 
-                                                            </div>
-
-                                                            <div class="modal-footer">
-                                                                <button type="submit" class="btn btn-primary">Save
-                                                                    Changes
-                                                                </button>
-                                                                <button type="button" class="btn btn-secondary"
-                                                                        data-bs-dismiss="modal">Cancel
-                                                                </button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        {% endwith %}
-                                    {% endfor %}
-
-                                    </tbody>
                                 </table>
 
 
@@ -186,104 +209,108 @@
         </div>
     </div>
 
-<!-- Add Client Service Modal -->
-<div class="modal fade" id="addClientServiceModal" tabindex="-1" aria-labelledby="addClientServiceModalLabel"
-     aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{% url 'add_client_service' %}">
-    {% csrf_token %}
-    <div class="modal-header bg-info text-white">
-        <h5 class="modal-title" id="addClientServiceModalLabel">Assign Service to Client</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-    </div>
-    <div class="modal-body">
+    <!-- Add Client Service Modal -->
+    <div class="modal fade" id="addClientServiceModal" tabindex="-1" aria-labelledby="addClientServiceModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'add_client_service' %}">
+                    {% csrf_token %}
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="addClientServiceModalLabel">Assign Service to Client</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
 
-        <!-- Searchable Client -->
-        <div class="mb-3">
-            <label for="clientSearch" class="form-label">Search Client</label>
-            <input type="text" id="clientSearch" class="form-control" placeholder="Type client details..." autocomplete="off">
-            <ul id="clientList" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></ul>
-            <div id="noResults" class="text-danger" style="display: none;">No client found matching this search.</div>
+                        <!-- Searchable Client -->
+                        <div class="mb-3">
+                            <label for="clientSearch" class="form-label">Search Client</label>
+                            <input type="text" id="clientSearch" class="form-control"
+                                   placeholder="Type client details..." autocomplete="off">
+                            <ul id="clientList" class="list-group mt-2"
+                                style="max-height: 200px; overflow-y: auto;"></ul>
+                            <div id="noResults" class="text-danger" style="display: none;">No client found matching this
+                                search.
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="hiddenClientId" name="client" value="">
+
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Client Name</label>
+                            <input type="text" id="clientName" class="form-control" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientPhone" class="form-label">Phone</label>
+                            <input type="text" id="clientPhone" class="form-control" readonly>
+                        </div>
+
+                        <!-- Now use the rest of the form -->
+                        {{ client_service_form.service.label_tag }}
+                        {{ client_service_form.service }}
+                        {{ client_service_form.land_description.label_tag }}
+                        {{ client_service_form.land_description }}
+
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" type="submit">Assign Service</button>
+                        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+
+            </div>
         </div>
-
-        <input type="hidden" id="hiddenClientId" name="client" value="">
-
-        <div class="mb-3">
-            <label for="clientName" class="form-label">Client Name</label>
-            <input type="text" id="clientName" class="form-control" readonly>
-        </div>
-        <div class="mb-3">
-            <label for="clientPhone" class="form-label">Phone</label>
-            <input type="text" id="clientPhone" class="form-control" readonly>
-        </div>
-
-        <!-- Now use the rest of the form -->
-        {{ client_service_form.service.label_tag }}
-        {{ client_service_form.service }}
-        {{ client_service_form.land_description.label_tag }}
-        {{ client_service_form.land_description }}
-
     </div>
-    <div class="modal-footer">
-        <button class="btn btn-primary" type="submit">Assign Service</button>
-        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
-    </div>
-</form>
-
-        </div>
-    </div>
-</div>
 
     <!-- jQuery & Select2 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
+
     <script>
-    $(document).ready(function() {
-    // Search for client and display results
-    $('#clientSearch').on('input', function () {
-        const query = $(this).val().trim();
-        if (query.length > 1) {
-            $.ajax({
-                url: '/clients/search/',  // The URL that handles the client search
-                data: { term: query },
-                success: function(data) {
-                    $('#clientList').empty();
-                    if (data.results.length > 0) {
-                        data.results.forEach(function(client) {
-                            $('#clientList').append(`
+        $(document).ready(function () {
+            // Search for client and display results
+            $('#clientSearch').on('input', function () {
+                const query = $(this).val().trim();
+                if (query.length > 1) {
+                    $.ajax({
+                        url: '/clients/search/',  // The URL that handles the client search
+                        data: {term: query},
+                        success: function (data) {
+                            $('#clientList').empty();
+                            if (data.results.length > 0) {
+                                data.results.forEach(function (client) {
+                                    $('#clientList').append(`
                                 <li class="list-group-item" data-id="${client.id}" data-name="${client.first_name} ${client.last_name}" data-phone="${client.phone}">
                                     ${client.first_name} ${client.last_name} - ${client.phone}
                                 </li>
                             `);
-                        });
-                    } else {
-                        $('#clientList').append('<li class="list-group-item">No results found</li>');
-                    }
+                                });
+                            } else {
+                                $('#clientList').append('<li class="list-group-item">No results found</li>');
+                            }
+                        }
+                    });
+                } else {
+                    $('#clientList').empty();
                 }
             });
-        } else {
-            $('#clientList').empty();
-        }
-    });
 
-    // When a client is selected from the list
-    $('#clientList').on('click', 'li', function() {
-        const clientId = $(this).data('id');
-        const clientName = $(this).data('name');
-        const clientPhone = $(this).data('phone');
-        
-        // Pre-populate client fields in the form
-        $('#hiddenClientId').val(clientId);  // Hidden client ID field
-        $('#clientName').val(clientName);  // Client Name (readonly)
-        $('#clientPhone').val(clientPhone);  // Client Phone (readonly)
+            // When a client is selected from the list
+            $('#clientList').on('click', 'li', function () {
+                const clientId = $(this).data('id');
+                const clientName = $(this).data('name');
+                const clientPhone = $(this).data('phone');
 
-        // Close the client list dropdown
-        $('#clientList').empty();
-    });
-});
+                // Pre-populate client fields in the form
+                $('#hiddenClientId').val(clientId);  // Hidden client ID field
+                $('#clientName').val(clientName);  // Client Name (readonly)
+                $('#clientPhone').val(clientPhone);  // Client Phone (readonly)
 
-</script>
+                // Close the client list dropdown
+                $('#clientList').empty();
+            });
+        });
+
+    </script>
 
 
 

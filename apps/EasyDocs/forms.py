@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import TextInput
-from .models import TitleDeedCollection
+from .models import TitleDeedCollection, ClientDoc, DocType
 
 from .models import Client, ClientService, Service, Process
 
@@ -67,11 +67,14 @@ class ProcessForm(forms.ModelForm):
         self.service = kwargs.pop('service', None)
         super().__init__(*args, **kwargs)
 
-    def clean_step_order(self):
-        step_order = self.cleaned_data.get('step_order')
-        if self.service and Process.objects.filter(service=self.service, step_order=step_order).exclude(pk=self.instance.pk).exists():
-            raise ValidationError(f"Step {step_order} already exists for this service.")
-        return step_order
+    def clean(self):
+        cleaned = super().clean()
+        if Process.objects.filter(
+            service=cleaned.get('service'),
+            step_order=cleaned.get('step_order')
+        ).exists():
+            raise forms.ValidationError("This step order is already used for this service.")
+        return cleaned
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -81,13 +84,60 @@ class ProcessForm(forms.ModelForm):
             instance.save()
         return instance
 
-
 class TitleDeedCollectionForm(forms.ModelForm):
     class Meta:
         model = TitleDeedCollection
-        fields = ['collected_by', 'id_number', 'phone_number']
+        fields = ['collected_by', 'id_number', 'phone_number', 'message']
         widgets = {
-            'collected_by': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter name'}),
-            'id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter ID number'}),
+            'collected_by': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter name', 'oninput': 'updateMessage()'}),
+            'id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter ID number', 'oninput': 'updateMessage()'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter phone number'}),
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Title deed collection confirmation',
+                'rows': 3,
+                'id': 'message'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.fields['message'].initial = (
+                "Your title deed has been collected by {collected_by} (ID: {id_number})."
+            )
+
+
+class ClientDocumentForm(forms.ModelForm):
+    class Meta:
+        model = ClientDoc
+        fields = ['doc_name', 'doc_type', 'doc_file']
+        widgets = {
+            'doc_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter document name'
+            }),
+            'doc_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'doc_file': forms.ClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx,.jpg,.png'  # Optional: file type filtering
+            }),
+        }
+        labels = {
+            'doc_name': 'Document Name',
+            'doc_type': 'Document Type',
+            'doc_file': 'Upload File',
+        }
+
+class DocTypeForm(forms.ModelForm):
+    class Meta:
+        model = DocType
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter new document type'
+            })
         }
