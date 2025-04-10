@@ -12,9 +12,6 @@ from django.views.decorators.http import require_POST
 from .models import ClientService
 
 
-
-
-
 def get_payment_context(client, service_id=None):
     """
     Returns context for rendering a payment UI for a client.
@@ -24,10 +21,10 @@ def get_payment_context(client, service_id=None):
     """
     context = {
         'client': client,
-        'services': [],          # list of {id, name, total_balance}
+        'services': [],  # list of {id, name, total_balance}
         'selected_service': None,
-        'processes': [],         # list of {name, cost, paid, pending}
-        'payment_url': None,     # endpoint to POST a payment
+        'processes': [],  # list of {name, cost, paid, pending}
+        'payment_url': None,  # endpoint to POST a payment
     }
 
     # 1. Populate the list of services
@@ -70,47 +67,43 @@ def get_payment_context(client, service_id=None):
     return context
 
 
-
-
-
-
-def payment_context(request, pk):
-    """
-    AJAX: returns JSON context for the payment modal.
-    Accepts optional GET param ?service_id=123
-    """
-    service_id = request.GET.get('service_id')
-    context = get_payment_context(request.user.client, service_id)
-    return JsonResponse(context)
-
-@require_POST
-def make_payment(request, cs_id):
-    """
-    Handles the actual payment POST.
-    Expects 'amount' and 'payment_method' in POST.
-    """
-    cs = get_object_or_404(ClientService, pk=cs_id, client=request.user.client)
-    amount = request.POST.get('amount')
-    method = request.POST.get('payment_method')
-
-    # Create the payment — your Payment.save() does the allocation
-    Payment.objects.create(
-        client_service=cs,
-        amount=amount,
-        payment_method=method,
-        transaction_id=request.POST.get('transaction_id', None)
-    )
-
-    return JsonResponse({'status': 'success'})
-
+#
+#
+# def payment_context(request, pk):
+#     """
+#     AJAX: returns JSON context for the payment modal.
+#     Accepts optional GET param ?service_id=123
+#     """
+#     service_id = request.GET.get('service_id')
+#     context = get_payment_context(request.user.client, service_id)
+#     return JsonResponse(context)
+#
+# @require_POST
+# def make_payment(request, cs_id):
+#     """
+#     Handles the actual payment POST.
+#     Expects 'amount' and 'payment_method' in POST.
+#     """
+#     cs = get_object_or_404(ClientService, pk=cs_id, client=request.user.client)
+#     amount = request.POST.get('amount')
+#     method = request.POST.get('payment_method')
+#
+#     # Create the payment — your Payment.save() does the allocation
+#     Payment.objects.create(
+#         client_service=cs,
+#         amount=amount,
+#         payment_method=method,
+#         transaction_id=request.POST.get('transaction_id', None)
+#     )
+#
+#     return JsonResponse({'status': 'success'})
 
 
 # apps/EasyDocs/accounts.py
 
 
-
 def add_payment_to_client_service(
-    client_service_id, amount, payment_method, transaction_id=None
+        client_service_id, amount, payment_method, transaction_id=None
 ):
     try:
         client_service = ClientService.objects.get(id=client_service_id)
@@ -166,3 +159,60 @@ def add_payment_view(request, client_id):
             pass
 
     return redirect('client_details', client_id=client_id)
+
+
+from decimal import Decimal
+from datetime import datetime
+from collections import defaultdict
+from django.utils.timezone import make_aware
+
+from .models import ClientService
+def get_client_payments_grouped_by_service(client_id, start_date=None, end_date=None, service_id=None):
+    """
+    Returns all payments grouped by service for a given client.
+    Optionally filters payments by date range.
+    """
+    grouped_payments = []
+    # Fetch the client services with optional filters
+    client_services = ClientService.objects.filter(client_id=client_id)
+
+    if service_id:
+        client_services = client_services.filter(service_id=service_id)
+
+    # Prefetch related services and payments for optimization
+    client_services = client_services.prefetch_related('service', 'payments')
+
+    # Iterate through the client services
+    for service in client_services:
+        # Filter payments based on the date range
+        payments = service.payments.all()
+        if start_date:
+            payments = payments.filter(payment_date__gte=start_date)
+        if end_date:
+            payments = payments.filter(payment_date__lte=end_date)
+
+        # Order payments by date
+        payments = payments.order_by('-payment_date')
+
+        # Use the total_paid() and total_balance() methods of ClientService
+        total_paid = service.total_paid()
+        pending_balance = service.total_balance()
+
+        # Prepare grouped payment data
+        grouped_payments.append({
+            'service_id': service.id,
+            'service_name': f"{service.service.name} for Plot {service.land_description}",
+            'total_paid': total_paid,
+            'pending_balance': pending_balance,
+            'payments': [
+                {
+                    'amount': p.amount,
+                    'method': p.get_payment_method_display(),
+                    'transaction_id': p.transaction_id,
+                    'date': p.payment_date,
+                }
+                for p in payments
+            ]
+        })
+
+    return grouped_payments

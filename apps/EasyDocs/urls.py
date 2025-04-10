@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views, services, processes, auth_views, documents, accounts, reciepts
-from .views import ManagementView
+from .views import ManagementView, ClientDetailView
 
 urlpatterns = [
     path('login/', auth_views.custom_login, name='login'),
@@ -12,7 +12,7 @@ urlpatterns = [
     path('clients/edit/<int:client_id>/', views.edit_client, name='edit_client'),
     path('add-client-service/', views.add_client_service, name='add_client_service'),
     path('clients/search/', views.search_clients, name='search_clients'),
-    path('clients/details/<int:client_id>/', views.client_details, name='client_details'),
+    path('clients/details/<int:client_id>/', ClientDetailView.as_view(), name='client_details'),
 
     path('services/', services.service_list, name='service_list'),
     path('services/add/', services.add_service, name='add_service'),
@@ -31,11 +31,15 @@ urlpatterns = [
     # Client detail page
 
     # AJAX endpoint to get payment context
-    path('client/<int:pk>/payment-context/', accounts.payment_context, name='payment_context'),
-    # Endpoint to actually make a payment
-    path('client-service/<int:cs_id>/pay/', accounts.make_payment, name='make_payment'),
+    # path('client/<int:pk>/payment-context/', accounts.payment_context, name='payment_context'),
+    # # Endpoint to actually make a payment
+    # path('client-service/<int:cs_id>/pay/', accounts.make_payment, name='make_payment'),
     path('clients/<int:client_id>/add-payment/', accounts.add_payment_view, name='add_payment'),
 
     path('client-service/<int:cs_id>/receipt/', reciepts.download_receipt, name='download_receipt'),
 
+    path('delete_subservice/<int:id>/', services.delete_subservice, name='delete_subservice'),
+
+ path('clients/details/<int:client_id>/add_subservice/', views.add_or_update_client_subservice, name='add_or_update_client_subservice'),
 ]
+

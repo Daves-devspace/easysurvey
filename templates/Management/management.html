@@ -81,14 +81,21 @@
                         </div>
                         <div class="card-body">
                             <div class="tab-content">
-                                <div class="tab-pane show active" id="profile-1" role="tabpanel" aria-labelledby="profile-tab-1">
+                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                     aria-labelledby="profile-tab-1">
                                     <div class="row">
-                                        <div class="col-lg-4 col-xxl-3">
+                                        <div class="col-lg-5 col-xxl-3">
                                             <div class="card">
-                                                <div class="card-header">
+                                                <div class="card-header d-flex">
                                                     <!-- Add Service Button + Modal -->
-                                                    <button class="btn btn-success btn-sm my-2" data-bs-toggle="modal"
+                                                    <button class="btn btn-success btn-sm my-2 me-2"
+                                                            data-bs-toggle="modal"
                                                             data-bs-target="#addServiceModal">Add Service
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm my-2 btn-primary"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#addSubServiceModal">
+                                                        Add SubService
                                                     </button>
                                                 </div>
                                                 <div class="card-body position-relative">
@@ -122,50 +129,111 @@
                                                             </div>
                                                         </div>
 
+
                                                     </div>
-                                                    <div class="text-center mt-3">
-                                                        <div class="chat-avtar d-inline-flex mx-auto">
-                                                            <img class="rounded-circle img-fluid wid-70"
-                                                                 src="../assets/images/user/avatar-5.jpg"
-                                                                 alt="User image">
-                                                        </div>
-                                                        <h5 class="mb-0">Anshan H.</h5>
-                                                        <p class="text-muted text-sm">Project Manager</p>
-                                                        <hr class="my-3">
-                                                        <div class="row g-3">
-                                                            <div class="col-4">
-                                                                <h5 class="mb-0">86</h5>
-                                                                <small class="text-muted">Post</small>
+                                                    <!-- Modal for adding a new SubService -->
+                                                    <div class="modal fade" id="addSubServiceModal" tabindex="-1"
+                                                         aria-labelledby="addSubServiceModalLabel" aria-hidden="true">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title"
+                                                                        id="addSubServiceModalLabel">Add New
+                                                                        SubService</h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <!-- Form to add SubService -->
+                                                                    <form method="post" id="subserviceForm">
+                                                                        {% csrf_token %}
+                                                                        {{ subservice_form.as_p }}
+                                                                        <button type="submit" name="add_subservice"
+                                                                                class="btn btn-primary">Save SubService
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
                                                             </div>
-                                                            <div class="col-4 border border-top-0 border-bottom-0">
-                                                                <h5 class="mb-0">40</h5>
-                                                                <small class="text-muted">Project</small>
-                                                            </div>
-                                                            <div class="col-4">
-                                                                <h5 class="mb-0">4.5K</h5>
-                                                                <small class="text-muted">Members</small>
-                                                            </div>
-                                                        </div>
-                                                        <hr class="my-3">
-                                                        <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                            <i class="ti ti-mail"></i>
-                                                            <p class="mb-0">anshan@gmail.com</p>
-                                                        </div>
-                                                        <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                            <i class="ti ti-phone"></i>
-                                                            <p class="mb-0">(+1-876) 8654 239 581</p>
-                                                        </div>
-                                                        <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                            <i class="ti ti-map-pin"></i>
-                                                            <p class="mb-0">New York</p>
-                                                        </div>
-                                                        <div class="d-inline-flex align-items-center justify-content-between w-100">
-                                                            <i class="ti ti-link"></i>
-                                                            <a href="#" class="link-primary">
-                                                                <p class="mb-0">https://anshan.dh.url</p>
-                                                            </a>
                                                         </div>
                                                     </div>
+                                                
+                                                <!-- Edit SubService Modal -->
+<div class="modal fade" id="editSubserviceModal" tabindex="-1" role="dialog" aria-labelledby="editSubserviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSubserviceModalLabel">Edit SubService</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{% url 'management' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="subservice_id" id="subservice_id">
+                    
+                    {{ edit_subservice_form.as_p }} <!-- Render the form here -->
+                    
+                    <button type="submit" name="edit_subservice" class="btn btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+                                                    <!-- Table to display existing SubServices -->
+                                                    <h3>Existing SubServices</h3>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-bordered table-striped">
+                                                            <thead class="table-light">
+
+                                                            <tr>
+                                                                <th>Name</th>
+                                                                <th>Department</th>
+                                                                <th>Description</th>
+                                                                <th>Price</th>
+                                                                <th>edit</th>
+                                                                <th>delete</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for subservice in subservices %}
+                                                                <tr>
+                                                                    <td>{{ subservice.name }}</td>
+                                                                    <td>{{ subservice.department }}</td>
+                                                                    <td>{{ subservice.description }}</td>
+                                                                    <td>{{ subservice.price }}</td>
+                                                                    <td><!-- Edit Button that triggers the modal -->
+                                                                        <button class="btn btn-primary"
+                                                                                data-toggle="modal"
+                                                                                data-target="#editSubserviceModal"
+                                                                                data-id="{{ subservice.id }}"
+                                                                                data-name="{{ subservice.name }}"
+                                                                                data-department="{{ subservice.department }}"
+                                                                                data-price="{{ subservice.price }}"
+                                                                                data-description="{{ subservice.description }}">
+                                                                            Edit
+                                                                        </button>
+                                                                    </td>
+                                                                    <td>
+
+                                                                        <form action="{% url 'delete_subservice' subservice.id %}"
+                                                                              method="post" style="display:inline;">
+                                                                            {% csrf_token %}
+                                                                            <button type="submit"
+                                                                                    class="btn btn-danger btn-sm">Delete
+                                                                            </button>
+                                                                        </form>
+                                                                    </td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+
                                                 </div>
                                             </div>
                                             <div class="card">
@@ -290,7 +358,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-lg-8 col-xxl-9">
+                                        <div class="col-lg-7 col-xxl-9">
                                             <div class="card">
                                                 <div class="card-header pb-0">
                                                     <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap"
@@ -453,7 +521,7 @@
 
                                     </div>
                                 </div>
-                           
+
                                 <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
                                     <div class="row">
                                         <div class="col-lg-6">
@@ -1150,5 +1218,22 @@
             </div>
         </div>
     </footer>
+    <script >// JavaScript to handle the modal population with existing SubService data
+$('#editSubserviceModal').on('show.bs.modal', function (event) {
+    var button = $(event.relatedTarget); // Button that triggered the modal
+    var subserviceId = button.data('id');
+    var subserviceName = button.data('name');
+    var subserviceDepartment = button.data('department');
+    var subservicePrice = button.data('price');
+    var subserviceDescription = button.data('description');
+    
+    var modal = $(this);
+    modal.find('#subservice_id').val(subserviceId);
+    modal.find('input[name="name"]').val(subserviceName);
+    modal.find('input[name="department"]').val(subserviceDepartment);
+    modal.find('input[name="price"]').val(subservicePrice);
+    modal.find('textarea[name="description"]').val(subserviceDescription);
+});
+</script>
 
 {% endblock %}

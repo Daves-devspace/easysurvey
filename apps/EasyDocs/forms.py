@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import TextInput
-from .models import TitleDeedCollection, ClientDoc, DocType
+from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService
 
 from .models import Client, ClientService, Service, Process
 
@@ -140,4 +140,39 @@ class DocTypeForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Enter new document type'
             })
+        }
+
+
+class SubServiceForm(forms.ModelForm):
+    class Meta:
+        model = SubService
+        fields = ['name', 'department', 'description', 'price']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter SubService name',
+            }),
+            'department': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter department name (e.g. Legal Department)',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Provide a detailed description (optional)',
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter price (in KSH)',
+                'min': 0,
+            }),
+        }
+
+class ClientSubServiceForm(forms.ModelForm):
+    class Meta:
+        model = ClientSubService
+        fields = ['client_service', 'sub_service']
+        widgets = {
+            'client_service': forms.Select(attrs={'class': 'form-control'}),
+            'sub_service': forms.Select(attrs={'class': 'form-control'}),
         }
