@@ -114,55 +114,6 @@ class ClientDetailView(DetailView):
 
 
 
-# def client_details(request, client_id):
-#     client = get_object_or_404(Client, id=client_id)
-#
-#     # Handle document upload
-#     handle_document_upload(request, client)
-#
-#     # Get all services with related data
-#     all_services = (
-#         ClientService.objects
-#         .filter(client=client)
-#         .select_related('service')
-#         .prefetch_related(
-#             Prefetch(
-#                 'service_processes',
-#                 queryset=ClientServiceProcess.objects.select_related('process').order_by('process__step_order')
-#             )
-#         )
-#         .order_by('-requested_at')
-#     )
-#
-#     # Attach latest process (based on highest step_order)
-#     for service in all_services:
-#         service.latest_process = None
-#         if service.service_processes.exists():
-#             service.latest_process = max(
-#                 service.service_processes.all(),
-#                 key=lambda sp: sp.process.step_order
-#             )
-#
-#     # Forms and docs
-#     title_deed_form = TitleDeedCollectionForm()
-#     doc_form         = ClientDocumentForm()
-#     doc_type_form    = DocTypeForm()
-#     doc_types        = DocType.objects.all()
-#     client_docs      = ClientDoc.objects.filter(client=client)
-#
-#     context = {
-#         'client': client,
-#         'all_services': all_services,
-#         'title_deed_form': title_deed_form,
-#         'doc_form': doc_form,
-#         'doc_type_form': doc_type_form,
-#         'doc_types': doc_types,
-#         'client_docs': client_docs,
-#     }
-#     return render(request, 'Client/client_details.html', context)
-#
-
-
 
 def client_list(request):
     services = Service.objects.all()
@@ -391,4 +342,7 @@ class ManagementView(TemplateView):
         context['process_form'] = ProcessForm(request.POST)
         context['subservice_form'] = SubServiceForm(request.POST)
         return self.render_to_response(context)
+
+
+
 
