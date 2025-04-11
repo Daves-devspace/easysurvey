@@ -92,14 +92,13 @@ class Process(models.Model):
 class ClientService(models.Model):
     client = models.ForeignKey(Client, related_name='client_services', on_delete=models.CASCADE)
     service = models.ForeignKey(Service, related_name='client_services', on_delete=models.CASCADE)
-    land_description = models.CharField(max_length=255)  # New field
+    land_description = models.CharField(max_length=255)
     requested_at = models.DateTimeField(auto_now_add=True)
 
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('completed', 'Completed'),
-        ('collected', 'Title Deed Collected')
-
+        ('collected', 'Title Deed Collected'),
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
 
@@ -119,10 +118,31 @@ class ClientService(models.Model):
         return self.status
 
     def total_paid(self):
-        return self.payments.aggregate(total=Sum('amount'))['total'] or 0
+        return self.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
     @property
-    def sub_total_price(self):
+    def processes_total(self):
+        """
+        Sum of all per-client process costs, using overridden_cost if set.
+        """
+        agg = self.service_processes.aggregate(
+            total=Sum(
+                # Use Coalesce to treat overridden_cost if present, else process.cost
+                models.F('overridden_cost'),
+                output_field=models.DecimalField()
+            )
+        )['total']
+        # However F('overridden_cost') will be null for many rows, so fallback:
+        if agg is None:
+            # compute in Python
+            return sum((csp.cost for csp in self.service_processes.all()), Decimal('0.00'))
+        return agg
+
+    @property
+    def sub_services_total(self):
+        """
+        Sum of all sub-services prices (unchanged).
+        """
         total = self.sub_services.aggregate(
             total=Sum('sub_service__price')
         )['total']
@@ -130,14 +150,69 @@ class ClientService(models.Model):
 
     @property
     def full_total_price(self):
-        return self.service.total_price + self.sub_total_price
+        """
+        Grand total: processes + sub-services.
+        """
+        return self.processes_total + self.sub_services_total
+
+    @property
+    def total_price(self):
+        total = Decimal('0.00')
+        for csp in self.service_processes.all():
+            if csp.overridden_cost is not None:
+                total += csp.overridden_cost
+            else:
+                total += csp.process.cost  # or .cost if that's the field
+        return total
 
     def total_balance(self):
+        """
+        Amount still owed: full total minus what’s been paid.
+        """
         return self.full_total_price - self.total_paid()
 
     def __str__(self):
         return f"{self.client.first_name} - {self.service.name} for {self.land_description}"
-
+#
+# class ClientServiceProcess(models.Model):
+#     STATUS_CHOICES = [
+#         ('pending', 'Pending'),
+#         ('in_progress', 'In Progress'),
+#         ('completed', 'Completed'),
+#         ('collected', 'Title Deed Collected'),
+#     ]
+#
+#     client_service = models.ForeignKey(
+#         ClientService,
+#         related_name='service_processes',
+#         on_delete=models.CASCADE
+#     )
+#     process = models.ForeignKey(
+#         Process,
+#         related_name='service_processes',
+#         on_delete=models.CASCADE
+#     )
+#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+#     completed_at = models.DateTimeField(null=True, blank=True)
+#
+#     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+#
+#     @property
+#     def total_paid(self):
+#         return self.paid_amount
+#
+#     @property
+#     def pending_amount(self):
+#         return self.process.cost - self.paid_amount
+#
+#
+#
+#     def __str__(self):
+#         return (
+#             f"{self.client_service.client.first_name} - "
+#             f"{self.process.name} "
+#             f"(Paid: {self.paid_amount} | Pending: {self.pending_amount})"
+#         )
 class ClientServiceProcess(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -147,37 +222,54 @@ class ClientServiceProcess(models.Model):
     ]
 
     client_service = models.ForeignKey(
-        ClientService,
+        'ClientService',
         related_name='service_processes',
         on_delete=models.CASCADE
     )
     process = models.ForeignKey(
-        Process,
+        'Process',
         related_name='service_processes',
         on_delete=models.CASCADE
     )
+    # ← New field to hold client‐specific cost overrides
+    overridden_cost = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        help_text="If set, this cost is used instead of the template cost"
+    )
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     completed_at = models.DateTimeField(null=True, blank=True)
 
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     @property
-    def total_paid(self):
+    def cost(self) -> Decimal:
+        """
+        The cost that should be charged for this step:
+        overridden_cost if provided, else the template process.cost.
+        """
+        if self.overridden_cost is not None:
+            return self.overridden_cost
+        return self.process.cost
+
+    @property
+    def pending_amount(self) -> Decimal:
+        """
+        Amount still due on this step.
+        """
+        return self.cost - self.paid_amount
+
+    @property
+    def total_paid(self) -> Decimal:
         return self.paid_amount
-
-    @property
-    def pending_amount(self):
-        return self.process.cost - self.paid_amount
-
-
 
     def __str__(self):
         return (
             f"{self.client_service.client.first_name} - "
             f"{self.process.name} "
-            f"(Paid: {self.paid_amount} | Pending: {self.pending_amount})"
+            f"(Cost: {self.cost} | Paid: {self.paid_amount} | Pending: {self.pending_amount})"
         )
-
 
 
 class ClientSubService(models.Model):

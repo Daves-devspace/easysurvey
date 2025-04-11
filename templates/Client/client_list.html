@@ -77,39 +77,39 @@
 
                                     </tr>
                                     </thead>
-                          <tbody>
-  {% for item in client_data %}
-    {% with client=item.client client_service=item.client_service current_process=item.current_process %}
-      <tr>
-        <td>{{ forloop.counter }}</td>
-        <td>{{ client.first_name }}</td>
-        <td>{{ client.last_name }}</td>
-        <td>{{ client.phone|default:"-" }}</td>
-        <td>{{ client.email }}</td>
-        <td>
-          {% if client_service %}
-            {{ client_service.requested_at|date:"Y-m-d" }}
-          {% else %}
-            <span class="text-muted">No service</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if client_service %}
-            {{ client_service.service.name }}
-          {% else %}
-            <span class="text-muted">No service</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if current_process %}
-            {{ current_process.process.name }}
-          {% else %}
-            <span class="text-muted">N/A</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if current_process %}
-            <span class="badge 
+                                    <tbody>
+                                    {% for item in client_data %}
+                                        {% with client=item.client client_service=item.client_service current_process=item.current_process %}
+                                            <tr>
+                                                <td>{{ forloop.counter }}</td>
+                                                <td>{{ client.first_name }}</td>
+                                                <td>{{ client.last_name }}</td>
+                                                <td>{{ client.phone|default:"-" }}</td>
+                                                <td>{{ client.email }}</td>
+                                                <td>
+                                                    {% if client_service %}
+                                                        {{ client_service.requested_at|date:"Y-m-d" }}
+                                                    {% else %}
+                                                        <span class="text-muted">No service</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if client_service %}
+                                                        {{ client_service.service.name }}
+                                                    {% else %}
+                                                        <span class="text-muted">No service</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if current_process %}
+                                                        {{ current_process.process.name }}
+                                                    {% else %}
+                                                        <span class="text-muted">N/A</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if current_process %}
+                                                        <span class="badge
               {% if current_process.status == 'in_progress' %}bg-info
               {% elif current_process.status == 'pending' %}bg-secondary
               {% elif current_process.status == 'completed' %}bg-success
@@ -117,56 +117,62 @@
               {% else %}bg-light text-dark{% endif %}">
               {{ current_process.get_status_display }}
             </span>
-          {% else %}
-            <span class="text-muted">N/A</span>
-          {% endif %}
-        </td>
-        <td>
-          <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                  data-bs-target="#editClientModal{{ client.id }}">
-            Edit
-          </button>
-        </td>
-        <td>
-          <a href="{% url 'client_details' client.id %}">
-            <i class="ti ti-eye-check"></i>
-          </a>
-        </td>
-      </tr>
+                                                    {% else %}
+                                                        <span class="text-muted">N/A</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                            data-bs-target="#editClientModal{{ client.id }}">
+                                                        Edit
+                                                    </button>
+                                                </td>
+                                                <td>
+                                                    <a href="{% url 'client_details' client.id %}">
+                                                        <i class="ti ti-eye-check"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
 
-      <!-- Edit Client Modal -->
-      <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
-           aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <form method="POST" action="{% url 'edit_client' client.id %}">
-              {% csrf_token %}
-              <div class="modal-header bg-warning">
-                <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">
-                  Edit Client
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                {{ item.form.as_p }}
-              </div>
-              <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Save Changes</button>
-                <button type="button" class="btn btn-secondary"
-                        data-bs-dismiss="modal">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    {% endwith %}
-  {% empty %}
-    <tr>
-      <td colspan="11" class="text-center">No clients found.</td>
-    </tr>
-  {% endfor %}
-</tbody>
+                                            <!-- Edit Client Modal -->
+                                            <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
+                                                 aria-labelledby="editClientModalLabel{{ client.id }}"
+                                                 aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <form method="POST" action="{% url 'edit_client' client.id %}">
+                                                            {% csrf_token %}
+                                                            <div class="modal-header bg-warning">
+                                                                <h5 class="modal-title"
+                                                                    id="editClientModalLabel{{ client.id }}">
+                                                                    Edit Client
+                                                                </h5>
+                                                                <button type="button" class="btn-close"
+                                                                        data-bs-dismiss="modal"
+                                                                        aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                {{ item.form.as_p }}
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="submit" class="btn btn-primary">Save
+                                                                    Changes
+                                                                </button>
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-dismiss="modal">Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="11" class="text-center">No clients found.</td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
 
 
                                 </table>
@@ -248,6 +254,22 @@
                         <!-- Now use the rest of the form -->
                         {{ client_service_form.service.label_tag }}
                         {{ client_service_form.service }}
+                        <div class="mt-4" id="processCostSection" style="display: none;">
+                            <h6>Customize Service Processes</h6>
+                            <table class="table table-bordered">
+                                <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Custom Cost</th>
+                                </tr>
+                                </thead>
+                                <tbody id="processTableBody"></tbody>
+                            </table>
+                            <div class="text-end">
+                                <strong>Total: Ksh <span id="totalCost">0</span></strong>
+                            </div>
+                        </div>
+
                         {{ client_service_form.land_description.label_tag }}
                         {{ client_service_form.land_description }}
 
@@ -264,6 +286,67 @@
 
     <!-- jQuery & Select2 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const serviceSelect = document.querySelector("#id_service");
+            const processSection = document.getElementById("processCostSection");
+            const processTableBody = document.getElementById("processTableBody");
+            const totalCostDisplay = document.getElementById("totalCost");
+
+            serviceSelect.addEventListener("change", () => {
+                const serviceId = serviceSelect.value;
+                if (!serviceId) return;
+
+                fetch(`/get_service_processes/${serviceId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        processTableBody.innerHTML = '';
+                        let total = 0;
+
+                        data.processes.forEach(process => {
+                            total += process.default_cost;
+
+                            processTableBody.innerHTML += `
+    <tr>
+        <td>
+            ${process.name}
+            <!-- Hidden inputs for ID and name -->
+            <input type="hidden" name="process_id[]" value="${process.id}">
+            <input type="hidden" name="process_name[]" value="${process.name}">
+        </td>
+        <td>
+            <input type="number"
+                   name="process_cost[]"
+                   value="${process.default_cost}"
+                   step="0.01"
+                   class="form-control cost-input">
+        </td>
+    </tr>
+    `;
+                        });
+
+
+                        totalCostDisplay.innerText = total.toFixed(2);
+                        processSection.style.display = "block";
+
+                        document.querySelectorAll(".cost-input").forEach(input => {
+                            input.addEventListener("input", () => {
+                                let newTotal = 0;
+                                document.querySelectorAll(".cost-input").forEach(inp => {
+                                    newTotal += parseFloat(inp.value || 0);
+                                });
+                                totalCostDisplay.innerText = newTotal.toFixed(2);
+                            });
+                        });
+                    });
+            });
+        });
+
+    </script>
+
+
 
     <script>
         $(document).ready(function () {

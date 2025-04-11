@@ -1,4 +1,5 @@
 from collections import defaultdict
+from decimal import Decimal
 
 from django.contrib import messages
 from django.db.models import Q, Prefetch
@@ -196,15 +197,50 @@ def edit_client(request, client_id):
 
 
 
+
+
 def add_client_service(request):
     if request.method == 'POST':
         form = ClientServiceForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Client service added successfully.')
+            client = form.cleaned_data['client']
+            service = form.cleaned_data['service']
+            land_description = form.cleaned_data['land_description']
+
+            # 🔒 Check for existing assignment
+            existing = ClientService.objects.filter(
+                client=client,
+                service=service,
+                land_description=land_description
+            ).first()
+
+            if existing:
+                messages.warning(request, '⚠️ This service is already assigned to this client for the specified land.')
+                return redirect('clients')
+
+            # ✅ Save new assignment
+            client_service = form.save()  # Signal auto-triggers
+
+            # 💰 Handle overridden process costs
+            process_ids   = request.POST.getlist('process_id[]')
+            process_costs = request.POST.getlist('process_cost[]')
+
+            for pid, cost_str in zip(process_ids, process_costs):
+                try:
+                    csp = client_service.service_processes.get(process_id=pid)
+                    csp.overridden_cost = Decimal(cost_str)
+                    csp.save(update_fields=['overridden_cost'])
+                except ClientServiceProcess.DoesNotExist:
+                    continue  # or log this if needed
+
+            messages.success(request, '✅ Service assigned successfully with custom pricing.')
         else:
-            messages.error(request, 'Failed to add client service. Please check the form.')
-    return redirect('clients')  # Redirect to the client list page
+            messages.error(request, '❌ Error saving service.')
+
+    return redirect('clients')
+
+
+
 
 def search_clients(request):
     term = request.GET.get('term', '')

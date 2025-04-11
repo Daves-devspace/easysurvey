@@ -1,5 +1,6 @@
 # views.py
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Service, Process, SubService, ClientService, Client
 from .forms import ServiceForm, ClientSubServiceForm
@@ -14,6 +15,21 @@ def delete_subservice(request, id):
     messages.success(request, "SubService deleted successfully!")
     return redirect('management')
 
+
+
+def get_service_processes(request, service_id):
+    processes = Process.objects.filter(service_id=service_id)
+    data = {
+        "processes": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "default_cost": float(p.cost)  # ← convert Decimal to float
+            }
+            for p in processes
+        ]
+    }
+    return JsonResponse(data)
 
 
 

@@ -36,6 +36,8 @@ urlpatterns = [
     # path('client-service/<int:cs_id>/pay/', accounts.make_payment, name='make_payment'),
     path('clients/<int:client_id>/add-payment/', accounts.add_payment_view, name='add_payment'),
 
+    path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
+
     path('client-service/<int:cs_id>/receipt/', reciepts.download_receipt, name='download_receipt'),
 
     path('delete_subservice/<int:id>/', services.delete_subservice, name='delete_subservice'),
