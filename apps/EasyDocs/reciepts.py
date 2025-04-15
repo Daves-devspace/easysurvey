@@ -10,8 +10,7 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import landscape, portrait
-from apps.EasyDocs.models import ClientService
-
+from apps.EasyDocs.models import ClientService, SiteSettings
 
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -28,9 +27,12 @@ def generate_service_receipt(client_service, printed_by_user):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=(width, height))
 
+    # Load site settings
+    settings = SiteSettings.objects.first()
+
     y = height - 10 * mm
     c.setFont("Helvetica-Bold", 12)
-    c.drawCentredString(width/2, y, "YOUR BUSINESS NAME")
+    c.drawCentredString(width/2, y, "GREAT GUARDIAN INVESTMENT LTD")
     y -= 6 * mm
 
     c.setFont("Helvetica", 10)
@@ -61,7 +63,8 @@ def generate_service_receipt(client_service, printed_by_user):
     c.setFont("Helvetica", 8)
     for csp in client_service.service_processes.all().order_by('process__step_order'):
         name = csp.process.name[:12]
-        price = csp.process.cost.quantize(Decimal('0.01'))
+        price = (csp.overridden_cost if csp.overridden_cost is not None else csp.process.cost).quantize(Decimal('0.01'))
+
         paid = csp.paid_amount.quantize(Decimal('0.01'))
 
         c.drawString(5*mm, y, name)
@@ -83,7 +86,8 @@ def generate_service_receipt(client_service, printed_by_user):
         c.setFont("Helvetica", 8)
         for css in client_service.sub_services.all():
             name = css.sub_service.name[:12]
-            price = css.sub_service.price.quantize(Decimal('0.01'))
+            price = (css.overridden_price if css.overridden_price is not None else css.sub_service.price).quantize(Decimal('0.01'))
+
             paid = css.paid_amount.quantize(Decimal('0.01'))
 
             c.drawString(5*mm, y, name)
@@ -107,17 +111,32 @@ def generate_service_receipt(client_service, printed_by_user):
     c.drawRightString(width-5*mm, y, f"{total_balance.quantize(Decimal('0.01'))}")
     y -= 8*mm
 
-    # Footer
+    # 8) Footer: printed by & timestamp
     c.setFont("Helvetica", 6)
     ts = timezone.now().strftime("%Y-%m-%d %H:%M")
-    c.drawString(5*mm, y, f"Printed by: {printed_by_user.get_full_name()}")
-    y -= 4*mm
-    c.drawString(5*mm, y, f"At: {ts}")
+    c.drawString(5 * mm, y, f"Printed by: {printed_by_user.get_full_name()}")
+    y -= 4 * mm
+    c.drawString(5 * mm, y, f"At: {ts}")
+    y -= 6 * mm
+
+    # 9) Tagline centered
+    if settings and settings.tagline:
+        c.setFont("Helvetica-Oblique", 7)
+        c.drawCentredString(width / 2, y, settings.tagline)
 
     c.showPage()
     c.save()
     buffer.seek(0)
     return buffer
+
+
+
+
+
+
+
+
+
 
 
 

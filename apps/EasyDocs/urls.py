@@ -43,5 +43,12 @@ urlpatterns = [
     path('delete_subservice/<int:id>/', services.delete_subservice, name='delete_subservice'),
 
  path('clients/details/<int:client_id>/add_subservice/', views.add_or_update_client_subservice, name='add_or_update_client_subservice'),
+
+path('settings/update/', views.update_site_settings, name='update_site_settings'),
+path('email-settings/', views.update_email_settings, name='update_email_settings'),
+path("update-sms-token/", views.update_sms_token, name="update_sms_token"),
+
+path('send-doc-email/<int:client_id>/<int:doc_id>/', documents.send_doc_email_to_client, name='send_doc_email_to_client'),
+
 ]
 

@@ -7,16 +7,17 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.defaultfilters import first
 from django.urls import reverse
+from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
-    SubServiceForm, ClientSubServiceForm
+    SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, EmailSettingsForm
 from apps.EasyDocs.models import Client, Service, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
-    ClientSubService
+    ClientSubService, SiteSettings, SmsProviderToken, EmailSettings, PaymentHistory
 
 from django.views.generic import TemplateView, DetailView
 from django.shortcuts import redirect
 
-from .accounts import get_client_payments_grouped_by_service
+from .accounts import  get_client_payment_history
 from .documents import handle_document_upload
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
@@ -46,6 +47,11 @@ class ClientDetailView(DetailView):
         client = self.get_object()
 
         subservices=SubService.objects.all()
+
+        # Fetch all payment histories for this client
+        histories = PaymentHistory.objects.filter(
+            client_service__client=client
+        ).order_by('-timestamp')
 
         # Fetch all ClientSubService entries for this client
         client_subservices = ClientSubService.objects.filter(
@@ -82,8 +88,8 @@ class ClientDetailView(DetailView):
         start_date = self.request.GET.get('start_date')
         end_date = self.request.GET.get('end_date')
 
-        # Get grouped payments
-        grouped_payments = get_client_payments_grouped_by_service(
+        # Inside get_context_data
+        payment_history = get_client_payment_history(
             client_id=client.id,
             start_date=start_date,
             end_date=end_date,
@@ -95,12 +101,13 @@ class ClientDetailView(DetailView):
             'client_subservices': client_subservices,
             'subservices':subservices, #to populated the add sub_service modal with subservice in the db
             'all_services': all_services,
+            'histories':histories,
             'title_deed_form': TitleDeedCollectionForm(),
             'doc_form': ClientDocumentForm(),
             'doc_type_form': DocTypeForm(),
             'doc_types': DocType.objects.all(),
             'client_docs': ClientDoc.objects.filter(client=client),
-            'grouped_payments': grouped_payments,
+            'flat_payment_history': payment_history,  # renamed from grouped_payments
             'client_subservice_form': ClientSubServiceForm()  # Add the form to context
         })
 
@@ -279,8 +286,62 @@ def get_grouped_services(client):
 
 
 # views.py
+def update_site_settings(request):
+    """
+    Handle SiteSettings form submission. Redirect back to Referer.
+    """
+    # Only allow POST
+    if request.method == 'POST':
+        # Fetch the single settings instance (or 404 if missing)
+        settings = get_object_or_404(SiteSettings, singleton_enforcer=True)
+        form = SiteSettingsForm(request.POST, request.FILES, instance=settings)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Site settings updated successfully.")
+        else:
+            messages.error(request, "Please correct the errors in the form.")
+
+    # Redirect back to the page that submitted the form
+    referer = request.META.get('HTTP_REFERER', '/')
+    return redirect(referer)
 
 
+
+
+
+@require_http_methods(["POST"])
+def update_sms_token(request):
+    instance = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)[0]
+    form = SmsProviderTokenForm(request.POST, instance=instance)
+
+    if form.is_valid():
+        form.save()
+        messages.success(request, "SMS provider token updated successfully.")
+    else:
+        messages.error(request, "Failed to update token. Please check the input.")
+
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
+
+def update_email_settings(request):
+    settings_instance, _ = EmailSettings.objects.get_or_create(pk=1)
+
+    if request.method == 'POST':
+        form = EmailSettingsForm(request.POST, instance=settings_instance)
+        if form.is_valid():
+            email_settings = form.save()
+
+            # Update SiteSettings with default_from_email
+            site_settings, _ = SiteSettings.objects.get_or_create(pk=1)
+            site_settings.email = email_settings.default_from_email or "NO MAIL"
+            site_settings.save()
+
+            messages.success(request, "Email settings updated successfully.")
+            return redirect('update_email_settings')
+    else:
+        form = EmailSettingsForm(instance=settings_instance)
+
+    return redirect(request.META.get('HTTP_REFERER', 'update_email_settings'))
 
 
 class ManagementView(TemplateView):
@@ -304,6 +365,20 @@ class ManagementView(TemplateView):
         context['edit_service_form'] = ServiceForm()
         context['edit_process_form'] = ProcessForm()
         context['edit_subservice_form'] = SubServiceForm()  # Add edit SubService form
+
+        # Site Settings Form
+        site_settings = SiteSettings.objects.get(singleton_enforcer=True)
+        context['settings'] = site_settings
+        context['settings_form'] = SiteSettingsForm(instance=site_settings)
+
+        # Add EmailSettings form to context
+        email_settings = EmailSettings.objects.get_or_create(pk=1)[0]
+        context['email_settings_form'] = EmailSettingsForm(instance=email_settings)
+
+        # inside get_context_data
+        sms_token = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)[0]
+        context['sms_token_form'] = SmsProviderTokenForm(instance=sms_token)
+        context['sms_token'] = sms_token
 
         # Check if there's an edit service, process, or subservice request
         service_id = self.request.GET.get('edit_service')

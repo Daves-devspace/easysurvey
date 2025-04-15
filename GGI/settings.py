@@ -63,6 +63,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.EasyDocs.context_processors.site_settings',
             ],
         },
     },
@@ -71,6 +72,18 @@ TEMPLATES = [
 WSGI_APPLICATION = 'GGI.wsgi.application'
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+
+# settings.py
+
+import os
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+  # DO NOT expose in form
+EMAIL_USE_TLS = True  # usually fixed
+EMAIL_USE_SSL = False  # optional
+
+
 
 
 # Database
@@ -101,15 +114,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # settings.py
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 LOGIN_URL = '/login/'
-
-
-
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

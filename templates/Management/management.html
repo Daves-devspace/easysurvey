@@ -157,30 +157,39 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                
-                                                <!-- Edit SubService Modal -->
-<div class="modal fade" id="editSubserviceModal" tabindex="-1" role="dialog" aria-labelledby="editSubserviceModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editSubserviceModalLabel">Edit SubService</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="{% url 'management' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="subservice_id" id="subservice_id">
-                    
-                    {{ edit_subservice_form.as_p }} <!-- Render the form here -->
-                    
-                    <button type="submit" name="edit_subservice" class="btn btn-primary">Save Changes</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+
+                                                    <!-- Edit SubService Modal -->
+                                                    <div class="modal fade" id="editSubserviceModal" tabindex="-1"
+                                                         role="dialog" aria-labelledby="editSubserviceModalLabel"
+                                                         aria-hidden="true">
+                                                        <div class="modal-dialog" role="document">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title"
+                                                                        id="editSubserviceModalLabel">Edit
+                                                                        SubService</h5>
+                                                                    <button type="button" class="close"
+                                                                            data-dismiss="modal" aria-label="Close">
+                                                                        <span aria-hidden="true">&times;</span>
+                                                                    </button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <form method="POST" action="{% url 'management' %}">
+                                                                        {% csrf_token %}
+                                                                        <input type="hidden" name="subservice_id"
+                                                                               id="subservice_id">
+
+                                                                        {{ edit_subservice_form.as_p }}
+                                                                        <!-- Render the form here -->
+
+                                                                        <button type="submit" name="edit_subservice"
+                                                                                class="btn btn-primary">Save Changes
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
 
                                                     <!-- Table to display existing SubServices -->
@@ -1032,6 +1041,87 @@
                                                 <div class="card-header">
                                                     <h5>Email Settings</h5>
                                                 </div>
+                                                <div class="card mb-4">
+                                                    <div class="card-header">
+                                                        <h5 class="mb-0">Company Settings</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <form method="POST" enctype="multipart/form-data"
+                                                              action="{% url 'update_site_settings' %}" class="row g-3">
+                                                            {% csrf_token %}
+
+                                                            <!-- Company Name -->
+                                                            <div class="col-md-6">
+                                                                <label for="{{ settings_form.company_name.id_for_label }}"
+                                                                       class="form-label">Company Name</label>
+                                                                {{ settings_form.company_name }}
+                                                                {{ settings_form.company_name.errors }}
+                                                            </div>
+
+                                                            <!-- Email -->
+                                                            <div class="col-md-6">
+                                                                <label for="{{ settings_form.email.id_for_label }}"
+                                                                       class="form-label">Contact Email</label>
+                                                                {{ settings_form.email }}
+                                                                {{ settings_form.email.errors }}
+                                                            </div>
+
+                                                            <!-- Phone -->
+                                                            <div class="col-md-6">
+                                                                <label for="{{ settings_form.phone.id_for_label }}"
+                                                                       class="form-label">Phone Number</label>
+                                                                {{ settings_form.phone }}
+                                                                {{ settings_form.phone.errors }}
+                                                            </div>
+
+                                                            <!-- Tagline -->
+                                                            <div class="col-12">
+                                                                <label for="{{ settings_form.tagline.id_for_label }}"
+                                                                       class="form-label">Tagline</label>
+                                                                {{ settings_form.tagline }}
+                                                                {{ settings_form.tagline.errors }}
+                                                            </div>
+
+                                                            <!-- Logo Upload -->
+                                                            <div class="col-md-6">
+                                                                <label for="{{ settings_form.logo.id_for_label }}"
+                                                                       class="form-label">Logo</label>
+                                                                {% if settings.logo %}
+                                                                    <div class="mb-2">
+                                                                        <img src="{{ settings.logo.url }}"
+                                                                             alt="Current logo" class="img-fluid"
+                                                                             style="max-height: 80px;">
+                                                                    </div>
+                                                                {% endif %}
+                                                                {{ settings_form.logo }}
+                                                                {{ settings_form.logo.errors }}
+                                                            </div>
+
+                                                            <!-- Stamp/Signature Upload -->
+                                                            <div class="col-md-6">
+                                                                <label for="{{ settings_form.stamp_signature.id_for_label }}"
+                                                                       class="form-label">Stamp / Signature</label>
+                                                                {% if settings.stamp_signature %}
+                                                                    <div class="mb-2">
+                                                                        <img src="{{ settings.stamp_signature.url }}"
+                                                                             alt="Current stamp" class="img-fluid"
+                                                                             style="max-height: 80px;">
+                                                                    </div>
+                                                                {% endif %}
+                                                                {{ settings_form.stamp_signature }}
+                                                                {{ settings_form.stamp_signature.errors }}
+                                                            </div>
+
+                                                            <!-- Submit -->
+                                                            <div class="col-12 text-end">
+                                                                <button type="submit" class="btn btn-success">
+                                                                    <i class="fas fa-save me-1"></i> Save Settings
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+
                                                 <div class="card-body">
                                                     <h6 class="mb-4">Setup Email Notification</h6>
                                                     <div class="d-flex align-items-center justify-content-between mb-1">
@@ -1054,186 +1144,131 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Updates from System Notification</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <h6 class="mb-4">Email you with?</h6>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">News about PCT-themes products
-                                                                and feature updates</p>
-                                                        </div>
-                                                        <div class="form-check p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Tips on getting more out of
-                                                                PCT-themes</p>
-                                                        </div>
-                                                        <div class="form-check p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Things you missed since you last
-                                                                logged into PCT-themes</p>
-                                                        </div>
-                                                        <div class="form-check  p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">News about products and other
-                                                                services</p>
-                                                        </div>
-                                                        <div class="form-check p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Tips and Document business
-                                                                products</p>
-                                                        </div>
-                                                        <div class="form-check p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+
                                         </div>
                                         <div class="col-md-6">
                                             <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Activity Related Emails</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <h6 class="mb-4">When to email?</h6>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Have new notifications</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
+
+                                                <div class="card shadow-sm mb-4">
+                                                    <div class="card-header bg-primary text-white">
+                                                        <h5 class="mb-0">SMS Provider Settings</h5>
                                                     </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">You're sent a direct message</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Someone adds you as a
-                                                                connection</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
-                                                    </div>
-                                                    <hr class="my-4">
-                                                    <h6 class="mb-4">When to escalate emails?</h6>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Upon new order</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">New membership approval</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Member registration</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
+                                                    <div class="card-body">
+                                                        <form method="post" action="{% url 'update_sms_token' %}">
+                                                            {% csrf_token %}
+
+                                                            <div class="mb-3">
+                                                                <label for="id_api_token" class="form-label">API
+                                                                    Token</label>
+                                                                <input type="text" name="api_token" class="form-control"
+                                                                       id="id_api_token"
+                                                                       value="{{ sms_token_form.instance.api_token }}"
+                                                                       placeholder="Enter API Token">
+                                                            </div>
+
+                                                            <div class="mb-3">
+                                                                <label for="id_sender_id" class="form-label">Sender
+                                                                    ID</label>
+                                                                <input type="text" name="sender_id" class="form-control"
+                                                                       id="id_sender_id"
+                                                                       value="{{ sms_token_form.instance.sender_id }}"
+                                                                       placeholder="Enter Sender ID">
+                                                            </div>
+
+                                                            <button type="submit" class="btn btn-success">Update Token
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="col-12 text-end btn-page">
-                                            <div class="btn btn-outline-secondary">Cancel</div>
-                                            <div class="btn btn-primary">Update Profile</div>
+                                            <div class="container mt-5">
+  <div class="card shadow border-0">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Email Settings</h5>
+    </div>
+  <div class="card-body">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="row">
+                <!-- Email Host -->
+                <div class="col-12">
+                    <label for="{{ email_settings_form.email_host.id_for_label }}" class="form-label">Email Host</label>
+                    {{ email_settings_form.email_host }}
+                    {{ email_settings_form.email_host.errors }}
+                </div>
+
+                <!-- Email Port -->
+                <div class="col-12">
+                    <label for="{{  email_settings_form.email_port.id_for_label }}" class="form-label">Email Port</label>
+                    {{  email_settings_form.email_port }}
+                    {{  email_settings_form.email_port.errors }}
+                </div>
+
+                <!-- Default From Email -->
+                <div class="col-12">
+                    <label for="{{  email_settings_form.default_from_email.id_for_label }}" class="form-label">Default From Email</label>
+                    {{  email_settings_form.default_from_email }}
+                    {{  email_settings_form.default_from_email.errors }}
+                </div>
+
+                <!-- Email User -->
+                <div class="col-12">
+                    <label for="{{  email_settings_form.email_host_user.id_for_label }}" class="form-label">Email User</label>
+                    {{  email_settings_form.email_host_user}}
+                    {{  email_settings_form.email_host_user.errors }}
+                </div>
+
+                <!-- Password -->
+                <div class="col-12">
+                    <label for="{{  email_settings_form.email_host_password.id_for_label }}" class="form-label">Email Password</label>
+                    {{  email_settings_form.email_host_password }}
+                    <button type="button" class="btn btn-link" onclick="togglePasswordVisibility()">Show/Hide Password</button>
+                    {{  email_settings_form.email_host_password.errors }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+    </div>
+  </div>
+</div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <!-- [ sample-page ] end -->
                     </div>
+                    <!-- [ Main Content ] end -->
                 </div>
-                <!-- [ sample-page ] end -->
             </div>
             <!-- [ Main Content ] end -->
-        </div>
-    </div>
-    <!-- [ Main Content ] end -->
-    <footer class="pc-footer">
-        <div class="footer-wrapper container-fluid">
-            <div class="row">
-                <div class="col-sm my-1">
-                    <p class="m-0"
-                    >Mantis &#9829; crafted by Team <a href="https://themeforest.net/user/codedthemes" target="_blank">Codedthemes</a>
-                        Distributed by <a href="https://themewagon.com/">ThemeWagon</a>.</p
-                    >
-                </div>
-                <div class="col-auto my-1">
-                    <ul class="list-inline footer-link mb-0">
-                        <li class="list-inline-item"><a href="../index.html">Home</a></li>
-                        <li class="list-inline-item"><a href="https://codedthemes.gitbook.io/mantis-bootstrap"
-                                                        target="_blank">Documentation</a></li>
-                        <li class="list-inline-item"><a href="https://codedthemes.authordesk.app/"
-                                                        target="_blank">Support</a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </footer>
-    <script >// JavaScript to handle the modal population with existing SubService data
-$('#editSubserviceModal').on('show.bs.modal', function (event) {
-    var button = $(event.relatedTarget); // Button that triggered the modal
-    var subserviceId = button.data('id');
-    var subserviceName = button.data('name');
-    var subserviceDepartment = button.data('department');
-    var subservicePrice = button.data('price');
-    var subserviceDescription = button.data('description');
-    
-    var modal = $(this);
-    modal.find('#subservice_id').val(subserviceId);
-    modal.find('input[name="name"]').val(subserviceName);
-    modal.find('input[name="department"]').val(subserviceDepartment);
-    modal.find('input[name="price"]').val(subservicePrice);
-    modal.find('textarea[name="description"]').val(subserviceDescription);
-});
+          <script>
+    function togglePasswordVisibility() {
+        var passwordField = document.getElementById("id_email_host_password");
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+        } else {
+            passwordField.type = "password";
+        }
+    }
 </script>
+            <script>// JavaScript to handle the modal population with existing SubService data
+            $('#editSubserviceModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget); // Button that triggered the modal
+                var subserviceId = button.data('id');
+                var subserviceName = button.data('name');
+                var subserviceDepartment = button.data('department');
+                var subservicePrice = button.data('price');
+                var subserviceDescription = button.data('description');
+
+                var modal = $(this);
+                modal.find('#subservice_id').val(subserviceId);
+                modal.find('input[name="name"]').val(subserviceName);
+                modal.find('input[name="department"]').val(subserviceDepartment);
+                modal.find('input[name="price"]').val(subservicePrice);
+                modal.find('textarea[name="description"]').val(subserviceDescription);
+            });
+            </script>
 
 {% endblock %}

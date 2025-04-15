@@ -15,7 +15,7 @@ def get_service_detail_json(service):
         'processes': [
             {
                 'name': sp.process.name,
-                'cost': str(sp.process.cost),
+                'cost': str(sp.cost),
                 'paid': str(sp.paid_amount),
                 'pending': str(sp.pending_amount),
                 'status': sp.status,
@@ -25,7 +25,7 @@ def get_service_detail_json(service):
         'sub_services': [
             {
                 'name': cs.sub_service.name,
-                'price': str(cs.sub_service.price),
+                'price': str(cs.price),
                 'paid': str(cs.paid_amount),
                 'balance': str(cs.balance),
                 'added_on': cs.added_on.strftime('%b %d, %Y'),

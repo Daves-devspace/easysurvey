@@ -1,7 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import TextInput
-from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService
+from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
+    SmsProviderToken, EmailSettings
 
 from .models import Client, ClientService, Service, Process
 
@@ -176,3 +177,44 @@ class ClientSubServiceForm(forms.ModelForm):
             'client_service': forms.Select(attrs={'class': 'form-control'}),
             'sub_service': forms.Select(attrs={'class': 'form-control'}),
         }
+
+
+class SiteSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SiteSettings
+        fields = ['company_name', 'email', 'phone', 'tagline', 'logo', 'stamp_signature']
+        widgets = {
+            'company_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email':        forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone':        forms.TextInput(attrs={'class': 'form-control'}),
+            'tagline':      forms.TextInput(attrs={'class': 'form-control'}),
+            'logo':         forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'stamp_signature': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
+
+
+# forms.py
+
+class EmailSettingsForm(forms.ModelForm):
+    email_host_password = forms.CharField(
+        widget=forms.PasswordInput(render_value=True),
+        required=False,
+        label="Email Host Password"
+    )
+
+    class Meta:
+        model = EmailSettings
+        fields = ['email_host', 'email_port', 'email_host_user', 'email_host_password', 'default_from_email']
+
+        widgets = {
+            'email_host': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter email host'}),
+            'email_port': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter email port'}),
+            'email_host_user': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter email user'}),
+            'default_from_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter default from email'}),
+        }
+
+
+class SmsProviderTokenForm(forms.ModelForm):
+    class Meta:
+        model = SmsProviderToken
+        fields = ['api_token', 'sender_id']

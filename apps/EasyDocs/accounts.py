@@ -9,7 +9,8 @@ from .models import ClientService, ClientServiceProcess, Service, Payment
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .models import ClientService
+
+from .models import ClientService, PaymentHistory
 
 
 def get_payment_context(client, service_id=None):
@@ -161,58 +162,47 @@ def add_payment_view(request, client_id):
     return redirect('client_details', client_id=client_id)
 
 
-from decimal import Decimal
-from datetime import datetime
-from collections import defaultdict
-from django.utils.timezone import make_aware
+from django.db.models import Prefetch
 
-from .models import ClientService
-def get_client_payments_grouped_by_service(client_id, start_date=None, end_date=None, service_id=None):
+def get_client_payment_history(client_id, start_date=None, end_date=None, service_id=None):
     """
-    Returns all payments grouped by service for a given client.
-    Optionally filters payments by date range.
+    Returns a flat list of all payment history entries for a given client,
+    optionally filtered by date range and/or service.
+    Each payment includes service info and payment status.
     """
-    grouped_payments = []
-    # Fetch the client services with optional filters
+    # Fetch only relevant client services
     client_services = ClientService.objects.filter(client_id=client_id)
 
     if service_id:
-        client_services = client_services.filter(service_id=service_id)
+        client_services = client_services.filter(id=service_id)
 
-    # Prefetch related services and payments for optimization
-    client_services = client_services.prefetch_related('service', 'payments')
+    # Prefetch related service and attach to a dict for fast lookup
+    client_services = client_services.select_related('service')
+    client_services_dict = {cs.id: cs for cs in client_services}
 
-    # Iterate through the client services
-    for service in client_services:
-        # Filter payments based on the date range
-        payments = service.payments.all()
-        if start_date:
-            payments = payments.filter(payment_date__gte=start_date)
-        if end_date:
-            payments = payments.filter(payment_date__lte=end_date)
+    # Get related payment histories
+    histories = PaymentHistory.objects.filter(client_service__in=client_services_dict.keys())
 
-        # Order payments by date
-        payments = payments.order_by('-payment_date')
+    if start_date:
+        histories = histories.filter(timestamp__gte=start_date)
+    if end_date:
+        histories = histories.filter(timestamp__lte=end_date)
 
-        # Use the total_paid() and total_balance() methods of ClientService
-        total_paid = service.total_paid()
-        pending_balance = service.total_balance()
+    # Order by latest payment first
+    histories = histories.order_by('-timestamp')
 
-        # Prepare grouped payment data
-        grouped_payments.append({
-            'service_id': service.id,
-            'service_name': f"{service.service.name} for Plot {service.land_description}",
-            'total_paid': total_paid,
-            'pending_balance': pending_balance,
-            'payments': [
-                {
-                    'amount': p.amount,
-                    'method': p.get_payment_method_display(),
-                    'transaction_id': p.transaction_id,
-                    'date': p.payment_date,
-                }
-                for p in payments
-            ]
+    # Flattened list of payments with status
+    payment_data = []
+    for h in histories:
+        cs = client_services_dict[h.client_service_id]
+
+        payment_data.append({
+            'timestamp': h.timestamp,
+            'amount': h.amount,
+            'method': h.payment_method,
+            'reason': h.reason,
+            'service_name': f"{cs.service.name} for Plot {cs.land_description}",
+            'payment_status': cs.payment_status,  # Based on total_paid() vs total_price()
         })
 
-    return grouped_payments
+    return payment_data

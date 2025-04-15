@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import validate_email
 from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import post_save, post_delete
@@ -14,6 +15,44 @@ class Gender(models.TextChoices):
     MALE = 'Male', 'Male'
     FEMALE = 'Female', 'Female'
     OTHER = 'Others', 'Others'
+
+
+# models.py
+
+class EmailSettings(models.Model):
+    singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
+
+    email_host = models.CharField(max_length=255, blank=True, null=True)
+    email_port = models.PositiveIntegerField(default=587)
+    email_host_user = models.CharField(max_length=255, blank=True, null=True)
+    email_host_password = models.CharField(max_length=255, blank=True, null=True)
+    default_from_email = models.EmailField(validators=[validate_email], blank=True, null=True)
+
+    def __str__(self):
+        return "Email Settings"
+
+
+
+
+class SiteSettings(models.Model):
+    # Enforce only one row
+    singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
+
+    company_name    = models.CharField(max_length=200, default="My Company")
+    logo            = models.ImageField(upload_to="company/", blank=True, null=True)
+    email           = models.EmailField(validators=[validate_email], default="info@example.com")
+    phone           = models.CharField(max_length=20, blank=True, null=True)
+    tagline         = models.CharField(max_length=255, blank=True, default="Thank you for letting us serve you!")
+    stamp_signature = models.ImageField(upload_to="company/", blank=True, null=True)
+
+    def __str__(self):
+        return "Site Settings"
+
+    class Meta:
+        verbose_name = "Site Settings"
+        verbose_name_plural = "Site Settings"
+
+
 
 # Document Type
 class DocType(models.Model):
@@ -51,7 +90,7 @@ class Service(models.Model):
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __str__(self):
-        return f"{self.name} – KSH {self.total_price}"
+        return f"{self.name}"
 
     def update_total_price(self):
         agg = self.processes.aggregate(total=Sum('cost'))
@@ -85,7 +124,7 @@ class Process(models.Model):
         service.update_total_price()
 
     def __str__(self):
-        return f"{self.service.name} – {self.name} (KES {self.cost})"
+        return f"{self.service.name} – {self.name} "
 
 
 # Client Service Model
@@ -157,62 +196,38 @@ class ClientService(models.Model):
 
     @property
     def total_price(self):
-        total = Decimal('0.00')
+        """
+        Full total price including overridden process costs and sub-service prices.
+        """
+        process_total = Decimal('0.00')
         for csp in self.service_processes.all():
-            if csp.overridden_cost is not None:
-                total += csp.overridden_cost
-            else:
-                total += csp.process.cost  # or .cost if that's the field
-        return total
+            process_total += csp.overridden_cost if csp.overridden_cost is not None else csp.process.cost
+
+        sub_service_total = Decimal('0.00')
+        for css in self.sub_services.all():
+            sub_service_total += css.price  # uses overridden_price if set
+
+        return process_total + sub_service_total
 
     def total_balance(self):
         """
         Amount still owed: full total minus what’s been paid.
         """
-        return self.full_total_price - self.total_paid()
+        return self.total_price - self.total_paid()
+
+    @property
+    def payment_status(self):
+        balance = self.total_balance()
+        if balance <= 0:
+            return 'Fully Paid'
+        elif self.total_paid() > 0:
+            return 'Partially Paid'
+        else:
+            return 'Not Paid'
 
     def __str__(self):
-        return f"{self.client.first_name} - {self.service.name} for {self.land_description}"
-#
-# class ClientServiceProcess(models.Model):
-#     STATUS_CHOICES = [
-#         ('pending', 'Pending'),
-#         ('in_progress', 'In Progress'),
-#         ('completed', 'Completed'),
-#         ('collected', 'Title Deed Collected'),
-#     ]
-#
-#     client_service = models.ForeignKey(
-#         ClientService,
-#         related_name='service_processes',
-#         on_delete=models.CASCADE
-#     )
-#     process = models.ForeignKey(
-#         Process,
-#         related_name='service_processes',
-#         on_delete=models.CASCADE
-#     )
-#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-#     completed_at = models.DateTimeField(null=True, blank=True)
-#
-#     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-#
-#     @property
-#     def total_paid(self):
-#         return self.paid_amount
-#
-#     @property
-#     def pending_amount(self):
-#         return self.process.cost - self.paid_amount
-#
-#
-#
-#     def __str__(self):
-#         return (
-#             f"{self.client_service.client.first_name} - "
-#             f"{self.process.name} "
-#             f"(Paid: {self.paid_amount} | Pending: {self.pending_amount})"
-#         )
+        return f" {self.service.name} for {self.land_description}"
+
 class ClientServiceProcess(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -282,18 +297,24 @@ class ClientSubService(models.Model):
     added_on = models.DateTimeField(auto_now_add=True)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
+    overridden_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Leave blank to use default sub-service price"
+    )
+
     def __str__(self):
         return f"{self.client_service} → {self.sub_service.name}"
 
     @property
     def price(self):
-        return self.sub_service.price
+        return self.overridden_price if self.overridden_price is not None else self.sub_service.price
 
     @property
     def balance(self):
-        return max(Decimal('0.00'), self.sub_service.price - self.paid_amount)
-
-
+        return max(Decimal('0.00'), self.price - self.paid_amount)
 
 
 class SubService(models.Model):
@@ -397,83 +418,153 @@ class Payment(models.Model):
         )
 
     def save(self, *args, **kwargs):
-        """
-        On first save of a new Payment:
-        - Persist the Payment record.
-        - Allocate its amount across the ClientServiceProcess steps in order.
-        - Store per-process allocations in each CSP.paid_amount field.
-        - Apply available credit to reduce the total amount.
-        """
         is_new = self.pk is None
         super().save(*args, **kwargs)
-
         if not is_new:
             return
 
-        remaining: Decimal = Decimal(str(self.amount))
+        remaining = Decimal(str(self.amount))
 
-        # First, apply available credit from the client
+        # 1) Apply existing client credit first
         credit = self.client_service.client.credits.filter(amount__gt=0).first()
         if credit:
-            applied_credit = credit.apply_credit(remaining)
-            remaining -= applied_credit
-            # Record the credit application in the payment history
+            applied = credit.apply_credit(remaining)
+            remaining -= applied
             PaymentHistory.objects.create(
                 client_service=self.client_service,
-                amount=applied_credit,
+                amount=applied,
                 payment_method="credit",
                 transaction_id="credit-applied",
-                reason="Credit applied"
+                reason="Applied existing credit"
             )
 
-        # Proceed with normal payment process (allocate funds to CSP)
-        for csp in (
-                self.client_service
-                        .service_processes
-                        .select_related('process')
-                        .order_by('process__step_order')
-        ):
-            if remaining <= Decimal('0.00'):
+        # 2) Allocate to service processes
+        for csp in self.client_service.service_processes.order_by('process__step_order'):
+            if remaining <= 0:
                 break
-            balance: Decimal = Decimal(str(csp.pending_amount))
-            to_pay: Decimal = min(remaining, balance)
-
-            if to_pay > Decimal('0.00'):
-                if csp.paid_amount is None:
-                    csp.paid_amount = Decimal('0.00')
+            to_pay = min(remaining, csp.pending_amount)
+            if to_pay > 0:
                 csp.paid_amount += to_pay
                 csp.save(update_fields=['paid_amount'])
                 remaining -= to_pay
+                PaymentHistory.objects.create(
+                    client_service=self.client_service,
+                    amount=to_pay,
+                    payment_method=self.payment_method,
+                    transaction_id=self.transaction_id,
+                    reason=f"Payment for {csp.process.name}"
+                )
 
-        # Allocate remaining to sub-services
-        if remaining > Decimal('0.00'):
-            for cs_sub in self.client_service.sub_services.all():
-                balance = cs_sub.sub_service.price - cs_sub.paid_amount
-                to_pay = min(remaining, balance)
+        # 3) Allocate to sub-services
+        for css in self.client_service.sub_services.all():
+            if remaining <= 0:
+                break
+            to_pay = min(remaining, css.balance)
+            if to_pay > 0:
+                css.paid_amount += to_pay
+                css.save(update_fields=['paid_amount'])
+                remaining -= to_pay
+                PaymentHistory.objects.create(
+                    client_service=self.client_service,
+                    amount=to_pay,
+                    payment_method=self.payment_method,
+                    transaction_id=self.transaction_id,
+                    reason=f"Paid toward sub-service {css.sub_service.name}"
+                )
 
-                if to_pay > Decimal('0.00'):
-                    cs_sub.paid_amount += to_pay
-                    cs_sub.save(update_fields=['paid_amount'])
-                    remaining -= to_pay
-                    if remaining <= Decimal('0.00'):
-                        break
-
-        # Handle remaining funds (refund, overpayment, etc.)
-        if remaining > Decimal('0.00'):
-            # Create a Refund record for overpayment
-            refund = Refund.objects.create(
-                client_service=self.client_service,
-                amount=remaining,
-                reason="Excess payment after service and sub-service allocation"
+        # 4) Any leftover becomes new client credit
+        if remaining > 0:
+            credit_record = Credit.objects.create(
+                client=self.client_service.client,
+                amount=remaining
             )
-            # Record the refund in the PaymentHistory
             PaymentHistory.objects.create(
                 client_service=self.client_service,
                 amount=remaining,
-                payment_method="refund",
-                transaction_id="refund-issued",
-                reason="Overpayment refunded"
+                payment_method="credit",
+                transaction_id="credit-created",
+                reason="Excess payment added as client credit"
             )
+            remaining = Decimal('0.00')
+
+    # def save(self, *args, **kwargs):
+    #     """
+    #     On first save of a new Payment:
+    #     - Persist the Payment record.
+    #     - Allocate its amount across the ClientServiceProcess steps in order.
+    #     - Store per-process allocations in each CSP.paid_amount field.
+    #     - Apply available credit to reduce the total amount.
+    #     """
+    #     is_new = self.pk is None
+    #     super().save(*args, **kwargs)
+    #
+    #     if not is_new:
+    #         return
+    #
+    #     remaining: Decimal = Decimal(str(self.amount))
+    #
+    #     # First, apply available credit from the client
+    #     credit = self.client_service.client.credits.filter(amount__gt=0).first()
+    #     if credit:
+    #         applied_credit = credit.apply_credit(remaining)
+    #         remaining -= applied_credit
+    #         # Record the credit application in the payment history
+    #         PaymentHistory.objects.create(
+    #             client_service=self.client_service,
+    #             amount=applied_credit,
+    #             payment_method="credit",
+    #             transaction_id="credit-applied",
+    #             reason="Credit applied"
+    #         )
+    #
+    #     # Proceed with normal payment process (allocate funds to CSP)
+    #     for csp in (
+    #             self.client_service
+    #                     .service_processes
+    #                     .select_related('process')
+    #                     .order_by('process__step_order')
+    #     ):
+    #         if remaining <= Decimal('0.00'):
+    #             break
+    #         balance: Decimal = Decimal(str(csp.pending_amount))
+    #         to_pay: Decimal = min(remaining, balance)
+    #
+    #         if to_pay > Decimal('0.00'):
+    #             if csp.paid_amount is None:
+    #                 csp.paid_amount = Decimal('0.00')
+    #             csp.paid_amount += to_pay
+    #             csp.save(update_fields=['paid_amount'])
+    #             remaining -= to_pay
+    #
+    #     # Allocate remaining to sub-services
+    #     if remaining > Decimal('0.00'):
+    #         for cs_sub in self.client_service.sub_services.all():
+    #             balance = cs_sub.price - cs_sub.paid_amount
+    #             to_pay = min(remaining, balance)
+    #
+    #             if to_pay > Decimal('0.00'):
+    #                 cs_sub.paid_amount += to_pay
+    #                 cs_sub.save(update_fields=['paid_amount'])
+    #                 remaining -= to_pay
+    #                 if remaining <= Decimal('0.00'):
+    #                     break
+    #
+    #     # Handle remaining funds (refund, overpayment, etc.)
+    #     if remaining > Decimal('0.00'):
+    #         # Create a Refund record for overpayment
+    #         refund = Refund.objects.create(
+    #             client_service=self.client_service,
+    #             amount=remaining,
+    #             reason="Excess payment after service and sub-service allocation"
+    #         )
+    #         # Record the refund in the PaymentHistory
+    #         PaymentHistory.objects.create(
+    #             client_service=self.client_service,
+    #             amount=remaining,
+    #             payment_method="refund",
+    #             transaction_id="refund-issued",
+    #             reason="Overpayment refunded"
+    #         )
 
 
 class ClientDoc(models.Model):
@@ -495,10 +586,12 @@ class ClientDoc(models.Model):
 class SmsProviderToken(models.Model):
     api_token = models.CharField(max_length=255)
     sender_id = models.CharField(max_length=255)
+    singleton_enforcer = models.BooleanField(default=True, unique=True)
 
     def __str__(self):
         return f"Token: {self.sender_id}"
 
     def save(self, *args, **kwargs):
+        self.singleton_enforcer = True  # enforce only one row
         super().save(*args, **kwargs)
         cache.delete('sms_provider_token')

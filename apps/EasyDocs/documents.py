@@ -4,12 +4,13 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 import os
 
+from django.core.mail import send_mail
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 
 from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm
-from apps.EasyDocs.models import ClientDoc, Client
+from apps.EasyDocs.models import ClientDoc, Client, SiteSettings
 
 
 def add_doctype(request):
@@ -104,3 +105,31 @@ def delete_document(request, client_id, doc_id):
     # Use referrer to go back to the previous page
     referer = request.META.get('HTTP_REFERER', f'/client/{client.id}/')
     return HttpResponseRedirect(referer)
+
+
+
+
+
+def send_doc_email_to_client(request, client_id, doc_id):
+    client = get_object_or_404(Client, id=client_id)
+    document = get_object_or_404(ClientDoc, id=doc_id)
+    site_settings = SiteSettings.objects.first()
+
+    if not client.email:
+        messages.error(request, "This client does not have an email address.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    from_email = site_settings.email if site_settings and site_settings.email else "info@example.com"
+    subject = f"Document from {site_settings.company_name}"
+    message = f"""
+    Hello {client.first_name},
+
+    Please find your document below:
+    {request.build_absolute_uri(document.doc_file.url)}
+
+    {site_settings.tagline or "Thank you for letting us serve you!"}
+    """
+
+    send_mail(subject, message, from_email, [client.email])
+    messages.success(request, f"Email sent to {client.email}")
+    return redirect(request.META.get('HTTP_REFERER', '/'))

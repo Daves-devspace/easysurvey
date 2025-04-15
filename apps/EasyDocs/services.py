@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Service, Process, SubService, ClientService, Client
 from .forms import ServiceForm, ClientSubServiceForm
+from decimal import Decimal, InvalidOperation
 import logging
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,8 @@ def get_service_processes(request, service_id):
 
 
 
+
+
 def add_or_update_client_subservice(request, client_id):
     """
     Utility function to add or update ClientSubService.
@@ -55,10 +58,23 @@ def add_or_update_client_subservice(request, client_id):
             client_service = get_object_or_404(ClientService, id=cs_id)
             logger.info(f"[SubService] Using ClientService {cs_id} for client {client_id}.")
 
+            # 4) Attempt to get and convert overridden_price
+            raw_price = request.POST.get('overridden_price')
+            overridden_price = None
+            if raw_price:
+                try:
+                    overridden_price = Decimal(raw_price)
+                    logger.info(f"[SubService] Overridden price provided: {overridden_price}")
+                except InvalidOperation:
+                    logger.warning(f"[SubService] Invalid overridden price: {raw_price}")
+                    messages.error(request, "Invalid overridden price value.")
+                    return redirect('client_details', client_id=client.id)
+
             try:
-                # 4) Save the ClientSubService
+                # 5) Save the ClientSubService
                 sub = form.save(commit=False)
                 sub.client_service = client_service
+                sub.overridden_price = overridden_price  # Set the overridden price
                 sub.save()
                 logger.info(f"[SubService] Saved subservice {sub.id} for ClientService {cs_id}.")
                 messages.success(request, "SubService has been successfully added/updated.")
@@ -72,8 +88,9 @@ def add_or_update_client_subservice(request, client_id):
     else:
         logger.warning(f"[SubService] Ignored non-POST request ({request.method}) for client {client_id}.")
 
-    # 5) Redirect back to the client detail page
+    # 6) Redirect back to the client detail page
     return redirect('client_details', client_id=client.id)
+
 
 
 

@@ -1,6 +1,20 @@
 from django.contrib import admin
 from .models import (Client, Service, Process, ClientService, ClientServiceProcess, Payment, Document, DocType,
-                     SmsProviderToken, ClientDoc, TitleDeedCollection)
+                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings)
+
+
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # Prevent adding more than one
+        return not SiteSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        # Prevent deletion
+        return False
+
 
 # Inline for Processes in ClientService
 class ClientServiceProcessInline(admin.TabularInline):
