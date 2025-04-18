@@ -39,6 +39,17 @@ INSTALLED_APPS = [
     'apps.EasyDocs',
 ]
 
+# settings.py
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -73,18 +84,14 @@ WSGI_APPLICATION = 'GGI.wsgi.application'
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-
 # settings.py
 
 import os
 
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-  # DO NOT expose in form
+# DO NOT expose in form
 EMAIL_USE_TLS = True  # usually fixed
 EMAIL_USE_SSL = False  # optional
-
-
-
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

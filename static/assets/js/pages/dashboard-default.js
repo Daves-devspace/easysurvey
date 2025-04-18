@@ -169,6 +169,10 @@ function floatchart() {
     var chart = new ApexCharts(document.querySelector('#analytics-report-chart'), options);
     chart.render();
   })();
+
+
+
+
   (function () {
     var options = {
       chart: {
@@ -230,3 +234,80 @@ function floatchart() {
     chart.render();
   })();
 }
+
+
+
+
+
+
+document.addEventListener("DOMContentLoaded", function () {
+  const yearSelector = document.getElementById("year-selector");
+
+  // Fetch available years and populate dropdown
+  fetch("/api/available-years/") // adjust with actual endpoint
+    .then(res => res.json())
+    .then(data => {
+      const years = data.years.sort((a, b) => b - a); // sort descending
+      years.forEach(year => {
+        const option = document.createElement("option");
+        option.value = year;
+        option.textContent = year;
+        yearSelector.appendChild(option);
+      });
+
+      // Load chart for most recent year
+      if (years.length > 0) {
+        renderStackedChart(years[0]);
+      }
+    });
+
+  // Event: when year changes
+  yearSelector.addEventListener("change", function () {
+    document.querySelector("#chart").innerHTML = "";
+    renderStackedChart(this.value);
+  });
+});
+
+// Chart renderer function
+function renderStackedChart(year) {
+  fetch(`/api/stacked-chart?year=${year}`) // adjust with your real URL
+    .then(res => res.json())
+    .then(data => {
+      const options = {
+        series: data.series,
+        chart: {
+          type: 'bar',
+          height: 430,
+          stacked: true
+        },
+        plotOptions: {
+          bar: {
+            horizontal: false,
+            dataLabels: {
+              total: {
+                enabled: true,
+                style: {
+                  fontSize: '13px',
+                  fontWeight: 600
+                }
+              }
+            }
+          }
+        },
+        xaxis: {
+          categories: data.labels
+        },
+        legend: {
+          position: 'top'
+        },
+        fill: {
+          opacity: 1
+        }
+      };
+
+      const chart = new ApexCharts(document.querySelector("#chart"), options);
+      chart.render();
+    });
+}
+
+

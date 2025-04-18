@@ -2,9 +2,19 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.forms import TextInput
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
-    SmsProviderToken, EmailSettings
+    SmsProviderToken, EmailSettings, Document, Expense, ServiceCategory
 
 from .models import Client, ClientService, Service, Process
+
+
+class DocumentForm(forms.ModelForm):
+    class Meta:
+        model = Document
+        fields = ['doc_name', 'doc_type', 'location', 'reference', 'file']
+
+
+
+
 
 
 class ClientForm(forms.ModelForm):
@@ -26,14 +36,37 @@ class ClientForm(forms.ModelForm):
 
 
 class ClientServiceForm(forms.ModelForm):
+    category = forms.ChoiceField(choices=ServiceCategory.choices, required=False, label="Service Category")
+    service = forms.ModelChoiceField(queryset=Service.objects.none())
+    dispatch_preview = forms.CharField(required=False, widget=forms.Textarea(attrs={'readonly': True}), label="Dispatch Message", help_text="Preview only for dispatch services")
+
     class Meta:
         model = ClientService
-        fields = ['client', 'service','land_description']
-        widgets = {
-            'client': forms.Select(attrs={'class': 'form-control'}),
-            'service': forms.Select(attrs={'class': 'form-control'}),
-            'land_description': forms.TextInput(attrs={'class': 'form-control'}),
-        }
+        fields = ['client', 'category', 'service', 'land_description']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Filter the services if category is provided via POST
+        if 'category' in self.data:
+            category = self.data.get('category')
+            self.fields['service'].queryset = Service.objects.filter(category=category)
+        else:
+            self.fields['service'].queryset = Service.objects.all()
+
+        # Hide dispatch preview unless dispatch service is selected
+        if 'service' in self.data:
+            try:
+                service_id = int(self.data.get('service'))
+                service = Service.objects.get(id=service_id)
+                if service.category == ServiceCategory.GROUND and service.dispatch_message:
+                    self.fields['dispatch_preview'].initial = service.dispatch_message
+                else:
+                    self.fields['dispatch_preview'].widget = forms.HiddenInput()
+            except (ValueError, Service.DoesNotExist):
+                self.fields['dispatch_preview'].widget = forms.HiddenInput()
+        else:
+            self.fields['dispatch_preview'].widget = forms.HiddenInput()
 
 
 
@@ -41,15 +74,24 @@ class ClientServiceForm(forms.ModelForm):
 class ServiceForm(forms.ModelForm):
     class Meta:
         model = Service
-        fields = ['name', 'description', 'total_price']
+        fields = ['name', 'description', 'total_price', 'category']  # Include category
         widgets = {
-            'name':forms.TextInput(attrs={'class':'form-control','placeholder':'Service name'}),
-            'description':forms.TextInput(attrs={'class':'form-control','placeholder':'Enter description'}),
-            'total_price':forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'KSH'}),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Service name'
+            }),
+            'description': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter description'
+            }),
+            'total_price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'KSH'
+            }),
+            'category': forms.Select(attrs={
+                'class': 'form-select'
+            }),
         }
-
 
 
 class ProcessForm(forms.ModelForm):
@@ -212,6 +254,23 @@ class EmailSettingsForm(forms.ModelForm):
             'email_host_user': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter email user'}),
             'default_from_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter default from email'}),
         }
+
+
+
+
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['description','amount','payment_mode','handled_by','approved_by','receipt_no']
+        widgets = {
+            'description': forms.TextInput(attrs={'class':'form-control'}),
+            'amount': forms.NumberInput(attrs={'class':'form-control', 'step':'0.01'}),
+            'payment_mode': forms.Select(attrs={'class':'form-control'}),
+            'handled_by': forms.Select(attrs={'class':'form-control'}),
+            'approved_by': forms.Select(attrs={'class':'form-control'}),
+            'receipt_no': forms.TextInput(attrs={'class':'form-control'}),
+        }
+
 
 
 class SmsProviderTokenForm(forms.ModelForm):

@@ -1,35 +1,124 @@
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Q, Prefetch
+from django.db.models import Q, Prefetch, Sum, DecimalField, F
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.defaultfilters import first
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
     SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, EmailSettingsForm
 from apps.EasyDocs.models import Client, Service, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
-    ClientSubService, SiteSettings, SmsProviderToken, EmailSettings, PaymentHistory
+    ClientSubService, SiteSettings, SmsProviderToken, EmailSettings, PaymentHistory, Expense, Payment
 
 from django.views.generic import TemplateView, DetailView
 from django.shortcuts import redirect
 
 from .accounts import  get_client_payment_history
-from .documents import handle_document_upload
+from .analytics import get_yearly_revenue_data, get_available_years
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 from .services import add_or_update_client_subservice
 
 
 # Create your views here.
+# utils.py (or wherever your function lives)
+
+def chart_data(request):
+    year = int(request.GET.get('year', date.today().year))
+    data = get_yearly_revenue_data(year)
+    return JsonResponse(data)
+
+def stacked_service_data(request):
+    year = int(request.GET.get("year", timezone.now().year))
+    chart_data = get_monthly_service_data(year)
+    return JsonResponse(chart_data)
+
+
+
+def get_years(request):
+    years = get_available_years()
+    return JsonResponse({'years': years})
+
+
+def get_dashboard_data():
+    today = date.today()
+    current_year = today.year
+    prev_year = current_year - 1
+
+    # ————————— Collections —————————
+    current_col = Payment.objects.filter(
+        payment_date__year=current_year
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    prev_col = Payment.objects.filter(
+        payment_date__year=prev_year
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    # ————————— Expenses —————————
+    # sub‑services added this year
+    sub_exp = ClientSubService.objects.filter(
+        added_on__year=current_year
+    ).aggregate(
+        total=Sum(
+            Coalesce('overridden_price', F('sub_service__price')),
+            output_field=DecimalField()
+        )
+    )['total'] or Decimal('0.00')
+
+    # general expenses this year
+    gen_exp = Expense.objects.filter(
+        date__year=current_year
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+    total_exp = sub_exp + gen_exp
+
+    # ————————— Net Revenue —————————
+    net_rev = current_col - total_exp
+
+    # ————————— Trend & Extra —————————
+    extra = current_col - prev_col
+    pct = (extra / prev_col * 100) if prev_col else Decimal('100.00')
+
+    if extra < 0:
+        extra_class = 'text-danger'
+        badge_class = 'bg-light-danger border border-danger'
+        badge_icon = 'ti ti-trending-down'
+    else:
+        extra_class = 'text-success'
+        badge_class = 'bg-light-success border border-success'
+        badge_icon = 'ti ti-trending-up'
+
+    return {
+        'current_year_revenue': current_col,
+        'previous_year_revenue': prev_col,
+        'current_year': current_year,
+        'previous_year': prev_year,
+        'total_expenses': total_exp,
+        'net_revenue': net_rev,
+        'extra_amount': abs(extra),
+        'extra_class': extra_class,
+        'trending_badge': {
+            'class': badge_class,
+            'icon': badge_icon,
+            'percentage': f"{pct:.2f}%"
+        }
+    }
+
+
+
 
 
 def home(request):
+    dashboard_data = get_dashboard_data()
 
-    return render(request, 'Home/admin.html')
+    return render(request, 'Home/admin.html',{'dashboard': dashboard_data})
 
 
 
@@ -51,15 +140,13 @@ class ClientDetailView(DetailView):
         # Fetch all payment histories for this client
         histories = PaymentHistory.objects.filter(
             client_service__client=client
-        ).order_by('-timestamp')
+        ).order_by('-created_at')
 
         # Fetch all ClientSubService entries for this client
         client_subservices = ClientSubService.objects.filter(
             client_service__client=client
         ).select_related('sub_service', 'client_service')
 
-        # Handle document upload
-        handle_document_upload(self.request, client)
 
         # Services with latest process
         all_services = (
@@ -113,12 +200,28 @@ class ClientDetailView(DetailView):
 
         return context
 
-
-
     def render_to_response(self, context, **response_kwargs):
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'grouped_payments': context['grouped_payments']})
+            # Call the helper directly with the same filters
+            client = self.get_object()
+            service_id = self.request.GET.get('service')
+            start_date = self.request.GET.get('start_date')
+            end_date = self.request.GET.get('end_date')
+
+            data = get_client_payment_history(
+                client_id=client.id,
+                start_date=start_date,
+                end_date=end_date,
+                service_id=service_id
+            )
+            return JsonResponse({'payment_history': data})
+
         return super().render_to_response(context, **response_kwargs)
+
+    # def render_to_response(self, context, **response_kwargs):
+    #     if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+    #         return JsonResponse({'grouped_payments': context['grouped_payments']})
+    #     return super().render_to_response(context, **response_kwargs)
 
 
 
@@ -214,7 +317,7 @@ def add_client_service(request):
             service = form.cleaned_data['service']
             land_description = form.cleaned_data['land_description']
 
-            # 🔒 Check for existing assignment
+            # Check if already exists
             existing = ClientService.objects.filter(
                 client=client,
                 service=service,
@@ -225,27 +328,34 @@ def add_client_service(request):
                 messages.warning(request, '⚠️ This service is already assigned to this client for the specified land.')
                 return redirect('clients')
 
-            # ✅ Save new assignment
-            client_service = form.save()  # Signal auto-triggers
+            # Save the assignment
+            client_service = form.save()
 
-            # 💰 Handle overridden process costs
-            process_ids   = request.POST.getlist('process_id[]')
+            # Handle overridden process costs
+            process_ids = request.POST.getlist('process_id[]')
             process_costs = request.POST.getlist('process_cost[]')
 
-            for pid, cost_str in zip(process_ids, process_costs):
-                try:
-                    csp = client_service.service_processes.get(process_id=pid)
-                    csp.overridden_cost = Decimal(cost_str)
-                    csp.save(update_fields=['overridden_cost'])
-                except ClientServiceProcess.DoesNotExist:
-                    continue  # or log this if needed
+            if process_ids and process_costs:
+                # Save individual overridden costs
+                for pid, cost_str in zip(process_ids, process_costs):
+                    try:
+                        csp = client_service.service_processes.get(process_id=pid)
+                        csp.overridden_cost = Decimal(cost_str)
+                        csp.save(update_fields=['overridden_cost'])
+                    except ClientServiceProcess.DoesNotExist:
+                        continue
+            else:
+                # If no processes, check for override_total_price
+                override_total_price = request.POST.get('override_total_price')
+                if override_total_price:
+                    client_service.overridden_total_price = Decimal(override_total_price)
+                    client_service.save(update_fields=['overridden_total_price'])
 
             messages.success(request, '✅ Service assigned successfully with custom pricing.')
         else:
             messages.error(request, '❌ Error saving service.')
 
     return redirect('clients')
-
 
 
 

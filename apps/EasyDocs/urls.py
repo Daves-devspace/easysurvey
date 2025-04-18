@@ -1,8 +1,11 @@
-from django.urls import path
-from . import views, services, processes, auth_views, documents, accounts, reciepts
+from django.urls import path, include
+from . import views, services, processes, auth_views, documents, accounts, reciepts, analytics
+from rest_framework.routers import DefaultRouter
+from .accounts import AccountsDashboardView, ExpenseView
 from .views import ManagementView, ClientDetailView
 
 urlpatterns = [
+
     path('login/', auth_views.custom_login, name='login'),
     path('logout/', auth_views.logout_view, name='logout'),
     path('', views.home, name='home'),
@@ -27,6 +30,12 @@ urlpatterns = [
     path('client/<int:client_id>/delete-doc/<int:doc_id>/', documents.delete_document, name='delete_document'),
     # urls.py
     path('add-doctype/', documents.add_doctype, name='add_doctype'),
+    # urls.py
+    path('clients/<int:client_id>/upload-doc/', documents.upload_client_doc, name='upload_client_doc'),
+
+    path('add-document/', documents.add_document, name='add_document'),
+
+    path('documents/', documents.document_list, name='document_list'),
 
     # Client detail page
 
@@ -38,17 +47,34 @@ urlpatterns = [
 
     path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
 
+    path('services/by-category/', services.services_by_category, name='services_by_category'),
+
     path('client-service/<int:cs_id>/receipt/', reciepts.download_receipt, name='download_receipt'),
 
     path('delete_subservice/<int:id>/', services.delete_subservice, name='delete_subservice'),
 
- path('clients/details/<int:client_id>/add_subservice/', views.add_or_update_client_subservice, name='add_or_update_client_subservice'),
+    path('clients/details/<int:client_id>/add_subservice/', views.add_or_update_client_subservice,
+         name='add_or_update_client_subservice'),
 
-path('settings/update/', views.update_site_settings, name='update_site_settings'),
-path('email-settings/', views.update_email_settings, name='update_email_settings'),
-path("update-sms-token/", views.update_sms_token, name="update_sms_token"),
+    path('settings/update/', views.update_site_settings, name='update_site_settings'),
+    path('email-settings/', views.update_email_settings, name='update_email_settings'),
+    path("update-sms-token/", views.update_sms_token, name="update_sms_token"),
 
-path('send-doc-email/<int:client_id>/<int:doc_id>/', documents.send_doc_email_to_client, name='send_doc_email_to_client'),
+    path('send-doc-email/<int:client_id>/<int:doc_id>/', documents.send_doc_email_to_client,
+         name='send_doc_email_to_client'),
+
+    path('accounts/', AccountsDashboardView.as_view(), name='accounts_dashboard'),
+    # Create new expense
+    path("submit-expense/", ExpenseView.as_view(), name="submit_expense"),
+
+    path('expenses/<int:pk>/delete/', accounts.expense_delete, name='expense_delete'),
+
+    path('api/chart-data/', views.chart_data, name='chart-data'),
+
+path('api/stacked-chart/', views.stacked_service_data, name='stacked_chart_data'),
+path('api/analysis/monthly-services/', analytics.monthly_service_analysis, name='monthly-service-analysis'),
+
+    path('api/available-years/', views.get_years, name='available-years'),
+    path('api/services/', analytics.available_services, name='available_services'),
 
 ]
-

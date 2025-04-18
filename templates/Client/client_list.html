@@ -28,18 +28,18 @@
                     </div>
                 </div>
             </div>
-        <div class="container-fluid col-lg-12">
-<!-- [ Header ] end -->
-{% if messages %}
-  {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-      {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  {% endfor %}
-{% endif %}
+            <div class="container-fluid col-lg-12">
+                <!-- [ Header ] end -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
 
-</div>
+            </div>
             <!-- [ breadcrumb ] end -->
 
             <!-- [ Main Content ] start -->
@@ -263,9 +263,16 @@
                             <input type="text" id="clientPhone" class="form-control" readonly>
                         </div>
 
-                        <!-- Now use the rest of the form -->
-                        {{ client_service_form.service.label_tag }}
-                        {{ client_service_form.service }}
+                        <div class="mb-3">
+                            {{ client_service_form.category.label_tag }}
+                            {{ client_service_form.category }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ client_service_form.service.label_tag }}
+                            {{ client_service_form.service }}
+                        </div>
+
                         <div class="mt-4" id="processCostSection" style="display: none;">
                             <h6>Customize Service Processes</h6>
                             <table class="table table-bordered">
@@ -281,6 +288,11 @@
                                 <strong>Total: Ksh <span id="totalCost">0</span></strong>
                             </div>
                         </div>
+<div class="mt-4" id="totalPriceOverride" style="display: none;">
+    <label for="overrideTotalPrice" class="form-label">Override Total Price (Ksh)</label>
+    <input type="number" name="override_total_price" id="overrideTotalPrice" class="form-control" step="0.01">
+</div>
+
 
                         {{ client_service_form.land_description.label_tag }}
                         {{ client_service_form.land_description }}
@@ -300,49 +312,79 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const serviceSelect = document.querySelector("#id_service");
-            const processSection = document.getElementById("processCostSection");
-            const processTableBody = document.getElementById("processTableBody");
-            const totalCostDisplay = document.getElementById("totalCost");
 
-            serviceSelect.addEventListener("change", () => {
-                const serviceId = serviceSelect.value;
-                if (!serviceId) return;
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const categorySelect = document.querySelector("#id_category");
+        const serviceSelect = document.querySelector("#id_service");
+        const processSection = document.getElementById("processCostSection");
+        const processTableBody = document.getElementById("processTableBody");
+        const totalCostDisplay = document.getElementById("totalCost");
+        const overridePriceInput = document.getElementById("overrideTotalPrice");
+        const overridePriceSection = document.getElementById("totalPriceOverride");
 
-                fetch(`/get_service_processes/${serviceId}/`)
-                    .then(res => res.json())
-                    .then(data => {
-                        processTableBody.innerHTML = '';
-                        let total = 0;
+        // Handle category change
+        categorySelect.addEventListener("change", () => {
+            const category = categorySelect.value;
+            if (!category) return;
+
+            serviceSelect.innerHTML = '<option value="">Loading...</option>';
+
+            fetch(`/services/by-category/?category=${category}`)
+                .then(res => res.json())
+                .then(data => {
+                    serviceSelect.innerHTML = '<option value="">Select Service</option>';
+                    data.services.forEach(service => {
+                        serviceSelect.innerHTML += `<option value="${service.id}">${service.name}</option>`;
+                    });
+                });
+        });
+
+        // Handle service change
+        serviceSelect.addEventListener("change", () => {
+            const serviceId = serviceSelect.value;
+            if (!serviceId) return;
+
+            fetch(`/get_service_processes/${serviceId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    processTableBody.innerHTML = '';
+                    let total = 0;
+
+                    if (data.processes.length === 0) {
+                        // Ground service or no processes — show override input with default total_price
+                        processSection.style.display = "none";
+                        overridePriceSection.style.display = "block";
+                        overridePriceInput.value = data.total_price;
+                    } else {
+                        // Services with processes
+                        overridePriceSection.style.display = "none";
+                        processSection.style.display = "block";
 
                         data.processes.forEach(process => {
                             total += process.default_cost;
 
                             processTableBody.innerHTML += `
-    <tr>
-        <td>
-            ${process.name}
-            <!-- Hidden inputs for ID and name -->
-            <input type="hidden" name="process_id[]" value="${process.id}">
-            <input type="hidden" name="process_name[]" value="${process.name}">
-        </td>
-        <td>
-            <input type="number"
-                   name="process_cost[]"
-                   value="${process.default_cost}"
-                   step="0.01"
-                   class="form-control cost-input">
-        </td>
-    </tr>
-    `;
+                                <tr>
+                                    <td>
+                                        ${process.name}
+                                        <input type="hidden" name="process_id[]" value="${process.id}">
+                                        <input type="hidden" name="process_name[]" value="${process.name}">
+                                    </td>
+                                    <td>
+                                        <input type="number"
+                                               name="process_cost[]"
+                                               value="${process.default_cost}"
+                                               step="0.01"
+                                               class="form-control cost-input">
+                                    </td>
+                                </tr>
+                            `;
                         });
 
-
                         totalCostDisplay.innerText = total.toFixed(2);
-                        processSection.style.display = "block";
 
+                        // Recalculate total on input change
                         document.querySelectorAll(".cost-input").forEach(input => {
                             input.addEventListener("input", () => {
                                 let newTotal = 0;
@@ -352,11 +394,13 @@
                                 totalCostDisplay.innerText = newTotal.toFixed(2);
                             });
                         });
-                    });
-            });
+                    }
+                });
         });
+    });
+</script>
 
-    </script>
+
 
 
 

@@ -8,3 +8,8 @@ def mul(value, arg):
         return float(value) * float(arg)
     except (ValueError, TypeError):
         return 0
+
+
+@register.filter
+def dict_get(d, key):
+    return d.get(key)

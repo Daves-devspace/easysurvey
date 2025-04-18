@@ -1,4 +1,6 @@
 from django.contrib import admin
+
+from .forms import ClientServiceForm
 from .models import (Client, Service, Process, ClientService, ClientServiceProcess, Payment, Document, DocType,
                      SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings)
 
@@ -42,12 +44,26 @@ class ClientAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'total_price')
+    list_display = ('name', 'category', 'total_price', 'has_processes')
+    list_filter = ('category',)
+    search_fields = ('name', 'description')
+
+    def has_processes(self, obj):
+        return obj.processes.exists()
+    has_processes.boolean = True
+    has_processes.short_description = 'Has Processes?'
+
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('service', 'name', 'step_order', 'cost')
-    list_filter = ('service',)
+    list_display = ('service', 'name', 'step_order', 'cost', 'short_message')
+    list_filter = ('service__category', 'service')
+    search_fields = ('name', 'description', 'message')
+
+    def short_message(self, obj):
+        return (obj.message[:40] + '...') if len(obj.message) > 40 else obj.message
+    short_message.short_description = 'Message'
+
 
 class TitleDeedCollectionInline(admin.StackedInline):
     model = TitleDeedCollection
@@ -60,6 +76,7 @@ class TitleDeedCollectionInline(admin.StackedInline):
 
 @admin.register(ClientService)
 class ClientServiceAdmin(admin.ModelAdmin):
+    form = ClientServiceForm
     list_display = ('client', 'service', 'land_description', 'status', 'requested_at','total_paid', 'total_balance')
     search_fields = ('client__first_name', 'client__last_name', 'land_description')
     list_filter = ( 'service','land_description','status')

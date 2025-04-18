@@ -26,30 +26,36 @@
                         <div class="col-md-12">
                             <div class="page-header-title">
                                 <h2 class="mb-0">Account Profile</h2>
-                                {% if messages %}
-                                    <div id="liveAlertPlaceholder">
-
-                                        {% for message in messages %}
-                                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show"
-                                                 role="alert">
-                                                <strong>{{ message }}!</strong>
-                                                <button type="button" class="btn-close" data-bs-dismiss="alert"
-                                                        aria-label="Close"></button>
-                                            </div>
-
-
-
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
 
                             </div>
 
                         </div>
+                      
                     </div>
                 </div>
             </div>
             <!-- [ breadcrumb ] end -->
+          <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
             <!-- [ Main Content ] start -->
             <div class="row">
                 <!-- [ sample-page ] start -->
@@ -343,7 +349,7 @@
                                                                                     <h6 class="card-title mb-0">Service
                                                                                         Price</h6>
                                                                                     <p class="card-text mb-0">
-                                                                                        KSH {{ cs.total_price }}</p>
+                                                                                        KSH {{ cs.effective_total_price }}</p>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -605,7 +611,7 @@
                                                  aria-labelledby="uploadDocModalLabel" aria-hidden="true">
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
-                                                        <form method="post" enctype="multipart/form-data">
+                                                        <form method="POST" enctype="multipart/form-data" action="{% url 'upload_client_doc' client.id %}">
                                                             {% csrf_token %}
                                                             <div class="modal-header">
                                                                 <h5 class="modal-title" id="uploadDocModalLabel">Upload
@@ -907,14 +913,14 @@
                                                            data-bs-toggle="tab"
                                                            href="#payments" role="tab" aria-controls="payments"
                                                            aria-selected="true">
-                                                            Payments
+                                                           Reciepts
                                                         </a>
                                                     </li>
                                                     <li class="nav-item" role="presentation">
                                                         <a class="nav-link" id="receipts-tab" data-bs-toggle="tab"
                                                            href="#receipts" role="tab" aria-controls="receipts"
                                                            aria-selected="false">
-                                                            Receipts
+                                                             Payments
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -952,8 +958,9 @@
                                                                         <option value="">-- Choose Service --</option>
                                                                         {% for cs in client.client_services.all %}
                                                                             <option value="{{ cs.id }}"
-                                                                                    data-total="{{ cs.total_price }}"
-                                                                                    data-paid="{{ cs.total_paid }}">
+                                                                                    data-total="{{ cs.effective_total_price }}"
+                                                                                    data-paid="{{ cs.total_paid }}"
+                                                                            data-pending="{{ cs.total_balance }}">
                                                                                 {{ cs.service.name }}
                                                                                 - {{ cs.land_description }}
                                                                             </option>
@@ -1008,6 +1015,7 @@
                                                     </form>
                                                 </div>
                                             </div>
+
 
                                             <div class="row">
                                                 <div class="col-lg-8">
@@ -1158,95 +1166,93 @@
                                             <div class="row">
                                                 <!-- Master (Summary + Filter) -->
                                                 <div class="col-lg-8">
-                                                    <div class="card mb-3">
-                                                        <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Filter & Payments</h5>
-        <button class="btn btn-outline-secondary" id="toggleFilterBtn">
-            <i class="fas fa-filter"></i> Filter
-        </button>
+    <div class="card mb-3">
+        <!-- Header -->
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Filter & Payments</h5>
+            <button class="btn btn-outline-secondary" id="toggleFilterBtn">
+                <i class="fas fa-filter"></i> Filter
+            </button>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="card-body p-3 collapse" id="filterPanel">
+            <form id="filterForm" class="row g-3 align-items-end" method="get">
+                <div class="col-md-5">
+                    <label for="serviceFilter" class="form-label">Service</label>
+                    <select name="service" id="serviceFilter" class="form-select">
+                        <option value="">All Services</option>
+                        {% for cs in all_services %}
+                            <option value="{{ cs.id }}"
+                                    {% if request.GET.service == cs.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cs.service.name }} – {{ cs.land_description }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="startDateFilter" class="form-label">Start Date</label>
+                    <input type="date" name="start_date" id="startDateFilter" class="form-control"
+                           value="{{ request.GET.start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDateFilter" class="form-label">End Date</label>
+                    <input type="date" name="end_date" id="endDateFilter" class="form-control"
+                           value="{{ request.GET.end_date }}">
+                </div>
+                <div class="col-md-1 text-end">
+                    <button type="submit" class="btn btn-primary w-100">Go</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Payment History Table -->
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <div id="paymentTableWrapper">
+                    <table class="table table-bordered table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Service</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Reason</th>
+                                <th>Paid On</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in flat_payment_history %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ payment.service_name }}</td>
+                                    <td>KES {{ payment.amount }}</td>
+                                    <td>{{ payment.method }}</td>
+                                    <td>{{ payment.reason }}</td>
+                                    <td>{{ payment.timestamp }}</td>
+                                    <td>
+                                        {% if payment.payment_status == 'Fully Paid' %}
+                                            <span class="badge bg-success">Fully Paid</span>
+                                        {% elif payment.payment_status == 'Partially Paid' %}
+                                            <span class="badge bg-warning text-dark">Partially Paid</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Not Paid</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No payment history available.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <!-- Filter Panel -->
-    <div class="card-body p-3 collapse" id="filterPanel">
-        <form id="filterForm" class="row g-3 align-items-end" method="get">
-            <div class="col-md-5">
-                <label for="serviceFilter" class="form-label">Service</label>
-                <select name="service" id="serviceFilter" class="form-select">
-                    <option value="">All Services</option>
-                    {% for cs in all_services %}
-                        <option value="{{ cs.id }}"
-                                {% if request.GET.service == cs.id|stringformat:"s" %}selected{% endif %}>
-                            {{ cs.service.name }} – {{ cs.land_description }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="startDateFilter" class="form-label">Start Date</label>
-                <input type="date" name="start_date" id="startDateFilter" class="form-control"
-                       value="{{ request.GET.start_date }}">
-            </div>
-            <div class="col-md-3">
-                <label for="endDateFilter" class="form-label">End Date</label>
-                <input type="date" name="end_date" id="endDateFilter" class="form-control"
-                       value="{{ request.GET.end_date }}">
-            </div>
-            <div class="col-md-1 text-end">
-                <button type="submit" class="btn btn-primary w-100">Go</button>
-            </div>
-        </form>
-    </div>
-
-                                                        <!-- Summary Table -->
-                                                        <div class="card-body p-0">
-                                                            <div class="table-responsive">
-                                                                <table class="table table-bordered table-hover mb-0">
-                                                                    <thead class="table-light">
-                                                                    <tr>
-                                                                        <th>#</th>
-                                                                        <th>Service</th>
-                                                                        <th>Amount</th>
-                                                                        <th>Method</th>
-                                                                        <th>Reason</th>
-                                                                        <th>Date</th>
-                                                                        <th>payment status</th>
-                                                                    </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                    {% for payment in flat_payment_history %}
-                                                                        <tr>
-                                                                            <td>{{ forloop.counter }}</td>
-                                                                            <td>{{ payment.service_name }}</td>
-                                                                            <td>KES {{ payment.amount }}</td>
-                                                                            <td>{{ payment.method }}</td>
-                                                                            <td>{{ payment.reason }}</td>
-                                                                            <td>{{ payment.timestamp|date:"Y-m-d H:i" }}</td>
-                                                                            <td>
-                                                                                {% if payment.payment_status == 'Fully Paid' %}
-                                                                                    <span class="badge bg-success">Fully Paid</span>
-                                                                                {% elif payment.payment_status == 'Partially Paid' %}
-                                                                                    <span class="badge bg-warning text-dark">Partially Paid</span>
-                                                                                {% else %}
-                                                                                    <span class="badge bg-danger">Not Paid</span>
-                                                                                {% endif %}
-                                                                            </td>
-                                                                        </tr>
-                                                                    {% empty %}
-                                                                        <tr>
-                                                                            <td colspan="7" class="text-center">No
-                                                                                payment history available.
-                                                                            </td>
-                                                                        </tr>
-                                                                    {% endfor %}
-                                                                    </tbody>
-
-
-                                                                </table>
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-                                                </div>
+</div>
 
                                                 <!-- Detail Panel -->
                                                 <!-- Detail Panel -->
@@ -1678,425 +1684,9 @@
             <!-- [ Main Content ] end -->
         </div>
     </div>
-    <!-- [ Main Content ] end -->
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const toggleBtn = document.getElementById("toggleFilterBtn");
-        const filterPanel = document.getElementById("filterPanel");
-
-        // Automatically show if filters are applied
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has("service") || urlParams.has("start_date") || urlParams.has("end_date")) {
-            filterPanel.classList.add("show");
-        }
-
-        toggleBtn.addEventListener("click", function () {
-            filterPanel.classList.toggle("show");
-        });
-    });
-</script>
-
-    <!-- Add clientSubService Modal -->
-    <!-- Add clientSubService Modal -->
-    <div class="modal" id="addSubServiceModal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form method="POST" action="{% url 'add_or_update_client_subservice' client_id=client.id %}">
-                    {% csrf_token %}
-                    <div class="modal-header">
-                        <h5 class="modal-title">Add SubService</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Pass the client_service FK here -->
-                        <input type="hidden" id="modal_service_id" name="client_service"/>
-
-                        <div class="mb-3">
-                            <label class="form-label">Service</label>
-                            <input type="text" id="modal_service_name" class="form-control" disabled/>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="modal_sub_service" class="form-label">SubService</label>
-                            <select name="sub_service" id="modal_sub_service" class="form-select" required>
-                                <option value="">-- Select SubService --</option>
-                                {% for ss in subservices %}
-                                    <option value="{{ ss.id }}" data-price="{{ ss.price }}"
-                                            data-dept="{{ ss.department }}">
-                                        {{ ss.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="modal_price" class="form-label">Price</label>
-                            <input type="number" id="modal_price" name="overridden_price" class="form-control"
-                                   step="0.01" min="0"/>
-
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="modal_department" class="form-label">Department</label>
-                            <input type="text" id="modal_department" class="form-control" disabled/>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-primary">Save SubService</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- JavaScript to Update Modal with Service Info -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const modal = document.getElementById('addSubServiceModal');
-
-            // When modal is opened, populate the service ID and name
-            modal.addEventListener('show.bs.modal', function (event) {
-                const button = event.relatedTarget;
-                const serviceId = button.getAttribute('data-service-id');
-                const serviceName = button.getAttribute('data-service-name');
-
-                document.getElementById('modal_service_id').value = serviceId;
-                document.getElementById('modal_service_name').value = serviceName;
-
-                // Reset previous selections
-                document.getElementById('modal_sub_service').selectedIndex = 0;
-                document.getElementById('modal_price').value = '';
-                document.getElementById('modal_department').value = '';
-                document.getElementById('modal_paid').value = '';
-            });
-
-            // When subservice is selected, auto-fill price and department
-            document.getElementById('modal_sub_service').addEventListener('change', function () {
-                const selectedOption = this.options[this.selectedIndex];
-                const price = selectedOption.getAttribute('data-price');
-                const department = selectedOption.getAttribute('data-dept');
-
-                document.getElementById('modal_price').value = price || '';
-                document.getElementById('modal_department').value = department || '';
-            });
-        });
-    </script>
-
-
-
-    <!--handle payment modal service detail prefill-->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const serviceSelect = document.getElementById("serviceSelect");
-            const serviceInfo = document.getElementById("serviceInfo");
-
-            const nameSpan = document.getElementById("serviceName");
-            const totalSpan = document.getElementById("serviceTotal");
-            const paidSpan = document.getElementById("servicePaid");
-            const pendingSpan = document.getElementById("servicePending");
-
-            // Handle selection
-            serviceSelect?.addEventListener("change", function () {
-                const selectedOption = this.options[this.selectedIndex];
-
-                if (selectedOption && selectedOption.value) {
-                    const total = parseFloat(selectedOption.getAttribute("data-total"));
-                    const paid = parseFloat(selectedOption.getAttribute("data-paid"));
-                    const pending = total - paid;
-
-                    nameSpan.innerText = selectedOption.textContent;
-                    totalSpan.innerText = total.toFixed(2);
-                    paidSpan.innerText = paid.toFixed(2);
-                    pendingSpan.innerText = pending.toFixed(2);
-
-                    serviceInfo.style.display = "block";
-                } else {
-                    serviceInfo.style.display = "none";
-                }
-            });
-        });
-    </script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const serviceSelect = document.getElementById("serviceSelect");
-            const serviceInfo = document.getElementById("serviceInfo");
-
-            const nameSpan = document.getElementById("serviceName");
-            const totalSpan = document.getElementById("serviceTotal");
-            const paidSpan = document.getElementById("servicePaid");
-            const pendingSpan = document.getElementById("servicePending");
-
-            if (!serviceSelect) return;
-
-            serviceSelect.addEventListener("change", function () {
-                const selectedOption = this.options[this.selectedIndex];
-
-                if (selectedOption && selectedOption.value) {
-                    const total = parseFloat(selectedOption.dataset.total || "0");
-                    const paid = parseFloat(selectedOption.dataset.paid || "0");
-                    const pending = total - paid;
-
-                    nameSpan.innerText = selectedOption.label || selectedOption.textContent.trim();
-                    totalSpan.innerText = total.toFixed(2);
-                    paidSpan.innerText = paid.toFixed(2);
-                    pendingSpan.innerText = pending.toFixed(2);
-
-                    serviceInfo.style.display = "block";
-                } else {
-                    serviceInfo.style.display = "none";
-                    nameSpan.innerText = totalSpan.innerText = paidSpan.innerText = pendingSpan.innerText = '';
-                }
-            });
-        });
-    </script>
-
-    <!--populate the service detail section-->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const rows = Array.from(document.querySelectorAll('.service-row'));
-            const detail = id => document.getElementById(id);
-
-            function renderDetail(data) {
-                // Core fields
-                detail('detail-land').innerText = data.land_description;
-                detail('detail-title').innerText = data.service_name;
-                detail('detail-requested').innerText = data.requested_at;
-                detail('detail-paid').innerText = `KES ${data.total_paid}`;
-                detail('detail-balance').innerText = `KES ${data.total_balance}`;
-
-                // Processes
-                const procUl = detail('detail-processes');
-                procUl.innerHTML = '';
-                data.processes.forEach(p => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.innerHTML = `
-        <div class="d-flex justify-content-between">
-          <div>
-            <strong>${p.name}</strong><br>
-            Cost: KES ${p.cost}<br>
-            Paid: KES ${p.paid}<br>
-            Pending: KES ${p.pending}
-          </div>
-          <div>
-            <span class="badge ${
-                        p.status === 'completed' ? 'bg-success' : 'bg-primary'
-                    }">
-              ${p.status.replace('_', ' ')}
-            </span>
-          </div>
-        </div>
-      `;
-                    procUl.appendChild(li);
-                });
-
-                // Sub-Services
-                const subUl = detail('detail-subservices');
-                subUl.innerHTML = '';
-                data.sub_services.forEach(s => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item';
-                    li.innerHTML = `
-        <div>
-          <strong>${s.name}</strong> <small class="text-muted">(${s.added_on})</small><br>
-          Price: KES ${s.price}<br>
-          Paid: KES ${s.paid}<br>
-          Balance: KES ${s.balance}
-        </div>
-      `;
-                    subUl.appendChild(li);
-                });
-            }
-
-            // On load, render the most recent service
-            if (rows.length) {
-                let latest = rows[0];
-                rows.forEach(r => {
-                    if (+r.dataset.requestedAt > +latest.dataset.requestedAt) {
-                        latest = r;
-                    }
-                });
-                renderDetail(JSON.parse(latest.dataset.detail));
-            }
-
-            // Click handlers
-            rows.forEach(r => {
-                r.querySelector('.btn-view').addEventListener('click', () => {
-                    renderDetail(JSON.parse(r.dataset.detail));
-                });
-            });
-        });
-    </script>
-
-    <!--frame-->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
-            const iframe = document.getElementById('receiptFrame');
-            const downloadBtn = document.getElementById('downloadReceiptBtn');
-            const printBtn = document.getElementById('printReceiptBtn');
-            const detailReceiptBtn = document.getElementById('detailReceiptBtn');
-
-            let currentReceiptUrl = null;
-
-            function openPdfModal(url) {
-                iframe.src = url;
-                downloadBtn.href = url;
-                receiptModal.show();
-            }
-
-            // Table “Preview Receipt” buttons
-            document.querySelectorAll('.service-row').forEach(row => {
-                const btn = row.querySelector('.btn-receipt');
-                const url = row.dataset.receiptUrl;  // read baked-in URL
-                btn.addEventListener('click', () => {
-                    currentReceiptUrl = url;
-                    openPdfModal(url);
-                });
-            });
-
-            // Detail‑pane “Preview Receipt” button
-            detailReceiptBtn.addEventListener('click', () => {
-                if (!currentReceiptUrl) {
-                    return alert('Please click a row’s Preview button first.');
-                }
-                openPdfModal(currentReceiptUrl);
-            });
-
-            // Print inside iframe
-            printBtn.addEventListener('click', () => {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            });
-        });
-    </script>
-
-    {#<!--updated service detail/payment detail-->#}
-    {#    <script>#}
-    {#    document.querySelectorAll('.view-payment-detail-btn').forEach(button => {#}
-    {#        button.addEventListener('click', function () {#}
-    {#            const paymentData = JSON.parse(document.getElementById(this.dataset.payment).textContent);#}
-    {#            const historyData = JSON.parse(document.getElementById(this.dataset.history).textContent);#}
-    {##}
-    {#            // Update summary#}
-    {#            document.getElementById('detailServiceName').textContent = this.dataset.service;#}
-    {#            document.getElementById('detailTotalPaid').textContent = `KES ${this.dataset.total}`;#}
-    {#            document.getElementById('detailBalance').textContent = `KES ${this.dataset.balance}`;#}
-    {##}
-    {#            // Clear old list#}
-    {#            const list = document.getElementById('detailPaymentsList');#}
-    {#            list.innerHTML = "";#}
-    {##}
-    {#            // Add all installments#}
-    {#            historyData.forEach((payment, index) => {#}
-    {#                const item = document.createElement('li');#}
-    {#                item.className = "list-group-item";#}
-    {#                item.innerHTML = `#}
-    {#                    <div class="d-flex justify-content-between align-items-start">#}
-    {#                        <div>#}
-    {#                            <strong>Amount:</strong> KES ${payment.amount}<br>#}
-    {#                            <strong>Method:</strong> ${payment.method}<br>#}
-    {#                            <strong>Reason:</strong> ${payment.reason || '—'}<br>#}
-    {#                            <strong>Transaction ID:</strong> ${payment.transaction_id || '—'}#}
-    {#                        </div>#}
-    {#                        <div class="text-muted small text-end">#}
-    {#                            ${new Date(payment.timestamp).toLocaleString()}#}
-    {#                        </div>#}
-    {#                    </div>#}
-    {#                `;#}
-    {#                list.appendChild(item);#}
-    {#            });#}
-    {#        });#}
-    {#    });#}
-    {#</script>#}
-    {##}
-    {##}
-    {#    <script>#}
-    {#        document.addEventListener('DOMContentLoaded', () => {#}
-    {#            const dataEl = document.getElementById('gpData');#}
-    {#            let data = JSON.parse(dataEl.textContent);#}
-    {##}
-    {#            const summaryTbody = document.querySelector('#servicesSummary tbody');#}
-    {#            const detailName = document.getElementById('detailServiceName');#}
-    {#            const detailPaid = document.getElementById('detailTotalPaid');#}
-    {#            const detailBal = document.getElementById('detailBalance');#}
-    {#            const detailList = document.getElementById('detailPaymentsList');#}
-    {##}
-    {#            // Toggle inline filter panel#}
-    {#            document.getElementById('toggleFilterBtn').addEventListener('click', () => {#}
-    {#                new bootstrap.Collapse(document.getElementById('filterPanel'), {#}
-    {#                    toggle: true#}
-    {#                });#}
-    {#            });#}
-    {##}
-    {#            // Handle "View Installments" buttons#}
-    {#            function wireViewButtons() {#}
-    {#                document.querySelectorAll('.view-payments-btn').forEach(btn => {#}
-    {#                    btn.onclick = () => {#}
-    {#                        const grp = data[btn.dataset.index];#}
-    {#                        detailName.textContent = grp.service_name;#}
-    {#                        detailPaid.textContent = 'KES ' + grp.total_paid;#}
-    {#                        detailBal.textContent = 'KES ' + grp.pending_balance;#}
-    {##}
-    {#                        detailList.innerHTML = '';#}
-    {#                        if (!grp.payments.length) {#}
-    {#                            detailList.innerHTML = '<li class="list-group-item"><em>No payments in this range.</em></li>';#}
-    {#                        } else {#}
-    {#                            grp.payments.forEach(p => {#}
-    {#                                const li = document.createElement('li');#}
-    {#                                li.className = 'list-group-item';#}
-    {#                                li.innerHTML = `#}
-    {#              <strong>${new Date(p.date).toLocaleDateString()}</strong><br>#}
-    {#              KES ${p.amount} (${p.method})<br>#}
-    {#              <small class="text-muted">Txn: ${p.transaction_id}</small>#}
-    {#            `;#}
-    {#                                detailList.appendChild(li);#}
-    {#                            });#}
-    {#                        }#}
-    {#                    };#}
-    {#                });#}
-    {#            }#}
-    {##}
-    {##}
-    {#            wireViewButtons();#}
-    {##}
-    {#            // AJAX filter submit#}
-    {#            document.getElementById('filterForm').addEventListener('submit', e => {#}
-    {#                e.preventDefault();#}
-    {#                const params = new URLSearchParams(new FormData(e.target)).toString();#}
-    {#                fetch(`${window.location.pathname}?${params}`, {#}
-    {#                    headers: {'X-Requested-With': 'XMLHttpRequest'}#}
-    {#                })#}
-    {#                    .then(res => res.json())#}
-    {#                    .then(json => {#}
-    {#                        data = json.grouped_payments;#}
-    {#                        // re-render summary table#}
-    {#                        summaryTbody.innerHTML = data.map((grp, i) => `#}
-    {#        <tr>#}
-    {#          <td>${i + 1}</td>#}
-    {#          <td>${grp.service_name}</td>#}
-    {#          <td>KES ${grp.total_paid}</td>#}
-    {#          <td>KES ${grp.pending_balance}</td>#}
-    {#          <td>#}
-    {#            <button class="btn btn-sm btn-outline-primary view-payments-btn"#}
-    {#                    data-index="${i}">#}
-    {#              View Installments#}
-    {#            </button>#}
-    {#          </td>#}
-    {#        </tr>#}
-    {#      `).join('') || `<tr><td colspan="5" class="text-center">No payments found.</td></tr>`;#}
-    {#                        wireViewButtons();#}
-    {#                        // ensure Receipts tab remains active#}
-    {#                        new bootstrap.Tab(document.querySelector('#receipts-tab')).show();#}
-    {#                    });#}
-    {#            });#}
-    {#        });#}
-    {#    </script>#}
-
-
-
+<script src="{% static 'assets/js/InlineScripts/client_details.js' %}"></script>
+               
 
 
 {% endblock %}

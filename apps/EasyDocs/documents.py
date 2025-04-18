@@ -5,12 +5,50 @@ from django.core.files.storage import default_storage
 import os
 
 from django.core.mail import send_mail
+from django.db.models import Q
 from django.http import HttpResponseRedirect, JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm
-from apps.EasyDocs.models import ClientDoc, Client, SiteSettings
+from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm, DocumentForm
+from apps.EasyDocs.models import ClientDoc, Client, SiteSettings, DocType, Document
+
+
+def add_document(request):
+    if request.method == "POST":
+        form = DocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Document added successfully!")
+        else:
+            messages.error(request, "There was an error adding the document. Please check the form.")
+
+    # Always redirect back to the referring page or fallback to document list
+    referer = request.META.get('HTTP_REFERER', reverse('document_list'))
+    return redirect(referer)
+
+
+def document_list(request):
+    query = request.GET.get('q', '')
+    documents = Document.objects.all()
+
+    if query:
+        documents = documents.filter(
+            Q(doc_name__icontains=query) |
+            Q(doc_type__name__icontains=query) |
+            Q(location__icontains=query) |
+            Q(reference__icontains=query)
+        )
+
+    doc_types = DocType.objects.all()
+
+    return render(request, 'Management/documents.html', {
+        'documents': documents,
+        'doc_types': doc_types,
+        'query': query,
+    })
+
 
 
 def add_doctype(request):
@@ -27,18 +65,22 @@ def add_doctype(request):
 # Utility functions for document management for a specific client
 
 
+def upload_client_doc(request, client_id):
+    if request.method == 'POST':
+        client = get_object_or_404(Client, id=client_id)
+        form = ClientDocumentForm(request.POST, request.FILES)
 
-def handle_document_upload(request, client):
-    if request.method == 'POST' and 'upload_doc' in request.POST:
-        doc_form = ClientDocumentForm(request.POST, request.FILES)
-        if doc_form.is_valid():
-            new_doc = doc_form.save(commit=False)
-            new_doc.client = client
-            new_doc.uploaded_by = request.user
-            new_doc.save()
+        if form.is_valid():
+            doc = form.save(commit=False)
+            doc.client = client
+            doc.uploaded_by = request.user
+            doc.save()
             messages.success(request, "Document uploaded successfully.")
         else:
             messages.error(request, "Failed to upload document. Please check the form.")
+
+    referer = request.META.get('HTTP_REFERER', reverse('client_details', args=[client_id]))
+    return redirect(referer)
 
 
 def get_documents_for_client(client):
@@ -88,8 +130,6 @@ def get_all_documents_of_type(doc_type):
     return ClientDoc.objects.filter(doc_type=doc_type)
 
 
-
-
 @require_POST
 def delete_document(request, client_id, doc_id):
     client = get_object_or_404(Client, id=client_id)
@@ -105,9 +145,6 @@ def delete_document(request, client_id, doc_id):
     # Use referrer to go back to the previous page
     referer = request.META.get('HTTP_REFERER', f'/client/{client.id}/')
     return HttpResponseRedirect(referer)
-
-
-
 
 
 def send_doc_email_to_client(request, client_id, doc_id):

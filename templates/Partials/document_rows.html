@@ -1,0 +1,13 @@
+{% for doc in documents %}
+<tr>
+  <td>{{ doc.doc_name }}</td>
+  <td>{{ doc.doc_type.name }}</td>
+  <td>{{ doc.location }}</td>
+  <td>{{ doc.reference }}</td>
+  <td>{{ doc.uploaded_at|date:"Y-m-d" }}</td>
+</tr>
+{% empty %}
+<tr>
+  <td colspan="5" class="text-center text-muted">No documents found.</td>
+</tr>
+{% endfor %}

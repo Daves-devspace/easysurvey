@@ -1,0 +1,764 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Mnagement</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="page-header-title">
+                                <h2 class="mb-0">Mnagement</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="container-fluid col-lg-12">
+                <!-- [ Header ] end -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+            </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-zoom-money me-2"></i>Payments
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-file-text me-2"></i>Expenses
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-id me-2"></i>My Account
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content">
+                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                     aria-labelledby="profile-tab-1">
+                                    <div class="row">
+                                        <div class="col-lg-5 col-xxl-3">
+
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Skills</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Junior</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 30%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">30%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">UX Researcher</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 80%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">80%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Wordpress</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 90%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">90%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">HTML</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 30%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">30%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Graphic Design</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 95%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">95%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Code Style</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 75%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">75%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-7 col-xxl-9">
+                                            <div class="card">
+                                                <div class="card-header pb-0">
+                                                    <p>payments</p>
+                                                </div>
+
+                                                <div class="card-body">
+                                                    <div class="tab-content" id="serviceTabsContent">
+
+
+                                                        <div class="card mb-5">
+                                                            <div class="card-header">Payment History</div>
+                                                            <div class="card-body p-0">
+                                                                <table class="table mb-0">
+                                                                    <thead>
+                                                                    <tr>
+                                                                        <th>When</th>
+                                                                        <th>Client</th>
+                                                                        <th>Amount</th>
+                                                                        <th>Method</th>
+                                                                        <th>Txn ID</th>
+                                                                        <th>Reason</th>
+                                                                        <th>Status</th>
+                                                                        <th>View Details</th>
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    {% for hist in payment_history %}
+                                                                        <tr>
+                                                                            <td>{{ hist.created_at|date:"Y-m-d H:i" }}</td>
+                                                                            <td>{{ hist.client_service.client }}</td>
+                                                                            <td>{{ hist.amount }}</td>
+                                                                            <td>{{ hist.payment.get_payment_method_display }}</td>
+                                                                            <td>{{ hist.payment.transaction_id }}</td>
+                                                                            <td>{{ hist.get_reason_display }}</td>
+
+                                                                            {# Service payment status from ClientService #}
+
+                                                                            <td>
+                                                                                                  <span class="d-flex align-items-center gap-2">
+                                                                                                    {% if hist.client_service.payment_status == 'Fully Paid' %}
+                                                                                                        <i class="fas fa-circle text-success f-10"></i>
+                                                                                                        Fully Paid
+                                                                                                    {% elif hist.client_service.payment_status == 'Partially Paid' %}
+                                                                                                        <i class="fas fa-circle text-warning f-10"></i>
+                                                                                                        Partially Paid
+                                                                                                    {% else %}
+                                                                                                        <i class="fas fa-circle text-danger f-10"></i>
+                                                                                                        Not Paid
+                                                                                                    {% endif %}
+                                                                                                  </span>
+                                                                            </td>
+
+
+                                                                            {# Link to client-service detail view #}
+                                                                            <td>
+                                                                                <a href="{% url 'client_details' hist.client_service.client.id %}"
+                                                                                   class="btn btn-sm btn-primary">
+                                                                                    View Details
+                                                                                </a>
+                                                                            </td>
+
+                                                                        </tr>
+                                                                    {% empty %}
+                                                                        <tr>
+                                                                            <td colspan="8" class="text-center py-3">No
+                                                                                history records.
+                                                                            </td>
+                                                                        </tr>
+                                                                    {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                    </div>
+                                </div>
+                                <!--expenses-->
+                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                                    <div class="row">
+                                        <div class="col-lg-6">
+
+                                            <div class="card">
+                                                <div class="card-header">
+
+                                                    <h5>EXPENSES</h5>
+                                                    <!-- Button to open modal -->
+                                                    <!-- Button -->
+                                                    <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                                            data-bs-target="#expenseModal" id="add-expense-btn">
+                                                        <i class="fas fa-plus"></i> Add Expense
+                                                    </button>
+
+
+                                                    <!-- Modal -->
+                                                    <div class="modal fade" id="expenseModal" tabindex="-1"
+                                                         aria-labelledby="expenseModalLabel" aria-hidden="true">
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <form method="POST" action="{% url 'submit_expense' %}"
+                                                                      id="expenseForm">
+                                                                    {% csrf_token %}
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title" id="expenseModalLabel">
+                                                                            Add/Edit Expense</h5>
+                                                                        <button type="button" class="btn-close"
+                                                                                data-bs-dismiss="modal"
+                                                                                aria-label="Close"></button>
+                                                                    </div>
+
+                                                                    <div class="modal-body">
+                                                                        <input type="hidden" name="expense_id"
+                                                                               id="expense_id">
+                                                                        {{ form.as_p }}
+                                                                    </div>
+
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary"
+                                                                                data-bs-dismiss="modal">Cancel
+                                                                        </button>
+                                                                        <button type="submit" class="btn btn-success">
+                                                                            Save
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row">
+
+                                                        <div class="card-body table-card">
+                                                            <div class="table-responsive mt-3">
+                                                                <table id="res-config"
+                                                                       class="display table table-striped table-hover dt-responsive nowrap">
+                                                                    <thead class="table-success ">
+                                                                    <tr>
+                                                                        <th>Date</th>
+
+                                                                        <th>Amount</th>
+                                                                        <th>Mode</th>
+                                                                        <th>Handled By</th>
+                                                                        <th>Approved By</th>
+                                                                        <th>Action</th>
+                                                                        <th></th>
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    {% for exp in expenses %}
+                                                                        <tr>
+                                                                            <td>{{ exp.date }}</td>
+                                                                            <td>{{ exp.amount }}</td>
+                                                                            <td>{{ exp.get_payment_mode_display }}</td>
+                                                                            <td>{{ exp.handled_by }}</td>
+                                                                            <td>{{ exp.approved_by }}</td>
+
+                                                                            <td>
+                                                                                <button type="button"
+                                                                                        class="btn btn-sm btn-warning edit-expense-btn"
+                                                                                        data-exp-id="{{ exp.id }}"
+                                                                                        data-amount="{{ exp.amount }}"
+                                                                                        data-payment_mode="{{ exp.payment_mode }}"
+                                                                                        data-handled_by="{{ exp.handled_by.id }}"
+                                                                                        data-approved_by="{{ exp.approved_by.id }}"
+                                                                                        data-description="{{ exp.description }}"
+                                                                                        data-receipt_no="{{ exp.receipt_no }}">
+                                                                                    <i class="fas fa-edit"></i> Edit
+                                                                                </button>
+
+
+                                                                            </td>
+                                                                        </tr>
+                                                                    {% empty %}
+                                                                        <tr>
+                                                                            <td colspan="7"
+                                                                                class="text-center py-3">No
+                                                                                expenses recorded.
+                                                                            </td>
+                                                                        </tr>
+                                                                    {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Social Network</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <div class="flex-grow-1 me-3">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-shrink-0">
+                                                                    <div class="avtar avtar-xs btn-light-twitter">
+                                                                        <i class="fab fa-twitter f-16"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-grow-1 ms-3">
+                                                                    <h6 class="mb-0">Twitter</h6>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-shrink-0">
+                                                            <button class="btn btn-link-danger">Connect</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <div class="flex-grow-1 me-3">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-shrink-0">
+                                                                    <div class="avtar avtar-xs btn-light-facebook">
+                                                                        <i class="fab fa-facebook-f f-16"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-grow-1 ms-3">
+                                                                    <h6 class="mb-0">Facebook</h6>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-shrink-0">
+                                                            <div class="text-facebook">Anshan Handgun</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="flex-grow-1 me-3">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-shrink-0">
+                                                                    <div class="avtar avtar-xs btn-light-linkedin">
+                                                                        <i class="fab fa-linkedin-in f-16"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-grow-1 ms-3">
+                                                                    <h6 class="mb-0">Linkedin</h6>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-shrink-0">
+                                                            <button class="btn btn-link-danger">Connect</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Contact Information</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Contact Phone</label>
+                                                                <input type="text" class="form-control"
+                                                                       value="(+99) 9999 999 999">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Email <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" class="form-control"
+                                                                       value="demo@sample.com">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-12">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Portfolio Url</label>
+                                                                <input type="text" class="form-control"
+                                                                       value="https://demo.com">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-12">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Address</label>
+                                                                <textarea
+                                                                        class="form-control">3379  Monroe Avenue, Fort Myers, Florida(33912)</textarea>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 text-end btn-page">
+                                            <div class="btn btn-outline-secondary">Cancel</div>
+                                            <div class="btn btn-primary">Update Profile</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>General Settings</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row">
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Username <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" class="form-control"
+                                                                       value="Ashoka_Tano_16">
+                                                                <small class="form-text text-muted">Your Profile URL:
+                                                                    https://pc.com/Ashoka_Tano_16</small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Account Email <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" class="form-control"
+                                                                       value="demo@sample.com">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Language</label>
+                                                                <select class="form-control">
+                                                                    <option>Washington</option>
+                                                                    <option>India</option>
+                                                                    <option>Africa</option>
+                                                                    <option>New York</option>
+                                                                    <option>Malaysia</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="form-group">
+                                                                <label class="form-label">Sign in Using</label>
+                                                                <select class="form-control">
+                                                                    <option>Password</option>
+                                                                    <option>Face Recognition</option>
+                                                                    <option>Thumb Impression</option>
+                                                                    <option>Key</option>
+                                                                    <option>Pin</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Advance Settings</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <li class="list-group-item px-0 pt-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div>
+                                                                    <p class="mb-1">Secure Browsing</p>
+                                                                    <p class="text-muted text-sm mb-0">Browsing Securely
+                                                                        ( https ) when it's necessary</p>
+                                                                </div>
+                                                                <div class="form-check form-switch p-0">
+                                                                    <input class="form-check-input h4 position-relative m-0"
+                                                                           type="checkbox" role="switch"
+                                                                           checked="">
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div>
+                                                                    <p class="mb-1">Login Notifications</p>
+                                                                    <p class="text-muted text-sm mb-0">Notify when login
+                                                                        attempted from other place</p>
+                                                                </div>
+                                                                <div class="form-check form-switch p-0">
+                                                                    <input class="form-check-input h4 position-relative m-0"
+                                                                           type="checkbox" role="switch"
+                                                                           checked="">
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0 pb-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div>
+                                                                    <p class="mb-1">Login Approvals</p>
+                                                                    <p class="text-muted text-sm mb-0">Approvals is not
+                                                                        required when login from
+                                                                        unrecognized devices.</p>
+                                                                </div>
+                                                                <div class="form-check form-switch p-0">
+                                                                    <input class="form-check-input h4 position-relative m-0"
+                                                                           type="checkbox" role="switch"
+                                                                           checked="">
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Recognized Devices</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <li class="list-group-item px-0 pt-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Celt Desktop</p>
+                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-success d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Current Active
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Imco Tablet</p>
+                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-muted d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Active 5 days ago
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0 pb-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Albs Mobile</p>
+                                                                    <p class="mb-0 text-muted">3462 Fairfax Drive</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-muted d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Active 1 month ago
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Active Sessions</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <li class="list-group-item px-0 pt-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Celt Desktop</p>
+                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
+                                                                </div>
+                                                                <button class="btn btn-link-danger">Logout</button>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0 pb-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Moon Tablet</p>
+                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
+                                                                </div>
+                                                                <button class="btn btn-link-danger">Logout</button>
+                                                            </div>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 text-end">
+                                            <button class="btn btn-outline-dark ms-2">Clear</button>
+                                            <button class="btn btn-primary">Update Profile</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <!-- [ sample-page ] end -->
+                    </div>
+                    <!-- [ Main Content ] end -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- [ Main Content ] end -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+            const form = document.getElementById("expenseForm");
+
+            const setField = (name, value) => {
+                const input = form.querySelector(`[name="${name}"]`);
+                if (input) input.value = value || "";
+            };
+
+            // Handle Add button
+            document.getElementById("add-expense-btn").addEventListener("click", function () {
+                form.reset();
+                setField("expense_id", "");
+                document.getElementById("expenseModalLabel").textContent = "Add Expense";
+                expenseModal.show(); // open modal manually
+            });
+
+            // Handle Edit buttons
+            document.querySelectorAll(".edit-expense-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    form.reset();
+                    setField("expense_id", this.dataset.expId);
+                    setField("description", this.dataset.description);
+                    setField("amount", this.dataset.amount);
+                    setField("payment_mode", this.dataset.payment_mode);
+                    setField("handled_by", this.dataset.handled_by);
+                    setField("approved_by", this.dataset.approved_by);
+                    setField("receipt_no", this.dataset.receipt_no);
+
+                    document.getElementById("expenseModalLabel").textContent = "Edit Expense";
+                    expenseModal.show(); // open modal manually
+                });
+            });
+        });
+    </script>
+
+
+{% endblock %}
+
+

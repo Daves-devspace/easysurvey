@@ -1,11 +1,18 @@
 # clients/utils.py
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
-from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views import View
+from django.views.generic import TemplateView
 
-from .models import ClientService, ClientServiceProcess, Service, Payment
+from .forms import ExpenseForm
+from .models import ClientService, ClientServiceProcess, Service, Payment, Expense
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -140,69 +147,125 @@ def add_payment_view(request, client_id):
         transaction_id = request.POST.get('transaction_id', '')
 
         try:
-            amount = float(amount)
-        except (ValueError, TypeError):
-            # Handle invalid amount
-            return redirect('client_details', client_id=client_id)
+            client_service = get_object_or_404(ClientService, id=client_service_id)
 
-        result = add_payment_to_client_service(
-            client_service_id=client_service_id,
-            amount=amount,
-            payment_method=payment_method,
-            transaction_id=transaction_id
-        )
+            # Use Decimal for precise comparison
+            amount = Decimal(amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        if result['success']:
-            # Optionally: set a success message here
-            pass
-        else:
-            # Handle error
-            pass
+            payment = Payment(
+                client_service=client_service,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_id=transaction_id or None
+            )
+
+            payment.full_clean()  # This will call clean() and raise ValidationError if overpaid
+            payment.save()
+
+            messages.success(request, f"✅ Payment of KES {amount:.2f} recorded successfully.")
+
+        except ValidationError as ve:
+            # Display user-friendly validation error
+            messages.error(request, f"❌ {ve.messages[0]}")
+        except (ValueError, InvalidOperation):
+            messages.error(request, "❌ Invalid amount entered. Please enter a valid number.")
+        except Exception as e:
+            messages.error(request, "❌ An unexpected error occurred. Please try again later.")
 
     return redirect('client_details', client_id=client_id)
 
-
-from django.db.models import Prefetch
-
 def get_client_payment_history(client_id, start_date=None, end_date=None, service_id=None):
-    """
-    Returns a flat list of all payment history entries for a given client,
-    optionally filtered by date range and/or service.
-    Each payment includes service info and payment status.
-    """
-    # Fetch only relevant client services
+    # 1) Fetch only the ClientService records for this client
     client_services = ClientService.objects.filter(client_id=client_id)
 
+    # 2) If service_id is provided, narrow it down to that one service
     if service_id:
         client_services = client_services.filter(id=service_id)
 
-    # Prefetch related service and attach to a dict for fast lookup
+    # 3) Build a lookup map of those services
     client_services = client_services.select_related('service')
-    client_services_dict = {cs.id: cs for cs in client_services}
+    cs_map = {cs.id: cs for cs in client_services}
 
-    # Get related payment histories
-    histories = PaymentHistory.objects.filter(client_service__in=client_services_dict.keys())
+    # 4) Query PaymentHistory for only those services
+    qs = PaymentHistory.objects.select_related('payment').filter(
+        client_service__in=cs_map.keys()
+    )
 
+    # 5) Apply date filters on Payment (not on History itself)
     if start_date:
-        histories = histories.filter(timestamp__gte=start_date)
+        qs = qs.filter(payment__payment_date__gte=start_date)
     if end_date:
-        histories = histories.filter(timestamp__lte=end_date)
+        qs = qs.filter(payment__payment_date__lte=end_date)
 
-    # Order by latest payment first
-    histories = histories.order_by('-timestamp')
+    # 6) Order and serialize
+    qs = qs.order_by('-payment__payment_date')
 
-    # Flattened list of payments with status
-    payment_data = []
-    for h in histories:
-        cs = client_services_dict[h.client_service_id]
+    result = []
+    for h in qs:
+        cs = cs_map[h.client_service_id]
+        payment = h.payment
 
-        payment_data.append({
-            'timestamp': h.timestamp,
-            'amount': h.amount,
-            'method': h.payment_method,
-            'reason': h.reason,
+        result.append({
+            'service_id': cs.id,
             'service_name': f"{cs.service.name} for Plot {cs.land_description}",
-            'payment_status': cs.payment_status,  # Based on total_paid() vs total_price()
+            'amount': str(h.amount),
+            'method': payment.payment_method if payment else 'N/A',
+            'reason': h.get_reason_display() if h.reason else '',
+            'timestamp': payment.payment_date.strftime('%m/%d/%Y %H:%M') if payment else 'N/A',
+            'payment_status': cs.payment_status,
         })
 
-    return payment_data
+    return result
+
+
+class ExpenseView(View):
+    def post(self, request, *args, **kwargs):
+        pk = request.POST.get("expense_id")
+        instance = Expense.objects.filter(pk=pk).first() if pk else None
+        form = ExpenseForm(request.POST, instance=instance)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Expense {'updated' if pk else 'added'} successfully.")
+        else:
+            messages.error(request, "Failed to submit expense. Please fix the errors.")
+
+        return redirect(request.META.get("HTTP_REFERER", "/accounts/"))
+
+
+
+class AccountsDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = 'Management/accounts.html'
+    # login_url, redirect_field_name etc. can be configured if needed
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        # 1. All expenses
+        ctx['expenses'] = Expense.objects.all().order_by('-date')
+        ctx['payment_history'] = (
+            PaymentHistory.objects
+            .select_related('payment', 'client_service__client', 'service_process', 'sub_service')
+            .order_by('-created_at')
+        )
+
+        ctx['form'] = ExpenseForm()  # only needed for rendering empty modal
+        ctx['users'] = User.objects.all()  # needed for select options
+
+        return ctx
+
+
+
+
+
+def expense_delete(request, pk):
+    exp = get_object_or_404(Expense, pk=pk)
+
+    if request.method == 'POST':
+        exp.delete()
+        messages.success(request, "Expense deleted successfully.")
+        return redirect(request.META.get('HTTP_REFERER', 'expense_list'))
+
+    # If not POST, render confirmation (or redirect to prevent blank page)
+    messages.warning(request, "Invalid delete request.")
+    return redirect(request.META.get('HTTP_REFERER', 'expense_list'))

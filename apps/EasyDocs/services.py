@@ -19,18 +19,31 @@ def delete_subservice(request, id):
 
 
 def get_service_processes(request, service_id):
+    service = get_object_or_404(Service, id=service_id)
     processes = Process.objects.filter(service_id=service_id)
+
+    if not processes.exists():
+        return JsonResponse({
+            "processes": [],
+            "total_price": float(service.total_price)
+        })
+
     data = {
         "processes": [
             {
                 "id": p.id,
                 "name": p.name,
-                "default_cost": float(p.cost)  # ← convert Decimal to float
+                "default_cost": float(p.cost)
             }
             for p in processes
         ]
     }
     return JsonResponse(data)
+
+def services_by_category(request):
+    category = request.GET.get('category')
+    services = Service.objects.filter(category=category).values('id', 'name')
+    return JsonResponse({'services': list(services)})
 
 
 

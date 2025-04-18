@@ -399,12 +399,18 @@
                                                                 <div class="card mb-3">
                                                                     <div class="card-header d-flex justify-content-between align-items-center">
                                                                         <h5 class="mb-0">{{ service.name }}</h5>
-                                                                        <button class="btn btn-primary btn-sm"
-                                                                                data-bs-toggle="modal"
-                                                                                data-bs-target="#addProcessModal-{{ service.id }}">
-                                                                            Add Process
-                                                                        </button>
+
+                                                                        {% if service.category != 'ground' %}
+                                                                            <button class="btn btn-primary btn-sm"
+                                                                                    data-bs-toggle="modal"
+                                                                                    data-bs-target="#addProcessModal-{{ service.id }}">
+                                                                                Add Process
+                                                                            </button>
+                                                                        {% else %}
+                                                                            <span class="text-muted small">No processes allowed for Ground services</span>
+                                                                        {% endif %}
                                                                     </div>
+
 
                                                                     <div class="card-body">
                                                                         <p>
@@ -1182,56 +1188,66 @@
                                                 </div>
                                             </div>
                                             <div class="container mt-5">
-  <div class="card shadow border-0">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">Email Settings</h5>
-    </div>
-  <div class="card-body">
-        <form method="POST">
-            {% csrf_token %}
-            <div class="row">
-                <!-- Email Host -->
-                <div class="col-12">
-                    <label for="{{ email_settings_form.email_host.id_for_label }}" class="form-label">Email Host</label>
-                    {{ email_settings_form.email_host }}
-                    {{ email_settings_form.email_host.errors }}
-                </div>
+                                                <div class="card shadow border-0">
+                                                    <div class="card-header bg-primary text-white">
+                                                        <h5 class="mb-0">Email Settings</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <form method="POST">
+                                                            {% csrf_token %}
+                                                            <div class="row">
+                                                                <!-- Email Host -->
+                                                                <div class="col-12">
+                                                                    <label for="{{ email_settings_form.email_host.id_for_label }}"
+                                                                           class="form-label">Email Host</label>
+                                                                    {{ email_settings_form.email_host }}
+                                                                    {{ email_settings_form.email_host.errors }}
+                                                                </div>
 
-                <!-- Email Port -->
-                <div class="col-12">
-                    <label for="{{  email_settings_form.email_port.id_for_label }}" class="form-label">Email Port</label>
-                    {{  email_settings_form.email_port }}
-                    {{  email_settings_form.email_port.errors }}
-                </div>
+                                                                <!-- Email Port -->
+                                                                <div class="col-12">
+                                                                    <label for="{{ email_settings_form.email_port.id_for_label }}"
+                                                                           class="form-label">Email Port</label>
+                                                                    {{ email_settings_form.email_port }}
+                                                                    {{ email_settings_form.email_port.errors }}
+                                                                </div>
 
-                <!-- Default From Email -->
-                <div class="col-12">
-                    <label for="{{  email_settings_form.default_from_email.id_for_label }}" class="form-label">Default From Email</label>
-                    {{  email_settings_form.default_from_email }}
-                    {{  email_settings_form.default_from_email.errors }}
-                </div>
+                                                                <!-- Default From Email -->
+                                                                <div class="col-12">
+                                                                    <label for="{{ email_settings_form.default_from_email.id_for_label }}"
+                                                                           class="form-label">Default From Email</label>
+                                                                    {{ email_settings_form.default_from_email }}
+                                                                    {{ email_settings_form.default_from_email.errors }}
+                                                                </div>
 
-                <!-- Email User -->
-                <div class="col-12">
-                    <label for="{{  email_settings_form.email_host_user.id_for_label }}" class="form-label">Email User</label>
-                    {{  email_settings_form.email_host_user}}
-                    {{  email_settings_form.email_host_user.errors }}
-                </div>
+                                                                <!-- Email User -->
+                                                                <div class="col-12">
+                                                                    <label for="{{ email_settings_form.email_host_user.id_for_label }}"
+                                                                           class="form-label">Email User</label>
+                                                                    {{ email_settings_form.email_host_user }}
+                                                                    {{ email_settings_form.email_host_user.errors }}
+                                                                </div>
 
-                <!-- Password -->
-                <div class="col-12">
-                    <label for="{{  email_settings_form.email_host_password.id_for_label }}" class="form-label">Email Password</label>
-                    {{  email_settings_form.email_host_password }}
-                    <button type="button" class="btn btn-link" onclick="togglePasswordVisibility()">Show/Hide Password</button>
-                    {{  email_settings_form.email_host_password.errors }}
-                </div>
-            </div>
+                                                                <!-- Password -->
+                                                                <div class="col-12">
+                                                                    <label for="{{ email_settings_form.email_host_password.id_for_label }}"
+                                                                           class="form-label">Email Password</label>
+                                                                    {{ email_settings_form.email_host_password }}
+                                                                    <button type="button" class="btn btn-link"
+                                                                            onclick="togglePasswordVisibility()">
+                                                                        Show/Hide Password
+                                                                    </button>
+                                                                    {{ email_settings_form.email_host_password.errors }}
+                                                                </div>
+                                                            </div>
 
-            <button type="submit" class="btn btn-primary">Save Settings</button>
-        </form>
-    </div>
-  </div>
-</div>
+                                                            <button type="submit" class="btn btn-primary">Save
+                                                                Settings
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1243,16 +1259,16 @@
                 </div>
             </div>
             <!-- [ Main Content ] end -->
-          <script>
-    function togglePasswordVisibility() {
-        var passwordField = document.getElementById("id_email_host_password");
-        if (passwordField.type === "password") {
-            passwordField.type = "text";
-        } else {
-            passwordField.type = "password";
-        }
-    }
-</script>
+            <script>
+                function togglePasswordVisibility() {
+                    var passwordField = document.getElementById("id_email_host_password");
+                    if (passwordField.type === "password") {
+                        passwordField.type = "text";
+                    } else {
+                        passwordField.type = "password";
+                    }
+                }
+            </script>
             <script>// JavaScript to handle the modal population with existing SubService data
             $('#editSubserviceModal').on('show.bs.modal', function (event) {
                 var button = $(event.relatedTarget); // Button that triggered the modal

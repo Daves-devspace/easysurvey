@@ -103,7 +103,7 @@
                 </li>
 
                 <li class="pc-item pc-caption">
-                    <label>UI Components</label>
+                    <label>Management</label>
                     <i class="ti ti-dashboard"></i>
                 </li>
                 <li class="pc-item">
@@ -113,9 +113,27 @@
                     </a>
                 </li>
                 <li class="pc-item">
+                    <a href="{% url 'document_list' %}" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-file-upload"></i></span>
+                        <span class="pc-mtext">Documents</span>
+                    </a>
+                </li>
+                <li class="pc-item">
+                    <a href="{% url 'clients' %}" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-users"></i></span>
+                        <span class="pc-mtext">Communication</span>
+                    </a>
+                </li>
+                 <li class="pc-item">
+                    <a href="{% url 'accounts_dashboard' %}" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-report-money"></i></span>
+                        <span class="pc-mtext">Accounts</span>
+                    </a>
+                </li>
+                <li class="pc-item">
                     <a href="{% url 'management' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-color-swatch"></i></span>
-                        <span class="pc-mtext">Services</span>
+                        <span class="pc-mtext">Settings</span>
                     </a>
                 </li>
                 <li class="pc-item">
@@ -482,7 +500,15 @@
 
 <!-- [Page Specific JS] start -->
 <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
-<script src="{% static 'assets/js/pages/dashboard-default.js' %}"></script>
+<!-- calender js -->
+  <script src="{% static 'assets/js/plugins/index.global.min.js' %}"></script>
+  <!-- Sweet Alert -->
+  <script src="{% static 'assets/js/plugins/sweetalert2.all.min.js' %}"></script>
+   <script src="{% static 'assets/js/pages/calendar.js' %}"></script>
+
+
+
+{#<script src="{% static 'assets/js/pages/dashboard-default.js' %}"></script>#}
 <!-- [Page Specific JS] end -->
 <!-- Required Js -->
 <script src="{% static 'assets/js/plugins/popper.min.js' %}"></script>
