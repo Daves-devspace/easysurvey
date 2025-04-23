@@ -69,7 +69,7 @@
                                     <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
                                        role="tab"
                                        aria-selected="true">
-                                        <i class="ti ti-id me-2"></i>My Account
+                                        <i class="ti ti-id me-2"></i>Analytics
                                     </a>
                                 </li>
 
@@ -213,38 +213,35 @@
                                                 <div class="card-body">
                                                     <div class="tab-content" id="serviceTabsContent">
 
+                                                        <div class="card-body p-0">
+                                                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                <thead class="table-success">
+                                                                <tr>
+                                                                    <th>When</th>
+                                                                    <th>Client</th>
+                                                                    <th>Service</th>
+                                                                    <th>Amount</th>
+                                                                    <th>Method</th>
+                                                                    <th>Txn ID</th>
 
-                                                        <div class="card mb-5">
-                                                            <div class="card-header">Payment History</div>
-                                                            <div class="card-body p-0">
-                                                                <table class="table mb-0">
-                                                                    <thead>
+                                                                    <th>Payment Status</th>
+                                                                    <th>View Details</th>
+                                                                </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                {% for payment in client_payments %}
                                                                     <tr>
-                                                                        <th>When</th>
-                                                                        <th>Client</th>
-                                                                        <th>Service</th>
-                                                                        <th>Amount</th>
-                                                                        <th>Method</th>
-                                                                        <th>Txn ID</th>
-
-                                                                        <th>Payment Status</th>
-                                                                        <th>View Details</th>
-                                                                    </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                    {% for payment in client_payments %}
-                                                                        <tr>
-                                                                            <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
-                                                                            <td>{{ payment.client_service.client }}</td>
-                                                                            <td>{{ payment.client_service }}</td>
-                                                                            <td>{{ payment.amount }}</td>
-                                                                            <td>{{ payment.payment_method }}</td>
-                                                                            <td>{{ payment.transaction_id }}</td>
+                                                                        <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                                                        <td>{{ payment.client_service.client }}</td>
+                                                                        <td>{{ payment.client_service }}</td>
+                                                                        <td>{{ payment.amount }}</td>
+                                                                        <td>{{ payment.payment_method }}</td>
+                                                                        <td>{{ payment.transaction_id }}</td>
 
 
-                                                                            {# Service payment status from ClientService #}
+                                                                        {# Service payment status from ClientService #}
 
-                                                                            <td>
+                                                                        <td>
                                                                                                   <span class="d-flex align-items-center gap-2">
                                                                                                     {% if payment.client_service.payment_status == 'Fully Paid' %}
                                                                                                         <i class="fas fa-circle text-success f-10"></i>
@@ -257,28 +254,27 @@
                                                                                                         Not Paid
                                                                                                     {% endif %}
                                                                                                   </span>
-                                                                            </td>
+                                                                        </td>
 
 
-                                                                            {# Link to client-service detail view #}
-                                                                            <td>
-                                                                                <a href="{% url 'client_details' payment.client_service.client.id %}"
-                                                                                   class="btn btn-sm btn-primary">
-                                                                                    View Details
-                                                                                </a>
-                                                                            </td>
+                                                                        {# Link to client-service detail view #}
+                                                                        <td>
+                                                                            <a href="{% url 'client_details' payment.client_service.client.id %}"
+                                                                               class="btn btn-sm btn-primary">
+                                                                                View Details
+                                                                            </a>
+                                                                        </td>
 
-                                                                        </tr>
-                                                                    {% empty %}
-                                                                        <tr>
-                                                                            <td colspan="8" class="text-center py-3">No
-                                                                                history records.
-                                                                            </td>
-                                                                        </tr>
-                                                                    {% endfor %}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
+                                                                    </tr>
+                                                                {% empty %}
+                                                                    <tr>
+                                                                        <td colspan="8" class="text-center py-3">No
+                                                                            history records.
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endfor %}
+                                                                </tbody>
+                                                            </table>
                                                         </div>
 
 
@@ -296,12 +292,12 @@
                                         <div class="col-lg-6">
 
                                             <div class="card">
-                                                <div class="card-header">
+                                                <div class="card-header d-flex justify-content-between">
 
                                                     <h5>EXPENSES</h5>
                                                     <!-- Button to open modal -->
                                                     <!-- Button -->
-                                                    <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                                    <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
                                                             data-bs-target="#expenseModal" id="add-expense-btn">
                                                         <i class="fas fa-plus"></i> Add Expense
                                                     </button>
@@ -349,9 +345,8 @@
 
                                                         <div class="card-body table-card">
                                                             <div class="table-responsive mt-3">
-                                                                <table id="res-config"
-                                                                       class="display table table-striped table-hover dt-responsive nowrap">
-                                                                    <thead class="table-success ">
+                                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                    <thead class="table-success">
                                                                     <tr>
                                                                         <th>Date</th>
 
@@ -359,8 +354,8 @@
                                                                         <th>Mode</th>
                                                                         <th>Handled By</th>
                                                                         <th>Approved By</th>
-                                                                        <th>Action</th>
-                                                                        <th></th>
+                                                                        <th>Edit</th>
+                                                                        <th>Delete</th>
                                                                     </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -387,6 +382,10 @@
 
 
                                                                             </td>
+                                                                            <td>
+                                                                                <button class=" btn bg-green-200"><i class="ti ti-trash"></i>
+                                                                                </button>
+                                                                            </td>
                                                                         </tr>
                                                                     {% empty %}
                                                                         <tr>
@@ -406,64 +405,122 @@
                                             </div>
                                         </div>
                                         <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Social Network</h5>
+                                            <div class="card mt-4">
+                                                <div class="card-header d-flex justify-content-between">
+                                                    <h5 class="mb-0">Recent Sub-Service </h5>
+                                                    <button
+                                                            id="toggleFilterBtn"
+                                                            class="btn btn-sm btn-outline-secondary mb-3"
+                                                            data-bs-toggle="collapse"
+                                                            data-bs-target="#filterPanel"
+                                                            aria-expanded="false"
+                                                            aria-controls="filterPanel">
+                                                        <i class="fas fa-filter"></i> Filter Dates
+                                                    </button>
                                                 </div>
-                                                <div class="card-body">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-twitter">
-                                                                        <i class="fab fa-twitter f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Twitter</h6>
-                                                                </div>
-                                                            </div>
+
+
+                                                <!-- Toggle filter -->
+                                                <!-- Toggle Filter -->
+
+
+                                                <!-- Collapsible Filter Panel -->
+                                                <div id="filterPanel" class="collapse mb-4">
+                                                    <form id="filterForm" class="row g-3">
+                                                        <div class="col-md-5">
+                                                            <label class="form-label">Start Date</label>
+                                                            <input type="date" name="start_date" class="form-control">
                                                         </div>
-                                                        <div class="flex-shrink-0">
-                                                            <button class="btn btn-link-danger">Connect</button>
+                                                        <div class="col-md-5">
+                                                            <label class="form-label">End Date</label>
+                                                            <input type="date" name="end_date" class="form-control">
+                                                        </div>
+                                                        <div class="col-md-2 d-flex align-items-end">
+                                                            <button type="submit" class="btn btn-primary w-100">Go
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+
+
+                                                <!-- Summary cards -->
+                                                <div class="row mb-4">
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-success">
+                                                                Total Payable:<br>
+                                                                <strong id="summaryTotalPrice">KES {{ summary.total_price }}</strong>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-facebook">
-                                                                        <i class="fab fa-facebook-f f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Facebook</h6>
-                                                                </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-primary">
+                                                                Total Paid:<br>
+                                                                <strong id="summaryTotalPaid">KES {{ summary.total_paid }}</strong>
                                                             </div>
-                                                        </div>
-                                                        <div class="flex-shrink-0">
-                                                            <div class="text-facebook">Anshan Handgun</div>
                                                         </div>
                                                     </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-linkedin">
-                                                                        <i class="fab fa-linkedin-in f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Linkedin</h6>
-                                                                </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-danger">
+                                                                Balance:<br>
+                                                                <strong id="summaryTotalBalance">KES {{ summary.total_balance }}</strong>
                                                             </div>
-                                                        </div>
-                                                        <div class="flex-shrink-0">
-                                                            <button class="btn btn-link-danger">Connect</button>
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                <!-- Sub-service table -->
+                                                <div class="card">
+                                                    <div class="card-body table-card">
+                                                        <div class="table-responsive mt-3">
+                                                           <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                    <thead class="table-success">
+                                                                <tr>
+                                                                    <th>When</th>
+                                                                    <th>Client</th>
+                                                                    <th>Sub-Service</th>
+                                                                    <th>Price</th>
+                                                                    <th>Paid</th>
+                                                                    <th>Balance</th>
+                                                                    <th>Status</th>
+                                                                </tr>
+                                                                </thead>
+                                                                <tbody id="subserviceTableBody">
+                                                                {% for css in sub_services %}
+                                                                    <tr>
+                                                                        <td>{{ css.added_on|date:"Y-m-d H:i" }}</td>
+                                                                        <td>{{ css.client_service.client }}</td>
+                                                                        <td>{{ css.sub_service.name }}</td>
+                                                                        <td>KES {{ css.price|floatformat:2 }}</td>
+                                                                        <td>KES {{ css.paid_amount|floatformat:2 }}</td>
+                                                                        <td>KES {{ css.balance|floatformat:2 }}</td>
+                                                                        <td>
+                                                                            {% if css.balance <= 0 %}
+                                                                                <span class="badge bg-success">Fully Paid</span>
+                                                                            {% else %}
+                                                                                <span class="badge bg-warning text-dark">Pending</span>
+                                                                            {% endif %}
+                                                                        </td>
+                                                                    </tr>
+                                                                {% empty %}
+                                                                    <tr>
+                                                                        <td colspan="7"
+                                                                            class="text-center text-muted py-3">No
+                                                                            records found.
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                             </div>
+
+
                                             <div class="card">
                                                 <div class="card-header">
                                                     <h5>Contact Information</h5>
@@ -511,112 +568,37 @@
                                 </div>
                                 <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
                                     <div class="row">
-                                        <div class="col-12">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>General Settings</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Username <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="Ashoka_Tano_16">
-                                                                <small class="form-text text-muted">Your Profile URL:
-                                                                    https://pc.com/Ashoka_Tano_16</small>
+
+                                        <div class="col-lg-6">
+
+
+                                                <div class="card">
+
+                                                    <div class="card-body">
+                                                        <div class="card-header bg-green-100">
+                                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                                                <h5 class="mb-0">Services Overview</h5>
+                                                                <div class="d-flex gap-2">
+                                                                    <select id="service-year-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 120px;"></select>
+                                                                    <select id="service-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 150px;"></select>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Account Email <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="demo@sample.com">
+                                                        <div class="card-body shadow-lg">
+                                                            <div id="chart-summary" class="mb-3">
+                                                                <h6 id="summary-year" class="fw-bold"></h6>
+                                                                <p id="summary-services" class="mb-1"></p>
+                                                                <p id="summary-revenue"></p>
                                                             </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Language</label>
-                                                                <select class="form-control">
-                                                                    <option>Washington</option>
-                                                                    <option>India</option>
-                                                                    <option>Africa</option>
-                                                                    <option>New York</option>
-                                                                    <option>Malaysia</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Sign in Using</label>
-                                                                <select class="form-control">
-                                                                    <option>Password</option>
-                                                                    <option>Face Recognition</option>
-                                                                    <option>Thumb Impression</option>
-                                                                    <option>Key</option>
-                                                                    <option>Pin</option>
-                                                                </select>
-                                                            </div>
+                                                            <div id="chart" style="min-height: 300px;"></div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Advance Settings</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Secure Browsing</p>
-                                                                    <p class="text-muted text-sm mb-0">Browsing Securely
-                                                                        ( https ) when it's necessary</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Login Notifications</p>
-                                                                    <p class="text-muted text-sm mb-0">Notify when login
-                                                                        attempted from other place</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Login Approvals</p>
-                                                                    <p class="text-muted text-sm mb-0">Approvals is not
-                                                                        required when login from
-                                                                        unrecognized devices.</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
+
                                         </div>
                                         <div class="col-lg-6">
                                             <div class="card">
@@ -677,39 +659,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-12">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Active Sessions</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Celt Desktop</p>
-                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
-                                                                </div>
-                                                                <button class="btn btn-link-danger">Logout</button>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Moon Tablet</p>
-                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
-                                                                </div>
-                                                                <button class="btn btn-link-danger">Logout</button>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12 text-end">
-                                            <button class="btn btn-outline-dark ms-2">Clear</button>
-                                            <button class="btn btn-primary">Update Profile</button>
-                                        </div>
+
                                     </div>
                                 </div>
 
@@ -723,6 +673,59 @@
         </div>
     </div>
     <!-- [ Main Content ] end -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+    <script>
+        $(function () {
+            // toggle filter panel
+            $('#toggleFilterBtn').click(() => $('#filterPanel').collapse('toggle'));
+
+            // handle AJAX filter
+            $('#filterForm').submit(function (e) {
+                e.preventDefault();
+                const data = $(this).serialize();
+                $.ajax({
+                    url: window.location.pathname,
+                    data,
+                    dataType: 'json',
+                    success(resp) {
+                        // update summary cards
+                        $('#summaryTotalPrice').text(`KES ${resp.summary.total_price}`);
+                        $('#summaryTotalPaid').text(`KES ${resp.summary.total_paid}`);
+                        $('#summaryTotalBalance').text(`KES ${resp.summary.total_balance}`);
+                        // rebuild table
+                        let rows = '';
+                        if (resp.rows.length) {
+                            $.each(resp.rows, (i, r) => {
+                                rows += `
+              <tr>
+                <td>${r.added_on}</td>
+                <td>${r.client}</td>
+                <td>${r.sub_service}</td>
+                <td>KES ${r.price.toFixed(2)}</td>
+                <td>KES ${r.paid.toFixed(2)}</td>
+                <td>KES ${r.balance.toFixed(2)}</td>
+                <td>
+                  <span class="badge ${r.status === 'Fully Paid' ? 'bg-success' : 'bg-warning text-dark'}">
+                    ${r.status}
+                  </span>
+                </td>
+              </tr>`;
+                            });
+                        } else {
+                            rows = `<tr><td colspan="7" class="text-center text-muted py-3">No records found.</td></tr>`;
+                        }
+                        $('#subserviceTableBody').html(rows);
+                    },
+                    error() {
+                        alert('Error loading data. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));

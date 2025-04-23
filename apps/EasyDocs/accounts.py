@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -12,7 +13,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from .forms import ExpenseForm
-from .models import ClientService, ClientServiceProcess, Service, Payment, Expense
+from .models import ClientService, ClientServiceProcess, Service, Payment, Expense, ClientSubService
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -335,6 +336,60 @@ def get_all_payment_history():
         .order_by('-payment_date')
     )
 
+
+
+from collections import defaultdict
+from decimal import Decimal
+from django.utils.timezone import now
+
+def get_subservice_summary():
+    current_year = now().year
+    subservices = ClientSubService.objects.select_related(
+        'client_service__client', 'sub_service'
+    ).filter(added_on__year=current_year)
+
+    total_price = Decimal('0.00')
+    total_paid = Decimal('0.00')
+    by_client = defaultdict(lambda: {'total': Decimal('0.00'), 'paid': Decimal('0.00')})
+    by_month = defaultdict(lambda: Decimal('0.00'))  # optionally keyed by (month, dept)
+
+    for ss in subservices:
+        price = ss.price
+        paid = ss.paid_amount
+        client_name = ss.client_service.client.first_name + ' ' + ss.client_service.client.last_name
+        month = ss.added_on.strftime('%B')  # e.g., "April"
+        dept = ss.sub_service.department  # assuming department is a field
+
+        # Global sums
+        total_price += price
+        total_paid += paid
+
+        # By client
+        by_client[client_name]['total'] += price
+        by_client[client_name]['paid'] += paid
+
+        # By month-dept (optional detailed breakdown)
+        by_month[(month, dept)] += price
+
+    summary = {
+        'total_price': total_price,
+        'total_paid': total_paid,
+        'total_balance': total_price - total_paid,
+        'by_client': [
+            {
+                'client': client,
+                'total': data['total'],
+                'paid': data['paid'],
+                'balance': data['total'] - data['paid']
+            }
+            for client, data in by_client.items()
+        ],
+        'by_month': by_month  # optional for charts or deeper breakdown
+    }
+
+    return summary
+
+
 class AccountsDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Management/accounts.html'
     # login_url, redirect_field_name etc. can be configured if needed
@@ -344,12 +399,59 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
 
         # 1. All expenses
         ctx['expenses'] = Expense.objects.all().order_by('-date')
+
+        now = timezone.now()
+        first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        ctx['sub_services'] = (ClientSubService.objects.select_related('client_service__client', 'sub_service')
+                               .order_by('-added_on'))
+        # summary for initial month
+        ctx['summary'] = self.compute_summary(ctx['sub_services'])
+
         ctx['client_payments'] = get_all_payment_history()
 
         ctx['form'] = ExpenseForm()  # only needed for rendering empty modal
         ctx['users'] = User.objects.all()  # needed for select options
 
         return ctx
+
+    def get(self, request, *args, **kwargs):
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+
+
+            # parse dates
+            start = request.GET.get('start_date')
+            end = request.GET.get('end_date')
+            qs = ClientSubService.objects.select_related('client_service__client', 'sub_service')
+            if start:
+                qs = qs.filter(added_on__date__gte=start)
+            if end:
+                qs = qs.filter(added_on__date__lte=end)
+            qs = qs.order_by('-added_on')
+            # build JSON response
+            summary = self.compute_summary(qs)
+            rows = []
+            for css in qs:
+                rows.append({
+                    'added_on': css.added_on.strftime('%Y-%m-%d %H:%M'),
+                    'client': str(css.client_service.client),
+                    'sub_service': css.sub_service.name,
+                    'price': float(css.price),
+                    'paid': float(css.paid_amount),
+                    'balance': float(css.balance),
+                    'status': 'Fully Paid' if css.balance <= 0 else 'Pending'
+                })
+            return JsonResponse({'summary': summary, 'rows': rows})
+        return super().get(request, *args, **kwargs)
+
+    def compute_summary(self, qs):
+        total_price = sum(css.price for css in qs)
+        total_paid = sum(css.paid_amount for css in qs)
+        total_balance = total_price - total_paid
+        return {
+            'total_price': f"{total_price:.2f}",
+            'total_paid': f"{total_paid:.2f}",
+            'total_balance': f"{total_balance:.2f}"
+        }
 
 
 
