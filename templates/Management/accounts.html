@@ -222,32 +222,34 @@
                                                                     <tr>
                                                                         <th>When</th>
                                                                         <th>Client</th>
+                                                                        <th>Service</th>
                                                                         <th>Amount</th>
                                                                         <th>Method</th>
                                                                         <th>Txn ID</th>
-                                                                        <th>Reason</th>
-                                                                        <th>Status</th>
+
+                                                                        <th>Payment Status</th>
                                                                         <th>View Details</th>
                                                                     </tr>
                                                                     </thead>
                                                                     <tbody>
-                                                                    {% for hist in payment_history %}
+                                                                    {% for payment in client_payments %}
                                                                         <tr>
-                                                                            <td>{{ hist.created_at|date:"Y-m-d H:i" }}</td>
-                                                                            <td>{{ hist.client_service.client }}</td>
-                                                                            <td>{{ hist.amount }}</td>
-                                                                            <td>{{ hist.payment.get_payment_method_display }}</td>
-                                                                            <td>{{ hist.payment.transaction_id }}</td>
-                                                                            <td>{{ hist.get_reason_display }}</td>
+                                                                            <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                                                            <td>{{ payment.client_service.client }}</td>
+                                                                            <td>{{ payment.client_service }}</td>
+                                                                            <td>{{ payment.amount }}</td>
+                                                                            <td>{{ payment.payment_method }}</td>
+                                                                            <td>{{ payment.transaction_id }}</td>
+
 
                                                                             {# Service payment status from ClientService #}
 
                                                                             <td>
                                                                                                   <span class="d-flex align-items-center gap-2">
-                                                                                                    {% if hist.client_service.payment_status == 'Fully Paid' %}
+                                                                                                    {% if payment.client_service.payment_status == 'Fully Paid' %}
                                                                                                         <i class="fas fa-circle text-success f-10"></i>
                                                                                                         Fully Paid
-                                                                                                    {% elif hist.client_service.payment_status == 'Partially Paid' %}
+                                                                                                    {% elif payment.client_service.payment_status == 'Partially Paid' %}
                                                                                                         <i class="fas fa-circle text-warning f-10"></i>
                                                                                                         Partially Paid
                                                                                                     {% else %}
@@ -260,7 +262,7 @@
 
                                                                             {# Link to client-service detail view #}
                                                                             <td>
-                                                                                <a href="{% url 'client_details' hist.client_service.client.id %}"
+                                                                                <a href="{% url 'client_details' payment.client_service.client.id %}"
                                                                                    class="btn btn-sm btn-primary">
                                                                                     View Details
                                                                                 </a>

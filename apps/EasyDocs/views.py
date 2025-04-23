@@ -1,8 +1,9 @@
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.db.models import Q, Prefetch, Sum, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -13,18 +14,22 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
-    SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, EmailSettingsForm
+    SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, EmailSettingsForm, \
+    ClientSubServiceEditForm
 from apps.EasyDocs.models import Client, Service, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
     ClientSubService, SiteSettings, SmsProviderToken, EmailSettings, PaymentHistory, Expense, Payment
 
 from django.views.generic import TemplateView, DetailView
 from django.shortcuts import redirect
 
-from .accounts import  get_client_payment_history
+from .accounts import get_client_payment_history, get_all_payment_history
 from .analytics import get_yearly_revenue_data, get_available_years
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 from .services import add_or_update_client_subservice
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -35,11 +40,11 @@ def chart_data(request):
     data = get_yearly_revenue_data(year)
     return JsonResponse(data)
 
+
 def stacked_service_data(request):
     year = int(request.GET.get("year", timezone.now().year))
     chart_data = get_monthly_service_data(year)
     return JsonResponse(chart_data)
-
 
 
 def get_years(request):
@@ -112,16 +117,15 @@ def get_dashboard_data():
     }
 
 
-
-
-
 def home(request):
     dashboard_data = get_dashboard_data()
+    recent_payments = get_all_payment_history()[:10]
+    context = {
+        'recent_payments': recent_payments,
+        'dashboard': dashboard_data,
+    }
 
-    return render(request, 'Home/admin.html',{'dashboard': dashboard_data})
-
-
-
+    return render(request, 'Home/admin.html', context )
 
 
 
@@ -129,101 +133,294 @@ class ClientDetailView(DetailView):
     model = Client
     template_name = 'Client/client_details.html'
     context_object_name = 'client'
-    pk_url_kwarg = 'client_id'  # from your URL pattern
+    pk_url_kwarg = 'client_id'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        client = self.get_object()
+        client = self.object
 
-        subservices=SubService.objects.all()
+        # — Subservices —
+        try:
+            subservices = SubService.objects.all()
+        except Exception as e:
+            logger.warning(f"SubService fetch error: {e}")
+            subservices = []
+            messages.error(self.request, "Could not load subservices.")
 
-        # Fetch all payment histories for this client
-        histories = PaymentHistory.objects.filter(
-            client_service__client=client
-        ).order_by('-created_at')
-
-        # Fetch all ClientSubService entries for this client
-        client_subservices = ClientSubService.objects.filter(
-            client_service__client=client
-        ).select_related('sub_service', 'client_service')
-
-
-        # Services with latest process
-        all_services = (
-            ClientService.objects
-            .filter(client=client)
-            .select_related('service')
-            .prefetch_related(
-                Prefetch(
-                    'service_processes',
-                    queryset=ClientServiceProcess.objects.select_related('process').order_by('process__step_order')
-                )
+        # — Raw history (for debug or timeline if you need it) —
+        try:
+            histories = (
+                PaymentHistory.objects
+                .filter(client_service__client=client)
+                .order_by('-created_at')
             )
-            .order_by('-requested_at')
-        )
+        except Exception as e:
+            logger.error(f"PaymentHistory fetch error: {e}")
+            histories = []
+            messages.error(self.request, "Could not load payment history.")
 
-        for service in all_services:
-            service.latest_process = None
-            if service.service_processes.exists():
-                service.latest_process = max(
-                    service.service_processes.all(),
-                    key=lambda sp: sp.process.step_order
+        # — Client-subservices —
+        try:
+            client_subservices = (
+                ClientSubService.objects
+                .filter(client_service__client=client)
+                .select_related('sub_service', 'client_service')
+            )
+        except Exception as e:
+            logger.warning(f"ClientSubService fetch error: {e}")
+            client_subservices = []
+            messages.error(self.request, "Could not load client subservices.")
+
+        # — All client services, with latest process annotated —
+        try:
+            all_services = (
+                ClientService.objects
+                .filter(client=client)
+                .select_related('service')
+                .prefetch_related(
+                    Prefetch(
+                        'service_processes',
+                        queryset=ClientServiceProcess.objects
+                        .select_related('process')
+                        .order_by('process__step_order')
+                    )
                 )
+                .order_by('-requested_at')
+            )
+            for cs in all_services:
+                cs.latest_process = (
+                    max(cs.service_processes.all(), key=lambda sp: sp.process.step_order)
+                    if cs.service_processes.exists()
+                    else None
+                )
+        except Exception as e:
+            logger.error(f"ClientService fetch error: {e}")
+            all_services = []
+            messages.error(self.request, "Could not load client services.")
 
-        # Get filters
-        service_id = self.request.GET.get('service')
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
+        # — Flat (aggregated) payment history — no filters applied here any more
+        try:
+            flat_history = get_client_payment_history(client_id=client.id)
+        except Exception as e:
+            logger.error(f"Payment history utility error: {e}", exc_info=True)
+            flat_history = []
+            messages.error(self.request, "Error generating payment history.")
 
-        # Inside get_context_data
-        payment_history = get_client_payment_history(
-            client_id=client.id,
-            start_date=start_date,
-            end_date=end_date,
-            service_id=service_id
-        )
+        # — Documents —
+        try:
+            doc_types = DocType.objects.all()
+            client_docs = ClientDoc.objects.filter(client=client)
+        except Exception as e:
+            logger.warning(f"Document fetch error: {e}")
+            doc_types = []
+            client_docs = []
+            messages.error(self.request, "Could not load documents.")
 
-        # Forms and docs
+        # — Prepare add/edit ClientServiceForm —
+        edit_id = self.request.GET.get('edit_service')
+        cs_instance = None
+        if edit_id:
+            try:
+                cs_instance = ClientService.objects.get(id=edit_id, client=client)
+            except ClientService.DoesNotExist:
+                messages.warning(self.request, "Service to edit not found.")
+
+        try:
+            client_service_form = ClientServiceForm(
+                instance=cs_instance,
+                initial={'client': client} if not cs_instance else None
+            )
+        except Exception as e:
+            logger.error(f"ClientServiceForm init error: {e}", exc_info=True)
+            client_service_form = ClientServiceForm(initial={'client': client})
+            messages.error(self.request, "Could not load service form.")
+
+        # — Inject everything into context —
         context.update({
+            'subservices': subservices,
+            'histories': histories,
             'client_subservices': client_subservices,
-            'subservices':subservices, #to populated the add sub_service modal with subservice in the db
             'all_services': all_services,
-            'histories':histories,
+            'flat_payment_history': flat_history,
+            'doc_types': doc_types,
+            'client_docs': client_docs,
+            'client_service_form': client_service_form,
+            'editing_service': cs_instance,
+            'client_subservice_form': ClientSubServiceForm(),
             'title_deed_form': TitleDeedCollectionForm(),
             'doc_form': ClientDocumentForm(),
             'doc_type_form': DocTypeForm(),
-            'doc_types': DocType.objects.all(),
-            'client_docs': ClientDoc.objects.filter(client=client),
-            'flat_payment_history': payment_history,  # renamed from grouped_payments
-            'client_subservice_form': ClientSubServiceForm()  # Add the form to context
         })
-
         return context
 
-    def render_to_response(self, context, **response_kwargs):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            # Call the helper directly with the same filters
-            client = self.get_object()
-            service_id = self.request.GET.get('service')
-            start_date = self.request.GET.get('start_date')
-            end_date = self.request.GET.get('end_date')
+    def post(self, request, *args, **kwargs):
+        # Make sure self.object is set
+        self.object = self.get_object()
+        client = self.object
 
-            data = get_client_payment_history(
-                client_id=client.id,
-                start_date=start_date,
-                end_date=end_date,
-                service_id=service_id
+        handlers = {
+            'add_client_service': self.handle_add_client_service,
+            'edit_client_service': self.handle_edit_client_service,
+            'delete_client_service': self.handle_delete_client_service,
+            'add_client_subservice': self.handle_add_client_subservice,  # ←
+            'edit_client_subservice': self.handle_edit_client_subservice,  # ←
+            'delete_client_subservice': self.handle_delete_client_subservice,  # ←
+        }
+        for key, handler in handlers.items():
+            if key in request.POST:
+                return handler(request, client)
+
+        # Fallback: just reload
+        return redirect('client_details', client_id=client.id)
+
+    def handle_add_client_service(self, request, client):
+        form = ClientServiceForm(request.POST)
+        if form.is_valid():
+            # 1️⃣ Save the base ClientService
+            cs = form.save(commit=False)
+            cs.client = client
+            cs.save()
+            form.save_m2m()
+
+            # 2️⃣ Override per‐process costs if any
+            pids = request.POST.getlist('process_id[]')
+            costs = request.POST.getlist('process_cost[]')
+            if pids and costs:
+                for pid, cost_str in zip(pids, costs):
+                    try:
+                        cost = Decimal(cost_str)
+                        csp = cs.service_processes.get(process_id=pid)
+                        csp.overridden_cost = cost
+                        csp.save(update_fields=['overridden_cost'])
+                    except (ClientServiceProcess.DoesNotExist, InvalidOperation):
+                        continue
+            else:
+                # 3️⃣ No processes? override total price instead
+                otp = request.POST.get('override_total_price')
+                if otp:
+                    try:
+                        cs.overridden_total_price = Decimal(otp)
+                        cs.save(update_fields=['overridden_total_price'])
+                    except InvalidOperation:
+                        messages.warning(request, "⚠️ Invalid total price value—ignored.")
+
+            messages.success(request, "✅ Service assigned successfully.")
+            return redirect('client_details', client_id=client.id)
+
+        messages.error(request, "❌ Error assigning service.")
+        return self.render_invalid_context('client_service_form', form)
+
+    def handle_edit_client_service(self, request, client):
+        cs_id = request.POST.get('client_service_id')
+        cs = get_object_or_404(ClientService, id=cs_id, client=client)
+        form = ClientServiceForm(request.POST, instance=cs)
+
+        if form.is_valid():
+            form.save()
+
+            # 1️⃣ Override per‐process costs if any
+            pids = request.POST.getlist('process_id[]')
+            costs = request.POST.getlist('process_cost[]')
+            if pids and costs:
+                for pid, cost_str in zip(pids, costs):
+                    try:
+                        cost = Decimal(cost_str)
+                        csp = cs.service_processes.get(process_id=pid)
+                        csp.overridden_cost = cost
+                        csp.save(update_fields=['overridden_cost'])
+                    except (ClientServiceProcess.DoesNotExist, InvalidOperation):
+                        continue
+                # Clear any previous total override
+                if cs.overridden_total_price is not None:
+                    cs.overridden_total_price = None
+                    cs.save(update_fields=['overridden_total_price'])
+            else:
+                # 2️⃣ No processes? handle total override
+                otp = request.POST.get('override_total_price')
+                if otp:
+                    try:
+                        cs.overridden_total_price = Decimal(otp)
+                        cs.save(update_fields=['overridden_total_price'])
+                    except InvalidOperation:
+                        messages.warning(request, "⚠️ Invalid total price value—ignored.")
+                else:
+                    # If neither processes nor override given, clear override
+                    if cs.overridden_total_price is not None:
+                        cs.overridden_total_price = None
+                        cs.save(update_fields=['overridden_total_price'])
+
+            messages.success(request, "✅ Service updated successfully.")
+            return redirect('client_details', client_id=client.id)
+
+        messages.error(request, "❌ Error updating service.")
+        return self.render_invalid_context('client_service_form', form)
+
+    def handle_delete_client_service(self, request, client):
+        cs_id = request.POST.get('client_service_id')
+        try:
+            cs = ClientService.objects.get(id=cs_id, client=client)
+            cs.delete()
+            messages.success(request, "🗑️ Client service deleted.")
+        except ClientService.DoesNotExist:
+            messages.error(request, "⚠️ Client service not found.")
+        return redirect('client_details', client_id=client.id)
+
+    def handle_add_client_subservice(self, request, client):
+        # form includes fields: sub_service, overridden_price
+        form = ClientSubServiceForm(request.POST)
+        if form.is_valid():
+            css = form.save(commit=False)
+            # tie to the correct ClientService
+            css.client_service = get_object_or_404(
+                ClientService,
+                id=request.POST.get('client_service'),
+                client=client
             )
-            return JsonResponse({'payment_history': data})
+            # cleaned_data already has overridden_price or None
+            css.overridden_price = form.cleaned_data.get('overridden_price')
+            css.save()
+            messages.success(request, "✅ SubService added successfully.")
+            return redirect('client_details', client_id=client.id)
 
+        messages.error(request, "❌ Error adding subservice.")
+        return self.render_invalid_context('client_subservice_form', form)
+
+    def handle_edit_client_subservice(self, request, client):
+        css_id = request.POST.get('client_subservice_id')
+        css = get_object_or_404(ClientSubService, id=css_id, client_service__client=client)
+
+        form = ClientSubServiceEditForm(request.POST, instance=css)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ SubService updated successfully.")
+            return redirect('client_details', client_id=client.id)
+
+        messages.error(request, "❌ Error updating subservice.")
+        return self.render_invalid_context('client_subservice_form', form)
+
+    def handle_delete_client_subservice(self, request, client):
+        css_id = request.POST.get('client_subservice_id')
+        try:
+            css = ClientSubService.objects.get(
+                id=css_id,
+                client_service__client=client
+            )
+            css.delete()
+            messages.success(request, "🗑️ SubService deleted.")
+        except ClientSubService.DoesNotExist:
+            messages.error(request, "⚠️ SubService not found.")
+        return redirect('client_details', client_id=client.id)
+
+    def render_invalid_context(self, form_key, form):
+        context = self.get_context_data()
+        context[form_key] = form
+        return self.render_to_response(context)
+
+    def render_to_response(self, context, **response_kwargs):
+        # AJAX payment history case
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'payment_history': context.get('flat_payment_history', [])})
         return super().render_to_response(context, **response_kwargs)
-
-    # def render_to_response(self, context, **response_kwargs):
-    #     if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-    #         return JsonResponse({'grouped_payments': context['grouped_payments']})
-    #     return super().render_to_response(context, **response_kwargs)
-
-
 
 
 def client_list(request):
@@ -243,7 +440,8 @@ def client_list(request):
     client_data = []
     for client in clients:
         form = ClientForm(instance=client)
-        client_service = client.latest_services[0] if hasattr(client, 'latest_services') and client.latest_services else None
+        client_service = client.latest_services[0] if hasattr(client,
+                                                              'latest_services') and client.latest_services else None
         current_process = None
 
         if client_service:
@@ -276,11 +474,6 @@ def client_list(request):
     return render(request, 'Client/client_list.html', context)
 
 
-
-
-
-
-
 # Add Client
 def add_client(request):
     if request.method == 'POST':
@@ -291,6 +484,7 @@ def add_client(request):
         else:
             messages.error(request, 'Failed to add client. Please check the form.')
     return redirect('clients')
+
 
 # Edit Client
 def edit_client(request, client_id):
@@ -305,81 +499,109 @@ def edit_client(request, client_id):
     return redirect('clients')
 
 
-
-
-
-
 def add_client_service(request):
     if request.method == 'POST':
         form = ClientServiceForm(request.POST)
+
         if form.is_valid():
-            client = form.cleaned_data['client']
-            service = form.cleaned_data['service']
-            land_description = form.cleaned_data['land_description']
+            try:
+                client = form.cleaned_data['client']
+                service = form.cleaned_data['service']
+                land_description = form.cleaned_data['land_description']
 
-            # Check if already exists
-            existing = ClientService.objects.filter(
-                client=client,
-                service=service,
-                land_description=land_description
-            ).first()
+                # Check if this service is already assigned to this client
+                if ClientService.objects.filter(client=client, service=service,
+                                                land_description=land_description).exists():
+                    messages.warning(request,
+                                     '⚠️ This service is already assigned to this client for the specified land.')
+                    return redirect('clients')
 
-            if existing:
-                messages.warning(request, '⚠️ This service is already assigned to this client for the specified land.')
+                # Save client service record
+                client_service = form.save()
+
+                # Handle custom process costs
+                process_ids = request.POST.getlist('process_id[]')
+                process_costs = request.POST.getlist('process_cost[]')
+
+                if process_ids and process_costs:
+                    for pid, cost_str in zip(process_ids, process_costs):
+                        try:
+                            cost = Decimal(cost_str)
+                            csp = client_service.service_processes.get(process_id=pid)
+                            csp.overridden_cost = cost
+                            csp.save(update_fields=['overridden_cost'])
+                        except (ClientServiceProcess.DoesNotExist, InvalidOperation):
+                            continue  # Silently skip invalid or missing data
+
+                else:
+                    override_total_price = request.POST.get('override_total_price')
+                    if override_total_price:
+                        try:
+                            total_price = Decimal(override_total_price)
+                            client_service.overridden_total_price = total_price
+                            client_service.save(update_fields=['overridden_total_price'])
+                        except InvalidOperation:
+                            messages.warning(request, "⚠️ Total price override value is invalid. It was ignored.")
+
+                messages.success(request, '✅ Service assigned successfully with custom pricing.')
+
+            except Exception as e:
+                # Catch-all for unexpected errors
+                messages.error(request, f'❌ An unexpected error occurred: {str(e)}')
                 return redirect('clients')
 
-            # Save the assignment
-            client_service = form.save()
-
-            # Handle overridden process costs
-            process_ids = request.POST.getlist('process_id[]')
-            process_costs = request.POST.getlist('process_cost[]')
-
-            if process_ids and process_costs:
-                # Save individual overridden costs
-                for pid, cost_str in zip(process_ids, process_costs):
-                    try:
-                        csp = client_service.service_processes.get(process_id=pid)
-                        csp.overridden_cost = Decimal(cost_str)
-                        csp.save(update_fields=['overridden_cost'])
-                    except ClientServiceProcess.DoesNotExist:
-                        continue
-            else:
-                # If no processes, check for override_total_price
-                override_total_price = request.POST.get('override_total_price')
-                if override_total_price:
-                    client_service.overridden_total_price = Decimal(override_total_price)
-                    client_service.save(update_fields=['overridden_total_price'])
-
-            messages.success(request, '✅ Service assigned successfully with custom pricing.')
         else:
-            messages.error(request, '❌ Error saving service.')
+            messages.error(request, '❌ Form is invalid. Please check the inputs.')
 
     return redirect('clients')
 
 
+def edit_client_service(request, client_id):
+    client = get_object_or_404(Client, id=client_id)
+
+    if request.method == 'POST':
+        # Assuming ClientService has fields: service, category, cost, etc.
+        service = request.POST.get('service')
+        category = request.POST.get('category')
+        cost = request.POST.get('cost')  # Modify according to your form fields
+
+        # Update the client service or create a new one as needed
+        client_service = ClientService.objects.filter(client=client).first()
+        if client_service:
+            client_service.service = service
+            client_service.category = category
+            client_service.cost = cost
+            client_service.save()
+
+        # After the update, redirect to the client detail page
+        return redirect('clientdetail', client_id=client.id)
+
+    # If the request method is GET, simply render the template
+    return render(request, 'edit_client_service.html', {'client': client})
+
 
 def search_clients(request):
-    term = request.GET.get('term', '')
-    clients = Client.objects.filter(
-        Q(first_name__icontains=term) |
-        Q(last_name__icontains=term) |
-        Q(email__icontains=term) |
-        Q(phone__icontains=term)
-    )[:20]  # limit results
+    term = request.GET.get('term', '').strip()
+    qs = Client.objects.all()
 
-    client_list = []
-    for client in clients:
-        client_list.append({
-            'id': client.id,
-            'first_name': client.first_name,
-            'last_name': client.last_name,
-            'phone': client.phone
-        })
+    if term:
+        qs = qs.filter(
+            Q(first_name__icontains=term) |
+            Q(last_name__icontains=term) |
+            Q(email__icontains=term) |
+            Q(phone__icontains=term)
+        )
 
-    return JsonResponse({'results': client_list})
+    results = (
+        qs
+        .values('id', 'first_name', 'last_name', 'phone')
+        .order_by('first_name')[:20]
+    )
 
-
+    return JsonResponse({
+        'results': list(results),
+        'total': qs.count() if term else None,
+    })
 
 
 def get_grouped_services(client):
@@ -402,22 +624,25 @@ def update_site_settings(request):
     """
     # Only allow POST
     if request.method == 'POST':
-        # Fetch the single settings instance (or 404 if missing)
-        settings = get_object_or_404(SiteSettings, singleton_enforcer=True)
-        form = SiteSettingsForm(request.POST, request.FILES, instance=settings)
+        try:
+            settings_instance = SiteSettings.objects.get(singleton_enforcer=True)
+            form = SiteSettingsForm(request.POST, request.FILES, instance=settings_instance)
+        except SiteSettings.DoesNotExist:
+            # Create new instance
+            form = SiteSettingsForm(request.POST, request.FILES)
 
         if form.is_valid():
-            form.save()
-            messages.success(request, "Site settings updated successfully.")
+            settings = form.save(commit=False)
+            # Set singleton_enforcer field to ensure uniqueness
+            settings.singleton_enforcer = True
+            settings.save()
+            messages.success(request, "Site settings saved successfully.")
         else:
             messages.error(request, "Please correct the errors in the form.")
 
     # Redirect back to the page that submitted the form
     referer = request.META.get('HTTP_REFERER', '/')
     return redirect(referer)
-
-
-
 
 
 @require_http_methods(["POST"])
@@ -432,6 +657,7 @@ def update_sms_token(request):
         messages.error(request, "Failed to update token. Please check the input.")
 
     return redirect(request.META.get('HTTP_REFERER', 'management'))
+
 
 def update_email_settings(request):
     settings_instance, _ = EmailSettings.objects.get_or_create(pk=1)
@@ -460,110 +686,157 @@ class ManagementView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Services
+        # Data fetching with error handling
         context['services'] = Service.objects.prefetch_related('processes').all()
+        context['subservices'] = SubService.objects.all()
 
-        # SubServices (add this line to include the list of subservices)
-        context['subservices'] = SubService.objects.all()  # Fetch all subservices
+        # Blank forms
+        context.update({
+            'service_form': ServiceForm(),
+            'process_form': ProcessForm(),
+            'subservice_form': SubServiceForm(),
+            'edit_service_form': ServiceForm(),
+            'edit_process_form': ProcessForm(),
+            'edit_subservice_form': SubServiceForm(),
+        })
 
-        # Forms for adding new
-        context['service_form'] = ServiceForm()
-        context['process_form'] = ProcessForm()
-        context['subservice_form'] = SubServiceForm()  # Add SubService form
+        try:
+            site_settings = SiteSettings.objects.get(singleton_enforcer=True)
+            context['settings'] = site_settings
+            context['settings_form'] = SiteSettingsForm(instance=site_settings)
+        except SiteSettings.DoesNotExist:
+            messages.warning(self.request, "Site settings not found. You can create new settings.")
+            context['settings_form'] = SiteSettingsForm()
 
-        # Edit forms (None by default)
-        context['edit_service_form'] = ServiceForm()
-        context['edit_process_form'] = ProcessForm()
-        context['edit_subservice_form'] = SubServiceForm()  # Add edit SubService form
+        try:
+            email_settings, _ = EmailSettings.objects.get_or_create(pk=1)
+            context['email_settings_form'] = EmailSettingsForm(instance=email_settings)
+        except Exception as e:
+            messages.error(self.request, f"Email settings error: {e}")
 
-        # Site Settings Form
-        site_settings = SiteSettings.objects.get(singleton_enforcer=True)
-        context['settings'] = site_settings
-        context['settings_form'] = SiteSettingsForm(instance=site_settings)
+        try:
+            sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)
+            context['sms_token'] = sms_token
+            context['sms_token_form'] = SmsProviderTokenForm(instance=sms_token)
+        except Exception as e:
+            messages.error(self.request, f"SMS provider token error: {e}")
 
-        # Add EmailSettings form to context
-        email_settings = EmailSettings.objects.get_or_create(pk=1)[0]
-        context['email_settings_form'] = EmailSettingsForm(instance=email_settings)
-
-        # inside get_context_data
-        sms_token = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)[0]
-        context['sms_token_form'] = SmsProviderTokenForm(instance=sms_token)
-        context['sms_token'] = sms_token
-
-        # Check if there's an edit service, process, or subservice request
-        service_id = self.request.GET.get('edit_service')
-        process_id = self.request.GET.get('edit_process')
-        subservice_id = self.request.GET.get('edit_subservice')  # Get subservice ID for editing
-
-        if service_id:
-            service = get_object_or_404(Service, id=service_id)
-            context['edit_service_form'] = ServiceForm(instance=service)
-
-        if process_id:
-            process = get_object_or_404(Process, id=process_id)
-            context['edit_process_form'] = ProcessForm(instance=process)
-
-        if subservice_id:
-            subservice = get_object_or_404(SubService, id=subservice_id)
-            context['edit_subservice_form'] = SubServiceForm(instance=subservice)
+        # Editing forms based on GET params
+        for key, model, form_key, form_class in [
+            ('edit_service', Service, 'edit_service_form', ServiceForm),
+            ('edit_process', Process, 'edit_process_form', ProcessForm),
+            ('edit_subservice', SubService, 'edit_subservice_form', SubServiceForm),
+        ]:
+            obj_id = self.request.GET.get(key)
+            if obj_id:
+                try:
+                    instance = get_object_or_404(model, id=obj_id)
+                    context[form_key] = form_class(instance=instance)
+                except Exception as e:
+                    messages.error(self.request, f"Error loading {key.replace('edit_', '')}: {e}")
 
         return context
 
     def post(self, request, *args, **kwargs):
-        if 'add_service' in request.POST:
-            service_form = ServiceForm(request.POST)
-            if service_form.is_valid():
-                service_form.save()
-                return redirect('management')
+        handlers = {
+            'add_service': self.handle_add_service,
+            'edit_service': self.handle_edit_service,
+            'add_process': self.handle_add_process,
+            'edit_process': self.handle_edit_process,
+            'add_subservice': self.handle_add_subservice,
+            'edit_subservice': self.handle_edit_subservice,
+        }
 
-        elif 'edit_service' in request.POST:
-            service = get_object_or_404(Service, id=request.POST.get('service_id'))
-            service_form = ServiceForm(request.POST, instance=service)
-            if service_form.is_valid():
-                service_form.save()
-                return redirect('management')
+        for key, handler in handlers.items():
+            if key in request.POST:
+                return handler(request)
 
-        elif 'add_process' in request.POST:
-            service_id = request.POST.get('service')
-            if service_id and service_id.isdigit():
-                service = get_object_or_404(Service, id=service_id)
-                process_form = ProcessForm(request.POST)
-                if process_form.is_valid():
-                    process = process_form.save(commit=False)
-                    process.service = service
-                    process.save()
-                    return redirect('management')
-            else:
-                messages.error(request, "Invalid service selected for the process.")
-                return redirect('management')
-
-        elif 'edit_process' in request.POST:
-            process = get_object_or_404(Process, id=request.POST.get('process_id'))
-            process_form = ProcessForm(request.POST, instance=process)
-            if process_form.is_valid():
-                process_form.save()
-                return redirect('management')
-
-        elif 'add_subservice' in request.POST:  # Handle adding subservice
-            subservice_form = SubServiceForm(request.POST)
-            if subservice_form.is_valid():
-                subservice_form.save()
-                return redirect('management')
-
-        elif 'edit_subservice' in request.POST:  # Handle editing subservice
-            subservice = get_object_or_404(SubService, id=request.POST.get('subservice_id'))
-            subservice_form = SubServiceForm(request.POST, instance=subservice)
-            if subservice_form.is_valid():
-                subservice_form.save()
-                return redirect('management')
-
-        # If invalid, re-render with errors
+        # fallback - invalid form, re-render
         context = self.get_context_data()
-        context['service_form'] = ServiceForm(request.POST)
-        context['process_form'] = ProcessForm(request.POST)
-        context['subservice_form'] = SubServiceForm(request.POST)
+        context.update({
+            'service_form': ServiceForm(request.POST),
+            'process_form': ProcessForm(request.POST),
+            'subservice_form': SubServiceForm(request.POST),
+        })
         return self.render_to_response(context)
 
+    # --- Individual Handlers Below ---
 
+    def handle_add_service(self, request):
+        form = ServiceForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('management')
+        messages.error(request, "Failed to add service.")
+        return self.render_invalid_context(form_key='service_form', form=form)
 
+    def handle_edit_service(self, request):
+        try:
+            service = get_object_or_404(Service, id=request.POST.get('service_id'))
+            form = ServiceForm(request.POST, instance=service)
+            if form.is_valid():
+                form.save()
+                return redirect('management')
+            # DEBUG: see exactly what failed
+            print(form.errors)
+            messages.error(request, "Invalid data for editing service.")
+        except Exception as e:
+            messages.error(request, f"Error editing service: {e}")
+        # <-- use edit_service_form, not service_form
+        return self.render_invalid_context('edit_service_form', form)
 
+    def handle_add_process(self, request):
+        service_id = request.POST.get('service')
+        if not (service_id and service_id.isdigit()):
+            messages.error(request, "Invalid service selected.")
+            return redirect('management')
+
+        try:
+            service = get_object_or_404(Service, id=service_id)
+            form = ProcessForm(request.POST)
+            if form.is_valid():
+                process = form.save(commit=False)
+                process.service = service
+                process.save()
+                return redirect('management')
+            messages.error(request, "Invalid process form.")
+        except Exception as e:
+            messages.error(request, f"Error adding process: {e}")
+        return self.render_invalid_context('process_form', ProcessForm(request.POST))
+
+    def handle_edit_process(self, request):
+        try:
+            process = get_object_or_404(Process, id=request.POST.get('process_id'))
+            form = ProcessForm(request.POST, instance=process)
+            if form.is_valid():
+                form.save()
+                return redirect('management')
+            messages.error(request, "Invalid data for editing process.")
+        except Exception as e:
+            messages.error(request, f"Error editing process: {e}")
+        return self.render_invalid_context('process_form', ProcessForm(request.POST))
+
+    def handle_add_subservice(self, request):
+        form = SubServiceForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('management')
+        messages.error(request, "Invalid subservice form.")
+        return self.render_invalid_context('subservice_form', form)
+
+    def handle_edit_subservice(self, request):
+        try:
+            subservice = get_object_or_404(SubService, id=request.POST.get('subservice_id'))
+            form = SubServiceForm(request.POST, instance=subservice)
+            if form.is_valid():
+                form.save()
+                return redirect('management')
+            messages.error(request, "Invalid data for editing subservice.")
+        except Exception as e:
+            messages.error(request, f"Error editing subservice: {e}")
+        return self.render_invalid_context('subservice_form', SubServiceForm(request.POST))
+
+    def render_invalid_context(self, form_key, form):
+        context = self.get_context_data()
+        context[form_key] = form
+        return self.render_to_response(context)

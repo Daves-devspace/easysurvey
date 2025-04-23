@@ -110,3 +110,21 @@ class MobileSasaAPI:
             except requests.RequestException as e:
                 errors.append({"message": str(e), "phones": chunk})
         return success_count, errors
+
+
+
+
+
+
+
+
+def load_email_settings():
+    try:
+        s = EmailSettings.objects.get()
+        settings.EMAIL_HOST = s.email_host or settings.EMAIL_HOST
+        settings.EMAIL_PORT = s.email_port or settings.EMAIL_PORT
+        settings.EMAIL_HOST_USER = s.email_host_user or settings.EMAIL_HOST_USER
+        settings.EMAIL_HOST_PASSWORD = s.email_host_password or settings.EMAIL_HOST_PASSWORD
+        settings.DEFAULT_FROM_EMAIL = s.default_from_email or settings.DEFAULT_FROM_EMAIL
+    except EmailSettings.DoesNotExist:
+        pass

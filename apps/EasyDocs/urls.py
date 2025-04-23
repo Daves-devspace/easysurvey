@@ -14,6 +14,7 @@ urlpatterns = [
     path('clients/add/', views.add_client, name='add_client'),
     path('clients/edit/<int:client_id>/', views.edit_client, name='edit_client'),
     path('add-client-service/', views.add_client_service, name='add_client_service'),
+    path('client/<int:client_id>/edit_service/', views.edit_client_service, name='edit_client_service'),
     path('clients/search/', views.search_clients, name='search_clients'),
     path('clients/details/<int:client_id>/', ClientDetailView.as_view(), name='client_details'),
 
@@ -71,8 +72,8 @@ urlpatterns = [
 
     path('api/chart-data/', views.chart_data, name='chart-data'),
 
-path('api/stacked-chart/', views.stacked_service_data, name='stacked_chart_data'),
-path('api/analysis/monthly-services/', analytics.monthly_service_analysis, name='monthly-service-analysis'),
+    path('api/stacked-chart/', views.stacked_service_data, name='stacked_chart_data'),
+    path('api/analysis/monthly-services/', analytics.monthly_service_analysis, name='monthly-service-analysis'),
 
     path('api/available-years/', views.get_years, name='available-years'),
     path('api/services/', analytics.available_services, name='available_services'),

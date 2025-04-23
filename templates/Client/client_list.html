@@ -29,99 +29,108 @@
                 </div>
             </div>
             <div class="container-fluid col-lg-12">
-                <!-- [ Header ] end -->
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                     {% endfor %}
                 {% endif %}
+                </div>
 
-            </div>
-            <!-- [ breadcrumb ] end -->
+                <!-- [ breadcrumb ] end -->
 
-            <!-- [ Main Content ] start -->
-            <div class="row">
-                <!-- Config table start -->
-                <div class="col-sm-12">
-                    <div class="card card-table">
-                        <div class="card-header">
-
-
-                            <!-- Button trigger modal -->
-                            <button class="btn btn-primary mb-3" data-bs-toggle="modal"
-                                    data-bs-target="#addClientModal">
-                                <i class="ti ti-user-plus"></i> Add Client
-                            </button>
-
-                            <button class="btn btn-info mb-3" data-bs-toggle="modal"
-                                    data-bs-target="#addClientServiceModal">
-                                <i class="ti ti-circle-plus"></i> Add Client Service
-                            </button>
+                <!-- [ Main Content ] start -->
+                <div class="row">
+                    <!-- Config table start -->
+                    <div class="col-sm-12">
+                        <div class="card card-table">
+                            <div class="card-header">
 
 
-                        </div>
-                        <div class="card-body">
-                            <!-- Table -->
-                            <div class="table-responsive mt-3">
-                                <table id="res-config"
-                                       class="display table table-striped table-hover dt-responsive nowrap">
-                                    <thead class="table-success ">
-                                    <tr>
-                                        <th>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="select-all">
-                                            </div>
-                                        </th>
-                                        <th>First name</th>
-                                        <th>Last name</th>
-                                        <th>Phone</th>
-                                        <th>E-mail</th>
-                                        <th>Requested at</th>
-                                        <th>Service</th>
-                                        <th>Process</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                        <th>Details</th>
+                                <!-- Button trigger modal -->
+                                <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                        data-bs-target="#addClientModal">
+                                    <i class="ti ti-user-plus"></i> Add Client
+                                </button>
+
+                                <button class="btn btn-info mb-3" data-bs-toggle="modal"
+                                        data-bs-target="#addClientServiceModal">
+                                    <i class="ti ti-circle-plus"></i> Add Client Service
+                                </button>
 
 
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {% for item in client_data %}
-                                        {% with client=item.client client_service=item.client_service current_process=item.current_process %}
-                                            <tr>
-                                                <td>{{ forloop.counter }}</td>
-                                                <td>{{ client.first_name }}</td>
-                                                <td>{{ client.last_name }}</td>
-                                                <td>{{ client.phone|default:"-" }}</td>
-                                                <td>{{ client.email }}</td>
-                                                <td>
-                                                    {% if client_service %}
-                                                        {{ client_service.requested_at|date:"Y-m-d" }}
-                                                    {% else %}
-                                                        <span class="text-muted">No service</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if client_service %}
-                                                        {{ client_service.service.name }}
-                                                    {% else %}
-                                                        <span class="text-muted">No service</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if current_process %}
-                                                        {{ current_process.process.name }}
-                                                    {% else %}
-                                                        <span class="text-muted">N/A</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if current_process %}
-                                                        <span class="badge
+                            </div>
+                            <div class="card-body">
+                                <!-- Table -->
+                                <div class="table-responsive mt-3">
+                                    <table id="res-config"
+                                           class="display table table-striped table-hover dt-responsive nowrap">
+                                        <thead class="table-success ">
+                                        <tr>
+                                            <th>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="select-all">
+                                                </div>
+                                            </th>
+                                            <th>First name</th>
+                                            <th>Last name</th>
+                                            <th>Phone</th>
+                                            <th>E-mail</th>
+                                            <th>Requested at</th>
+                                            <th>Service</th>
+                                            <th>Process</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                            <th>Details</th>
+
+
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for item in client_data %}
+                                            {% with client=item.client client_service=item.client_service current_process=item.current_process %}
+                                                <tr>
+                                                    <td>{{ forloop.counter }}</td>
+                                                    <td>{{ client.first_name }}</td>
+                                                    <td>{{ client.last_name }}</td>
+                                                    <td>{{ client.phone|default:"-" }}</td>
+                                                    <td>{{ client.email }}</td>
+                                                    <td>
+                                                        {% if client_service %}
+                                                            {{ client_service.requested_at|date:"Y-m-d" }}
+                                                        {% else %}
+                                                            <span class="text-muted">No service</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if client_service %}
+                                                            {{ client_service.service.name }}
+                                                        {% else %}
+                                                            <span class="text-muted">No service</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if current_process %}
+                                                            {{ current_process.process.name }}
+                                                        {% else %}
+                                                            <span class="text-muted">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if current_process %}
+                                                            <span class="badge
               {% if current_process.status == 'in_progress' %}bg-info
               {% elif current_process.status == 'pending' %}bg-secondary
               {% elif current_process.status == 'completed' %}bg-success
@@ -129,77 +138,79 @@
               {% else %}bg-light text-dark{% endif %}">
               {{ current_process.get_status_display }}
             </span>
-                                                    {% else %}
-                                                        <span class="text-muted">N/A</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
-                                                            data-bs-target="#editClientModal{{ client.id }}">
-                                                        Edit
-                                                    </button>
-                                                </td>
-                                                <td>
-                                                    <a href="{% url 'client_details' client.id %}">
-                                                        <i class="ti ti-eye-check"></i>
-                                                    </a>
-                                                </td>
-                                            </tr>
+                                                        {% else %}
+                                                            <span class="text-muted">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                                data-bs-target="#editClientModal{{ client.id }}">
+                                                            Edit
+                                                        </button>
+                                                    </td>
+                                                    <td>
+                                                        <a href="{% url 'client_details' client.id %}">
+                                                            <i class="ti ti-eye-check"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
 
-                                            <!-- Edit Client Modal -->
-                                            <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
-                                                 aria-labelledby="editClientModalLabel{{ client.id }}"
-                                                 aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <form method="POST" action="{% url 'edit_client' client.id %}">
-                                                            {% csrf_token %}
-                                                            <div class="modal-header bg-warning">
-                                                                <h5 class="modal-title"
-                                                                    id="editClientModalLabel{{ client.id }}">
-                                                                    Edit Client
-                                                                </h5>
-                                                                <button type="button" class="btn-close"
-                                                                        data-bs-dismiss="modal"
-                                                                        aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                {{ item.form.as_p }}
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="submit" class="btn btn-primary">Save
-                                                                    Changes
-                                                                </button>
-                                                                <button type="button" class="btn btn-secondary"
-                                                                        data-bs-dismiss="modal">Cancel
-                                                                </button>
-                                                            </div>
-                                                        </form>
+                                                <!-- Edit Client Modal -->
+                                                <div class="modal fade" id="editClientModal{{ client.id }}"
+                                                     tabindex="-1"
+                                                     aria-labelledby="editClientModalLabel{{ client.id }}"
+                                                     aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <form method="POST"
+                                                                  action="{% url 'edit_client' client.id %}">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header bg-warning">
+                                                                    <h5 class="modal-title"
+                                                                        id="editClientModalLabel{{ client.id }}">
+                                                                        Edit Client
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    {{ item.form.as_p }}
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="submit" class="btn btn-primary">Save
+                                                                        Changes
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-secondary"
+                                                                            data-bs-dismiss="modal">Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        {% endwith %}
-                                    {% empty %}
-                                        <tr>
-                                            <td colspan="11" class="text-center">No clients found.</td>
-                                        </tr>
-                                    {% endfor %}
-                                    </tbody>
+                                            {% endwith %}
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="11" class="text-center">No clients found.</td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
 
 
-                                </table>
+                                    </table>
 
 
+                                </div>
                             </div>
                         </div>
                     </div>
+                    <!-- Config table end -->
+
+
+                    <!-- [ Main Content ] end -->
                 </div>
-                <!-- Config table end -->
-
-
-                <!-- [ Main Content ] end -->
-            </div>
-        </div>
+                </div>
     </section>
 
 
@@ -288,10 +299,11 @@
                                 <strong>Total: Ksh <span id="totalCost">0</span></strong>
                             </div>
                         </div>
-<div class="mt-4" id="totalPriceOverride" style="display: none;">
-    <label for="overrideTotalPrice" class="form-label">Override Total Price (Ksh)</label>
-    <input type="number" name="override_total_price" id="overrideTotalPrice" class="form-control" step="0.01">
-</div>
+                        <div class="mt-4" id="totalPriceOverride" style="display: none;">
+                            <label for="overrideTotalPrice" class="form-label">Override Total Price (Ksh)</label>
+                            <input type="number" name="override_total_price" id="overrideTotalPrice"
+                                   class="form-control" step="0.01">
+                        </div>
 
 
                         {{ client_service_form.land_description.label_tag }}
@@ -313,58 +325,58 @@
 
 
 
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        const categorySelect = document.querySelector("#id_category");
-        const serviceSelect = document.querySelector("#id_service");
-        const processSection = document.getElementById("processCostSection");
-        const processTableBody = document.getElementById("processTableBody");
-        const totalCostDisplay = document.getElementById("totalCost");
-        const overridePriceInput = document.getElementById("overrideTotalPrice");
-        const overridePriceSection = document.getElementById("totalPriceOverride");
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const categorySelect = document.querySelector("#id_category");
+            const serviceSelect = document.querySelector("#id_service");
+            const processSection = document.getElementById("processCostSection");
+            const processTableBody = document.getElementById("processTableBody");
+            const totalCostDisplay = document.getElementById("totalCost");
+            const overridePriceInput = document.getElementById("overrideTotalPrice");
+            const overridePriceSection = document.getElementById("totalPriceOverride");
 
-        // Handle category change
-        categorySelect.addEventListener("change", () => {
-            const category = categorySelect.value;
-            if (!category) return;
+            // Handle category change
+            categorySelect.addEventListener("change", () => {
+                const category = categorySelect.value;
+                if (!category) return;
 
-            serviceSelect.innerHTML = '<option value="">Loading...</option>';
+                serviceSelect.innerHTML = '<option value="">Loading...</option>';
 
-            fetch(`/services/by-category/?category=${category}`)
-                .then(res => res.json())
-                .then(data => {
-                    serviceSelect.innerHTML = '<option value="">Select Service</option>';
-                    data.services.forEach(service => {
-                        serviceSelect.innerHTML += `<option value="${service.id}">${service.name}</option>`;
+                fetch(`/services/by-category/?category=${category}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        serviceSelect.innerHTML = '<option value="">Select Service</option>';
+                        data.services.forEach(service => {
+                            serviceSelect.innerHTML += `<option value="${service.id}">${service.name}</option>`;
+                        });
                     });
-                });
-        });
+            });
 
-        // Handle service change
-        serviceSelect.addEventListener("change", () => {
-            const serviceId = serviceSelect.value;
-            if (!serviceId) return;
+            // Handle service change
+            serviceSelect.addEventListener("change", () => {
+                const serviceId = serviceSelect.value;
+                if (!serviceId) return;
 
-            fetch(`/get_service_processes/${serviceId}/`)
-                .then(res => res.json())
-                .then(data => {
-                    processTableBody.innerHTML = '';
-                    let total = 0;
+                fetch(`/get_service_processes/${serviceId}/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        processTableBody.innerHTML = '';
+                        let total = 0;
 
-                    if (data.processes.length === 0) {
-                        // Ground service or no processes — show override input with default total_price
-                        processSection.style.display = "none";
-                        overridePriceSection.style.display = "block";
-                        overridePriceInput.value = data.total_price;
-                    } else {
-                        // Services with processes
-                        overridePriceSection.style.display = "none";
-                        processSection.style.display = "block";
+                        if (data.processes.length === 0) {
+                            // Ground service or no processes — show override input with default total_price
+                            processSection.style.display = "none";
+                            overridePriceSection.style.display = "block";
+                            overridePriceInput.value = data.total_price;
+                        } else {
+                            // Services with processes
+                            overridePriceSection.style.display = "none";
+                            processSection.style.display = "block";
 
-                        data.processes.forEach(process => {
-                            total += process.default_cost;
+                            data.processes.forEach(process => {
+                                total += process.default_cost;
 
-                            processTableBody.innerHTML += `
+                                processTableBody.innerHTML += `
                                 <tr>
                                     <td>
                                         ${process.name}
@@ -380,25 +392,25 @@
                                     </td>
                                 </tr>
                             `;
-                        });
-
-                        totalCostDisplay.innerText = total.toFixed(2);
-
-                        // Recalculate total on input change
-                        document.querySelectorAll(".cost-input").forEach(input => {
-                            input.addEventListener("input", () => {
-                                let newTotal = 0;
-                                document.querySelectorAll(".cost-input").forEach(inp => {
-                                    newTotal += parseFloat(inp.value || 0);
-                                });
-                                totalCostDisplay.innerText = newTotal.toFixed(2);
                             });
-                        });
-                    }
-                });
+
+                            totalCostDisplay.innerText = total.toFixed(2);
+
+                            // Recalculate total on input change
+                            document.querySelectorAll(".cost-input").forEach(input => {
+                                input.addEventListener("input", () => {
+                                    let newTotal = 0;
+                                    document.querySelectorAll(".cost-input").forEach(inp => {
+                                        newTotal += parseFloat(inp.value || 0);
+                                    });
+                                    totalCostDisplay.innerText = newTotal.toFixed(2);
+                                });
+                            });
+                        }
+                    });
+            });
         });
-    });
-</script>
+    </script>
 
 
 

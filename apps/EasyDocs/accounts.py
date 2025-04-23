@@ -1,5 +1,5 @@
 # clients/utils.py
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -18,6 +18,14 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 
 from .models import ClientService, PaymentHistory
+import logging
+from decimal import Decimal
+from django.db.models import Sum
+
+logger = logging.getLogger(__name__)
+
+
+
 
 
 def get_payment_context(client, service_id=None):
@@ -174,46 +182,134 @@ def add_payment_view(request, client_id):
 
     return redirect('client_details', client_id=client_id)
 
-def get_client_payment_history(client_id, start_date=None, end_date=None, service_id=None):
-    # 1) Fetch only the ClientService records for this client
-    client_services = ClientService.objects.filter(client_id=client_id)
+from collections import defaultdict
 
-    # 2) If service_id is provided, narrow it down to that one service
-    if service_id:
-        client_services = client_services.filter(id=service_id)
 
-    # 3) Build a lookup map of those services
-    client_services = client_services.select_related('service')
-    cs_map = {cs.id: cs for cs in client_services}
 
-    # 4) Query PaymentHistory for only those services
-    qs = PaymentHistory.objects.select_related('payment').filter(
-        client_service__in=cs_map.keys()
-    )
 
-    # 5) Apply date filters on Payment (not on History itself)
-    if start_date:
-        qs = qs.filter(payment__payment_date__gte=start_date)
-    if end_date:
-        qs = qs.filter(payment__payment_date__lte=end_date)
+def get_client_payment_history(client_id):
+    try:
+        client_services = (
+            ClientService.objects
+            .filter(client_id=client_id)
+            .select_related('service')
+        )
+        cs_map = {cs.id: cs for cs in client_services}
+    except Exception as e:
+        logger.error(f"[get_client_payment_history] Error loading services for client {client_id}: {e}", exc_info=True)
+        return []
 
-    # 6) Order and serialize
-    qs = qs.order_by('-payment__payment_date')
+    # Load related PaymentHistory entries
+    try:
+        histories_qs = (
+            PaymentHistory.objects
+            .select_related('payment', 'service_process', 'sub_service')
+            .filter(client_service__in=cs_map.keys())
+        )
+    except Exception as e:
+        logger.error(f"[get_client_payment_history] Error loading PaymentHistory for client {client_id}: {e}",
+                     exc_info=True)
+        return []
 
-    result = []
-    for h in qs:
-        cs = cs_map[h.client_service_id]
-        payment = h.payment
+    # Load payments directly
+    try:
+        payments_qs = (
+            Payment.objects
+            .filter(client_service__in=cs_map.keys())
+            .order_by('payment_date', 'id')
+        )
+    except Exception as e:
+        logger.error(f"[get_client_payment_history] Error loading Payments for client {client_id}: {e}", exc_info=True)
+        return []
 
-        result.append({
-            'service_id': cs.id,
-            'service_name': f"{cs.service.name} for Plot {cs.land_description}",
-            'amount': str(h.amount),
-            'method': payment.payment_method if payment else 'N/A',
-            'reason': h.get_reason_display() if h.reason else '',
-            'timestamp': payment.payment_date.strftime('%m/%d/%Y %H:%M') if payment else 'N/A',
-            'payment_status': cs.payment_status,
+    aggregated = {}
+
+    # Step 1: Use Payment to build the payment breakdown
+    for p in payments_qs:
+        cs = cs_map.get(p.client_service_id)
+        if not cs:
+            continue
+        sid = cs.id
+        if sid not in aggregated:
+            aggregated[sid] = {
+                'id': cs.id,
+                'service_name': f"{cs.service.name} for Plot {cs.land_description}",
+                'total_amount': float(cs.effective_total_price),
+                'total_paid': 0.0,
+                'payment_breakdown': [],
+                'allocations': [],
+            }
+
+        amt = float(p.amount or 0)
+        aggregated[sid]['total_paid'] += amt
+        remaining = aggregated[sid]['total_amount'] - aggregated[sid]['total_paid']
+
+        aggregated[sid]['payment_breakdown'].append({
+            'payment_date': p.payment_date.strftime('%d-%m-%y'),
+            'amount_paid': amt,
+            'method': p.payment_method,
+            'reference': p.transaction_id or 'N/A',
+            'remaining_balance': remaining,
         })
+
+    # Step 2: Use PaymentHistory for allocation breakdown
+    for h in histories_qs:
+        cs = cs_map.get(h.client_service_id)
+        if not cs:
+            continue
+        sid = cs.id
+        amt = float(h.amount or 0)
+
+        if h.reason == 'service_step' and h.service_process:
+            proc = h.service_process
+            name = proc.process.name
+            paid = float(proc.paid_amount)
+            cost = float(proc.cost)
+            status = 'Fully Paid' if paid >= cost else 'Partially Paid'
+            alloc = {
+                'reason': name,
+                'amount': amt,
+                'status': status,
+                'step_order': proc.process.step_order,
+            }
+        elif h.reason == 'sub_service' and h.sub_service:
+            sub = h.sub_service
+            name = sub.sub_service.name
+            paid = float(sub.paid_amount)
+            cost = float(sub.price)
+            status = 'Fully Paid' if paid >= cost else 'Partially Paid'
+            alloc = {
+                'reason': name,
+                'amount': amt,
+                'status': status,
+                'added_on': h.created_at,
+            }
+        else:
+            alloc = {
+                'reason': h.get_reason_display() or 'Unknown',
+                'amount': amt,
+                'status': '',
+                'added_on': h.created_at,
+            }
+
+        aggregated[sid]['allocations'].append(alloc)
+
+    # Step 3: Finalize results
+    result = []
+    for sid, data in aggregated.items():
+        procs = [a for a in data['allocations'] if 'step_order' in a]
+        procs.sort(key=lambda x: x['step_order'])
+        subs = [a for a in data['allocations'] if 'step_order' not in a]
+        subs.sort(key=lambda x: x['added_on'])
+        data['allocations'] = procs + subs
+
+        data['pending_balance'] = data['total_amount'] - data['total_paid']
+        data['payment_status'] = (
+            'Fully Paid' if data['total_paid'] >= data['total_amount']
+            else 'Partially Paid'
+        )
+
+        result.append(data)
 
     return result
 
@@ -232,7 +328,12 @@ class ExpenseView(View):
 
         return redirect(request.META.get("HTTP_REFERER", "/accounts/"))
 
-
+def get_all_payment_history():
+    return (
+        Payment.objects
+        .select_related('client_service__client')
+        .order_by('-payment_date')
+    )
 
 class AccountsDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Management/accounts.html'
@@ -243,11 +344,7 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
 
         # 1. All expenses
         ctx['expenses'] = Expense.objects.all().order_by('-date')
-        ctx['payment_history'] = (
-            PaymentHistory.objects
-            .select_related('payment', 'client_service__client', 'service_process', 'sub_service')
-            .order_by('-created_at')
-        )
+        ctx['client_payments'] = get_all_payment_history()
 
         ctx['form'] = ExpenseForm()  # only needed for rendering empty modal
         ctx['users'] = User.objects.all()  # needed for select options

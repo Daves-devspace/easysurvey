@@ -36,13 +36,46 @@ class ClientForm(forms.ModelForm):
 
 
 class ClientServiceForm(forms.ModelForm):
-    category = forms.ChoiceField(choices=ServiceCategory.choices, required=False, label="Service Category")
-    service = forms.ModelChoiceField(queryset=Service.objects.none())
-    dispatch_preview = forms.CharField(required=False, widget=forms.Textarea(attrs={'readonly': True}), label="Dispatch Message", help_text="Preview only for dispatch services")
+    category = forms.ChoiceField(
+        choices=ServiceCategory.choices,
+        required=False,
+        label="Service Category",
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+
+    service = forms.ModelChoiceField(
+        queryset=Service.objects.none(),
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+        })
+    )
+
+    dispatch_preview = forms.CharField(
+        required=False,
+        label="Dispatch Message",
+        help_text="Preview only for dispatch services",
+        widget=forms.Textarea(attrs={
+            'readonly': True,
+            'class': 'form-control',
+            'rows': 3,
+        })
+    )
 
     class Meta:
         model = ClientService
         fields = ['client', 'category', 'service', 'land_description']
+        widgets = {
+            'client': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'land_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Enter a brief land description...',
+            }),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -214,11 +247,33 @@ class SubServiceForm(forms.ModelForm):
 class ClientSubServiceForm(forms.ModelForm):
     class Meta:
         model = ClientSubService
-        fields = ['client_service', 'sub_service']
+        fields = ['client_service', 'sub_service', 'overridden_price']
         widgets = {
             'client_service': forms.Select(attrs={'class': 'form-control'}),
             'sub_service': forms.Select(attrs={'class': 'form-control'}),
+            'overridden_price': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+
+    def clean_overridden_price(self):
+        price = self.cleaned_data.get('overridden_price')
+        if price is not None and price < 0:
+            raise forms.ValidationError("Price cannot be negative.")
+        return price
+
+
+class ClientSubServiceEditForm(forms.ModelForm):
+    class Meta:
+        model = ClientSubService
+        fields = ['overridden_price']
+        widgets = {
+            'overridden_price': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_overridden_price(self):
+        price = self.cleaned_data.get('overridden_price')
+        if price is not None and price < 0:
+            raise forms.ValidationError("Price cannot be negative.")
+        return price
 
 
 class SiteSettingsForm(forms.ModelForm):
@@ -239,21 +294,47 @@ class SiteSettingsForm(forms.ModelForm):
 
 class EmailSettingsForm(forms.ModelForm):
     email_host_password = forms.CharField(
-        widget=forms.PasswordInput(render_value=True),
         required=False,
-        label="Email Host Password"
+        label="Email Host Password",
+        help_text="Use at least 8 characters, mixing letters & numbers.",
+        widget=forms.PasswordInput(
+            render_value=True,
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter email password',
+                'id': 'id_email_host_password',
+            }
+        )
     )
 
     class Meta:
         model = EmailSettings
-        fields = ['email_host', 'email_port', 'email_host_user', 'email_host_password', 'default_from_email']
-
+        fields = [
+            'email_host',
+            'email_port',
+            'email_host_user',
+            'email_host_password',
+            'default_from_email'
+        ]
         widgets = {
-            'email_host': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter email host'}),
-            'email_port': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter email port'}),
-            'email_host_user': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter email user'}),
-            'default_from_email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter default from email'}),
+            'email_host': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter email host'
+            }),
+            'email_port': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter email port'
+            }),
+            'email_host_user': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter email user'
+            }),
+            'default_from_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter default from email (e.g. admin@valuetech.co.ke)'
+            }),
         }
+
 
 
 

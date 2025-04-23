@@ -28,1223 +28,1040 @@
                 </div>
             </div>
             <!-- [ breadcrumb ] end -->
-            <!-- [ Main Content ] start -->
-            <div class="row">
-                <!-- [ sample-page ] start -->
-                <div class="col-sm-12">
-                    <div class="card">
-                        <div class="card-header pb-0">
-                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                                <li class="nav-item">
-                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-user me-2"></i>Services
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-file-text me-2"></i>Personal
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-id me-2"></i>My Account
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-lock me-2"></i>Change Password
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-users me-2"></i>Services
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-6" data-bs-toggle="tab" href="#profile-6"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-settings me-2"></i>Settings
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div class="tab-content">
-                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
-                                     aria-labelledby="profile-tab-1">
-                                    <div class="row">
-                                        <div class="col-lg-5 col-xxl-3">
-                                            <div class="card">
-                                                <div class="card-header d-flex">
-                                                    <!-- Add Service Button + Modal -->
-                                                    <button class="btn btn-success btn-sm my-2 me-2"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#addServiceModal">Add Service
-                                                    </button>
-                                                    <button type="button" class="btn btn-sm my-2 btn-primary"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#addSubServiceModal">
-                                                        Add SubService
-                                                    </button>
-                                                </div>
-                                                <div class="card-body position-relative">
-                                                    <div class="position-absolute end-0 top-0 p-3">
+            <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+
+                <!-- [ Main Content ] start -->
+                <div class="row">
+                    <!-- [ sample-page ] start -->
+                    <div class="col-sm-12">
+                        <div class="card">
+                            <div class="card-header pb-0">
+                                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                                    <li class="nav-item">
+                                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                                           href="#profile-1"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-user me-2"></i>Services
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-file-text me-2"></i>Personal
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-id me-2"></i>My Account
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-lock me-2"></i>Change Password
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-users me-2"></i>Services
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-6" data-bs-toggle="tab" href="#profile-6"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-settings me-2"></i>Settings
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="card-body">
+                                <div class="tab-content">
+                                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                         aria-labelledby="profile-tab-1">
+                                        <div class="row">
+                                            <div class="col-lg-5 col-xxl-5">
+                                                <div class="card">
+                                                    <div class="card-header d-flex">
+                                                        <!-- Add Service Button + Modal -->
+                                                        <button class="btn btn-success btn-sm my-2 me-2"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addServiceModal">Add Service
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm my-2 btn-primary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addSubServiceModal">
+                                                            Add SubService
+                                                        </button>
+                                                    </div>
+                                                    <div class="card-body position-relative">
+                                                        <div class="position-absolute end-0 top-0 p-3">
                                                         <span class="badge bg-primary">
                                                             services
 
 
                                                         </span>
 
-                                                        <!-- Service Modal -->
-                                                        <div class="modal fade" id="addServiceModal" tabindex="-1"
+                                                            <!-- Service Modal -->
+                                                            <div class="modal fade" id="addServiceModal" tabindex="-1"
+                                                                 aria-hidden="true">
+                                                                <div class="modal-dialog">
+                                                                    <form method="post">
+                                                                        {% csrf_token %}
+                                                                        <div class="modal-content">
+                                                                            <div class="modal-header"><h5
+                                                                                    class="modal-title">Add Service</h5>
+                                                                            </div>
+                                                                            <div class="modal-body">
+                                                                                {{ service_form.as_p }}
+                                                                            </div>
+                                                                            <div class="modal-footer">
+                                                                                <button type="submit" name="add_service"
+                                                                                        class="btn btn-primary">Save
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+
+
+                                                        </div>
+                                                        <!-- Modal for adding a new SubService -->
+                                                        <div class="modal fade" id="addSubServiceModal" tabindex="-1"
+                                                             aria-labelledby="addSubServiceModalLabel"
                                                              aria-hidden="true">
                                                             <div class="modal-dialog">
-                                                                <form method="post">
-                                                                    {% csrf_token %}
-                                                                    <div class="modal-content">
-                                                                        <div class="modal-header"><h5
-                                                                                class="modal-title">Add Service</h5>
-                                                                        </div>
-                                                                        <div class="modal-body">
-                                                                            {{ service_form.as_p }}
-                                                                        </div>
-                                                                        <div class="modal-footer">
-                                                                            <button type="submit" name="add_service"
-                                                                                    class="btn btn-primary">Save
-                                                                            </button>
-                                                                        </div>
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title"
+                                                                            id="addSubServiceModalLabel">Add New
+                                                                            SubService</h5>
+                                                                        <button type="button" class="btn-close"
+                                                                                data-bs-dismiss="modal"
+                                                                                aria-label="Close"></button>
                                                                     </div>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-
-
-                                                    </div>
-                                                    <!-- Modal for adding a new SubService -->
-                                                    <div class="modal fade" id="addSubServiceModal" tabindex="-1"
-                                                         aria-labelledby="addSubServiceModalLabel" aria-hidden="true">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h5 class="modal-title"
-                                                                        id="addSubServiceModalLabel">Add New
-                                                                        SubService</h5>
-                                                                    <button type="button" class="btn-close"
-                                                                            data-bs-dismiss="modal"
-                                                                            aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <!-- Form to add SubService -->
-                                                                    <form method="post" id="subserviceForm">
-                                                                        {% csrf_token %}
-                                                                        {{ subservice_form.as_p }}
-                                                                        <button type="submit" name="add_subservice"
-                                                                                class="btn btn-primary">Save SubService
-                                                                        </button>
-                                                                    </form>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Edit SubService Modal -->
-                                                    <div class="modal fade" id="editSubserviceModal" tabindex="-1"
-                                                         role="dialog" aria-labelledby="editSubserviceModalLabel"
-                                                         aria-hidden="true">
-                                                        <div class="modal-dialog" role="document">
-                                                            <div class="modal-content">
-                                                                <div class="modal-header">
-                                                                    <h5 class="modal-title"
-                                                                        id="editSubserviceModalLabel">Edit
-                                                                        SubService</h5>
-                                                                    <button type="button" class="close"
-                                                                            data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    <form method="POST" action="{% url 'management' %}">
-                                                                        {% csrf_token %}
-                                                                        <input type="hidden" name="subservice_id"
-                                                                               id="subservice_id">
-
-                                                                        {{ edit_subservice_form.as_p }}
-                                                                        <!-- Render the form here -->
-
-                                                                        <button type="submit" name="edit_subservice"
-                                                                                class="btn btn-primary">Save Changes
-                                                                        </button>
-                                                                    </form>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-
-                                                    <!-- Table to display existing SubServices -->
-                                                    <h3>Existing SubServices</h3>
-                                                    <div class="table-responsive">
-                                                        <table class="table table-bordered table-striped">
-                                                            <thead class="table-light">
-
-                                                            <tr>
-                                                                <th>Name</th>
-                                                                <th>Department</th>
-                                                                <th>Description</th>
-                                                                <th>Price</th>
-                                                                <th>edit</th>
-                                                                <th>delete</th>
-                                                            </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                            {% for subservice in subservices %}
-                                                                <tr>
-                                                                    <td>{{ subservice.name }}</td>
-                                                                    <td>{{ subservice.department }}</td>
-                                                                    <td>{{ subservice.description }}</td>
-                                                                    <td>{{ subservice.price }}</td>
-                                                                    <td><!-- Edit Button that triggers the modal -->
-                                                                        <button class="btn btn-primary"
-                                                                                data-toggle="modal"
-                                                                                data-target="#editSubserviceModal"
-                                                                                data-id="{{ subservice.id }}"
-                                                                                data-name="{{ subservice.name }}"
-                                                                                data-department="{{ subservice.department }}"
-                                                                                data-price="{{ subservice.price }}"
-                                                                                data-description="{{ subservice.description }}">
-                                                                            Edit
-                                                                        </button>
-                                                                    </td>
-                                                                    <td>
-
-                                                                        <form action="{% url 'delete_subservice' subservice.id %}"
-                                                                              method="post" style="display:inline;">
+                                                                    <div class="modal-body">
+                                                                        <!-- Form to add SubService -->
+                                                                        <form method="post" id="subserviceForm">
                                                                             {% csrf_token %}
-                                                                            <button type="submit"
-                                                                                    class="btn btn-danger btn-sm">Delete
+                                                                            {{ subservice_form.as_p }}
+                                                                            <button type="submit" name="add_subservice"
+                                                                                    class="btn btn-primary">Save
+                                                                                SubService
                                                                             </button>
                                                                         </form>
-                                                                    </td>
-                                                                </tr>
-                                                            {% endfor %}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
+                                                        <!-- Edit SubService Modal -->
+                                                        <div class="modal fade" id="editSubserviceModal" tabindex="-1"
+                                                             role="dialog" aria-labelledby="editSubserviceModalLabel"
+                                                             aria-hidden="true">
+                                                            <div class="modal-dialog" role="document">
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title"
+                                                                            id="editSubserviceModalLabel">Edit
+                                                                            SubService</h5>
+                                                                        <button type="button" class="btn-close"
+                                                                                data-bs-dismiss="modal"
+                                                                                aria-label="Close"></button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <form method="POST"
+                                                                              action="{% url 'management' %}">
+                                                                            {% csrf_token %}
+                                                                            <input type="hidden" name="subservice_id"
+                                                                                   id="edit_subservice_id">
 
-                                                </div>
-                                            </div>
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Skills</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row align-items-center mb-3">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">Junior</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 30%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">30%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row align-items-center mb-3">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">UX Researcher</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 80%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">80%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row align-items-center mb-3">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">Wordpress</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 90%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">90%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row align-items-center mb-3">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">HTML</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 30%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">30%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row align-items-center mb-3">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">Graphic Design</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 95%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">95%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row align-items-center">
-                                                        <div class="col-sm-6 mb-2 mb-sm-0">
-                                                            <p class="mb-0">Code Style</p>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-grow-1 me-3">
-                                                                    <div class="progress progress-primary"
-                                                                         style="height: 6px;">
-                                                                        <div class="progress-bar"
-                                                                             style="width: 75%;"></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-shrink-0">
-                                                                    <p class="mb-0 text-muted">75%</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-7 col-xxl-9">
-                                            <div class="card">
-                                                <div class="card-header pb-0">
-                                                    <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap"
-                                                        id="serviceTabs" role="tablist" style="white-space: nowrap;">
-                                                        {% for service in services %}
-                                                            <li class="nav-item" role="presentation">
-                                                                <a class="nav-link {% if forloop.first %}active{% endif %}"
-                                                                   id="tab-{{ service.id }}"
-                                                                   data-bs-toggle="tab"
-                                                                   href="#service-{{ service.id }}"
-                                                                   role="tab"
-                                                                   aria-controls="service-{{ service.id }}"
-                                                                   aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
-                                                                    {{ service.name }}
-                                                                </a>
-                                                            </li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                </div>
+                                                                            <div class="mb-3">
+                                                                                <label for="edit_name">Name</label>
+                                                                                <input type="text" name="name"
+                                                                                       id="edit_name"
+                                                                                       class="form-control">
+                                                                            </div>
+                                                                            <div class="mb-3">
+                                                                                <label for="edit_department">Department</label>
+                                                                                <input type="text" name="department"
+                                                                                       id="edit_department"
+                                                                                       class="form-control">
+                                                                            </div>
+                                                                            <div class="mb-3">
+                                                                                <label for="edit_description">Description</label>
+                                                                                <textarea name="description"
+                                                                                          id="edit_description"
+                                                                                          class="form-control"></textarea>
+                                                                            </div>
+                                                                            <div class="mb-3">
+                                                                                <label for="edit_price">Price</label>
+                                                                                <input type="number" name="price"
+                                                                                       id="edit_price"
+                                                                                       class="form-control">
+                                                                            </div>
 
-                                                <div class="card-body">
-                                                    <div class="tab-content" id="serviceTabsContent">
-                                                        {% for service in services %}
-                                                            <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
-                                                                 id="service-{{ service.id }}"
-                                                                 role="tabpanel"
-                                                                 aria-labelledby="tab-{{ service.id }}">
-
-                                                                <div class="card mb-3">
-                                                                    <div class="card-header d-flex justify-content-between align-items-center">
-                                                                        <h5 class="mb-0">{{ service.name }}</h5>
-
-                                                                        {% if service.category != 'ground' %}
-                                                                            <button class="btn btn-primary btn-sm"
-                                                                                    data-bs-toggle="modal"
-                                                                                    data-bs-target="#addProcessModal-{{ service.id }}">
-                                                                                Add Process
+                                                                            <button type="submit" name="edit_subservice"
+                                                                                    class="btn btn-primary">Save Changes
                                                                             </button>
-                                                                        {% else %}
-                                                                            <span class="text-muted small">No processes allowed for Ground services</span>
-                                                                        {% endif %}
+                                                                        </form>
+
                                                                     </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
 
-                                                                    <div class="card-body">
-                                                                        <p>
-                                                                            <strong>Description:</strong> {{ service.description }}
-                                                                        </p>
-                                                                        <p>
-                                                                            <strong>Total Price:</strong>
-                                                                            KSH {{ service.total_price }}
-                                                                        </p>
+                                                        <!-- Table to display existing SubServices -->
+                                                        <h3>Existing SubServices</h3>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-bordered table-striped">
+                                                                <thead class="table-light">
 
-                                                                        {% if service.processes.exists %}
-                                                                            <h6>Processes:</h6>
-                                                                            <div class="table-responsive">
-                                                                                <table class="table table-bordered table-striped">
-                                                                                    <thead class="table-light">
-                                                                                    <tr>
-                                                                                        <th>Step</th>
-                                                                                        <th>Process Name</th>
-                                                                                        <th>Description</th>
-                                                                                        <th>Cost (KSH)</th>
-                                                                                        <th>Message</th>
-                                                                                    </tr>
-                                                                                    </thead>
-                                                                                    <tbody>
-                                                                                    {% for process in service.processes.all %}
+                                                                <tr>
+                                                                    <th>Name</th>
+                                                                    <th>Department</th>
+                                                                    <th>Description</th>
+                                                                    <th>Price</th>
+                                                                    <th>edit</th>
+                                                                    <th>delete</th>
+                                                                </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                {% for subservice in subservices %}
+                                                                    <tr>
+                                                                        <td>{{ subservice.name }}</td>
+                                                                        <td>{{ subservice.department }}</td>
+                                                                        <td>{{ subservice.description }}</td>
+                                                                        <td>{{ subservice.price }}</td>
+                                                                        <td><!-- Edit Button that triggers the modal -->
+                                                                            <button class="btn btn-primary"
+                                                                                    data-bs-toggle="modal"
+                                                                                    data-bs-target="#editSubserviceModal"
+                                                                                    data-id="{{ subservice.id }}"
+                                                                                    data-name="{{ subservice.name }}"
+                                                                                    data-department="{{ subservice.department }}"
+                                                                                    data-price="{{ subservice.price }}"
+                                                                                    data-description="{{ subservice.description }}">
+                                                                                Edit
+                                                                            </button>
+                                                                        </td>
+                                                                        <td>
+
+                                                                            <form action="{% url 'delete_subservice' subservice.id %}"
+                                                                                  method="post" style="display:inline;">
+                                                                                {% csrf_token %}
+                                                                                <button type="submit"
+                                                                                        class="btn btn-danger btn-sm">
+                                                                                    Delete
+                                                                                </button>
+                                                                            </form>
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+
+                                                    </div>
+                                                </div>
+                                                <div class="card">
+
+                                                    <div class="card-body">
+                                                        <div class="card-header bg-green-100">
+                                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                                                <h5 class="mb-0">Services Overview</h5>
+                                                                <div class="d-flex gap-2">
+                                                                    <select id="service-year-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 120px;"></select>
+                                                                    <select id="service-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 150px;"></select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body shadow-lg">
+                                                            <div id="chart-summary" class="mb-3">
+                                                                <h6 id="summary-year" class="fw-bold"></h6>
+                                                                <p id="summary-services" class="mb-1"></p>
+                                                                <p id="summary-revenue"></p>
+                                                            </div>
+                                                            <div id="chart" style="min-height: 300px;"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-7 col-xxl-7">
+                                                <div class="card">
+                                                    <div class="card-header pb-0">
+                                                        <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap"
+                                                            id="serviceTabs" role="tablist"
+                                                            style="white-space: nowrap;">
+                                                            {% for service in services %}
+                                                                <li class="nav-item" role="presentation">
+                                                                    <a class="nav-link {% if forloop.first %}active{% endif %}"
+                                                                       id="tab-{{ service.id }}"
+                                                                       data-bs-toggle="tab"
+                                                                       href="#service-{{ service.id }}"
+                                                                       role="tab"
+                                                                       aria-controls="service-{{ service.id }}"
+                                                                       aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                                                                        {{ service.name }}
+                                                                    </a>
+                                                                </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </div>
+
+                                                    <div class="card-body">
+                                                        <div class="tab-content" id="serviceTabsContent">
+                                                            {% for service in services %}
+                                                                <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+                                                                     id="service-{{ service.id }}"
+                                                                     role="tabpanel"
+                                                                     aria-labelledby="tab-{{ service.id }}">
+
+                                                                    <div class="card mb-3">
+                                                                        <!-- inside your service card-header, next to Add Process -->
+                                                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                                                            <h5 class="mb-0">{{ service.name }}</h5>
+
+                                                                            <div>
+                                                                                {% if service.category != 'ground' %}
+                                                                                    <button class="btn btn-primary btn-sm"
+                                                                                            data-bs-toggle="modal"
+                                                                                            data-bs-target="#addProcessModal-{{ service.id }}">
+                                                                                        Add Process
+                                                                                    </button>
+                                                                                {% endif %}
+
+                                                                                <button class="btn btn-outline-secondary btn-sm"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#editServiceModal-{{ service.id }}"
+                                                                                        data-id="{{ service.id }}"
+                                                                                        data-name="{{ service.name }}"
+                                                                                        data-description="{{ service.description }}"
+                                                                                        data-total_price="{{ service.total_price }}"
+                                                                                        data-category="{{ service.category }}">
+                                                                                    Edit Service
+                                                                                </button>
+
+                                                                            </div>
+                                                                        </div>
+
+
+                                                                        <div class="card-body">
+                                                                            <p>
+                                                                                <strong>Description:</strong> {{ service.description }}
+                                                                            </p>
+                                                                            <p>
+                                                                                <strong>Total Price:</strong>
+                                                                                KSH {{ service.total_price }}
+                                                                            </p>
+
+                                                                            {% if service.processes.exists %}
+                                                                                <h6>Processes:</h6>
+                                                                                <div class="table-responsive">
+                                                                                    <table class="table table-bordered table-striped">
+                                                                                        <thead class="table-light">
                                                                                         <tr>
-                                                                                            <td>{{ process.step_order }}</td>
-                                                                                            <td>{{ process.name }}</td>
-                                                                                            <td>{{ process.description }}</td>
-                                                                                            <td>{{ process.cost }}</td>
-                                                                                            <td>
-                                                                                                <!-- Button to trigger modal -->
-                                                                                                <button class="btn btn-sm btn-outline-info"
-                                                                                                        data-bs-toggle="modal"
-                                                                                                        data-bs-target="#messageModal-{{ process.id }}">
-                                                                                                    View
-                                                                                                </button>
+                                                                                            <th>Step</th>
+                                                                                            <th>Process Name</th>
+                                                                                            <th>Description</th>
+                                                                                            <th>Cost (KSH)</th>
+                                                                                            <th>Message</th>
+                                                                                            <th>Edit</th>
+                                                                                        </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                        {% for process in service.processes.all %}
+                                                                                            <tr>
+                                                                                                <td>{{ process.step_order }}</td>
+                                                                                                <td>{{ process.name }}</td>
+                                                                                                <td>{{ process.description }}</td>
+                                                                                                <td>{{ process.cost }}</td>
+                                                                                                <td>
+                                                                                                    <!-- Button to trigger modal -->
+                                                                                                    <button class="btn btn-sm btn-outline-info"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#messageModal-{{ process.id }}">
+                                                                                                        View
+                                                                                                    </button>
 
-                                                                                                <!-- Modal -->
-                                                                                                <div class="modal fade"
-                                                                                                     id="messageModal-{{ process.id }}"
-                                                                                                     tabindex="-1"
-                                                                                                     aria-labelledby="messageModalLabel-{{ process.id }}"
-                                                                                                     aria-hidden="true">
-                                                                                                    <div class="modal-dialog">
-                                                                                                        <div class="modal-content">
-                                                                                                            <div class="modal-header">
-                                                                                                                <h5 class="modal-title"
-                                                                                                                    id="messageModalLabel-{{ process.id }}">
-                                                                                                                    Message
-                                                                                                                    for: {{ process.name }}
-                                                                                                                </h5>
-                                                                                                                <button type="button"
-                                                                                                                        class="btn-close"
-                                                                                                                        data-bs-dismiss="modal"
-                                                                                                                        aria-label="Close"></button>
-                                                                                                            </div>
-                                                                                                            <div class="modal-body">
-                                                                                                                <p>{{ process.message }}</p>
-                                                                                                            </div>
-                                                                                                            <div class="modal-footer">
-                                                                                                                <button type="button"
-                                                                                                                        class="btn btn-secondary btn-sm"
-                                                                                                                        data-bs-dismiss="modal">
-                                                                                                                    Close
-                                                                                                                </button>
+
+                                                                                                    <!-- Modal -->
+                                                                                                    <div class="modal fade"
+                                                                                                         id="messageModal-{{ process.id }}"
+                                                                                                         tabindex="-1"
+                                                                                                         aria-labelledby="messageModalLabel-{{ process.id }}"
+                                                                                                         aria-hidden="true">
+                                                                                                        <div class="modal-dialog">
+                                                                                                            <div class="modal-content">
+                                                                                                                <div class="modal-header">
+                                                                                                                    <h5 class="modal-title"
+                                                                                                                        id="messageModalLabel-{{ process.id }}">
+                                                                                                                        Message
+                                                                                                                        for: {{ process.name }}
+                                                                                                                    </h5>
+                                                                                                                    <button type="button"
+                                                                                                                            class="btn-close"
+                                                                                                                            data-bs-dismiss="modal"
+                                                                                                                            aria-label="Close"></button>
+                                                                                                                </div>
+                                                                                                                <div class="modal-body">
+                                                                                                                    <p>{{ process.message }}</p>
+                                                                                                                </div>
+                                                                                                                <div class="modal-footer">
+                                                                                                                    <button type="button"
+                                                                                                                            class="btn btn-secondary btn-sm"
+                                                                                                                            data-bs-dismiss="modal">
+                                                                                                                        Close
+                                                                                                                    </button>
+                                                                                                                </div>
                                                                                                             </div>
                                                                                                         </div>
                                                                                                     </div>
+                                                                                                </td>
+                                                                                                <td><!-- Edit Button -->
+                                                                                                    <button class="btn btn-sm btn-primary"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#editProcessModal"
+                                                                                                            data-id="{{ process.id }}"
+                                                                                                            data-name="{{ process.name }}"
+                                                                                                            data-description="{{ process.description }}"
+                                                                                                            data-cost="{{ process.cost }}"
+                                                                                                            data-step_order="{{ process.step_order }}"
+                                                                                                            data-message="{{ process.message }}">
+                                                                                                        Edit
+                                                                                                    </button>
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        {% endfor %}
+                                                                                        <!-- Edit Process Modal -->
+                                                                                        <div class="modal fade"
+                                                                                             id="editProcessModal"
+                                                                                             tabindex="-1"
+                                                                                             aria-labelledby="editProcessModalLabel"
+                                                                                             aria-hidden="true">
+                                                                                            <div class="modal-dialog">
+                                                                                                <div class="modal-content">
+                                                                                                    <form method="POST"
+                                                                                                          action="{% url 'management' %}">
+                                                                                                        {% csrf_token %}
+                                                                                                        <div class="modal-header">
+                                                                                                            <h5 class="modal-title"
+                                                                                                                id="editProcessModalLabel">
+                                                                                                                Edit
+                                                                                                                Process</h5>
+                                                                                                            <button type="button"
+                                                                                                                    class="btn-close"
+                                                                                                                    data-bs-dismiss="modal"
+                                                                                                                    aria-label="Close"></button>
+                                                                                                        </div>
+                                                                                                        <div class="modal-body">
+                                                                                                            <input type="hidden"
+                                                                                                                   name="process_id"
+                                                                                                                   id="edit_process_id">
+
+                                                                                                            <div class="mb-3">
+                                                                                                                <label for="edit_process_name">Name</label>
+                                                                                                                <input type="text"
+                                                                                                                       name="name"
+                                                                                                                       id="edit_process_name"
+                                                                                                                       class="form-control">
+                                                                                                            </div>
+                                                                                                            <div class="mb-3">
+                                                                                                                <label for="edit_process_description">Description</label>
+                                                                                                                <textarea
+                                                                                                                        name="description"
+                                                                                                                        id="edit_process_description"
+                                                                                                                        class="form-control"></textarea>
+                                                                                                            </div>
+                                                                                                            <div class="mb-3">
+                                                                                                                <label for="edit_process_cost">Cost
+                                                                                                                    (KSH)</label>
+                                                                                                                <input type="number"
+                                                                                                                       name="cost"
+                                                                                                                       id="edit_process_cost"
+                                                                                                                       class="form-control">
+                                                                                                            </div>
+                                                                                                            <div class="mb-3">
+                                                                                                                <label for="edit_process_step_order">Step
+                                                                                                                    Order</label>
+                                                                                                                <input type="number"
+                                                                                                                       name="step_order"
+                                                                                                                       id="edit_process_step_order"
+                                                                                                                       class="form-control">
+                                                                                                            </div>
+                                                                                                            <div class="mb-3">
+                                                                                                                <label for="edit_process_message">Message</label>
+                                                                                                                <textarea
+                                                                                                                        name="message"
+                                                                                                                        id="edit_process_message"
+                                                                                                                        class="form-control"></textarea>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                        <div class="modal-footer">
+                                                                                                            <button type="submit"
+                                                                                                                    name="edit_process"
+                                                                                                                    class="btn btn-primary">
+                                                                                                                Save
+                                                                                                                Changes
+                                                                                                            </button>
+                                                                                                        </div>
+                                                                                                    </form>
                                                                                                 </div>
-                                                                                            </td>
-                                                                                        </tr>
-                                                                                    {% endfor %}
-                                                                                    </tbody>
-                                                                                </table>
-                                                                            </div>
-                                                                        {% else %}
-                                                                            <p><em>No processes defined.</em></p>
-                                                                        {% endif %}
-                                                                    </div>
+                                                                                            </div>
+                                                                                        </div>
 
-                                                                </div>
-
-                                                                <!-- Add Process Modal -->
-                                                                <div class="modal fade"
-                                                                     id="addProcessModal-{{ service.id }}" tabindex="-1"
-                                                                     aria-hidden="true">
-                                                                    <div class="modal-dialog">
-                                                                        <form method="post">
-                                                                            {% csrf_token %}
-                                                                            <div class="modal-content">
-                                                                                <div class="modal-header">
-                                                                                    <h5 class="modal-title">Add Process
-                                                                                        for {{ service.name }}</h5>
-                                                                                    <button type="button"
-                                                                                            class="btn-close"
-                                                                                            data-bs-dismiss="modal"
-                                                                                            aria-label="Close"></button>
+                                                                                        </tbody>
+                                                                                    </table>
                                                                                 </div>
-                                                                                <div class="modal-body">
-                                                                                    {{ process_form.as_p }}
-                                                                                    <input type="hidden" name="service"
-                                                                                           value="{{ service.id }}">
+                                                                            {% else %}
+                                                                                <p><em>No processes defined.</em></p>
+                                                                            {% endif %}
+                                                                        </div>
+
+                                                                    </div>
+                                                                    <!-- Edit Service Modal -->
+                                                                    <div class="modal fade"
+                                                                         id="editServiceModal-{{ service.id }}"
+                                                                         tabindex="-1" aria-hidden="true">
+                                                                        <div class="modal-dialog">
+                                                                            <form method="POST"
+                                                                                  action="{% url 'management' %}">
+                                                                                {% csrf_token %}
+                                                                                <div class="modal-content">
+                                                                                    <div class="modal-header">
+                                                                                        <h5 class="modal-title">Edit
+                                                                                            Service</h5>
+                                                                                        <button type="button"
+                                                                                                class="btn-close"
+                                                                                                data-bs-dismiss="modal"></button>
+                                                                                    </div>
+                                                                                    <div class="modal-body">
+                                                                                        <!-- hidden ID so your view can look up the instance -->
+                                                                                        <input type="hidden"
+                                                                                               name="service_id"
+                                                                                               value="{{ service.id }}">
+
+                                                                                        <!-- Render the bound form (will include any error tags!) -->
+                                                                                        {{ edit_service_form.as_p }}
+                                                                                    </div>
+                                                                                    <div class="modal-footer">
+                                                                                        <button type="submit"
+                                                                                                name="edit_service"
+                                                                                                class="btn btn-primary">
+                                                                                            Save Changes
+                                                                                        </button>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div class="modal-footer">
-                                                                                    <button type="submit"
-                                                                                            name="add_process"
-                                                                                            class="btn btn-primary">Save
-                                                                                    </button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
+
+
+                                                                    <!-- Add Process Modal -->
+                                                                    <div class="modal fade"
+                                                                         id="addProcessModal-{{ service.id }}"
+                                                                         tabindex="-1"
+                                                                         aria-hidden="true">
+                                                                        <div class="modal-dialog">
+                                                                            <form method="post">
+                                                                                {% csrf_token %}
+                                                                                <div class="modal-content">
+                                                                                    <div class="modal-header">
+                                                                                        <h5 class="modal-title">Add
+                                                                                            Process
+                                                                                            for {{ service.name }}</h5>
+                                                                                        <button type="button"
+                                                                                                class="btn-close"
+                                                                                                data-bs-dismiss="modal"
+                                                                                                aria-label="Close"></button>
+                                                                                    </div>
+                                                                                    <div class="modal-body">
+                                                                                        {{ process_form.as_p }}
+                                                                                        <input type="hidden"
+                                                                                               name="service"
+                                                                                               value="{{ service.id }}">
+                                                                                    </div>
+                                                                                    <div class="modal-footer">
+                                                                                        <button type="submit"
+                                                                                                name="add_process"
+                                                                                                class="btn btn-primary">
+                                                                                            Save
+                                                                                        </button>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        </form>
+                                                                            </form>
+                                                                        </div>
                                                                     </div>
+
                                                                 </div>
-
-                                                            </div>
-                                                        {% endfor %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-
-                                    </div>
-                                </div>
-
-                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
-                                    <div class="row">
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Personal Information</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-12 text-center mb-3">
-                                                            <div class="user-upload wid-75">
-                                                                <img src="../assets/images/user/avatar-4.jpg" alt="img"
-                                                                     class="img-fluid">
-                                                                <label for="uplfile" class="img-avtar-upload">
-                                                                    <i class="ti ti-camera f-24 mb-1"></i>
-                                                                    <span>Upload</span>
-                                                                </label>
-                                                                <input type="file" id="uplfile" class="d-none">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">First Name</label>
-                                                                <input type="text" class="form-control" value="Anshan">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Last Name</label>
-                                                                <input type="text" class="form-control" value="Handgun">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Country</label>
-                                                                <input type="text" class="form-control"
-                                                                       value="New York">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Zip code</label>
-                                                                <input type="text" class="form-control" value="956754">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Bio</label>
-                                                                <textarea
-                                                                        class="form-control">Hello, I’m Anshan Handgun Creative Graphic Designer & User Experience Designer based in Website, I create digital Products a more Beautiful and usable place. Morbid accusant ipsum. Nam nec tellus at.</textarea>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Experience</label>
-                                                                <select class="form-control">
-                                                                    <option>Startup</option>
-                                                                    <option>2 year</option>
-                                                                    <option>3 year</option>
-                                                                    <option selected>4 year</option>
-                                                                    <option>5 year</option>
-                                                                </select>
-                                                            </div>
+                                                            {% endfor %}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Social Network</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-twitter">
-                                                                        <i class="fab fa-twitter f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Twitter</h6>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="flex-shrink-0">
-                                                            <button class="btn btn-link-danger">Connect</button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-facebook">
-                                                                        <i class="fab fa-facebook-f f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Facebook</h6>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="flex-shrink-0">
-                                                            <div class="text-facebook">Anshan Handgun</div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="flex-grow-1 me-3">
-                                                            <div class="d-flex align-items-center">
-                                                                <div class="flex-shrink-0">
-                                                                    <div class="avtar avtar-xs btn-light-linkedin">
-                                                                        <i class="fab fa-linkedin-in f-16"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="flex-grow-1 ms-3">
-                                                                    <h6 class="mb-0">Linkedin</h6>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="flex-shrink-0">
-                                                            <button class="btn btn-link-danger">Connect</button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Contact Information</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Contact Phone</label>
-                                                                <input type="text" class="form-control"
-                                                                       value="(+99) 9999 999 999">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Email <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="demo@sample.com">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Portfolio Url</label>
-                                                                <input type="text" class="form-control"
-                                                                       value="https://demo.com">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Address</label>
-                                                                <textarea
-                                                                        class="form-control">3379  Monroe Avenue, Fort Myers, Florida(33912)</textarea>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12 text-end btn-page">
-                                            <div class="btn btn-outline-secondary">Cancel</div>
-                                            <div class="btn btn-primary">Update Profile</div>
+
+
                                         </div>
                                     </div>
-                                </div>
-                                <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>General Settings</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Username <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="Ashoka_Tano_16">
-                                                                <small class="form-text text-muted">Your Profile URL:
-                                                                    https://pc.com/Ashoka_Tano_16</small>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Account Email <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="demo@sample.com">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Language</label>
-                                                                <select class="form-control">
-                                                                    <option>Washington</option>
-                                                                    <option>India</option>
-                                                                    <option>Africa</option>
-                                                                    <option>New York</option>
-                                                                    <option>Malaysia</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Sign in Using</label>
-                                                                <select class="form-control">
-                                                                    <option>Password</option>
-                                                                    <option>Face Recognition</option>
-                                                                    <option>Thumb Impression</option>
-                                                                    <option>Key</option>
-                                                                    <option>Pin</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Advance Settings</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Secure Browsing</p>
-                                                                    <p class="text-muted text-sm mb-0">Browsing Securely
-                                                                        ( https ) when it's necessary</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Login Notifications</p>
-                                                                    <p class="text-muted text-sm mb-0">Notify when login
-                                                                        attempted from other place</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div>
-                                                                    <p class="mb-1">Login Approvals</p>
-                                                                    <p class="text-muted text-sm mb-0">Approvals is not
-                                                                        required when login from
-                                                                        unrecognized devices.</p>
-                                                                </div>
-                                                                <div class="form-check form-switch p-0">
-                                                                    <input class="form-check-input h4 position-relative m-0"
-                                                                           type="checkbox" role="switch"
-                                                                           checked="">
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Recognized Devices</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Celt Desktop</p>
-                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-success d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Current Active
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Imco Tablet</p>
-                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-muted d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Active 5 days ago
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Albs Mobile</p>
-                                                                    <p class="mb-0 text-muted">3462 Fairfax Drive</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-muted d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Active 1 month ago
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Active Sessions</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Celt Desktop</p>
-                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
-                                                                </div>
-                                                                <button class="btn btn-link-danger">Logout</button>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Moon Tablet</p>
-                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
-                                                                </div>
-                                                                <button class="btn btn-link-danger">Logout</button>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-12 text-end">
-                                            <button class="btn btn-outline-dark ms-2">Clear</button>
-                                            <button class="btn btn-primary">Update Profile</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane" id="profile-4" role="tabpanel" aria-labelledby="profile-tab-4">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h5>Change Password</h5>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-sm-6">
-                                                    <div class="form-group">
-                                                        <label class="form-label">Old Password</label>
-                                                        <input type="password" class="form-control">
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <label class="form-label">New Password</label>
-                                                        <input type="password" class="form-control">
-                                                    </div>
-                                                    <div class="form-group">
-                                                        <label class="form-label">Confirm Password</label>
-                                                        <input type="password" class="form-control">
-                                                    </div>
-                                                </div>
-                                                <div class="col-sm-6">
-                                                    <h5>New password must contain:</h5>
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item"><i class="ti ti-minus me-2"></i> At
-                                                            least 8 characters
-                                                        </li>
-                                                        <li class="list-group-item"><i class="ti ti-minus me-2"></i> At
-                                                            least 1 lower letter (a-z)
-                                                        </li>
-                                                        <li class="list-group-item"><i class="ti ti-minus me-2"></i> At
-                                                            least 1 uppercase letter
-                                                            (A-Z)
-                                                        </li>
-                                                        <li class="list-group-item"><i class="ti ti-minus me-2"></i> At
-                                                            least 1 number (0-9)
-                                                        </li>
-                                                        <li class="list-group-item"><i class="ti ti-minus me-2"></i> At
-                                                            least 1 special characters
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-footer text-end btn-page">
-                                            <div class="btn btn-outline-secondary">Cancel</div>
-                                            <div class="btn btn-primary">Update Profile</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane" id="profile-5" role="tabpanel" aria-labelledby="profile-tab-5">
-                                    <div class="card">
-                                        <div class="card-header">
-                                            <h4>{{ client.first_name }} {{ client.last_name }}'s Services</h4>
-                                        </div>
-                                        <div class="card-body">
-                                            <h4>5/10 <small>services complete.</small></h4>
-                                            <hr class="my-3">
-                                            <div class="row">
-                                                <div class="col-md-8">
-                                                    <div class="form-group">
-                                                        <label class="form-label">Email Address</label>
-                                                        <div class="row">
-                                                            <div class="col">
-                                                                <input type="email" class="form-control">
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <button class="btn btn-primary">Send</button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body table-card">
-                                            <div class="table-responsive">
-                                                <table class="table table-striped table-bordered mt-4">
-                                                    <thead>
-                                                    {% for service in all_services %}
-                                                        <tr>
 
-                                                            <th>#</th>
-                                                            <th>Land Description</th>
-                                                            <th>Service</th>
-                                                            <th>Status</th>
-                                                            <th>Requested At</th>
-                                                            <th>Total Paid</th>
-                                                            <th>Pending Balance</th>
-
-
-                                                            <th class="text-end">Action</th>
-
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                        <tr>
-                                                            <td>{{ forloop.counter }}</td>
-                                                            <td>{{ service.land_description }}</td>
-                                                            <td>{{ service.service.name }}</td>
-
-
-                                                            <td><span
-                                                                    class="badge bg-primary">{{ service.status }}</span>
-                                                            </td>
-                                                            <td class="text-end"><span
-                                                                    class="badge bg-success">{{ service.requested_at|date:"M d, Y H:i" }}</span>
-                                                            </td>
-                                                            <td>KES {{ service.total_paid }}</td>
-                                                            <td>KES {{ service.pending_balance }}</td>
-
-                                                            <td>
-                                                                <a href="{% url 'view_service_details' service.id %}"
-                                                                   class="btn btn-primary">View</a>
-                                                            </td>
-                                                        </tr>
-                                                    {% empty %}
-                                                        <tr>
-                                                            <td colspan="8">No services found for this client.</td>
-                                                        </tr>
-                                                    {% endfor %}
-
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                </div>
-                                <div class="tab-pane" id="profile-6" role="tabpanel" aria-labelledby="profile-tab-6">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Email Settings</h5>
-                                                </div>
-                                                <div class="card mb-4">
+                                    <div class="tab-pane" id="profile-2" role="tabpanel"
+                                         aria-labelledby="profile-tab-2">
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <div class="card">
                                                     <div class="card-header">
-                                                        <h5 class="mb-0">Company Settings</h5>
+                                                        <h5>Personal Information</h5>
                                                     </div>
                                                     <div class="card-body">
-                                                        <form method="POST" enctype="multipart/form-data"
-                                                              action="{% url 'update_site_settings' %}" class="row g-3">
-                                                            {% csrf_token %}
-
-                                                            <!-- Company Name -->
-                                                            <div class="col-md-6">
-                                                                <label for="{{ settings_form.company_name.id_for_label }}"
-                                                                       class="form-label">Company Name</label>
-                                                                {{ settings_form.company_name }}
-                                                                {{ settings_form.company_name.errors }}
+                                                        <div class="row">
+                                                            <div class="col-sm-12 text-center mb-3">
+                                                                <div class="user-upload wid-75">
+                                                                    <img src="../assets/images/user/avatar-4.jpg"
+                                                                         alt="img"
+                                                                         class="img-fluid">
+                                                                    <label for="uplfile" class="img-avtar-upload">
+                                                                        <i class="ti ti-camera f-24 mb-1"></i>
+                                                                        <span>Upload</span>
+                                                                    </label>
+                                                                    <input type="file" id="uplfile" class="d-none">
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Email -->
-                                                            <div class="col-md-6">
-                                                                <label for="{{ settings_form.email.id_for_label }}"
-                                                                       class="form-label">Contact Email</label>
-                                                                {{ settings_form.email }}
-                                                                {{ settings_form.email.errors }}
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">First Name</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="Anshan">
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Phone -->
-                                                            <div class="col-md-6">
-                                                                <label for="{{ settings_form.phone.id_for_label }}"
-                                                                       class="form-label">Phone Number</label>
-                                                                {{ settings_form.phone }}
-                                                                {{ settings_form.phone.errors }}
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Last Name</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="Handgun">
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Tagline -->
-                                                            <div class="col-12">
-                                                                <label for="{{ settings_form.tagline.id_for_label }}"
-                                                                       class="form-label">Tagline</label>
-                                                                {{ settings_form.tagline }}
-                                                                {{ settings_form.tagline.errors }}
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Country</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="New York">
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Logo Upload -->
-                                                            <div class="col-md-6">
-                                                                <label for="{{ settings_form.logo.id_for_label }}"
-                                                                       class="form-label">Logo</label>
-                                                                {% if settings.logo %}
-                                                                    <div class="mb-2">
-                                                                        <img src="{{ settings.logo.url }}"
-                                                                             alt="Current logo" class="img-fluid"
-                                                                             style="max-height: 80px;">
-                                                                    </div>
-                                                                {% endif %}
-                                                                {{ settings_form.logo }}
-                                                                {{ settings_form.logo.errors }}
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Zip code</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="956754">
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Stamp/Signature Upload -->
-                                                            <div class="col-md-6">
-                                                                <label for="{{ settings_form.stamp_signature.id_for_label }}"
-                                                                       class="form-label">Stamp / Signature</label>
-                                                                {% if settings.stamp_signature %}
-                                                                    <div class="mb-2">
-                                                                        <img src="{{ settings.stamp_signature.url }}"
-                                                                             alt="Current stamp" class="img-fluid"
-                                                                             style="max-height: 80px;">
-                                                                    </div>
-                                                                {% endif %}
-                                                                {{ settings_form.stamp_signature }}
-                                                                {{ settings_form.stamp_signature.errors }}
+                                                            <div class="col-sm-12">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Bio</label>
+                                                                    <textarea
+                                                                            class="form-control">Hello, I’m Anshan Handgun Creative Graphic Designer & User Experience Designer based in Website, I create digital Products a more Beautiful and usable place. Morbid accusant ipsum. Nam nec tellus at.</textarea>
+                                                                </div>
                                                             </div>
-
-                                                            <!-- Submit -->
-                                                            <div class="col-12 text-end">
-                                                                <button type="submit" class="btn btn-success">
-                                                                    <i class="fas fa-save me-1"></i> Save Settings
-                                                                </button>
+                                                            <div class="col-sm-12">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Experience</label>
+                                                                    <select class="form-control">
+                                                                        <option>Startup</option>
+                                                                        <option>2 year</option>
+                                                                        <option>3 year</option>
+                                                                        <option selected>4 year</option>
+                                                                        <option>5 year</option>
+                                                                    </select>
+                                                                </div>
                                                             </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-
-                                                <div class="card-body">
-                                                    <h6 class="mb-4">Setup Email Notification</h6>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Email Notification</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch" checked="">
-                                                        </div>
-                                                    </div>
-                                                    <div class="d-flex align-items-center justify-content-between mb-1">
-                                                        <div>
-                                                            <p class="text-muted mb-0">Send Copy To Personal Email</p>
-                                                        </div>
-                                                        <div class="form-check form-switch p-0">
-                                                            <input class="m-0 form-check-input h5 position-relative"
-                                                                   type="checkbox" role="switch">
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-
+                                            <div class="col-lg-6">
+                                                <div class="card">
+                                                    <div class="card-header">
+                                                        <h5>Social Network</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="d-flex align-items-center mb-2">
+                                                            <div class="flex-grow-1 me-3">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div class="flex-shrink-0">
+                                                                        <div class="avtar avtar-xs btn-light-twitter">
+                                                                            <i class="fab fa-twitter f-16"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="flex-grow-1 ms-3">
+                                                                        <h6 class="mb-0">Twitter</h6>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-shrink-0">
+                                                                <button class="btn btn-link-danger">Connect</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex align-items-center mb-2">
+                                                            <div class="flex-grow-1 me-3">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div class="flex-shrink-0">
+                                                                        <div class="avtar avtar-xs btn-light-facebook">
+                                                                            <i class="fab fa-facebook-f f-16"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="flex-grow-1 ms-3">
+                                                                        <h6 class="mb-0">Facebook</h6>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-shrink-0">
+                                                                <div class="text-facebook">Anshan Handgun</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="flex-grow-1 me-3">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div class="flex-shrink-0">
+                                                                        <div class="avtar avtar-xs btn-light-linkedin">
+                                                                            <i class="fab fa-linkedin-in f-16"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="flex-grow-1 ms-3">
+                                                                        <h6 class="mb-0">Linkedin</h6>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-shrink-0">
+                                                                <button class="btn btn-link-danger">Connect</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="card">
+                                                    <div class="card-header">
+                                                        <h5>Contact Information</h5>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Contact Phone</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="(+99) 9999 999 999">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-6">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Email <span
+                                                                            class="text-danger">*</span></label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="demo@sample.com">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-12">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Portfolio Url</label>
+                                                                    <input type="text" class="form-control"
+                                                                           value="https://demo.com">
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-12">
+                                                                <div class="form-group">
+                                                                    <label class="form-label">Address</label>
+                                                                    <textarea
+                                                                            class="form-control">3379  Monroe Avenue, Fort Myers, Florida(33912)</textarea>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-12 text-end btn-page">
+                                                <div class="btn btn-outline-secondary">Cancel</div>
+                                                <div class="btn btn-primary">Update Profile</div>
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="card">
+                                    </div>
 
-                                                <div class="card shadow-sm mb-4">
-                                                    <div class="card-header bg-primary text-white">
-                                                        <h5 class="mb-0">SMS Provider Settings</h5>
+                                    <div class="tab-pane" id="profile-6" role="tabpanel"
+                                         aria-labelledby="profile-tab-6">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="card">
+
+                                                    <div class="card mb-4">
+                                                        <div class="card-header">
+                                                            <h5 class="mb-0">Company Settings</h5>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            {% if settings_form %}
+                                                                <form method="POST" enctype="multipart/form-data"
+                                                                      action="{% url 'update_site_settings' %}"
+                                                                      class="row g-3">
+                                                                    {% csrf_token %}
+
+                                                                    <!-- Company Name -->
+                                                                    <div class="col-md-6">
+                                                                        <label for="{{ settings_form.company_name.id_for_label }}"
+                                                                               class="form-label">Company Name</label>
+                                                                        {{ settings_form.company_name }}
+                                                                        {{ settings_form.company_name.errors }}
+                                                                    </div>
+
+                                                                    <!-- Email -->
+                                                                    <div class="col-md-6">
+                                                                        <label for="{{ settings_form.email.id_for_label }}"
+                                                                               class="form-label">Contact Email</label>
+                                                                        {{ settings_form.email }}
+                                                                        {{ settings_form.email.errors }}
+                                                                    </div>
+
+                                                                    <!-- Phone -->
+                                                                    <div class="col-md-6">
+                                                                        <label for="{{ settings_form.phone.id_for_label }}"
+                                                                               class="form-label">Phone Number</label>
+                                                                        {{ settings_form.phone }}
+                                                                        {{ settings_form.phone.errors }}
+                                                                    </div>
+
+                                                                    <!-- Tagline -->
+                                                                    <div class="col-12">
+                                                                        <label for="{{ settings_form.tagline.id_for_label }}"
+                                                                               class="form-label">Tagline</label>
+                                                                        {{ settings_form.tagline }}
+                                                                        {{ settings_form.tagline.errors }}
+                                                                    </div>
+
+                                                                    <!-- Logo Upload -->
+                                                                    <div class="col-md-6">
+                                                                        <label for="{{ settings_form.logo.id_for_label }}"
+                                                                               class="form-label">Logo</label>
+                                                                        {% if settings and settings.logo %}
+                                                                            <div class="mb-2">
+                                                                                <img src="{{ settings.logo.url }}"
+                                                                                     alt="Current logo"
+                                                                                     class="img-fluid"
+                                                                                     style="max-height: 80px;">
+                                                                            </div>
+                                                                        {% endif %}
+                                                                        {{ settings_form.logo }}
+                                                                        {{ settings_form.logo.errors }}
+                                                                    </div>
+
+                                                                    <!-- Stamp/Signature Upload -->
+                                                                    <div class="col-md-6">
+                                                                        <label for="{{ settings_form.stamp_signature.id_for_label }}"
+                                                                               class="form-label">Stamp /
+                                                                            Signature</label>
+                                                                        {% if settings and settings.stamp_signature %}
+                                                                            <div class="mb-2">
+                                                                                <img src="{{ settings.stamp_signature.url }}"
+                                                                                     alt="Current stamp"
+                                                                                     class="img-fluid"
+                                                                                     style="max-height: 80px;">
+                                                                            </div>
+                                                                        {% endif %}
+                                                                        {{ settings_form.stamp_signature }}
+                                                                        {{ settings_form.stamp_signature.errors }}
+                                                                    </div>
+
+                                                                    <!-- Submit -->
+                                                                    <div class="col-12 text-end">
+                                                                        <button type="submit" class="btn btn-success">
+                                                                            <i class="fas fa-save me-1"></i> Save
+                                                                            Settings
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            {% else %}
+                                                                <p class="text-danger">Site settings form could not be
+                                                                    loaded.</p>
+                                                            {% endif %}
+                                                        </div>
+
                                                     </div>
+
                                                     <div class="card-body">
-                                                        <form method="post" action="{% url 'update_sms_token' %}">
-                                                            {% csrf_token %}
-
-                                                            <div class="mb-3">
-                                                                <label for="id_api_token" class="form-label">API
-                                                                    Token</label>
-                                                                <input type="text" name="api_token" class="form-control"
-                                                                       id="id_api_token"
-                                                                       value="{{ sms_token_form.instance.api_token }}"
-                                                                       placeholder="Enter API Token">
+                                                        <h6 class="mb-4">Setup Email Notification</h6>
+                                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                                            <div>
+                                                                <p class="text-muted mb-0">Email Notification</p>
                                                             </div>
-
-                                                            <div class="mb-3">
-                                                                <label for="id_sender_id" class="form-label">Sender
-                                                                    ID</label>
-                                                                <input type="text" name="sender_id" class="form-control"
-                                                                       id="id_sender_id"
-                                                                       value="{{ sms_token_form.instance.sender_id }}"
-                                                                       placeholder="Enter Sender ID">
+                                                            <div class="form-check form-switch p-0">
+                                                                <input class="m-0 form-check-input h5 position-relative"
+                                                                       type="checkbox" role="switch" checked="">
                                                             </div>
-
-                                                            <button type="submit" class="btn btn-success">Update Token
-                                                            </button>
-                                                        </form>
+                                                        </div>
+                                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                                            <div>
+                                                                <p class="text-muted mb-0">Send Copy To Personal
+                                                                    Email</p>
+                                                            </div>
+                                                            <div class="form-check form-switch p-0">
+                                                                <input class="m-0 form-check-input h5 position-relative"
+                                                                       type="checkbox" role="switch">
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
+
                                             </div>
-                                            <div class="container mt-5">
-                                                <div class="card shadow border-0">
-                                                    <div class="card-header bg-primary text-white">
-                                                        <h5 class="mb-0">Email Settings</h5>
+                                            <div class="col-md-6">
+                                                <div class="card">
+
+                                                    <div class="card shadow-sm mb-4">
+                                                        <div class="card-header bg-green-300 text-white">
+                                                            <h5 class="mb-0">SMS Provider Settings</h5>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form method="post" action="{% url 'update_sms_token' %}">
+                                                                {% csrf_token %}
+
+                                                                <div class="mb-3">
+                                                                    <label for="id_api_token" class="form-label">API
+                                                                        Token</label>
+                                                                    <input type="text" name="api_token"
+                                                                           class="form-control"
+                                                                           id="id_api_token"
+                                                                           value="{{ sms_token_form.instance.api_token }}"
+                                                                           placeholder="Enter API Token">
+                                                                </div>
+
+                                                                <div class="mb-3">
+                                                                    <label for="id_sender_id" class="form-label">Sender
+                                                                        ID</label>
+                                                                    <input type="text" name="sender_id"
+                                                                           class="form-control"
+                                                                           id="id_sender_id"
+                                                                           value="{{ sms_token_form.instance.sender_id }}"
+                                                                           placeholder="Enter Sender ID">
+                                                                </div>
+
+                                                                <button type="submit" class="btn btn-success">Update
+                                                                    Token
+                                                                </button>
+                                                            </form>
+                                                        </div>
                                                     </div>
-                                                    <div class="card-body">
-                                                        <form method="POST">
-                                                            {% csrf_token %}
-                                                            <div class="row">
-                                                                <!-- Email Host -->
-                                                                <div class="col-12">
-                                                                    <label for="{{ email_settings_form.email_host.id_for_label }}"
-                                                                           class="form-label">Email Host</label>
-                                                                    {{ email_settings_form.email_host }}
-                                                                    {{ email_settings_form.email_host.errors }}
-                                                                </div>
+                                                </div>
+                                                <div class="container mt-5">
+                                                    <div class="card shadow border-0">
+                                                        <div class="card-header bg-green-300 text-white">
+                                                            <h5 class="mb-0">Email Settings</h5>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <form method="post" action="{% url 'update_email_settings' %}">
+        {% csrf_token %}
 
-                                                                <!-- Email Port -->
-                                                                <div class="col-12">
-                                                                    <label for="{{ email_settings_form.email_port.id_for_label }}"
-                                                                           class="form-label">Email Port</label>
-                                                                    {{ email_settings_form.email_port }}
-                                                                    {{ email_settings_form.email_port.errors }}
-                                                                </div>
+        <!-- Email Host -->
+        <div class="mb-3">
+          <label for="id_email_host" class="form-label">Email Host</label>
+          <input
+            type="text"
+            name="email_host"
+            class="form-control"
+            id="id_email_host"
+            value="{{ email_settings_form.instance.email_host }}"
+            placeholder="Enter email host">
+          {{ email_settings_form.email_host.errors }}
+        </div>
 
-                                                                <!-- Default From Email -->
-                                                                <div class="col-12">
-                                                                    <label for="{{ email_settings_form.default_from_email.id_for_label }}"
-                                                                           class="form-label">Default From Email</label>
-                                                                    {{ email_settings_form.default_from_email }}
-                                                                    {{ email_settings_form.default_from_email.errors }}
-                                                                </div>
+        <!-- Email Port -->
+        <div class="mb-3">
+          <label for="id_email_port" class="form-label">Email Port</label>
+          <input
+            type="number"
+            name="email_port"
+            class="form-control"
+            id="id_email_port"
+            value="{{ email_settings_form.instance.email_port }}"
+            placeholder="Enter email port">
+          {{ email_settings_form.email_port.errors }}
+        </div>
 
-                                                                <!-- Email User -->
-                                                                <div class="col-12">
-                                                                    <label for="{{ email_settings_form.email_host_user.id_for_label }}"
-                                                                           class="form-label">Email User</label>
-                                                                    {{ email_settings_form.email_host_user }}
-                                                                    {{ email_settings_form.email_host_user.errors }}
-                                                                </div>
+        <!-- Default From Email -->
+        <div class="mb-3">
+          <label for="id_default_from_email" class="form-label">Default From Email</label>
+          <input
+            type="email"
+            name="default_from_email"
+            class="form-control"
+            id="id_default_from_email"
+            value="{{ email_settings_form.instance.default_from_email }}"
+            placeholder="Enter default from email">
+          {{ email_settings_form.default_from_email.errors }}
+        </div>
 
-                                                                <!-- Password -->
-                                                                <div class="col-12">
-                                                                    <label for="{{ email_settings_form.email_host_password.id_for_label }}"
-                                                                           class="form-label">Email Password</label>
-                                                                    {{ email_settings_form.email_host_password }}
-                                                                    <button type="button" class="btn btn-link"
-                                                                            onclick="togglePasswordVisibility()">
-                                                                        Show/Hide Password
-                                                                    </button>
-                                                                    {{ email_settings_form.email_host_password.errors }}
-                                                                </div>
-                                                            </div>
+        <!-- Email User -->
+        <div class="mb-3">
+          <label for="id_email_host_user" class="form-label">Email User</label>
+          <input
+            type="text"
+            name="email_host_user"
+            class="form-control"
+            id="id_email_host_user"
+            value="{{ email_settings_form.instance.email_host_user }}"
+            placeholder="Enter email user">
+          {{ email_settings_form.email_host_user.errors }}
+        </div>
 
-                                                            <button type="submit" class="btn btn-primary">Save
-                                                                Settings
-                                                            </button>
-                                                        </form>
+        <!-- Password -->
+        <div class="mb-3">
+          <label for="id_email_host_password" class="form-label">Email Password</label>
+          <div class="input-group">
+            <input
+              type="password"
+              name="email_host_password"
+              class="form-control"
+              id="id_email_host_password"
+              value="{{ email_settings_form.instance.email_host_password }}"
+              placeholder="Enter email password">
+            <button class="btn btn-outline-secondary" type="button" id="toggleEmailPwd">
+              <i class="fas fa-eye" id="toggleEmailPwdIcon"></i>
+            </button>
+          </div>
+          <meter max="4" id="emailPwdStrength" style="width:100%;height:.5rem;"></meter>
+          <small class="form-text text-muted">
+            Use at least 8 characters, mixing letters &amp; numbers.
+          </small>
+          {{ email_settings_form.email_host_password.errors }}
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Settings</button>
+      </form>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1252,39 +1069,99 @@
                                     </div>
                                 </div>
                             </div>
+                            <!-- [ sample-page ] end -->
                         </div>
-                        <!-- [ sample-page ] end -->
+                        <!-- [ Main Content ] end -->
                     </div>
-                    <!-- [ Main Content ] end -->
                 </div>
-            </div>
-            <!-- [ Main Content ] end -->
-            <script>
-                function togglePasswordVisibility() {
-                    var passwordField = document.getElementById("id_email_host_password");
-                    if (passwordField.type === "password") {
-                        passwordField.type = "text";
-                    } else {
-                        passwordField.type = "password";
-                    }
-                }
-            </script>
-            <script>// JavaScript to handle the modal population with existing SubService data
-            $('#editSubserviceModal').on('show.bs.modal', function (event) {
-                var button = $(event.relatedTarget); // Button that triggered the modal
-                var subserviceId = button.data('id');
-                var subserviceName = button.data('name');
-                var subserviceDepartment = button.data('department');
-                var subservicePrice = button.data('price');
-                var subserviceDescription = button.data('description');
+                <!-- [ Main Content ] end -->
+                <script>
+                    (function () {
+                        const pwdInput = document.getElementById("id_email_host_password"),
+                            toggleBtn = document.getElementById("toggleEmailPwd"),
+                            toggleIco = document.getElementById("toggleEmailPwdIcon"),
+                            meter = document.getElementById("emailPwdStrength");
 
-                var modal = $(this);
-                modal.find('#subservice_id').val(subserviceId);
-                modal.find('input[name="name"]').val(subserviceName);
-                modal.find('input[name="department"]').val(subserviceDepartment);
-                modal.find('input[name="price"]').val(subservicePrice);
-                modal.find('textarea[name="description"]').val(subserviceDescription);
-            });
-            </script>
+                        // show/hide
+                        toggleBtn.addEventListener("click", () => {
+                            const isPwd = pwdInput.type === "password";
+                            pwdInput.type = isPwd ? "text" : "password";
+                            toggleIco.classList.toggle("fa-eye");
+                            toggleIco.classList.toggle("fa-eye-slash");
+                        });
+
+                        // very basic strength estimate
+                        pwdInput.addEventListener("input", () => {
+                            const val = pwdInput.value;
+                            let score = 0;
+                            if (val.length >= 8) score++;
+                            if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
+                            if (/\d/.test(val)) score++;
+                            if (/[^A-Za-z0-9]/.test(val)) score++;
+                            meter.value = score;
+                        });
+                    })();
+                </script>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        const modal = document.getElementById('editSubserviceModal');
+
+                        modal.addEventListener('show.bs.modal', function (event) {
+                            const button = event.relatedTarget;
+
+                            // Extract data from the button
+                            const id = button.getAttribute('data-id');
+                            const name = button.getAttribute('data-name');
+                            const department = button.getAttribute('data-department');
+                            const description = button.getAttribute('data-description');
+                            const price = button.getAttribute('data-price');
+
+                            // Populate the form fields inside the modal
+                            document.getElementById('edit_subservice_id').value = id;
+                            document.getElementById('edit_name').value = name;
+                            document.getElementById('edit_department').value = department;
+                            document.getElementById('edit_description').value = description;
+                            document.getElementById('edit_price').value = price;
+                        });
+                    });
+                </script>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        const processModal = document.getElementById('editProcessModal');
+
+                        processModal.addEventListener('show.bs.modal', function (event) {
+                            const button = event.relatedTarget;
+
+                            // Get process data from button
+                            document.getElementById('edit_process_id').value = button.getAttribute('data-id');
+                            document.getElementById('edit_process_name').value = button.getAttribute('data-name');
+                            document.getElementById('edit_process_description').value = button.getAttribute('data-description');
+                            document.getElementById('edit_process_cost').value = button.getAttribute('data-cost');
+                            document.getElementById('edit_process_step_order').value = button.getAttribute('data-step_order');
+                            document.getElementById('edit_process_message').value = button.getAttribute('data-message');
+                        });
+                    });
+                </script>
+                <script>
+                    document.querySelectorAll('[id^="editServiceModal-"]').forEach(modalEl => {
+                        modalEl.addEventListener('show.bs.modal', function (e) {
+                            const btn = e.relatedTarget;
+                            const svcId = btn.dataset.id;
+                            // find our form inside this modal
+                            const form = this.querySelector('form');
+                            // set the hidden ID (we already gave it a default in the HTML, but this keeps it in sync)
+                            form.querySelector('input[name="service_id"]').value = svcId;
+                            // for every field in the form, override with the data- attributes
+                            ['name', 'description', 'total_price', 'category'].forEach(field => {
+                                const el = form.querySelector(`[name="${field}"]`);
+                                if (!el) return;
+                                el.value = btn.dataset[field];
+                            });
+                        });
+                    });
+                </script>
+
+
+
 
 {% endblock %}
