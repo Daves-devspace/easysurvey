@@ -91,10 +91,10 @@ class Document(models.Model):
 
 # Client Model
 class Client(models.Model):
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True, blank=True, null=True)
-    phone = models.CharField(max_length=15)
+    first_name = models.CharField(max_length=100,db_index=True)
+    last_name = models.CharField(max_length=100,db_index=True)
+    email = models.EmailField(unique=True, blank=True, null=True,db_index=True)
+    phone = models.CharField(max_length=15,db_index=True)
 
     def __str__(self):
         return self.first_name

@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 
 from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm, DocumentForm
 from apps.EasyDocs.models import ClientDoc, Client, SiteSettings, DocType, Document
+from apps.EasyDocs.utils import load_email_settings
 
 
 def add_document(request):
@@ -148,6 +149,9 @@ def delete_document(request, client_id, doc_id):
 
 
 def send_doc_email_to_client(request, client_id, doc_id):
+    # Load dynamic email settings from database
+    load_email_settings()
+
     client = get_object_or_404(Client, id=client_id)
     document = get_object_or_404(ClientDoc, id=doc_id)
     site_settings = SiteSettings.objects.first()
@@ -156,7 +160,8 @@ def send_doc_email_to_client(request, client_id, doc_id):
         messages.error(request, "This client does not have an email address.")
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
-    from_email = site_settings.email if site_settings and site_settings.email else "info@example.com"
+    from_email = f"ValueTech Admin <{settings.DEFAULT_FROM_EMAIL}>"  # or use email_settings.default_from_email
+
     subject = f"Document from {site_settings.company_name}"
     message = f"""
     Hello {client.first_name},
@@ -167,6 +172,10 @@ def send_doc_email_to_client(request, client_id, doc_id):
     {site_settings.tagline or "Thank you for letting us serve you!"}
     """
 
-    send_mail(subject, message, from_email, [client.email])
-    messages.success(request, f"Email sent to {client.email}")
+    try:
+        send_mail(subject, message, from_email, [client.email])
+        messages.success(request, f"Email sent to {client.email}")
+    except Exception as e:
+        messages.error(request, f"Failed to send email: {str(e)}")
+
     return redirect(request.META.get('HTTP_REFERER', '/'))

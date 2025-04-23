@@ -49,23 +49,23 @@
 </head>
 <!-- [Head] end -->
 <style>
-.m-header1 .b-brand {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: #fff;
-}
+    .m-header1 .b-brand {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: #fff;
+    }
 
-.m-header .b-brand .logo-lg {
-  max-height: 3rem;
-  width: auto;
-  object-fit: contain;
-  display: block;
-}
+    .m-header .b-brand .logo-lg {
+        max-height: 3rem;
+        width: auto;
+        object-fit: contain;
+        display: block;
+    }
 </style>
 <!-- [Body] Start -->
 
-<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
+
 <!-- [ Pre-loader ] start -->
 <div class="loader-bg">
     <div class="loader-track">
@@ -76,21 +76,19 @@
 <!-- [ Sidebar Menu ] start -->
 <nav class="pc-sidebar">
     <div class="navbar-wrapper">
-      <div class="m-header1">
-  <a href="{% url 'home' %}" class="b-brand text-primary">
-    {% if site_settings.logo %}
-      <img
-        src="{{ site_settings.logo.url }}{% if logo_ts %}?v={{ logo_ts }}{% endif %}"
-        class="img-fluid logo-lg"
-        alt="{{ site_settings.company_name }} logo"
-      >
-    {% else %}
-      <span class="h5">{{ site_settings.company_name }}</span>
-    {% endif %}
-  </a>
-</div>
-
-
+        <div class="m-header1">
+            <a href="{% url 'home' %}" class="b-brand text-primary">
+                {% if site_settings.logo %}
+                    <img
+                            src="{{ site_settings.logo.url }}{% if logo_ts %}?v={{ logo_ts }}{% endif %}"
+                            class="img-fluid logo-lg"
+                            alt="{{ site_settings.company_name }} logo"
+                    >
+                {% else %}
+                    <span class="h5">{{ site_settings.company_name }}</span>
+                {% endif %}
+            </a>
+        </div>
 
 
         <div class="navbar-content">
@@ -124,7 +122,7 @@
                         <span class="pc-mtext">Communication</span>
                     </a>
                 </li>
-                 <li class="pc-item">
+                <li class="pc-item">
                     <a href="{% url 'accounts_dashboard' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-report-money"></i></span>
                         <span class="pc-mtext">Accounts</span>
@@ -224,7 +222,7 @@
     </div>
 </nav>
 <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
-<header class="pc-header">
+<header class="pc-header ">
     <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
         <div class="me-auto pc-mob-drp">
             <ul class="list-unstyled">
@@ -428,7 +426,7 @@
                                     <i class="ti ti-wallet"></i>
                                     <span>Billing</span>
                                 </a>
-                                <a href="{% url 'logout'%}" class="dropdown-item">
+                                <a href="{% url 'logout' %}" class="dropdown-item">
                                     <i class="ti ti-power"></i>
                                     <span>Logout</span>
                                 </a>
@@ -465,33 +463,35 @@
 </header>
 <!-- [ Header ] end -->
 {% if messages %}
-  {% for message in messages %}
-    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-      {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  {% endfor %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
 {% endif %}
-
+<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
 {% block body %}
 
 
 
 {% endblock %}
-
+{% block extra_js %}
+    <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}"></script>
+    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>
+{% endblock %}
 
 <footer class="pc-footer">
     <div class="footer-wrapper container-fluid">
         <div class="row">
             <div class="col-sm my-1">
                 <p class="m-0"
-                >Mantis &#9829; crafted by Team <a href="https://themeforest.net/user/codedthemes" target="_blank">Codedthemes</a>
-                    Distributed by <a href="https://themewagon.com/">ThemeWagon</a>.</p
+                >GGI.</p
                 >
             </div>
             <div class="col-auto my-1">
                 <ul class="list-inline footer-link mb-0">
-                    <li class="list-inline-item"><a href="../index.html">Home</a></li>
+                    <li class="list-inline-item"><a href="{% url 'home' %}">Home</a></li>
                 </ul>
             </div>
         </div>
@@ -501,11 +501,10 @@
 <!-- [Page Specific JS] start -->
 <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
 <!-- calender js -->
-  <script src="{% static 'assets/js/plugins/index.global.min.js' %}"></script>
-  <!-- Sweet Alert -->
-  <script src="{% static 'assets/js/plugins/sweetalert2.all.min.js' %}"></script>
-   <script src="{% static 'assets/js/pages/calendar.js' %}"></script>
-
+<script src="{% static 'assets/js/plugins/index.global.min.js' %}"></script>
+<!-- Sweet Alert -->
+<script src="{% static 'assets/js/plugins/sweetalert2.all.min.js' %}"></script>
+<script src="{% static 'assets/js/pages/calendar.js' %}"></script>
 
 
 {#<script src="{% static 'assets/js/pages/dashboard-default.js' %}"></script>#}
@@ -534,6 +533,8 @@
 <script src="{% static 'assets/js/plugins/dataTables.bootstrap5.min.js' %}"></script>
 <script src="{% static 'assets/js/plugins/dataTables.responsive.min.js' %}"></script>
 <script src="{% static 'assets/js/plugins/responsive.bootstrap5.min.js' %}"></script>
+<!-- [ grapghs  -->
+<script src="{% static 'assets/js/pages/dashboard-analytics.js' %}"></script>
 <script>
     // [ Configuration Option ]
     $('#res-config').DataTable({
@@ -573,6 +574,8 @@
 <script>font_change("Public-Sans");</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
 
 </body>
 <!-- [Body] end -->

@@ -1,3 +1,15 @@
+
+
+
+
+
+
+
+
+
+
+
+
 // ==========================
 // Filter Toggle & AJAX Load
 // ==========================
@@ -74,33 +86,39 @@ document.addEventListener("DOMContentLoaded", function () {
 // ============================================
 // Add SubService Modal - Autofill Modal Fields
 // ============================================
-document.addEventListener("DOMContentLoaded", function () {
-    const modal = document.getElementById("addSubServiceModal");
-
-    modal?.addEventListener("show.bs.modal", function (event) {
-        const button = event.relatedTarget;
-        const serviceId = button.getAttribute("data-service-id");
-        const serviceName = button.getAttribute("data-service-name");
-
-        document.getElementById("modal_service_id").value = serviceId;
-        document.getElementById("modal_service_name").value = serviceName;
-
-        // Clear previous selections
-        document.getElementById("modal_sub_service").selectedIndex = 0;
-        document.getElementById("modal_price").value = '';
-        document.getElementById("modal_department").value = '';
-    });
-
-    document.getElementById("modal_sub_service")?.addEventListener("change", function () {
-        const selectedOption = this.options[this.selectedIndex];
-        const price = selectedOption.getAttribute("data-price");
-        const department = selectedOption.getAttribute("data-dept");
-
-        document.getElementById("modal_price").value = price || '';
-        document.getElementById("modal_department").value = department || '';
-    });
-});
-
+// document.addEventListener("DOMContentLoaded", function () {
+//     const modal = document.getElementById("addSubServiceModal");
+//
+//     modal?.addEventListener("show.bs.modal", function (event) {
+//         const button = event.relatedTarget;
+//         const serviceId = button.getAttribute("data-service-id");
+//         const serviceName = button.getAttribute("data-service-name");
+//
+//         document.getElementById("modal_service_id").value = serviceId;
+//         document.getElementById("modal_service_name").textContent = serviceName;
+//
+//         // Reset the fields when modal opens
+//         document.getElementById("modal_sub_service").selectedIndex = 0;
+//         document.getElementById("modal_department").value = '';
+//         document.getElementById("modal_overridden_price").value = '';
+//     });
+//
+//     // When a subservice is selected
+//     const subServiceSelect = document.getElementById("modal_sub_service");
+//     subServiceSelect?.addEventListener("change", function () {
+//         const selectedOption = this.options[this.selectedIndex];
+//
+//         const price = selectedOption.getAttribute("data-price");
+//         const department = selectedOption.getAttribute("data-dept");
+//
+//         console.log("Selected option:", selectedOption);
+//         console.log("Data-price:", price);
+//         console.log("Data-dept:", department);
+//
+//         document.getElementById("modal_overridden_price").value = price || '';
+//         document.getElementById("modal_department").value = department || '';
+//     });
+// });
 // ====================================================
 // Payment Modal - Display Service Info When Selected
 // ====================================================
