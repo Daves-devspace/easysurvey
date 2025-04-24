@@ -1,8 +1,10 @@
 import logging
 
 import requests
+from django.conf import settings
 from django.core.cache import cache
 
+from apps.EasyDocs.models import MessageLog, Client
 
 
 def get_sms_provider_token():
@@ -29,19 +31,20 @@ def get_sms_provider_token():
 
     return token
 
+
 class MobileSasaAPI:
     BASE_URL_SINGLE = "https://api.mobilesasa.com/v1/send/message"
     BASE_URL_BULK = "https://api.mobilesasa.com/v1/send/bulk"
-    BASE_URL_BULK_PERSONALIZED = "https://api.mobilesasa.com/v1/send/bulk-personalized"
+    BASE_URL_PERSONALIZED = "https://api.mobilesasa.com/v1/send/bulk-personalized"
+    BASE_URL_BALANCE = "https://api.mobilesasa.com/v1/get-balance"
+    BASE_URL_STATUS = "https://api.mobilesasa.com/v1/check_status/{message_id}"
 
     def __init__(self):
         token_data = get_sms_provider_token()
-        if token_data:
-            self.api_key = token_data.get('api_token')
-            self.sender_id = token_data.get('sender_id')
-        else:
+        if not token_data:
             raise ValueError("No API token or sender ID found. Please check the token setup.")
-
+        self.api_key = token_data.get('api_token')
+        self.sender_id = token_data.get('sender_id')
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json",
@@ -49,9 +52,7 @@ class MobileSasaAPI:
         }
         self.logger = logging.getLogger(__name__)
 
-
     def clean_phone_number(self, phone):
-        """Standardizes phone numbers to match API requirements."""
         if not phone:
             return None
         phone = ''.join(filter(str.isdigit, str(phone)))
@@ -64,53 +65,153 @@ class MobileSasaAPI:
         return phone
 
     def send_sms(self, phone_number, message):
-        cleaned_phone = self.clean_phone_number(phone_number)
-        if not cleaned_phone:
+        cleaned = self.clean_phone_number(phone_number)
+        if not cleaned:
             return {"status": False, "message": "Invalid phone number"}
-        payload = {
-            "senderID": self.sender_id,
-            "message": message,
-            "phone": cleaned_phone,
-        }
-        response = requests.post(self.BASE_URL_SINGLE, headers=self.headers, json=payload)
-        return response.json()
-
-    def check_delivery_status(self, message_id):
-        url = f"https://api.mobilesasa.com/v1/check_status/{message_id}"
-        response = requests.get(url, headers=self.headers)
-        return response.json()
-
-    def get_balance(self):
-        url = "https://api.mobilesasa.com/v1/balance"
-        response = requests.get(url, headers=self.headers)
-        return response.json()
+        payload = {"senderID": self.sender_id, "message": message, "phone": cleaned}
+        resp = requests.post(self.BASE_URL_SINGLE, headers=self.headers, json=payload)
+        return resp.json()
 
     def send_bulk_sms(self, message, phone_numbers):
         chunk_size = 50
         success_count = 0
         errors = []
-        cleaned_numbers = [self.clean_phone_number(phone) for phone in phone_numbers if phone]
-
-        for i in range(0, len(cleaned_numbers), chunk_size):
-            chunk = cleaned_numbers[i:i + chunk_size]
-            phones = ",".join(chunk)
-            payload = {
-                "senderID": self.sender_id,
-                "message": message,
-                "phones": phones,
-            }
+        cleaned = [self.clean_phone_number(p) for p in phone_numbers if p]
+        for i in range(0, len(cleaned), chunk_size):
+            chunk = cleaned[i:i+chunk_size]
+            payload = {"senderID": self.sender_id, "message": message, "phones": ",".join(chunk)}
             try:
-                response = requests.post(self.BASE_URL_BULK, headers=self.headers, json=payload)
-                response.raise_for_status()
-                response_data = response.json()
-                if response_data.get("status"):
+                r = requests.post(self.BASE_URL_BULK, headers=self.headers, json=payload)
+                r.raise_for_status()
+                data = r.json()
+                if data.get('status'):
+                    for p in chunk:
+                        client = Client.objects.filter(phone=p).first()
+                        MessageLog.objects.create(
+                            client=client,
+                            phone=p,
+                            message=message,
+                            reason="Bulk SMS",
+                            send_status='sent',
+                            delivery_status='pending'
+                        )
                     success_count += len(chunk)
                 else:
-                    errors.append({"message": response_data.get("message", "Unknown error"), "phones": chunk})
-            except requests.RequestException as e:
-                errors.append({"message": str(e), "phones": chunk})
+                    errors.append({'message': data.get('message'), 'phones': chunk})
+            except Exception as e:
+                errors.append({'message': str(e), 'phones': chunk})
         return success_count, errors
 
+    def send_personalized_sms(self, message_pairs):
+        """
+        message_pairs: list of dicts with 'phone' and 'message' keys.
+        """
+        # split into chunks of 50
+        results = {'sent': [], 'failed': []}
+        for i in range(0, len(message_pairs), 50):
+            chunk = message_pairs[i:i+50]
+            # clean each phone
+            body = []
+            for item in chunk:
+                phone = self.clean_phone_number(item.get('phone'))
+                msg_text = item.get('message')
+                if phone and msg_text:
+                    body.append({'phone': phone, 'message': msg_text})
+            if not body:
+                continue
+            payload = {"senderID": self.sender_id, "messageBody": body}
+            try:
+                resp = requests.post(self.BASE_URL_PERSONALIZED, headers=self.headers, json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                if data.get('status'):
+                    bulk_id = data.get('bulkId')
+                    for entry in body:
+                        client = Client.objects.filter(phone=entry['phone']).first()
+                        log = MessageLog.objects.create(
+                            client=client,
+                            phone=entry['phone'],
+                            message=entry['message'],
+                            reason="Personalized Bulk",
+                            message_id=bulk_id,
+                            send_status='sent',
+                            delivery_status='pending'
+                        )
+                        results['sent'].append(log.id)
+                else:
+                    for entry in body:
+                        client = Client.objects.filter(phone=entry['phone']).first()
+                        log = MessageLog.objects.create(
+                            client=client,
+                            phone=entry['phone'],
+                            message=entry['message'],
+                            reason="Personalized Bulk",
+                            send_status='failed',
+                            error_details=data.get('message'),
+                            delivery_status='failed'
+                        )
+                        results['failed'].append(log.id)
+            except Exception as e:
+                for entry in body:
+                    client = Client.objects.filter(phone=entry['phone']).first()
+                    log = MessageLog.objects.create(
+                        client=client,
+                        phone=entry['phone'],
+                        message=entry['message'],
+                        reason="Personalized Bulk",
+                        send_status='failed',
+                        error_details=str(e),
+                        delivery_status='failed'
+                    )
+                    results['failed'].append(log.id)
+        return results
+
+    def check_delivery_status(self, message_id):
+        url = self.BASE_URL_STATUS.format(message_id=message_id)
+        r = requests.get(url, headers=self.headers)
+        return r.json()
+
+    def get_balance(self):
+        try:
+            resp = requests.get(self.BASE_URL_BALANCE, headers=self.headers)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get('status'):
+                return data
+            self.logger.error(f"Balance fetch failed: {data.get('message')}")
+            return data
+        except Exception as e:
+            self.logger.error(f"Error fetching balance: {e}")
+            return None
+
+
+
+
+
+
+
+def update_pending_sms_logs_and_balance():
+
+    api = MobileSasaAPI()
+
+    # 1️⃣ Update delivery status of pending messages
+    pending_logs = MessageLog.objects.filter(delivery_status='pending')
+    for log in pending_logs:
+        try:
+            result = api.check_delivery_status(log.message_id)
+            if result:
+                log.delivery_status = result.get('status', 'unknown')
+                log.save(update_fields=['delivery_status'])
+        except Exception as e:
+            log.error_details = f"Delivery check failed: {str(e)}"
+            log.save(update_fields=['error_details'])
+
+    # 2️⃣ Optionally: log or store current balance
+    try:
+        balance_info = api.get_balance()
+        print(f"📩 Current SMS Balance: {balance_info}")  # Debug output
+    except Exception as e:
+        print(f"⚠️ Could not fetch SMS balance: {e}")
 
 
 
@@ -119,6 +220,7 @@ class MobileSasaAPI:
 
 
 def load_email_settings():
+    from apps.EasyDocs.models import EmailSettings
     try:
         s = EmailSettings.objects.get()
         settings.EMAIL_HOST = s.email_host or settings.EMAIL_HOST

@@ -104,27 +104,36 @@ class ClientServiceForm(forms.ModelForm):
 
 
 
+
 class ServiceForm(forms.ModelForm):
     class Meta:
         model = Service
-        fields = ['name', 'description', 'total_price', 'category']  # Include category
+        # add dispatch_message here
+        fields = ['name', 'description', 'total_price', 'category', 'dispatch_message']
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Service name'
-            }),
-            'description': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter description'
-            }),
-            'total_price': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'KSH'
-            }),
-            'category': forms.Select(attrs={
-                'class': 'form-select'
-            }),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Service name'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Enter description','rows': 3}),
+            'total_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'KSH'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'dispatch_message': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dispatch SMS content'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # never required by default; we'll enforce it only if category=GROUND
+        self.fields['dispatch_message'].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        cat = cleaned.get('category')
+        dispatch = cleaned.get('dispatch_message')
+
+        if cat == ServiceCategory.GROUND and not dispatch:
+            self.add_error(
+                'dispatch_message',
+                'This message is required for dispatch-based (GROUND) services.'
+            )
+        return cleaned
 
 
 class ProcessForm(forms.ModelForm):
@@ -279,10 +288,10 @@ class ClientSubServiceEditForm(forms.ModelForm):
 class SiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['company_name', 'email', 'phone', 'tagline', 'logo', 'stamp_signature']
+        fields = ['company_name', 'phone', 'tagline', 'logo', 'stamp_signature']
         widgets = {
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email':        forms.EmailInput(attrs={'class': 'form-control'}),
+
             'phone':        forms.TextInput(attrs={'class': 'form-control'}),
             'tagline':      forms.TextInput(attrs={'class': 'form-control'}),
             'logo':         forms.ClearableFileInput(attrs={'class': 'form-control'}),
@@ -358,3 +367,24 @@ class SmsProviderTokenForm(forms.ModelForm):
     class Meta:
         model = SmsProviderToken
         fields = ['api_token', 'sender_id']
+
+class ClientSmsForm(forms.Form):
+    message = forms.CharField(
+        label="Message",
+        widget=forms.Textarea(attrs={
+            'placeholder': 'Type your message here...',
+            'rows': 3,
+            'class': 'form-control',
+        }),
+        max_length=480,  # Safely under 3 SMS parts
+        required=True,
+    )
+
+
+class BulkSmsForm(forms.Form):
+    message = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), label="Message Template")
+    scheduled_time = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type':'datetime-local'}),
+        label="Send At (leave blank for now)"
+    )

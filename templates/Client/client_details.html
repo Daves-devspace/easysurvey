@@ -73,14 +73,14 @@
                         <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
                            role="tab"
                            aria-selected="true">
-                            <i class="ti ti-file-text me-2"></i>Doocumets
+                            <i class="ti ti-file-text me-2"></i>Documets
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
                            role="tab"
                            aria-selected="true">
-                            <i class="ti ti-id me-2"></i>My Account
+                            <i class="ti ti-id me-2"></i>Account
                         </a>
                     </li>
 
@@ -88,13 +88,14 @@
                         <a class="nav-link" id="profile-tab-6" data-bs-toggle="tab" href="#profile-6"
                            role="tab"
                            aria-selected="true">
-                            <i class="ti ti-settings me-2"></i>Settings
+                            <i class="ti ti-message me-2"></i>Messages
                         </a>
                     </li>
                 </ul>
             </div>
             <div class="card-body">
                 <div class="tab-content">
+                <!--profile-->
                     <div class="tab-pane show active" id="profile-1" role="tabpanel"
                          aria-labelledby="profile-tab-1">
                         <div class="row">
@@ -146,27 +147,16 @@
                                                     <p class="mb-0">https://anshan.dh.url</p>
                                                 </a>
                                             </div>
+
                                         </div>
+
                                     </div>
                                 </div>
 
                             </div>
 
                             <div class="col-lg-8 col-xxl-9">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Message&nbsp;{{ client.first_name }}</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <p class="mb-0">Hello, I’m Anshan Handgun Creative Graphic
-                                            Designer
-                                            & User Experience Designer
-                                            based in Website, I create digital Products a more Beautiful
-                                            and
-                                            usable place. Morbid
-                                            accusant ipsum. Nam nec tellus at.</p>
-                                    </div>
-                                </div>
+                                
 
                                 <div class="card" style="height: 600px; overflow-y: auto;">
                                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -245,9 +235,21 @@
                                                                             data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
                                                                             data-ps-ids="
                                                                                     
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+
+
                                                                                     {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                             data-ps-costs="
                                                                                     
+                                                                                    
+                                                                                    
+                                                                                    
+                                                                                    
+
+
                                                                                     {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                     >
                                                                         <i class="ti ti-pencil"></i> Edit
@@ -825,44 +827,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Contact Information</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-sm-6">
-                                                <div class="form-group">
-                                                    <label class="form-label">Contact Phone</label>
-                                                    <input type="text" class="form-control"
-                                                           value="(+99) 9999 999 999">
-                                                </div>
-                                            </div>
-                                            <div class="col-sm-6">
-                                                <div class="form-group">
-                                                    <label class="form-label">Email <span
-                                                            class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control"
-                                                           value="demo@sample.com">
-                                                </div>
-                                            </div>
-                                            <div class="col-sm-12">
-                                                <div class="form-group">
-                                                    <label class="form-label">Portfolio Url</label>
-                                                    <input type="text" class="form-control"
-                                                           value="https://demo.com">
-                                                </div>
-                                            </div>
-                                            <div class="col-sm-12">
-                                                <div class="form-group">
-                                                    <label class="form-label">Address</label>
-                                                    <textarea
-                                                            class="form-control">3379  Monroe Avenue, Fort Myers, Florida(33912)</textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                               
                             </div>
                             <div class="col-12 text-end btn-page">
                                 <div class="btn btn-outline-secondary">Cancel</div>
@@ -1301,171 +1266,91 @@
 
                     </div>
 
-
+<!--messages-->
                     <div class="tab-pane" id="profile-6" role="tabpanel"
                          aria-labelledby="profile-tab-6">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h5>Email Settings</h5>
+                                        <h5>SMS LOGS</h5>
                                     </div>
                                     <div class="card-body">
-                                        <h6 class="mb-4">Setup Email Notification</h6>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Email Notification</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Send Copy To Personal
-                                                    Email</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            {{ client_sms_form.as_p }}
+                                            <button type="submit" name="send_sms" class="btn btn-primary">Send
+                                                SMS
+                                            </button>
+                                        </form>
+
+
                                     </div>
+
                                 </div>
+
+                            </div>
+                            <div class="col-md-8">
                                 <div class="card">
                                     <div class="card-header">
-                                        <h5>Updates from System Notification</h5>
+                                        <h5>SMS LOGS</h5>
                                     </div>
                                     <div class="card-body">
-                                        <h6 class="mb-4">Email you with?</h6>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">News about PCT-themes
-                                                    products
-                                                    and feature updates</p>
+
+
+                                        {% if message_logs %}
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                    <thead class="table-success">
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Phone</th>
+                                                        <th>Message</th>
+                                                        <th>Send Status</th>
+                                                        <th>Delivery Status</th>
+                                                        <th>Error</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for log in message_logs %}
+                                                        <tr>
+                                                            <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
+                                                            <td>{{ log.phone }}</td>
+                                                            <td>{{ log.message }}</td>
+                                                            <td>
+                        <span class="badge bg-{{ log.send_status|yesno:'success,danger' }}">
+                            {{ log.send_status|title }}
+                        </span>
+                                                            </td>
+                                                            <td>
+                                                                {% if log.delivery_status %}
+                                                                    <span class="badge bg-secondary">{{ log.delivery_status|title }}</span>
+                                                                {% else %}
+                                                                    <span class="text-muted">N/A</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if log.error_details %}
+                                                                    <span class="text-danger">{{ log.error_details }}</span>
+                                                                {% else %}
+                                                                    <span class="text-muted">None</span>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                            <div class="form-check p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
+                                        {% else %}
+                                            <div class="alert alert-info mt-3">
+                                                No SMS logs found for this client.
                                             </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Tips on getting more out of
-                                                    PCT-themes</p>
-                                            </div>
-                                            <div class="form-check p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Things you missed since you
-                                                    last
-                                                    logged into PCT-themes</p>
-                                            </div>
-                                            <div class="form-check  p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">News about products and other
-                                                    services</p>
-                                            </div>
-                                            <div class="form-check p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Tips and Document business
-                                                    products</p>
-                                            </div>
-                                            <div class="form-check p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
+                                        {% endif %}
+
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Activity Related Emails</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <h6 class="mb-4">When to email?</h6>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Have new notifications</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">You're sent a direct
-                                                    message</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Someone adds you as a
-                                                    connection</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                        <hr class="my-4">
-                                        <h6 class="mb-4">When to escalate emails?</h6>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Upon new order</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">New membership approval</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch">
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center justify-content-between mb-1">
-                                            <div>
-                                                <p class="text-muted mb-0">Member registration</p>
-                                            </div>
-                                            <div class="form-check form-switch p-0">
-                                                <input class="m-0 form-check-input h5 position-relative"
-                                                       type="checkbox" role="switch" checked="">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 text-end btn-page">
-                                <div class="btn btn-outline-secondary">Cancel</div>
-                                <div class="btn btn-primary">Update Profile</div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>
