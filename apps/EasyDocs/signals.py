@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 import logging
 
+from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import ClientServiceProcess, TitleDeedCollection, ClientService, Process, Payment, \
     PaymentHistory, ServiceCategory
 
@@ -15,79 +16,68 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=ClientService)
 def client_service_created_handler(sender, instance, created, **kwargs):
-    """
-    When a new ClientService is created, handle either:
-    - Populating process steps (if service is process-based)
-    - Sending dispatch SMS (if service is dispatch-based)
-    """
-    print("📣 Signal fired for client service:", instance.id)
-
     if not created:
         return
 
     service = instance.service
-    client = instance.client
+    client  = instance.client
 
     if service.category == ServiceCategory.TITLE:
-        # Avoid duplicates
         if instance.service_processes.exists():
-            print("⚠️ Processes already exist for this client service. Skipping.")
             return
 
-        # Create process steps
         processes = Process.objects.filter(service=service).order_by('step_order')
         for i, process in enumerate(processes):
             status = 'in_progress' if i == 0 else 'pending'
-
             ClientServiceProcess.objects.create(
                 client_service=instance,
                 process=process,
                 status=status
             )
 
-            print(f"✅ Created process '{process.name}' with status: {status}")
-
-            # Send SMS for first process
+            # only send/log for the first step
             if i == 0 and process.message and client.phone:
-                try:
-                    sms_api = MobileSasaAPI()
-                    sms_api.send_sms(client.phone, process.message)
-                    print(f"📤 SMS sent to {client.phone}")
-                except Exception as e:
-                    print(f"❌ Failed to send SMS: {e}")
+                reason = f"{service.name} – process: {process.name}"
+                log = send_and_log_sms(
+                    client_service=instance,
+                    client=client,
+                    phone=client.phone,
+                    message=process.message,
+                    reason=reason
+                )
+                print(f"SMS log #{log.id} created: send_status={log.send_status}")
 
     elif service.category == ServiceCategory.GROUND:
-        # Dispatch-based services don't have processes
-        # Send a predefined dispatch message
-        dispatch_message = getattr(service, "dispatch_message", None)  # optional custom field
+        dispatch_message = getattr(service, "dispatch_message", None)
         if dispatch_message and client.phone:
-            try:
-                sms_api = MobileSasaAPI()
-                sms_api.send_sms(client.phone, dispatch_message)
-                print(f"📤 Dispatch SMS sent to {client.phone}")
-            except Exception as e:
-                print(f"❌ Failed to send Dispatch SMS: {e}")
+            reason = f"{service.name} – dispatch"
+            log = send_and_log_sms(
+                client_service=instance,
+                client=client,
+                phone=client.phone,
+                message=dispatch_message,
+                reason=reason
+            )
+            print(f"Dispatch SMS log #{log.id}: send_status={log.send_status}")
 
 
 
 
 @receiver(post_save, sender=ClientServiceProcess)
 def process_status_handler(sender, instance, **kwargs):
-    # If this process was just collected, skip all logic
     if instance.status == 'collected':
         return
 
-    processes = instance.client_service.service_processes.order_by('process__step_order')
+    svc     = instance.client_service
+    processes = svc.service_processes.order_by('process__step_order')
     completed = processes.filter(status='completed')
-    last_completed_step = completed.last().process.step_order if completed.exists() else 0
-    last_step = processes.last()
-
-    # Track if we just completed the final step
+    last_completed = completed.last().process.step_order if completed.exists() else 0
+    last_step      = processes.last()
     just_completed_last = False
 
     for step in processes:
-        # 1) Mark any earlier steps as completed
-        if step.process.step_order <= last_completed_step and step.status != 'completed':
+        # mark earlier steps complete
+        if step.process.step_order <= last_completed and step.status != 'completed':
             ClientServiceProcess.objects.filter(pk=step.pk).update(
                 status='completed',
                 completed_at=timezone.now()
@@ -95,39 +85,41 @@ def process_status_handler(sender, instance, **kwargs):
             if step == last_step:
                 just_completed_last = True
 
-        # 2) Kick off the next step
-        elif step.process.step_order == last_completed_step + 1 and step.status == 'pending':
-            # final step stays pending until confirmed; others go in_progress
+        # advance to next
+        elif step.process.step_order == last_completed + 1 and step.status == 'pending':
             new_status = 'pending' if step == last_step else 'in_progress'
             ClientServiceProcess.objects.filter(pk=step.pk).update(status=new_status)
 
-            # Send SMS only for non-final in_progress steps
-            if new_status == 'in_progress':
-                client_phone = instance.client_service.client.phone
-                message = step.process.message
-                if client_phone and message:
-                    try:
-                        sms_api = MobileSasaAPI()
-                        sms_api.send_sms(client_phone, message)
-                    except Exception as e:
-                        logger.warning(f"Failed to send SMS to {client_phone}: {e}")
+            if new_status == 'in_progress' and svc.client.phone and step.process.message:
+                reason = f"{svc.service.name} – process: {step.process.name}"
+                log = send_and_log_sms(
+                    client_service=svc,
+                    client=svc.client,
+                    phone=svc.client.phone,
+                    message=step.process.message,
+                    reason=reason
+                )
+                logger.info(f"SMS log #{log.id} for in-progress step: {log.send_status}")
 
-    # 3) Update the overall ClientService status
+    # update overall status
     all_done = all(p.status in ['completed', 'pending'] for p in processes)
-    instance.client_service.__class__.objects.filter(
-        pk=instance.client_service.pk
-    ).update(status='completed' if all_done else 'active')
+    svc.__class__.objects.filter(pk=svc.pk).update(
+        status='completed' if all_done else 'active'
+    )
 
-    # 4) If we just completed the final step, send its SMS
-    if just_completed_last and not instance.client_service.title_deed_collection:
-        client_phone = instance.client_service.client.phone
-        message = last_step.process.message
-        if client_phone and message:
-            try:
-                sms_api = MobileSasaAPI()
-                sms_api.send_sms(client_phone, message)
-            except Exception as e:
-                logger.warning(f"Failed to send final-step SMS to {client_phone}: {e}")
+    # final-step notification
+    if just_completed_last and not svc.title_deed_collection:
+        last_msg = last_step.process.message
+        if svc.client.phone and last_msg:
+            reason = f"{svc.service.name} – final process: {last_step.process.name}"
+            log = send_and_log_sms(
+                client_service=svc,
+                client=svc.client,
+                phone=svc.client.phone,
+                message=last_msg,
+                reason=reason
+            )
+            logger.info(f"SMS log #{log.id} for final step: {log.send_status}")
 
 
 @receiver(post_save, sender=TitleDeedCollection)
@@ -135,31 +127,33 @@ def title_deed_collected_handler(sender, instance, created, **kwargs):
     if not created:
         return
 
-    client_service = instance.client_service
-    last_process = client_service.service_processes.order_by('-process__step_order').first()
+    svc = instance.client_service
+    last_process = svc.service_processes.order_by('-process__step_order').first()
 
     if last_process and last_process.status in ['completed', 'pending']:
         last_process.status = 'collected'
-        # **bump completed_at to now so ordering picks it**
         last_process.completed_at = instance.collected_at
         last_process.save()
 
-    # Update the overall ClientService status
-    client_service.status = 'collected'
-    client_service.save()
+    svc.status = 'collected'
+    svc.save()
 
-    # Get the custom message from the TitleDeedCollection model
-    message = instance.message if instance.message else f"Your title deed has been collected by {instance.collected_by}"
+    # build the SMS
+    msg = instance.message or f"Your title deed has been collected by {instance.collected_by}"
     if instance.id_number:
-        message += f" (ID: {instance.id_number})"
+        msg += f" (ID: {instance.id_number})"
 
-    # Send the SMS notification to the client
-    client_phone = client_service.client.phone
-    try:
-        sms_api = MobileSasaAPI()
-        sms_api.send_sms(client_phone, message)
-    except Exception as e:
-        logger.warning(f"Failed to send collection SMS to {client_phone}: {e}")
+    # log the send
+    if svc.client.phone:
+        reason = f"{svc.service.name} – deed collected"
+        log = send_and_log_sms(
+            client_service=svc,
+            client=svc.client,
+            phone=svc.client.phone,
+            message=msg,
+            reason=reason
+        )
+        logger.info(f"SMS log #{log.id} for collection notice: {log.send_status}")
 
 
 

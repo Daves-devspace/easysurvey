@@ -7,14 +7,65 @@ from .models import (Client, Service, Process, ClientService, ClientServiceProce
 
 
 
+from django.contrib import admin
+from .models import SiteSettings, EmailSettings
+# from django_celery_beat.models import PeriodicTask, IntervalSchedule
+#
+# admin.site.register(PeriodicTask)
+# admin.site.register(IntervalSchedule)
+#
+
+
+
+@admin.register(EmailSettings)
+class EmailSettingsAdmin(admin.ModelAdmin):
+    """
+    This is where you manage your SMTP host, port, credentials,
+    and default_from_email. Only one row is allowed.
+    """
+    readonly_fields = ('singleton_enforcer',)
+    fieldsets = (
+        (None, {
+            'fields': (
+                'email_host',
+                'email_port',
+                'email_host_user',
+                'email_host_password',
+                'default_from_email',
+            )
+        }),
+    )
+    def has_add_permission(self, request):
+        return not EmailSettings.objects.exists()
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
+    """
+    All your site‐wide display settings live here,
+    but the `email` field is pulled in read‐only from EmailSettings.
+    """
+    readonly_fields = ('email',)
+    # Order/group the fields you want to edit:
+    fields = (
+        'company_name',
+        'logo',
+        'email',
+        'phone',
+        'tagline',
+        'stamp_signature',
+    )
+
+    def email(self, obj):
+        # This property accessor pulls from EmailSettings,
+        # so it always shows the current default_from_email.
+        return obj.email
+
     def has_add_permission(self, request):
-        # Prevent adding more than one
         return not SiteSettings.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
-        # Prevent deletion
         return False
 
 

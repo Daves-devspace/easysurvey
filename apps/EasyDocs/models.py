@@ -10,7 +10,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.core.cache import cache
-from apps.EasyDocs.utils import MobileSasaAPI
+
 
 # Gender choices
 class Gender(models.TextChoices):
@@ -49,13 +49,20 @@ class SiteSettings(models.Model):
 
     company_name    = models.CharField(max_length=200, default="GREAT GUARDIAN")
     logo            = models.ImageField(upload_to="company/", blank=True, null=True)
-    email           = models.EmailField(validators=[validate_email], default="info@example.com")
+    # email           = models.EmailField(validators=[validate_email], default="info@example.com")
     phone           = models.CharField(max_length=20, blank=True, null=True)
     tagline         = models.CharField(max_length=255, blank=True, default="Thank you for letting us serve you!")
     stamp_signature = models.ImageField(upload_to="company/", blank=True, null=True)
 
     def __str__(self):
         return "Site Settings"
+
+    @property
+    def email(self):
+        try:
+            return EmailSettings.objects.get().default_from_email
+        except EmailSettings.DoesNotExist:
+            return settings.DEFAULT_FROM_EMAIL
 
     class Meta:
         verbose_name = "Site Settings"
@@ -528,3 +535,35 @@ class SmsProviderToken(models.Model):
         self.singleton_enforcer = True  # enforce only one row
         super().save(*args, **kwargs)
         cache.delete('sms_provider_token')
+
+
+class MessageLog(models.Model):
+    client_service = models.ForeignKey(
+        'ClientService',
+        on_delete=models.CASCADE,
+        related_name='message_logs',
+    null = True,
+    blank = True,
+    )
+    client = models.ForeignKey(
+        Client,  # or your `Client` model
+        on_delete=models.CASCADE
+    )
+    phone = models.CharField(max_length=20)
+    message = models.TextField()
+    reason = models.CharField(max_length=255)
+    message_id = models.CharField(max_length=255, blank=True, null=True)
+    send_status = models.CharField(
+        max_length=20,
+        choices=[('sent','Sent'),('failed','Failed')]
+    )
+    delivery_status = models.CharField(
+        max_length=20,
+        choices=[('pending','Pending'),('delivered','Delivered'),('failed','Failed')],
+        default='pending'
+    )
+    error_details = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.client} | {self.reason} | {self.send_status}"
