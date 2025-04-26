@@ -1,0 +1,576 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Mnagement</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="page-header-title">
+                                <h2 class="mb-0">Mnagement</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="container-fluid col-lg-12">
+                <!-- [ Header ] end -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+            </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-zoom-money me-2"></i>Employees
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-file-text me-2"></i>Payrolls
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-id me-2"></i>Analytics
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content">
+                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                     aria-labelledby="profile-tab-1">
+                                    <div class="row">
+                                        <div class="col-lg-5 col-xxl-3">
+
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Skills</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Junior</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 30%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">30%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">UX Researcher</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 80%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">80%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Wordpress</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 90%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">90%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">HTML</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 30%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">30%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center mb-3">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Graphic Design</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 95%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">95%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row align-items-center">
+                                                        <div class="col-sm-6 mb-2 mb-sm-0">
+                                                            <p class="mb-0">Code Style</p>
+                                                        </div>
+                                                        <div class="col-sm-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="flex-grow-1 me-3">
+                                                                    <div class="progress progress-primary"
+                                                                         style="height: 6px;">
+                                                                        <div class="progress-bar"
+                                                                             style="width: 75%;"></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex-shrink-0">
+                                                                    <p class="mb-0 text-muted">75%</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-7 col-xxl-9">
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between pb-0">
+                                                    <p>Employees</p>
+                                                    <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                                            data-bs-target="#addEmployeeModal">Add Employee
+                                                    </button>
+                                                </div>
+
+                                                <div class="card-body">
+                                                    <div class="tab-content" id="serviceTabsContent">
+
+                                                        <div class="card-body p-0">
+                                                            <div class="table-responsive mt-3">
+                                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                    <thead class="bg-green-300 ">
+                                                                    <tr>
+                                                                        <th>First Name</th>
+                                                                        <th>Last Name</th>
+                                                                        <th>Department</th>
+                                                                        <th>Role</th>
+                                                                        <th>Phone</th>
+                                                                        <th>Action</th>
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    {% for employee in employees %}
+                                                                        <tr>
+                                                                            <td>{{ employee.user.first_name }} </td>
+                                                                            <td>{{ employee.user.last_name }} </td>
+                                                                            <td>{{ employee.department }}</td>
+                                                                            <td>{{ employee.role.name }}</td>
+                                                                            <td>{{ employee.phone_number }}</td>
+                                                                            <td>
+                                                                                <button class="btn btn-sm btn-warning edit-btn"
+                                                                                        data-id="{{ employee.id }}"
+                                                                                        data-first_name="{{ employee.user.first_name }}"
+                                                                                        data-last_name="{{ employee.user.last_name }}"
+                                                                                        data-email="{{ employee.user.email }}"
+                                                                                        data-phone_number="{{ employee.phone_number }}"
+                                                                                        data-department="{{ employee.department }}"
+                                                                                        data-role="{{ employee.role.id }}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#editEmployeeModal">
+                                                                                    Edit
+                                                                                </button>
+                                                                            </td>
+                                                                        </tr>
+
+                                                                    {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                    </div>
+                                </div>
+                                <!-- Employees -->
+                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                                    <div class="row"> <!-- Always wrap columns inside a row -->
+
+                                        <div class="col-12">
+                                            <div class="card mt-4">
+                                                <div class="card-header d-flex justify-content-between">
+                                                    <h5 class="mb-0">Payroll</h5>
+                                                    <button id="toggleFilterBtn"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-bs-toggle="collapse" data-bs-target="#filterPanel"
+                                                            aria-expanded="false" aria-controls="filterPanel">
+                                                        <i class="fas fa-filter"></i> Filter Dates
+                                                    </button>
+                                                </div>
+
+                                                <!-- Collapsible Filter Panel -->
+                                                <div id="filterPanel" class="collapse mb-4 px-3">
+                                                    <form id="filterForm" class="row g-3">
+                                                        <div class="col-md-5">
+                                                            <label class="form-label">Start Date</label>
+                                                            <input type="date" name="start_date" class="form-control">
+                                                        </div>
+                                                        <div class="col-md-5">
+                                                            <label class="form-label">End Date</label>
+                                                            <input type="date" name="end_date" class="form-control">
+                                                        </div>
+                                                        <div class="col-md-2 d-flex align-items-end">
+                                                            <button type="submit" class="btn btn-primary w-100">Go
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+
+                                                <!-- Summary Cards -->
+                                                <div class="row mb-4 px-3">
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-success">
+                                                                Total Payable:<br>
+                                                                <strong id="summaryTotalPrice">KES {{ summary.total_price }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-primary">
+                                                                Total Paid:<br>
+                                                                <strong id="summaryTotalPaid">KES {{ summary.total_paid }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="card shadow">
+                                                            <div class="card-body text-danger">
+                                                                Balance:<br>
+                                                                <strong id="summaryTotalBalance">KES {{ summary.total_balance }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Table -->
+                                                <div class="table-responsive px-3 pb-4"> <!-- Padding for nice space -->
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap"
+                                                           style="width:100%;">
+                                                        <thead class="bg-success text-white">
+                                                        <tr>
+                                                            <th>First Name</th>
+                                                            <th>Last Name</th>
+                                                            <th>Department</th>
+                                                            <th>Role</th>
+                                                            <th>Phone</th>
+                                                            <th>Action</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        {% for employee in employees %}
+                                                            <tr>
+                                                                <td>{{ employee.user.first_name }}</td>
+                                                                <td>{{ employee.user.last_name }}</td>
+                                                                <td>{{ employee.department }}</td>
+                                                                <td>{{ employee.role.name }}</td>
+                                                                <td>{{ employee.phone_number }}</td>
+                                                                <td>
+                                                                    <button class="btn btn-sm btn-warning edit-btn"
+                                                                            data-id="{{ employee.id }}"
+                                                                            data-first_name="{{ employee.user.first_name }}"
+                                                                            data-last_name="{{ employee.user.last_name }}"
+                                                                            data-email="{{ employee.user.email }}"
+                                                                            data-phone_number="{{ employee.phone_number }}"
+                                                                            data-department="{{ employee.department }}"
+                                                                            data-role="{{ employee.role.id }}"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#editEmployeeModal">
+                                                                        Edit
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                                    <div class="row">
+
+                                        <div class="col-lg-6">
+
+
+                                            <div class="card">
+
+                                                <div class="card-body">
+                                                    <div class="card-header bg-green-100">
+                                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                                            <h5 class="mb-0">Services Overview</h5>
+                                                            <div class="d-flex gap-2">
+                                                                <select id="service-year-selector"
+                                                                        class="form-select form-select-sm"
+                                                                        style="min-width: 120px;"></select>
+                                                                <select id="service-selector"
+                                                                        class="form-select form-select-sm"
+                                                                        style="min-width: 150px;"></select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body shadow-lg">
+                                                        <div id="chart-summary" class="mb-3">
+                                                            <h6 id="summary-year" class="fw-bold"></h6>
+                                                            <p id="summary-services" class="mb-1"></p>
+                                                            <p id="summary-revenue"></p>
+                                                        </div>
+                                                        <div id="chart" style="min-height: 300px;"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="card">
+                                                <div class="card-header">
+                                                    <h5>Recognized Devices</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <ul class="list-group list-group-flush">
+                                                        <li class="list-group-item px-0 pt-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Celt Desktop</p>
+                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-success d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Current Active
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Imco Tablet</p>
+                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-muted d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Active 5 days ago
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                        <li class="list-group-item px-0 pb-0">
+                                                            <div class="d-flex align-items-center justify-content-between">
+                                                                <div class="me-2">
+                                                                    <p class="mb-2">Albs Mobile</p>
+                                                                    <p class="mb-0 text-muted">3462 Fairfax Drive</p>
+                                                                </div>
+                                                                <div class="">
+                                                                    <div class="text-muted d-inline-block me-2">
+                                                                        <i class="fas fa-circle f-8 me-2"></i>
+                                                                        Active 1 month ago
+                                                                    </div>
+                                                                    <a href="#!" class="text-danger"><i
+                                                                            class="feather icon-x-circle"></i></a>
+                                                                </div>
+                                                            </div>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                        <!-- [ sample-page ] end -->
+                    </div>
+                    <!-- [ Main Content ] end -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- [ Main Content ] end -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Add Modal -->
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-labelledby="addEmployeeModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="addEmployeeForm" enctype="multipart/form-data" >
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Employee</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {% csrf_token %}
+                        {{ form.as_p }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Add Employee</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="editEmployeeForm" enctype="multipart/form-data" >
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Employee</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {% csrf_token %}
+                        {{ form.as_p }}  <!-- You can make a separate EditForm if needed -->
+                        <input type="hidden" id="edit-employee-id" name="employee_id">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Save Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function () {
+
+            // 1. Submit Add Form via AJAX
+            $('#addEmployeeForm').submit(function (e) {
+                e.preventDefault();
+                let formData = $(this).serialize();
+                $.post("{% url 'employee_management' %}", formData + '&add_employee=1', function (response) {
+                    location.reload();  // reload page to see new employee
+                });
+            });
+
+            // 2. Open Edit Modal and Fill Form
+            $('.edit-btn').click(function () {
+                let employee_id = $(this).data('id');
+                $('#edit-employee-id').val(employee_id);
+                // populate form fields (if you had separate fields)
+
+                // e.g. if your form has inputs with IDs
+                // $('#id_first_name').val($(this).data('first_name'));
+                // $('#id_last_name').val($(this).data('last_name'));
+                // $('#id_email').val($(this).data('email'));
+                // $('#id_phone_number').val($(this).data('phone_number'));
+            });
+
+            // 3. Submit Edit Form via AJAX
+            $('#editEmployeeForm').submit(function (e) {
+                e.preventDefault();
+                let formData = $(this).serialize();
+                $.post("{% url 'employee_management' %}", formData + '&edit_employee=1', function (response) {
+                    location.reload();  // reload to see updated employee
+                });
+            });
+
+        });
+    </script>
+
+
+{% endblock %}
+
+
