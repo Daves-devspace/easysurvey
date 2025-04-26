@@ -537,6 +537,72 @@ class SmsProviderToken(models.Model):
         cache.delete('sms_provider_token')
 
 
+
+from django.db import models
+from django.utils import timezone
+import calendar
+from datetime import datetime
+from django.db import models
+from django.utils import timezone
+
+class RecurringBroadcast(models.Model):
+    message_template = models.TextField()
+    scheduled_time    = models.TimeField(
+        help_text="Time of day to send the message (e.g. 10:00 AM)"
+    )
+    scheduled_day     = models.PositiveSmallIntegerField(
+        help_text="Day of the month to send (1–31)"
+    )
+    is_active         = models.BooleanField(
+        default=True,
+        help_text="Whether this broadcast is currently active"
+    )
+    created_at        = models.DateTimeField(auto_now_add=True)
+    updated_at        = models.DateTimeField(auto_now=True)
+
+    @property
+    def next_run_datetime(self) -> datetime:
+        """
+        Compute the next datetime this broadcast should run,
+        clamping scheduled_day to each month’s length, and
+        rolling over to next month if today’s run time has passed.
+        """
+        tz      = timezone.get_current_timezone()
+        now     = timezone.localtime(timezone.now(), tz)
+        year    = now.year
+        month   = now.month
+
+        def make_target(yr, mo):
+            last_day = calendar.monthrange(yr, mo)[1]
+            day      = min(self.scheduled_day, last_day)
+            return datetime(
+                yr, mo, day,
+                self.scheduled_time.hour,
+                self.scheduled_time.minute,
+                tzinfo=tz
+            )
+
+        # First try this month
+        target = make_target(year, month)
+        if target <= now:
+            # roll forward one month
+            if month == 12:
+                year += 1
+                month = 1
+            else:
+                month += 1
+            target = make_target(year, month)
+
+        return target
+
+    def __str__(self):
+        return (
+            f"Every {self.scheduled_day} @ {self.scheduled_time.strftime('%H:%M')} "
+            f"— Next run: {self.next_run_datetime.strftime('%Y-%m-%d %H:%M')} "
+            f"[{'Active' if self.is_active else 'Inactive'}]"
+        )
+
+
 class MessageLog(models.Model):
     client_service = models.ForeignKey(
         'ClientService',

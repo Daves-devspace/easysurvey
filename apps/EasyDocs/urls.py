@@ -2,7 +2,7 @@ from django.urls import path, include
 from . import views, services, processes, auth_views, documents, accounts, reciepts, analytics
 from rest_framework.routers import DefaultRouter
 from .accounts import AccountsDashboardView, ExpenseView
-from .communication import MessageLogListView
+from .communication import CommunicationView
 from .views import ManagementView, ClientDetailView
 
 urlpatterns = [
@@ -79,6 +79,6 @@ urlpatterns = [
     path('api/available-years/', views.get_years, name='available-years'),
     path('api/services/', analytics.available_services, name='available_services'),
 
-    path('message-logs/', MessageLogListView.as_view(), name='message_log_list'),
+    path('message-logs/', CommunicationView.as_view(), name='communication_bulk'),
 
 ]
