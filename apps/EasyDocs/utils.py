@@ -1,8 +1,10 @@
 import logging
+from datetime import datetime
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 
 from apps.EasyDocs.models import MessageLog, Client
 
@@ -183,6 +185,92 @@ class MobileSasaAPI:
         except Exception as e:
             self.logger.error(f"Error fetching balance: {e}")
             return None
+
+
+
+def personalize(template: str, client) -> str:
+    """
+    Replace placeholders in the template with client attributes.
+    """
+    return (
+        template
+        .replace("{first_name}", client.first_name or "")
+        .replace("{last_name}", client.last_name or "")
+    )
+
+
+
+def send_single_sms(client, message, reason=""):
+    """
+    1) Instantiates the API wrapper
+    2) Sends the SMS
+    3) Logs to MessageLog
+    4) Returns (status, raw_response)
+    """
+    sms_api = MobileSasaAPI()
+    resp    = sms_api.send_sms(client.phone, message)
+
+    status   = 'sent'   if resp.get('status') else 'failed'
+    delivery = 'pending' if status == 'sent' else 'failed'
+    error    = None      if status == 'sent' else resp.get('message')
+
+    MessageLog.objects.create(
+        client       = client,
+        phone        = client.phone,
+        message      = message,
+        reason       = reason,
+        send_status  = status,
+        delivery_status = delivery,
+        error_details   = error
+    )
+
+    return status, resp
+
+import logging
+log = logging.getLogger(__name__)
+
+def broadcast_sms(template, scheduled_time=None, recurring=False):
+    """
+    Send or schedule a broadcast SMS to all clients.
+    - If recurring is True, setup a monthly scheduled task.
+    - If scheduled_time is in future, schedule once.
+    - If no scheduled_time, send immediately.
+    """
+    from .tasks import schedule_bulk_personalized_sms
+    from django_celery_beat.models import PeriodicTask, CrontabSchedule
+    import json
+
+    if recurring:
+        log.info("Registering recurring broadcast for %s", template)
+        if not scheduled_time:
+            raise ValueError("Scheduled time is required for recurring broadcasts.")
+
+        schedule, _ = CrontabSchedule.objects.get_or_create(
+            minute=scheduled_time.minute,
+            hour=scheduled_time.hour,
+            day_of_month=scheduled_time.day,
+            month_of_year='*',  # Every month
+            day_of_week='*'
+        )
+
+        PeriodicTask.objects.create(
+            crontab=schedule,
+            name=f"Monthly BulkSMS {scheduled_time.strftime('%d-%H:%M')}",
+            task='apps.EasyDocs.tasks.schedule_bulk_personalized_sms',
+            args=json.dumps([template, None]),
+            enabled=True
+        )
+    else:
+        # Send once (immediate or scheduled)
+        if scheduled_time and scheduled_time > timezone.now():
+            log.info("Scheduling one-off broadcast at %s", scheduled_time)
+            schedule_bulk_personalized_sms.apply_async(
+                args=[template, scheduled_time.isoformat()],
+                eta=scheduled_time
+            )
+        else:
+            schedule_bulk_personalized_sms.delay(template, None)
+            log.info("Sending immediate broadcast for %s", template)
 
 
 

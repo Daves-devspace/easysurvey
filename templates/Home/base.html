@@ -117,7 +117,7 @@
                     </a>
                 </li>
                 <li class="pc-item">
-                    <a href="{% url 'message_log_list' %}" class="pc-link">
+                    <a href="{% url 'communication_bulk' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-users"></i></span>
                         <span class="pc-mtext">Communication</span>
                     </a>
@@ -462,14 +462,7 @@
     </div>
 </header>
 <!-- [ Header ] end -->
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    {% endfor %}
-{% endif %}
+
 <body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
 {% block body %}
 

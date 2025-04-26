@@ -15,7 +15,7 @@
                     <div class="row align-items-center">
                         <div class="col-md-12">
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                                 <li class="breadcrumb-item"><a href="javascript: void(0)">Clients</a></li>
                                 <li class="breadcrumb-item" aria-current="page">List</li>
                             </ul>
@@ -50,56 +50,317 @@
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
 
 
-                        </div>
+                            <div class="container mt-4">
 
-                        <div class="card-body">
-                            <!-- Table -->
-                            <div class="table-responsive mt-3">
-                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                    <thead class="bg-green-300 ">
-                                    <tr>
-                                        <th>Client</th>
-                                        <th>Phone</th>
-                                        <th>Message</th>
-                                        <th>Reason</th>
-                                        <th>Send Status</th>
-                                        <th>Delivery Status</th>
-                                        <th>Timestamp</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {% for log in logs %}
-                                        <tr>
-                                            <td>{{ log.client }}</td>
-                                            <td>{{ log.phone }}</td>
-                                            <td>{{ log.message|truncatechars:50 }}</td>
-                                            <td>{{ log.reason }}</td>
-                                            <td>{{ log.send_status }}</td>
-                                            <td>{{ log.delivery_status }}</td>
-                                            <td>{{ log.timestamp }}</td>
-                                        </tr>
 
-                                    {% endfor %}
-                                    </tbody>
+                                <div class="row">
+                                    <!-- Left: Send / Preview -->
+                                    <div class="col-md-6">
+                                        <div class="card shadow-sm mb-4">
+                                            <div class="card-header"><h5>Broadcast SMS to All Clients</h5></div>
+                                            <div class="card-body">
+                                                <form method="post">
+                                                    {% csrf_token %}
+                                                    <!-- Message -->
+                                                    <div class="mb-3">
+                                                        <label class="form-label" for="{{ form.message.id_for_label }}">
+                                                            {{ form.message.label }}
+                                                        </label>
+                                                        {{ form.message }}
+                                                        {% for err in form.message.errors %}
+                                                            <div class="invalid-feedback d-block">{{ err }}</div>
+                                                        {% endfor %}
+                                                    </div>
 
-                                </table>
+                                                    <!-- Placeholders -->
+                                                    <div class="mb-3">
+                                                        <small class="text-muted">Click to insert:</small><br>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary me-2 placeholder-btn"
+                                                                data-token="{client_first_name}">First Name
+                                                        </button>
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-outline-secondary me-2 placeholder-btn"
+                                                                data-token="{client_last_name}">Last Name
+                                                        </button>
+                                                    </div>
+
+                                                    <!-- Schedule + Recurring -->
+                                                    <div class="row g-3 align-items-center mb-3">
+                                                        <div class="col-auto">
+                                                            <label class="form-label"
+                                                                   for="{{ form.scheduled_time.id_for_label }}">
+                                                                {{ form.scheduled_time.label }}
+                                                            </label>
+                                                            {{ form.scheduled_time }}
+                                                            {% for err in form.scheduled_time.errors %}
+                                                                <div class="invalid-feedback d-block">{{ err }}</div>
+                                                            {% endfor %}
+                                                        </div>
+                                                        <div class="col-auto form-check mt-4">
+                                                            {{ form.recurring }} {{ form.recurring.label_tag }}
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Actions -->
+                                                    <div class="d-flex justify-content-between">
+                                                        <button type="submit" name="preview"
+                                                                class="btn btn-outline-secondary">
+                                                            Preview
+                                                        </button>
+                                                        <button type="submit" name="send" class="btn btn-primary">
+                                                            Send
+                                                        </button>
+                                                    </div>
+                                                </form>
+
+                                                <!-- Preview Table -->
+                                                {% if previews %}
+                                                    <hr>
+                                                    <h6>Preview (first 3 clients)</h6>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm">
+                                                            <thead class="table-light">
+                                                            <tr>
+                                                                <th>Client</th>
+                                                                <th>Message</th>
+                                                                <th>Send At</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for p in previews %}
+                                                                <tr>
+                                                                    <td>{{ p.client }}</td>
+                                                                    <td>{{ p.message }}</td>
+                                                                    <td>{{ p.send_at }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right: Recurring Broadcasts -->
+                                    <div class="col-md-6">
+                                        <div class="card shadow-sm mb-4">
+                                            <div class="card-header"><h5>📢 Recurring Broadcasts</h5></div>
+                                            <div class="card-body">
+                                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                                    {% for bc in recurring_broadcasts %}
+                                                        <div class="col">
+                                                            <div class="card h-100">
+                                                                <div class="card-body d-flex flex-column">
+                                                                    <h5 class="card-title">
+                                                                        {{ bc.message_template|truncatechars:50 }}
+                                                                    </h5>
+                                                                    <p class="text-muted mb-2">
+                                                                        <small>
+                                                                            Scheduled: day {{ bc.scheduled_day }} @
+                                                                            {{ bc.scheduled_time|time:"H:i" }}
+                                                                        </small>
+                                                                    </p>
+                                                                    <span class="badge {{ bc.is_active|yesno:'bg-success,bg-secondary' }} mb-2">
+                    {{ bc.is_active|yesno:"Active,Inactive" }}
+                  </span>
+                                                                    <div class="mt-auto d-flex justify-content-between">
+                                                                        <button class="btn btn-sm btn-warning"
+                                                                                onclick="openEditModal(
+                                                                                        '{{ bc.id }}',
+                                                                                        '{{ bc.message_template|escapejs }}',
+                                                                                        '{{ bc.next_run_datetime|date:"Y-m-d\\TH:i" }}')">
+                                                                            ✏️ Edit
+                                                                        </button>
+
+
+
+                                                                        <form method="post" style="display:inline;">
+                                                                            {% csrf_token %}
+                                                                            <input type="hidden" name="broadcast_id"
+                                                                                   value="{{ bc.id }}">
+                                                                            <input type="hidden" name="delete_broadcast"
+                                                                                   value="1">
+                                                                            <button type="submit"
+                                                                                    class="btn btn-sm btn-danger">🗑️
+                                                                            </button>
+                                                                        </form>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    {% empty %}
+                                                        <div class="col-12 text-center text-muted">
+                                                            No recurring broadcasts.
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Edit Broadcast Modal -->
+                                <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <form method="post" action="{% url 'communication_bulk' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="broadcast_id" id="edit-broadcast-id">
+                                            <input type="hidden" name="edit_broadcast" value="1">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Edit Recurring Broadcast</h5>
+                                                    <button type="button" class="btn-close"
+                                                            data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="mb-3">
+                                                        <label for="edit-message" class="form-label">Message</label>
+                                                        <textarea id="edit-message" name="message" class="form-control"
+                                                                  rows="3"></textarea>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="edit-scheduled_time" class="form-label">Scheduled
+                                                            Time</label>
+                                                        <input id="edit-scheduled_time"
+                                                               name="scheduled_time"
+                                                               type="datetime-local"
+                                                               class="form-control">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Cancel
+                                                    </button>
+                                                    <button type="submit" class="btn btn-primary">Save</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
 
 
                             </div>
+
+                        </div>
+
+
+                    </div>
+
+                    <div class="card-body">
+                        <!-- Table -->
+                        <div class="table-responsive mt-3">
+                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                <thead class="bg-green-300 ">
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Phone</th>
+                                    <th>Message</th>
+                                    <th>Reason</th>
+                                    <th>Send Status</th>
+                                    <th>Delivery Status</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for log in logs %}
+                                    <tr>
+                                        <td>{{ log.client }}</td>
+                                        <td>{{ log.phone }}</td>
+                                        <td>{{ log.message|truncatechars:50 }}</td>
+                                        <td>{{ log.reason }}</td>
+                                        <td>{{ log.send_status }}</td>
+                                        <td>{{ log.delivery_status }}</td>
+                                        <td>{{ log.timestamp }}</td>
+                                    </tr>
+
+                                {% endfor %}
+                                </tbody>
+
+                            </table>
+
+
                         </div>
                     </div>
                 </div>
-                <!-- Config table end -->
-
-
-                <!-- [ Main Content ] end -->
             </div>
+            <!-- Config table end -->
+
+
+            <!-- [ Main Content ] end -->
+        </div>
         </div>
     </section>
 
 
     <!-- jQuery & Select2 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const textarea = document.getElementById('id_message');
+            if (!textarea) return;
+            document.querySelectorAll('.placeholder-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const token = btn.dataset.token;
+                    const {selectionStart: start, selectionEnd: end, value} = textarea;
+                    textarea.value = value.slice(0, start) + token + value.slice(end);
+                    const pos = start + token.length;
+                    textarea.setSelectionRange(pos, pos);
+                    textarea.focus();
+                });
+            });
+        });
+    </script>
+
+    <!-- Edit Recurring Broadcast Modal -->
+    <div class="modal fade" id="editBroadcastModal" tabindex="-1" aria-labelledby="editBroadcastModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content rounded-4 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editBroadcastModalLabel">✏️ Edit Recurring Broadcast</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <form method="POST" action="{% url 'communication_bulk' %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <input type="hidden" name="broadcast_id" id="editBroadcastId">
+                        <input type="hidden" name="edit_broadcast" value="1">
+
+                        <div class="mb-3">
+                            <label for="editMessageTemplate" class="form-label">Message Template</label>
+                            <textarea class="form-control" name="message_template" id="editMessageTemplate" rows="4"
+                                      required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="editScheduledDatetime" class="form-label">Scheduled Time</label>
+                            <input type="datetime-local" class="form-control" name="scheduled_datetime"
+                                   id="editScheduledDatetime" required>
+                        </div>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+    <script>
+        function openEditModal(id, message, datetimeStr) {
+            document.getElementById('edit-broadcast-id').value = id;
+            document.getElementById('edit-message').value = message;
+            document.getElementById('edit-scheduled_time').value = datetimeStr;
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+    </script>
 
 
 

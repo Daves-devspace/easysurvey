@@ -381,10 +381,42 @@ class ClientSmsForm(forms.Form):
     )
 
 
+# forms.py
+# forms.py
+
+
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from django.utils.timezone import get_current_timezone
+
+PLACEHOLDERS = [
+    ('{client_first_name}', 'Client First Name'),
+    # ('{client_last_name}', 'Client Last Name'),  # add if desired
+]
+
 class BulkSmsForm(forms.Form):
-    message = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), label="Message Template")
+    message = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control'}), label="Message Template")
     scheduled_time = forms.DateTimeField(
         required=False,
-        widget=forms.DateTimeInput(attrs={'type':'datetime-local'}),
-        label="Send At (leave blank for now)"
+        widget=forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+        label="Send At (optional)"
     )
+    recurring = forms.BooleanField(required=False, label="Repeat Monthly", widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
+
+    def clean_message(self):
+        msg = self.cleaned_data['message']
+        if '{client_first_name}' not in msg:
+            raise forms.ValidationError("Your message must include the {client_first_name} placeholder.")
+        return msg
+
+    def clean(self):
+        cleaned = super().clean()
+        scheduled_time = cleaned.get('scheduled_time')
+        recurring = cleaned.get('recurring')
+
+        if scheduled_time and scheduled_time <= timezone.now():
+            self.add_error('scheduled_time', "Scheduled time must be in the future.")
+
+        if recurring and not scheduled_time:
+            self.add_error('recurring', "You must select a send time for a recurring broadcast.")
+
