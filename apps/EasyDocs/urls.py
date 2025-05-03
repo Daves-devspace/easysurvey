@@ -2,12 +2,31 @@ from django.urls import path, include
 from . import views, services, processes, auth_views, documents, accounts, reciepts, analytics
 from rest_framework.routers import DefaultRouter
 from .accounts import AccountsDashboardView, ExpenseView
+from .auth_views import CustomPasswordResetConfirmView
 from .communication import CommunicationView
 from .views import ManagementView, ClientDetailView
+from django.contrib.auth.views import  PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
+    path('password_reset/', auth_views.CustomPasswordResetView.as_view(), name='password_reset'),
+    path(
+        'reset-password/done/',
+        PasswordResetDoneView.as_view(template_name='application/password_reset_done.html'),
+        name='password_reset_done'
+    ),
+    path(
+        'reset/<uidb64>/<token>/',
+        CustomPasswordResetConfirmView.as_view(),
+        name='password_reset_confirm'
+    ),
+    path(
+        'reset-password/complete/',
+        PasswordResetCompleteView.as_view(template_name='application/password_reset_complete.html'),
+        name='password_reset_complete'
+    ),
 
     path('login/', auth_views.custom_login, name='login'),
+    path('test_404/', auth_views.test_404, name='test_404'),
     path('logout/', auth_views.logout_view, name='logout'),
     path('', views.home, name='home'),
 

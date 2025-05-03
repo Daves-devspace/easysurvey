@@ -69,7 +69,7 @@
 
                         <div class="form-group mb-3">
                             <label class="form-label">Username</label>
-                            <input type="text" name="username" class="form-control" placeholder="Enter your username"
+                            <input type="text" name="username" class="form-control" value="{{ prefill_username }}" placeholder="Enter your username"
                                    required>
                         </div>
                         <div class="form-group mb-3">
@@ -83,7 +83,7 @@
                                 <input class="form-check-input input-primary" type="checkbox" id="customCheckc1">
                                 <label class="form-check-label text-muted" for="customCheckc1">Keep me signed in</label>
                             </div>
-                            <h5 class="text-secondary f-w-400"><a href="#">Forgot Password?</a></h5>
+                            <h5 class="text-secondary f-w-400"><a href="{% url 'password_reset' %}">Forgot Password?</a></h5>
                         </div>
 
                         <div class="d-grid mt-4">
@@ -99,7 +99,7 @@
                         <div class="col-4">
                             <div class="d-grid">
                                 <button type="button" class="btn mt-2 btn-light-primary bg-light text-muted">
-                                    <img src="../assets/images/authentication/google.svg" alt="img"> <span
+                                    <img src="{% static 'assets/images/authentication/google.svg' %}" alt="img"> <span
                                         class="d-none d-sm-inline-block"> Google</span>
                                 </button>
                             </div>
@@ -107,7 +107,7 @@
                         <div class="col-4">
                             <div class="d-grid">
                                 <button type="button" class="btn mt-2 btn-light-primary bg-light text-muted">
-                                    <img src="../assets/images/authentication/twitter.svg" alt="img"> <span
+                                    <img src="{% static 'assets/images/authentication/twitter.svg' %}" alt="img"> <span
                                         class="d-none d-sm-inline-block"> Twitter</span>
                                 </button>
                             </div>
@@ -115,7 +115,7 @@
                         <div class="col-4">
                             <div class="d-grid">
                                 <button type="button" class="btn mt-2 btn-light-primary bg-light text-muted">
-                                    <img src="../assets/images/authentication/facebook.svg" alt="img"> <span
+                                    <img src="{% static 'assets/images/authentication/facebook.svg' %}" alt="img"> <span
                                         class="d-none d-sm-inline-block"> Facebook</span>
                                 </button>
                             </div>
@@ -126,7 +126,7 @@
 
             <div class="auth-footer row">
                 <div class="col my-1">
-                    <p class="m-0">Copyright © <a href="#">Codedthemes</a></p>
+                    <p class="m-0">Copyright © <a href="#">GGI</a></p>
                 </div>
                 <div class="col-auto my-1">
                     <ul class="list-inline footer-link mb-0">

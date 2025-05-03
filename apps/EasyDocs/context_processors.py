@@ -1,8 +1,13 @@
-# your_app/context_processors.py
 from .models import SiteSettings
+from django.db import ProgrammingError, OperationalError
 
 def site_settings(request):
-    settings = SiteSettings.objects.first()
+    try:
+        settings = SiteSettings.objects.first()
+    except (ProgrammingError, OperationalError):
+        # Table does not exist or DB not ready
+        settings = None
+
     logo_ts = None
     if settings and settings.logo:
         try:

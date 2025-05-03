@@ -15,15 +15,14 @@ from .models import SiteSettings, EmailSettings
 # admin.site.register(IntervalSchedule)
 #
 
-
-
 @admin.register(EmailSettings)
 class EmailSettingsAdmin(admin.ModelAdmin):
     """
-    This is where you manage your SMTP host, port, credentials,
-    and default_from_email. Only one row is allowed.
+    Admin configuration for EmailSettings.
+    Only one instance is allowed.
+    Used to manage SMTP settings for the app.
     """
-    readonly_fields = ('singleton_enforcer',)
+    readonly_fields = ('_singleton_enforcer',)  # Assuming you renamed the field
     fieldsets = (
         (None, {
             'fields': (
@@ -35,10 +34,16 @@ class EmailSettingsAdmin(admin.ModelAdmin):
             )
         }),
     )
+
     def has_add_permission(self, request):
+        # Prevent adding if an instance already exists
         return not EmailSettings.objects.exists()
+
     def has_delete_permission(self, request, obj=None):
+        # Prevent deletion in admin
         return False
+
+
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):

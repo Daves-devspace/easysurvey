@@ -1,10 +1,89 @@
 from django import forms
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.forms import TextInput
+import logging
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
     SmsProviderToken, EmailSettings, Document, Expense, ServiceCategory
 
 from .models import Client, ClientService, Service, Process
+from django.conf import settings
+from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+from .utils import load_email_settings
+logger = logging.getLogger(__name__)
+
+
+class CustomSetPasswordForm(SetPasswordForm):
+    new_password1 = forms.CharField(
+        label="New password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'class': 'form-control',
+            'placeholder': 'Enter new password',
+        }),
+        help_text='<ul>'
+                  '<li>Your password can’t be too similar to your other personal information.</li>'
+                  '<li>Your password must contain at least 8 characters.</li>'
+                  '<li>Your password can’t be a commonly used password.</li>'
+                  '<li>Your password can’t be entirely numeric.</li>'
+                  '</ul>',
+        validators=[validate_password],
+    )
+
+    new_password2 = forms.CharField(
+        label="Confirm new password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'class': 'form-control',
+            'placeholder': 'Confirm new password',
+        }),
+    )
+
+class CustomPasswordResetForm(PasswordResetForm):
+    email = forms.EmailField(
+        max_length=254,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your email',
+            'type': 'email',
+        })
+    )
+
+    def send_mail(
+        self,
+        subject_template_name,
+        email_template_name,
+        context,
+        from_email,
+        to_email,
+        html_email_template_name=None,
+    ):
+        # 1) load your DB settings (host/port/user/pass + SSL/TLS flags)
+        load_email_settings()
+        logger.debug(
+            "Password reset email using host=%s port=%s ssl=%s tls=%s",
+            settings.EMAIL_HOST,
+            settings.EMAIL_PORT,
+            settings.EMAIL_USE_SSL,
+            settings.EMAIL_USE_TLS,
+        )
+
+        # 2) delegate to the built‑in implementation
+        return super().send_mail(
+            subject_template_name,
+            email_template_name,
+            context,
+            from_email,
+            to_email,
+            html_email_template_name=html_email_template_name,
+        )
+
+
+
+
+
+
 
 
 class DocumentForm(forms.ModelForm):

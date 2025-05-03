@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
@@ -29,7 +29,7 @@ class ServiceCategory(models.TextChoices):
 # models.py
 
 class EmailSettings(models.Model):
-    singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
+    _singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
 
     email_host = models.CharField(max_length=255, blank=True, null=True)
     email_port = models.PositiveIntegerField(default=587)
@@ -37,10 +37,22 @@ class EmailSettings(models.Model):
     email_host_password = models.CharField(max_length=255, blank=True, null=True)
     default_from_email = models.EmailField(validators=[validate_email], blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        if not self.pk and EmailSettings.objects.exists():
+            raise ValidationError("Only one EmailSettings instance is allowed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Cannot delete the EmailSettings singleton instance.")
+
     def __str__(self):
         return "Email Settings"
 
-
+    @classmethod
+    @transaction.atomic
+    def get_instance(cls):
+        instance, created = cls.objects.get_or_create(defaults={'_singleton_enforcer': True})
+        return instance
 
 
 class SiteSettings(models.Model):

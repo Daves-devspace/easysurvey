@@ -3,6 +3,8 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.db.models import Q, Prefetch, Sum, DecimalField, F
 from django.db.models.functions import Coalesce
@@ -131,11 +133,13 @@ def home(request):
 
 
 
-class ClientDetailView(DetailView):
+class ClientDetailView(PermissionRequiredMixin, DetailView):
     model = Client
     template_name = 'Client/client_details.html'
     context_object_name = 'client'
     pk_url_kwarg = 'client_id'
+    permission_required = 'easydocs.view_client'  # Make sure app_label is correct
+    raise_exception = True  # Optional: raises 403 instead of redirecting to login
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -712,7 +716,7 @@ def update_email_settings(request):
 
             # Update SiteSettings with default_from_email
             site_settings, _ = SiteSettings.objects.get_or_create(pk=1)
-            site_settings.email = email_settings.default_from_email or "NO MAIL"
+            site_settings.actual_field_name = email_settings.default_from_email or "NO MAIL"
             site_settings.save()
 
             messages.success(request, "Email settings updated successfully.")
