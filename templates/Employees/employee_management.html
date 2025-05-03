@@ -238,19 +238,12 @@
                                                                             <td>{{ employee.role.name }}</td>
                                                                             <td>{{ employee.phone_number }}</td>
                                                                             <td>
-                                                                                <button class="btn btn-sm btn-warning edit-btn"
-                                                                                        data-id="{{ employee.id }}"
-                                                                                        data-first_name="{{ employee.user.first_name }}"
-                                                                                        data-last_name="{{ employee.user.last_name }}"
-                                                                                        data-email="{{ employee.user.email }}"
-                                                                                        data-phone_number="{{ employee.phone_number }}"
-                                                                                        data-department="{{ employee.department }}"
-                                                                                        data-role="{{ employee.role.id }}"
-                                                                                        data-bs-toggle="modal"
-                                                                                        data-bs-target="#editEmployeeModal">
+                                                                                <a href="{% url 'employee_list' %}?edit={{ employee.id }}"
+                                                                                   class="btn btn-warning">
                                                                                     Edit
-                                                                                </button>
+                                                                                </a>
                                                                             </td>
+
                                                                         </tr>
 
                                                                     {% endfor %}
@@ -350,22 +343,15 @@
                                                                 <td>{{ employee.user.first_name }}</td>
                                                                 <td>{{ employee.user.last_name }}</td>
                                                                 <td>{{ employee.department }}</td>
-                                                                <td>{{ employee.role.name }}</td>
+                                                                <td>{{ employee.get_role_display }}</td>
                                                                 <td>{{ employee.phone_number }}</td>
                                                                 <td>
-                                                                    <button class="btn btn-sm btn-warning edit-btn"
-                                                                            data-id="{{ employee.id }}"
-                                                                            data-first_name="{{ employee.user.first_name }}"
-                                                                            data-last_name="{{ employee.user.last_name }}"
-                                                                            data-email="{{ employee.user.email }}"
-                                                                            data-phone_number="{{ employee.phone_number }}"
-                                                                            data-department="{{ employee.department }}"
-                                                                            data-role="{{ employee.role.id }}"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#editEmployeeModal">
-                                                                        Edit
-                                                                    </button>
+                                                                    <a href="{% url 'employee_list' %}?edit={{ employee.id }}"
+                                                                       class="btn btn-warning">
+                                                                        Edits
+                                                                    </a>
                                                                 </td>
+
                                                             </tr>
                                                         {% endfor %}
                                                         </tbody>
@@ -487,19 +473,83 @@
     <!-- [ Main Content ] end -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Add Modal -->
+    {# employee_management.html (excerpt) #}
+
+    {# — Add Employee Modal — #}
     <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-labelledby="addEmployeeModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
-            <form id="addEmployeeForm" enctype="multipart/form-data" >
+            <form method="post" action="{% url 'employee_add' %}" enctype="multipart/form-data">
+                {% csrf_token %}
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Add Employee</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title" id="addEmployeeModalLabel">Add Employee</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        {% csrf_token %}
-                        {{ form.as_p }}
+                        {# non‑field errors #}
+                        {% if add_form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ add_form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        {# each field #}
+                        <div class="mb-3">
+                            {{ add_form.first_name.label_tag }}
+                            {{ add_form.first_name }}
+                            {% for err in add_form.first_name.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.last_name.label_tag }}
+                            {{ add_form.last_name }}
+                            {% for err in add_form.last_name.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.email.label_tag }}
+                            {{ add_form.email }}
+                            {% for err in add_form.email.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.phone_number.label_tag }}
+                            {{ add_form.phone_number }}
+                            {% for err in add_form.phone_number.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.department.label_tag }}
+                            {{ add_form.department }}
+                            {% for err in add_form.department.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.address.label_tag }}
+                            {{ add_form.address }}
+                            {% for err in add_form.address.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.profile_picture.label_tag }}
+                            {{ add_form.profile_picture }}
+                            {% for err in add_form.profile_picture.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.role.label_tag }}
+                            {{ add_form.role }}
+                            {% for err in add_form.role.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary">Add Employee</button>
@@ -509,66 +559,60 @@
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div class="modal fade" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <form id="editEmployeeForm" enctype="multipart/form-data" >
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Edit Employee</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    {# — Edit Employee Modal — #}
+    {% if edit_form %}
+        <div class="modal fade show" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel"
+             aria-modal="true" style="display: block;">
+            <div class="modal-dialog">
+                <form id="editEmployeeForm" method="post" action="{% url 'employee_edit' edit_employee_id %}">
+                    {% csrf_token %}
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editEmployeeModalLabel">Edit Employee</h5>
+                            <a href="{% url 'employee_list' %}" class="btn-close" aria-label="Close"></a>
+                        </div>
+                        <div class="modal-body">
+                            {% if edit_form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ edit_form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
+                            <input type="hidden" name="employee_id" value="{{ edit_employee_id }}">
+
+                            {% for field in edit_form %}
+                                <div class="mb-3">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                        <div class="text-danger small">
+                                            {% for err in field.errors %}
+                                                {{ err }}<br>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Save Changes</button>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        {% csrf_token %}
-                        {{ form.as_p }}  <!-- You can make a separate EditForm if needed -->
-                        <input type="hidden" id="edit-employee-id" name="employee_id">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success">Save Changes</button>
-                    </div>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
-    </div>
+        <div class="modal-backdrop fade show"></div>  <!-- Add backdrop if modal is forcibly shown -->
+    {% endif %}
 
 
-    <script>
-        $(document).ready(function () {
+    {# — JavaScript to wire up Edit Modal — #}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-            // 1. Submit Add Form via AJAX
-            $('#addEmployeeForm').submit(function (e) {
-                e.preventDefault();
-                let formData = $(this).serialize();
-                $.post("{% url 'employee_management' %}", formData + '&add_employee=1', function (response) {
-                    location.reload();  // reload page to see new employee
-                });
-            });
 
-            // 2. Open Edit Modal and Fill Form
-            $('.edit-btn').click(function () {
-                let employee_id = $(this).data('id');
-                $('#edit-employee-id').val(employee_id);
-                // populate form fields (if you had separate fields)
 
-                // e.g. if your form has inputs with IDs
-                // $('#id_first_name').val($(this).data('first_name'));
-                // $('#id_last_name').val($(this).data('last_name'));
-                // $('#id_email').val($(this).data('email'));
-                // $('#id_phone_number').val($(this).data('phone_number'));
-            });
 
-            // 3. Submit Edit Form via AJAX
-            $('#editEmployeeForm').submit(function (e) {
-                e.preventDefault();
-                let formData = $(this).serialize();
-                $.post("{% url 'employee_management' %}", formData + '&edit_employee=1', function (response) {
-                    location.reload();  // reload to see updated employee
-                });
-            });
-
-        });
-    </script>
+    <!-- JavaScript to populate Edit Modal -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 
 {% endblock %}

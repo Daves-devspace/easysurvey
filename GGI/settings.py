@@ -22,12 +22,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-7(oa4yi_nc+%4fsqc9xo=1fj8lmej$t!(lqhtw)i_dc7lq&ssy'
+# SECRET_KEY = 'django-insecure-7(oa4yi_nc+%4fsqc9xo=1fj8lmej$t!(lqhtw)i_dc7lq&ssy'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
+#
+# ALLOWED_HOSTS = ['*']
+SITE_DOMAIN = "http://127.0.0.1:8000"  # or your production domain
 
-ALLOWED_HOSTS = []
 
 # Application definition
 
@@ -114,27 +116,52 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 
 
+# settings.py
+
+EMAIL_BACKEND        = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
+)
+
+# Fallbacks—only used if your DB singleton is missing or loader hasn’t run
+EMAIL_HOST           = "localhost"
+EMAIL_PORT           = 25         # unencrypted SMTP
+EMAIL_HOST_USER      = ""
+EMAIL_HOST_PASSWORD  = ""
+DEFAULT_FROM_EMAIL   = "webmaster@localhost"
+EMAIL_USE_TLS        = False
+EMAIL_USE_SSL        = False
 
 
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-# DO NOT expose in form
-EMAIL_USE_TLS = True  # usually fixed
-EMAIL_USE_SSL = False  # optional
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8000",  # If needed
+    # "http://yourdomain.com",  # In production
+]
+
+
+# EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+# # DO NOT expose in form
+# EMAIL_USE_TLS = True  # usually fixed
+# EMAIL_USE_SSL = False  # optional
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+DEBUG = os.getenv("DEBUG") == "0"
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+        'NAME': os.getenv("POSTGRES_DB"),
+        'USER': os.getenv("POSTGRES_USER"),
+        'PASSWORD': os.getenv("POSTGRES_PASSWORD"),
+        'HOST': os.getenv("POSTGRES_HOST"),
+        'PORT': os.getenv("POSTGRES_PORT"),
     }
 }
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
