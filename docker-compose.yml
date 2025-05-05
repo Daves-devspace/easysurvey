@@ -36,7 +36,7 @@ services:
 
   celery:
     build: .
-    command: celery -A GGI worker --loglevel=info
+    command: celery -A GGI worker -Q celery,email --loglevel=info
     volumes:
       - .:/app
     env_file:

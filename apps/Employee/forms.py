@@ -15,7 +15,7 @@ import secrets
 import string
 
 from ..EasyDocs.models import SiteSettings
-from ..EasyDocs.utils import load_email_settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,24 +65,20 @@ class EmployeeProfileForm(forms.ModelForm):
             self.fields['email'].initial = user.email
 
     def save(self, commit=True):
-        # Extract custom fields
         first_name = self.cleaned_data.pop('first_name')
-        last_name  = self.cleaned_data.pop('last_name')
-        email      = self.cleaned_data.pop('email')
+        last_name = self.cleaned_data.pop('last_name')
+        email = self.cleaned_data.pop('email')
 
-        # Check if this is an update
-        is_update = self.instance and self.instance.pk and hasattr(self.instance, 'user')
+        is_update = bool(self.instance and self.instance.pk and hasattr(self.instance, 'user'))
 
         if is_update:
-            # Update existing user
             user = self.instance.user
             user.first_name = first_name
-            user.last_name  = last_name
-            user.email      = email
-            user.username   = email.split('@')[0]
+            user.last_name = last_name
+            user.email = email
+            user.username = email.split('@')[0]
             user.save()
         else:
-            # Create new user
             username = email.split('@')[0]
             password = generate_random_password()
 
@@ -95,66 +91,63 @@ class EmployeeProfileForm(forms.ModelForm):
             user.set_password(password)
             user.save()
 
-        # Create or update EmployeeProfile
-        employee_profile = super().save(commit=False)
-        employee_profile.user = user
-
+        profile = super().save(commit=False)
+        profile.user = user
         if commit:
-            employee_profile.save()
+            profile.save()
 
-        # Send email only if new
+        # --- EMAIL SENDING FOR NEW USER ONLY ---
         if not is_update:
+            # Build the reset URL
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            url = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+            full_reset = f"{settings.SITE_DOMAIN}{url}"
+
+            # From address
+            site = SiteSettings.objects.first()
+            # from_email = site.email if site and site.email else settings.DEFAULT_FROM_EMAIL
+            from_email = settings.DEFAULT_FROM_EMAIL
+
+            subject = "Your Account Credentials"
+            message = (
+                f"Hello {first_name},\n\n"
+                f"Your account has been created.\n"
+                f"Username: {email}\n"
+                f"Temporary Password: {password}\n\n"
+                f"Please reset your password: {full_reset}\n\n"
+                f"Regards,\n{site.company_name if site else 'Company'}"
+            )
+
             try:
-                # Load and log email settings
-                load_email_settings()
+                # Log exactly which email settings are in effect
                 logger.debug(
-                    "Loaded email settings → host=%s port=%s user=%s ssl=%s tls=%s",
+                    "EMAIL SETTINGS → host=%r port=%r user=%r use_tls=%r use_ssl=%r",
                     settings.EMAIL_HOST,
                     settings.EMAIL_PORT,
                     settings.EMAIL_HOST_USER,
-                    settings.EMAIL_USE_SSL,
                     settings.EMAIL_USE_TLS,
+                    settings.EMAIL_USE_SSL,
                 )
-
-                # Build reset URL
-                uid        = urlsafe_base64_encode(force_bytes(user.pk))
-                token      = default_token_generator.make_token(user)
-                reset_url  = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-                full_reset = f"{settings.SITE_DOMAIN}{reset_url}"
-
-                # Determine from_email and company name
-                site       = SiteSettings.objects.first()
-                from_email = site.email if site and site.email else settings.DEFAULT_FROM_EMAIL
-                company    = site.company_name if site else 'Company'
-
-                # Prepare mail
-                subject = "Your Account Credentials"
-                message = (
-                    f"Hello {first_name},\n\n"
-                    f"Your account has been created.\n"
-                    f"Username: {email}\n"
-                    f"Temporary Password: {password}\n\n"
-                    f"Please reset your password: {full_reset}\n\n"
-                    f"Regards,\n{company}"
-                )
-
-                # Log right before sending
                 logger.debug(
-                    "About to send email → from=%s to=%s subject=%r",
+                    "Sending email → from=%r to=%r subject=%r",
                     from_email, [email], subject
                 )
 
-                send_mail(subject, message, from_email, [email])
+                send_mail(
+                    subject,
+                    message,
+                    from_email,
+                    [email],
+                    fail_silently=False,
+                )
+                logger.info("Invitation email sent to %s", email)
 
-            except Exception as e:
+            except Exception as exc:
                 logger.error(
-                    "Failed to send email (host=%s port=%s ssl=%s tls=%s): %s",
-                    settings.EMAIL_HOST, settings.EMAIL_PORT,
-                    settings.EMAIL_USE_SSL, settings.EMAIL_USE_TLS,
-                    e,
-                    exc_info=True
+                    "Failed to send email: %s", exc, exc_info=True
                 )
 
-        return employee_profile
+        return profile
 
 

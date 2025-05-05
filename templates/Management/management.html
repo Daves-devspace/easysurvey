@@ -776,99 +776,7 @@
                                                         <div class="card-header bg-green-300 text-white">
                                                             <h5 class="mb-0">Email Settings</h5>
                                                         </div>
-                                                        <div class="card-body">
-                                                            <form method="post"
-                                                                  action="{% url 'update_email_settings' %}">
-                                                                {% csrf_token %}
 
-                                                                <!-- Email Host -->
-                                                                <div class="mb-3">
-                                                                    <label for="id_email_host" class="form-label">Email
-                                                                        Host</label>
-                                                                    <input
-                                                                            type="text"
-                                                                            name="email_host"
-                                                                            class="form-control"
-                                                                            id="id_email_host"
-                                                                            value="{{ email_settings_form.instance.email_host }}"
-                                                                            placeholder="Enter email host">
-                                                                    {{ email_settings_form.email_host.errors }}
-                                                                </div>
-
-                                                                <!-- Email Port -->
-                                                                <div class="mb-3">
-                                                                    <label for="id_email_port" class="form-label">Email
-                                                                        Port</label>
-                                                                    <input
-                                                                            type="number"
-                                                                            name="email_port"
-                                                                            class="form-control"
-                                                                            id="id_email_port"
-                                                                            value="{{ email_settings_form.instance.email_port }}"
-                                                                            placeholder="Enter email port">
-                                                                    {{ email_settings_form.email_port.errors }}
-                                                                </div>
-
-                                                                <!-- Default From Email -->
-                                                                <div class="mb-3">
-                                                                    <label for="id_default_from_email"
-                                                                           class="form-label">Default From Email</label>
-                                                                    <input
-                                                                            type="email"
-                                                                            name="default_from_email"
-                                                                            class="form-control"
-                                                                            id="id_default_from_email"
-                                                                            value="{{ email_settings_form.instance.default_from_email }}"
-                                                                            placeholder="Enter default from email">
-                                                                    {{ email_settings_form.default_from_email.errors }}
-                                                                </div>
-
-                                                                <!-- Email User -->
-                                                                <div class="mb-3">
-                                                                    <label for="id_email_host_user" class="form-label">Email
-                                                                        User</label>
-                                                                    <input
-                                                                            type="text"
-                                                                            name="email_host_user"
-                                                                            class="form-control"
-                                                                            id="id_email_host_user"
-                                                                            value="{{ email_settings_form.instance.email_host_user }}"
-                                                                            placeholder="Enter email user">
-                                                                    {{ email_settings_form.email_host_user.errors }}
-                                                                </div>
-
-                                                                <!-- Password -->
-                                                                <div class="mb-3">
-                                                                    <label for="id_email_host_password"
-                                                                           class="form-label">Email Password</label>
-                                                                    <div class="input-group">
-                                                                        <input
-                                                                                type="password"
-                                                                                name="email_host_password"
-                                                                                class="form-control"
-                                                                                id="id_email_host_password"
-                                                                                value="{{ email_settings_form.instance.email_host_password }}"
-                                                                                placeholder="Enter email password">
-                                                                        <button class="btn btn-outline-secondary"
-                                                                                type="button" id="toggleEmailPwd">
-                                                                            <i class="fas fa-eye"
-                                                                               id="toggleEmailPwdIcon"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                    <meter max="4" id="emailPwdStrength"
-                                                                           style="width:100%;height:.5rem;"></meter>
-                                                                    <small class="form-text text-muted">
-                                                                        Use at least 8 characters, mixing letters &amp;
-                                                                        numbers.
-                                                                    </small>
-                                                                    {{ email_settings_form.email_host_password.errors }}
-                                                                </div>
-
-                                                                <button type="submit" class="btn btn-success">Save
-                                                                    Settings
-                                                                </button>
-                                                            </form>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -882,33 +790,7 @@
                     </div>
                 </div>
                 <!-- [ Main Content ] end -->
-                <script>
-                    (function () {
-                        const pwdInput = document.getElementById("id_email_host_password"),
-                            toggleBtn = document.getElementById("toggleEmailPwd"),
-                            toggleIco = document.getElementById("toggleEmailPwdIcon"),
-                            meter = document.getElementById("emailPwdStrength");
 
-                        // show/hide
-                        toggleBtn.addEventListener("click", () => {
-                            const isPwd = pwdInput.type === "password";
-                            pwdInput.type = isPwd ? "text" : "password";
-                            toggleIco.classList.toggle("fa-eye");
-                            toggleIco.classList.toggle("fa-eye-slash");
-                        });
-
-                        // very basic strength estimate
-                        pwdInput.addEventListener("input", () => {
-                            const val = pwdInput.value;
-                            let score = 0;
-                            if (val.length >= 8) score++;
-                            if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
-                            if (/\d/.test(val)) score++;
-                            if (/[^A-Za-z0-9]/.test(val)) score++;
-                            meter.value = score;
-                        });
-                    })();
-                </script>
                 <script>
                     document.addEventListener("DOMContentLoaded", function () {
                         const modal = document.getElementById('editSubserviceModal');

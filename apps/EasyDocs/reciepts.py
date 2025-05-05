@@ -100,8 +100,8 @@ def generate_service_receipt(client_service, printed_by_user):
     c.line(5*mm, y, width-5*mm, y)
     y -= 4*mm
 
-    total_paid = client_service.total_paid()
-    total_balance = client_service.total_balance()
+    total_paid = client_service.total_paid
+    total_balance = client_service.total_balance
 
     c.setFont("Helvetica-Bold", 8)
     c.drawString(5*mm, y, "Total Paid:")

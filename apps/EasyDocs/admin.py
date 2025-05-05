@@ -8,41 +8,7 @@ from .models import (Client, Service, Process, ClientService, ClientServiceProce
 
 
 from django.contrib import admin
-from .models import SiteSettings, EmailSettings
-# from django_celery_beat.models import PeriodicTask, IntervalSchedule
-#
-# admin.site.register(PeriodicTask)
-# admin.site.register(IntervalSchedule)
-#
-
-@admin.register(EmailSettings)
-class EmailSettingsAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for EmailSettings.
-    Only one instance is allowed.
-    Used to manage SMTP settings for the app.
-    """
-    readonly_fields = ('_singleton_enforcer',)  # Assuming you renamed the field
-    fieldsets = (
-        (None, {
-            'fields': (
-                'email_host',
-                'email_port',
-                'email_host_user',
-                'email_host_password',
-                'default_from_email',
-            )
-        }),
-    )
-
-    def has_add_permission(self, request):
-        # Prevent adding if an instance already exists
-        return not EmailSettings.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        # Prevent deletion in admin
-        return False
-
+from .models import SiteSettings
 
 
 @admin.register(SiteSettings)

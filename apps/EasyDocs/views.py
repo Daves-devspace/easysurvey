@@ -16,10 +16,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
-    SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, EmailSettingsForm, \
+    SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, \
     ClientSubServiceEditForm, ClientSmsForm
 from apps.EasyDocs.models import Client, Service, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
-    ClientSubService, SiteSettings, SmsProviderToken, EmailSettings, PaymentHistory, Expense, Payment, MessageLog
+    ClientSubService, SiteSettings, SmsProviderToken,  PaymentHistory, Expense, Payment, MessageLog
 
 from django.views.generic import TemplateView, DetailView
 from django.shortcuts import redirect
@@ -28,7 +28,7 @@ from .accounts import get_client_payment_history, get_all_payment_history
 from .analytics import get_yearly_revenue_data, get_available_years
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
-from .services import add_or_update_client_subservice
+
 import logging
 
 from .utils import MobileSasaAPI
@@ -189,19 +189,31 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
                         queryset=ClientServiceProcess.objects
                         .select_related('process')
                         .order_by('process__step_order')
-                    )
+                    ),
+                    # optional: prefetch payments if you’re displaying paid/balance
+                    Prefetch('payments'),
+                    # optional: prefetch sub‑services
+                    Prefetch('sub_services'),
                 )
                 .order_by('-requested_at')
             )
+
             for cs in all_services:
+                # 1️⃣ which step is the “last” one?
                 cs.latest_process = (
-                    max(cs.service_processes.all(), key=lambda sp: sp.process.step_order)
+                    cs.service_processes.last()
                     if cs.service_processes.exists()
                     else None
                 )
+
+                # 2️⃣ does this service need a title‑deed collection flow?
+                cs.needs_collection = cs.service.requires_title_collection
+
+            context['all_services'] = all_services
+
         except Exception as e:
-            logger.error(f"ClientService fetch error: {e}")
-            all_services = []
+            logger.error(f"ClientService fetch error: {e}", exc_info=True)
+            context['all_services'] = []
             messages.error(self.request, "Could not load client services.")
 
         # — Flat (aggregated) payment history — no filters applied here any more
@@ -325,18 +337,62 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
     def handle_add_client_service(self, request, client):
         form = ClientServiceForm(request.POST)
         if form.is_valid():
-            # 1️⃣ Save the base ClientService (this will fire your signal & create the SMS log)
+            # Extract key fields to check for duplicates
+            service = form.cleaned_data.get("service")
+            land_description = form.cleaned_data.get("land_description").strip()
+
+            # Duplicate check
+            exists = ClientService.objects.filter(
+                client=client,
+                service=service,
+                land_description__iexact=land_description  # case-insensitive match
+            ).exists()
+
+            if exists:
+                messages.warning(
+                    request,
+                    f"⚠️ This service for '{land_description}' already exists for the client."
+                )
+                return self.render_invalid_context('client_service_form', form)
+
+            # Save the ClientService
             cs = form.save(commit=False)
             cs.client = client
             cs.save()
             form.save_m2m()
 
-            # 2️⃣ Override per‐process costs if any...
-            #    (your existing override logic here)
+            # ⬇️ Override per-process costs if any
+            pids = request.POST.getlist('process_id[]')
+            costs = request.POST.getlist('process_cost[]')
+            if pids and costs:
+                for pid, cost_str in zip(pids, costs):
+                    try:
+                        cost = Decimal(cost_str)
+                        csp = cs.service_processes.get(process_id=pid)
+                        csp.overridden_cost = cost
+                        csp.save(update_fields=['overridden_cost'])
+                    except (ClientServiceProcess.DoesNotExist, InvalidOperation):
+                        continue
+                # Clear total price override if any
+                if cs.overridden_total_price is not None:
+                    cs.overridden_total_price = None
+                    cs.save(update_fields=['overridden_total_price'])
+            else:
+                # ⬇️ Override total price if given (no processes)
+                otp = request.POST.get('override_total_price')
+                if otp:
+                    try:
+                        cs.overridden_total_price = Decimal(otp)
+                        cs.save(update_fields=['overridden_total_price'])
+                    except InvalidOperation:
+                        messages.warning(request, "⚠️ Invalid total price value—ignored.")
+                else:
+                    # Clear any previous override
+                    if cs.overridden_total_price is not None:
+                        cs.overridden_total_price = None
+                        cs.save(update_fields=['overridden_total_price'])
 
-            # ——————————————————————————————————————————————————————————
-            # 3️⃣ Now grab the SMS log that the signal just created.
-            #    We expect exactly one per new service: either a “process” or a “dispatch” SMS.
+            # SMS Feedback
             sms_log = cs.message_logs.order_by('-timestamp').first()
             sms_note = ""
             if sms_log:
@@ -347,7 +403,6 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
             else:
                 sms_note = " ⚠️ No SMS was attempted."
 
-            # 4️⃣ Show overall success + the SMS result
             messages.success(
                 request,
                 f"✅ Service assigned successfully.{sms_note}"
@@ -445,7 +500,8 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         messages.error(request, "❌ Error updating subservice.")
         return self.render_invalid_context('client_subservice_form', form)
 
-    def handle_delete_client_subservice(self, request, client):
+    @staticmethod
+    def handle_delete_client_subservice(request, client):
         css_id = request.POST.get('client_subservice_id')
         try:
             css = ClientSubService.objects.get(
@@ -706,25 +762,7 @@ def update_sms_token(request):
     return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
-def update_email_settings(request):
-    settings_instance, _ = EmailSettings.objects.get_or_create(pk=1)
 
-    if request.method == 'POST':
-        form = EmailSettingsForm(request.POST, instance=settings_instance)
-        if form.is_valid():
-            email_settings = form.save()
-
-            # Update SiteSettings with default_from_email
-            site_settings, _ = SiteSettings.objects.get_or_create(pk=1)
-            site_settings.actual_field_name = email_settings.default_from_email or "NO MAIL"
-            site_settings.save()
-
-            messages.success(request, "Email settings updated successfully.")
-            return redirect('update_email_settings')
-    else:
-        form = EmailSettingsForm(instance=settings_instance)
-
-    return redirect(request.META.get('HTTP_REFERER', 'update_email_settings'))
 
 
 class ManagementView(TemplateView):
@@ -755,11 +793,7 @@ class ManagementView(TemplateView):
             messages.warning(self.request, "Site settings not found. You can create new settings.")
             context['settings_form'] = SiteSettingsForm()
 
-        try:
-            email_settings, _ = EmailSettings.objects.get_or_create(pk=1)
-            context['email_settings_form'] = EmailSettingsForm(instance=email_settings)
-        except Exception as e:
-            messages.error(self.request, f"Email settings error: {e}")
+        
 
         try:
             sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)

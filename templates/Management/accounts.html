@@ -18,14 +18,14 @@
                     <div class="row align-items-center">
                         <div class="col-md-12">
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                                 <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
-                                <li class="breadcrumb-item" aria-current="page">Mnagement</li>
+                                <li class="breadcrumb-item" aria-current="page">Accounts</li>
                             </ul>
                         </div>
                         <div class="col-md-12">
                             <div class="page-header-title">
-                                <h2 class="mb-0">Mnagement</h2>
+                                <h2 class="mb-0">Accounts</h2>
                             </div>
                         </div>
                     </div>
@@ -266,12 +266,7 @@
                                                                         </td>
 
                                                                     </tr>
-                                                                {% empty %}
-                                                                    <tr>
-                                                                        <td colspan="8" class="text-center py-3">No
-                                                                            history records.
-                                                                        </td>
-                                                                    </tr>
+
                                                                 {% endfor %}
                                                                 </tbody>
                                                             </table>
@@ -383,17 +378,12 @@
 
                                                                             </td>
                                                                             <td>
-                                                                                <button class=" btn bg-green-200"><i class="ti ti-trash"></i>
+                                                                                <button class=" btn bg-green-200"><i
+                                                                                        class="ti ti-trash"></i>
                                                                                 </button>
                                                                             </td>
                                                                         </tr>
-                                                                    {% empty %}
-                                                                        <tr>
-                                                                            <td colspan="7"
-                                                                                class="text-center py-3">No
-                                                                                expenses recorded.
-                                                                            </td>
-                                                                        </tr>
+
                                                                     {% endfor %}
                                                                     </tbody>
                                                                 </table>
@@ -475,8 +465,8 @@
                                                 <div class="card">
                                                     <div class="card-body table-card">
                                                         <div class="table-responsive mt-3">
-                                                           <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                                    <thead class="table-success">
+                                                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                <thead class="table-success">
                                                                 <tr>
                                                                     <th>When</th>
                                                                     <th>Client</th>
@@ -521,49 +511,8 @@
                                             </div>
 
 
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Contact Information</h5>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Contact Phone</label>
-                                                                <input type="text" class="form-control"
-                                                                       value="(+99) 9999 999 999">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-6">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Email <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="text" class="form-control"
-                                                                       value="demo@sample.com">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Portfolio Url</label>
-                                                                <input type="text" class="form-control"
-                                                                       value="https://demo.com">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-sm-12">
-                                                            <div class="form-group">
-                                                                <label class="form-label">Address</label>
-                                                                <textarea
-                                                                        class="form-control">3379  Monroe Avenue, Fort Myers, Florida(33912)</textarea>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </div>
-                                        <div class="col-12 text-end btn-page">
-                                            <div class="btn btn-outline-secondary">Cancel</div>
-                                            <div class="btn btn-primary">Update Profile</div>
-                                        </div>
+
                                     </div>
                                 </div>
                                 <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
@@ -572,91 +521,58 @@
                                         <div class="col-lg-6">
 
 
-                                                <div class="card">
+                                            <div class="card">
 
-                                                    <div class="card-body">
-                                                        <div class="card-header bg-green-100">
-                                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                                                <h5 class="mb-0">Services Overview</h5>
-                                                                <div class="d-flex gap-2">
-                                                                    <select id="service-year-selector"
-                                                                            class="form-select form-select-sm"
-                                                                            style="min-width: 120px;"></select>
-                                                                    <select id="service-selector"
-                                                                            class="form-select form-select-sm"
-                                                                            style="min-width: 150px;"></select>
-                                                                </div>
+                                                <div class="card-body">
+                                                    <div class="card-header bg-green-100">
+                                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                                            <h5 class="mb-0">Services Overview</h5>
+                                                            <div class="d-flex gap-2">
+                                                                <select id="service-year-selector"
+                                                                        class="form-select form-select-sm"
+                                                                        style="min-width: 120px;"></select>
+                                                                <select id="service-selector"
+                                                                        class="form-select form-select-sm"
+                                                                        style="min-width: 150px;"></select>
                                                             </div>
-                                                        </div>
-                                                        <div class="card-body shadow-lg">
-                                                            <div id="chart-summary" class="mb-3">
-                                                                <h6 id="summary-year" class="fw-bold"></h6>
-                                                                <p id="summary-services" class="mb-1"></p>
-                                                                <p id="summary-revenue"></p>
-                                                            </div>
-                                                            <div id="chart" style="min-height: 300px;"></div>
                                                         </div>
                                                     </div>
+                                                    <div class="card-body shadow-lg">
+                                                        <div id="chart-summary" class="mb-3">
+                                                            <h6 id="summary-year" class="fw-bold"></h6>
+                                                            <p id="summary-services" class="mb-1"></p>
+                                                            <p id="summary-revenue"></p>
+                                                        </div>
+                                                        <div id="chart" style="min-height: 300px;"></div>
+                                                    </div>
                                                 </div>
+                                            </div>
 
                                         </div>
                                         <div class="col-lg-6">
                                             <div class="card">
-                                                <div class="card-header">
-                                                    <h5>Recognized Devices</h5>
-                                                </div>
                                                 <div class="card-body">
-                                                    <ul class="list-group list-group-flush">
-                                                        <li class="list-group-item px-0 pt-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Celt Desktop</p>
-                                                                    <p class="mb-0 text-muted">4351 Deans Lane</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-success d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Current Active
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Imco Tablet</p>
-                                                                    <p class="mb-0 text-muted">4185 Michigan Avenue</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-muted d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Active 5 days ago
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                        <li class="list-group-item px-0 pb-0">
-                                                            <div class="d-flex align-items-center justify-content-between">
-                                                                <div class="me-2">
-                                                                    <p class="mb-2">Albs Mobile</p>
-                                                                    <p class="mb-0 text-muted">3462 Fairfax Drive</p>
-                                                                </div>
-                                                                <div class="">
-                                                                    <div class="text-muted d-inline-block me-2">
-                                                                        <i class="fas fa-circle f-8 me-2"></i>
-                                                                        Active 1 month ago
-                                                                    </div>
-                                                                    <a href="#!" class="text-danger"><i
-                                                                            class="feather icon-x-circle"></i></a>
-                                                                </div>
-                                                            </div>
-                                                        </li>
-                                                    </ul>
+
+
+                                                    <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                        <h5 class="mb-0">Revenue Analytics</h5>
+                                                        <div class="d-flex gap-2">
+                                                            <select id="year-selector"
+                                                                    class="form-select form-select-sm"
+                                                                    style="min-width: 120px;"></select>
+                                                            <button id="export-csv-btn"
+                                                                    class="btn btn-outline-primary btn-sm"
+                                                                    style="min-width: 120px;">Export CSV
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-body shadow-lg">
+                                                        <div id="survey-sales-report-chart"
+                                                             style="min-height: 300px;"></div>
+                                                    </div>
                                                 </div>
+
+
                                             </div>
                                         </div>
 

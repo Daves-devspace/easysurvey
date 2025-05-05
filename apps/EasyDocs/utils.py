@@ -183,11 +183,10 @@ class MobileSasaAPI:
             if data.get('status'):
                 return data
             self.logger.error(f"Balance fetch failed: {data.get('message')}")
-            return data
+            return {'balance': 0, 'error': data.get('message')}
         except Exception as e:
             self.logger.error(f"Error fetching balance: {e}")
-            return None
-
+            return {'balance': 0, 'error': str(e)}
 
 
 def personalize(template: str, client) -> str:
@@ -311,43 +310,5 @@ def update_pending_sms_logs_and_balance():
 
 
 
-from django.conf import settings
-import logging
 
-logger = logging.getLogger(__name__)
-
-
-def load_email_settings():
-    """
-    Load email settings from EmailSettings model if available,
-    otherwise fall back to settings.py defaults.
-
-    """
-    from apps.EasyDocs.models import EmailSettings
-    try:
-        s = EmailSettings.get_instance()
-        return {
-            "EMAIL_HOST": s.email_host,
-            "EMAIL_PORT": s.email_port,
-            "EMAIL_HOST_USER": s.email_host_user,
-            "EMAIL_HOST_PASSWORD": s.email_host_password,
-            "DEFAULT_FROM_EMAIL": s.default_from_email,
-        }
-
-    except (ProgrammingError, OperationalError) as db_error:
-        logger.warning("[EmailSettings] Database not ready or table missing – using settings.py defaults.")
-        logger.debug(db_error, exc_info=True)
-
-    except Exception as e:
-        logger.error("[EmailSettings] Unexpected error – using settings.py defaults.")
-        logger.debug(e, exc_info=True)
-
-    # Fallback to settings.py
-    return {
-        "EMAIL_HOST": settings.EMAIL_HOST,
-        "EMAIL_PORT": settings.EMAIL_PORT,
-        "EMAIL_HOST_USER": settings.EMAIL_HOST_USER,
-        "EMAIL_HOST_PASSWORD": settings.EMAIL_HOST_PASSWORD,
-        "DEFAULT_FROM_EMAIL": settings.DEFAULT_FROM_EMAIL,
-    }
 

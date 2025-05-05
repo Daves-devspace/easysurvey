@@ -275,7 +275,7 @@
                                                                         <h6 class="card-title text-uppercase small mb-1">
                                                                             Service Price</h6>
                                                                         <p class="card-text fs-6 fw-semibold">
-                                                                            KSH {{ cs.effective_total_price }}</p>
+                                                                            KSH {{ cs.full_total_price }}</p>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -355,53 +355,68 @@
                 {% endif %}
               </span>
                                                                                 </td>
-                                                                                <td>
-                                                                                    {% if sp == cs.service_processes.last %}
-                                                                                        {% if sp.status == 'completed' and not cs.title_deed_collection %}
-                                                                                            <button type="button"
-                                                                                                    class="btn btn-primary btn-sm"
-                                                                                                    data-bs-toggle="modal"
-                                                                                                    data-bs-target="#collectModal{{ cs.id }}">
-                                                                                                <i class="bi bi-box"></i>
-                                                                                                Collect
-                                                                                            </button>
-                                                                                        {% elif cs.title_deed_collection %}
-                                                                                            <button type="button"
-                                                                                                    class="btn btn-secondary btn-sm"
-                                                                                                    data-bs-toggle="modal"
-                                                                                                    data-bs-target="#collectModal{{ cs.id }}">
-                                                                                                <i class="bi bi-eye"></i>
-                                                                                                View
-                                                                                            </button>
-                                                                                        {% elif sp.status != 'completed' %}
-                                                                                            <form action="{% url 'mark_process_completed' sp.id %}"
-                                                                                                  method="POST"
-                                                                                                  class="d-inline">
-                                                                                                {% csrf_token %}
-                                                                                                <button class="btn btn-sm btn-success"
-                                                                                                        type="submit">
-                                                                                                    <i class="bi bi-check-circle"></i>
-                                                                                                    Confirm
-                                                                                                </button>
-                                                                                            </form>
-                                                                                        {% else %}
-                                                                                            <span class="text-muted small">N/A</span>
-                                                                                        {% endif %}
-                                                                                    {% elif sp.status == 'in_progress' %}
-                                                                                        <form action="{% url 'mark_process_completed' sp.id %}"
-                                                                                              method="POST"
-                                                                                              class="d-inline">
-                                                                                            {% csrf_token %}
-                                                                                            <button class="btn btn-sm btn-success"
-                                                                                                    type="submit">
-                                                                                                <i class="bi bi-check-circle"></i>
-                                                                                                Complete
-                                                                                            </button>
-                                                                                        </form>
-                                                                                    {% else %}
-                                                                                        <span class="text-muted small">N/A</span>
-                                                                                    {% endif %}
-                                                                                </td>
+                                                                             <td>
+  {% comment %} Determine if this is the final step {% endcomment %}
+  {% if sp == cs.latest_process %}
+    {% if cs.needs_collection %}
+      {# Services requiring title‐deed flow #}
+      {% if sp.status == 'completed' and not cs.title_deed_collection %}
+        <!-- Collect -->
+        <button type="button"
+                class="btn btn-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#collectModal{{ cs.id }}">
+          <i class="bi bi-box"></i> Collect
+        </button>
+      {% elif cs.title_deed_collection %}
+        <!-- Already collected: View -->
+        <button type="button"
+                class="btn btn-secondary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#collectModal{{ cs.id }}">
+          <i class="bi bi-eye"></i> View
+        </button>
+      {% else %}
+        <!-- Final step not yet completed: Confirm -->
+        <form action="{% url 'mark_process_completed' sp.id %}"
+              method="POST" class="d-inline">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-success" type="submit">
+            <i class="bi bi-check-circle"></i> Confirm
+          </button>
+        </form>
+      {% endif %}
+    {% else %}
+      {# Non‑title services just get Complete/Done #}
+      {% if sp.status != 'completed' %}
+        <form action="{% url 'mark_process_completed' sp.id %}"
+              method="POST" class="d-inline">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-success" type="submit">
+            <i class="bi bi-check-circle"></i> Complete
+          </button>
+        </form>
+      {% else %}
+        <span class="text-muted small">Done</span>
+      {% endif %}
+    {% endif %}
+
+  {% elif sp.status == 'in_progress' %}
+    {# In‑progress non‑last steps always get Complete #}
+    <form action="{% url 'mark_process_completed' sp.id %}"
+          method="POST" class="d-inline">
+      {% csrf_token %}
+      <button class="btn btn-sm btn-success" type="submit">
+        <i class="bi bi-check-circle"></i> Complete
+      </button>
+    </form>
+
+  {% else %}
+    <span class="text-muted small">N/A</span>
+  {% endif %}
+</td>
+
+
                                                                                 <td>{{ sp.total_paid }}</td>
                                                                                 <td>{{ sp.pending_amount }}</td>
                                                                                 <td>{{ cs.total_balance }}</td>
@@ -1050,7 +1065,7 @@
                                                     {% for payment in flat_payment_history %}
                                                         <!-- Add class 'service-row' and move data-receipt-url here -->
                                                         <div class="accordion-item mb-3 service-row"
-                                                             data-receipt-url="{% url 'download_receipt' payment.id %}">
+                                                             data-receipt-url="{% url 'download_receipt' payment.service_id %}">
                                                             <h2 class="accordion-header"
                                                                 id="heading{{ forloop.counter }}">
                                                                 <button class="accordion-button collapsed"
@@ -1061,7 +1076,7 @@
                                                                         aria-controls="collapse{{ forloop.counter }}">
                                                                     <div class="d-flex w-100 justify-content-between">
                                                                         <div>
-                                                                            <strong>{{ payment.service_name }}</strong>
+                                                                            <strong>{{ payment.service_label }}</strong>
                                                                             <small class="text-muted">|
                                                                                 Total:
                                                                                 KES {{ payment.total_amount|floatformat:2 }}</small>
@@ -1098,15 +1113,15 @@
                                                                                 <th>Amount Paid</th>
                                                                                 <th>Method</th>
                                                                                 <th>Txnid</th>
-                                                                                <th>Remaining Balance</th>
+                                                                                <th>Service Balance</th>
                                                                             </tr>
                                                                             </thead>
                                                                             <tbody>
                                                                             {% for pb in payment.payment_breakdown %}
                                                                                 <tr>
-                                                                                    <td>{{ pb.payment_date }}</td>
+                                                                                    <td>{{ pb.date }}</td>
                                                                                     <td>
-                                                                                        KES {{ pb.amount_paid|floatformat:2 }}</td>
+                                                                                        KES {{ pb.amount|floatformat:2 }}</td>
                                                                                     <td>{{ pb.method }}</td>
                                                                                     <td>{{ pb.reference }}</td>
                                                                                     <td>
@@ -1126,15 +1141,17 @@
                                                                                 <th>Process / Sub-Service
                                                                                 </th>
                                                                                 <th>Amount</th>
+                                                                                <th>Service Balance</th>
                                                                                 <th>Status</th>
                                                                             </tr>
                                                                             </thead>
                                                                             <tbody>
                                                                             {% for alloc in payment.allocations %}
                                                                                 <tr>
-                                                                                    <td>{{ alloc.reason }}</td>
+                                                                                    <td>{{ alloc.name }}</td>
                                                                                     <td>
                                                                                         KES {{ alloc.amount|floatformat:2 }}</td>
+                                                                                <td>KES {{ alloc.remaining_balance|floatformat:2 }}</td>
                                                                                     <td>
                                                                                         {% if alloc.status %}
                                                                                             <span class="badge
@@ -1786,7 +1803,7 @@
                                 </option>
                                 {% for cs in client.client_services.all %}
                                     <option value="{{ cs.id }}"
-                                            data-total="{{ cs.effective_total_price }}"
+                                            data-total="{{ cs.full_total_price }}"
                                             data-paid="{{ cs.total_paid }}"
                                             data-pending="{{ cs.total_balance }}">
                                         {{ cs.service.name }}
