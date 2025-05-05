@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm, DocumentForm
 from apps.EasyDocs.models import ClientDoc, Client, SiteSettings, DocType, Document
-from apps.EasyDocs.utils import load_email_settings
+
 
 
 def add_document(request):
@@ -148,10 +148,9 @@ def delete_document(request, client_id, doc_id):
     return HttpResponseRedirect(referer)
 
 
-def send_doc_email_to_client(request, client_id, doc_id):
-    # Load dynamic email settings from database
-    load_email_settings()
 
+
+def send_doc_email_to_client(request, client_id, doc_id):
     client = get_object_or_404(Client, id=client_id)
     document = get_object_or_404(ClientDoc, id=doc_id)
     site_settings = SiteSettings.objects.first()
@@ -160,21 +159,23 @@ def send_doc_email_to_client(request, client_id, doc_id):
         messages.error(request, "This client does not have an email address.")
         return redirect(request.META.get('HTTP_REFERER', '/'))
 
-    from_email = f"ValueTech Admin <{settings.DEFAULT_FROM_EMAIL}>"  # or use email_settings.default_from_email
+    from_email = f"ValueTech Admin <{settings.DEFAULT_FROM_EMAIL}>"
+    subject = f"Document from {site_settings.company_name if site_settings else 'Our Company'}"
+    doc_url = request.build_absolute_uri(document.doc_file.url)
+    tagline = site_settings.tagline if site_settings and site_settings.tagline else "Thank you for letting us serve you!"
 
-    subject = f"Document from {site_settings.company_name}"
     message = f"""
     Hello {client.first_name},
 
     Please find your document below:
-    {request.build_absolute_uri(document.doc_file.url)}
+    {doc_url}
 
-    {site_settings.tagline or "Thank you for letting us serve you!"}
+    {tagline}
     """
 
     try:
         send_mail(subject, message, from_email, [client.email])
-        messages.success(request, f"Email sent to {client.email}")
+        messages.success(request, f"Email successfully sent to {client.email}")
     except Exception as e:
         messages.error(request, f"Failed to send email: {str(e)}")
 

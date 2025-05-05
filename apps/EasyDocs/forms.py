@@ -2,13 +2,17 @@ from django import forms
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 import logging
+
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
-    SmsProviderToken, EmailSettings, Document, Expense, ServiceCategory
+    SmsProviderToken, Document, Expense, ServiceCategory
 
 from .models import Client, ClientService, Service, Process
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
-from .utils import load_email_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,25 +63,32 @@ class CustomPasswordResetForm(PasswordResetForm):
         to_email,
         html_email_template_name=None,
     ):
-        # 1) load your DB settings (host/port/user/pass + SSL/TLS flags)
-        load_email_settings()
-        logger.debug(
-            "Password reset email using host=%s port=%s ssl=%s tls=%s",
-            settings.EMAIL_HOST,
-            settings.EMAIL_PORT,
-            settings.EMAIL_USE_SSL,
-            settings.EMAIL_USE_TLS,
-        )
+        print("CustomPasswordResetForm.send_mail called")
+        try:
+            # Log backend and connection settings
+            logger.debug("Email backend: %s", settings.EMAIL_BACKEND)
+            logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", settings.EMAIL_HOST, settings.EMAIL_PORT, settings.EMAIL_USE_TLS, settings.EMAIL_USE_SSL)
+            logger.debug("From: %s, To: %s", from_email, to_email)
 
-        # 2) delegate to the built‑in implementation
-        return super().send_mail(
-            subject_template_name,
-            email_template_name,
-            context,
-            from_email,
-            to_email,
-            html_email_template_name=html_email_template_name,
-        )
+            # Render subject & body
+            subject = render_to_string(subject_template_name, context).strip().replace('\n', '')
+            body = render_to_string(email_template_name, context)
+            html_body = render_to_string(html_email_template_name, context) if html_email_template_name else None
+
+            logger.debug("Email subject: %s", subject)
+            logger.debug("Email body (text): %s", body)
+
+            # Construct and send email
+            email_message = EmailMultiAlternatives(subject, body, from_email, [to_email])
+            if html_body:
+                email_message.attach_alternative(html_body, 'text/html')
+
+            result = email_message.send(fail_silently=False)
+            logger.info("Email send result: %s", result)
+
+        except Exception as e:
+            logger.error("Exception occurred while sending password reset email: %s", str(e), exc_info=True)
+            raise  # Re-raise to let Django know it failed
 
 
 
@@ -183,36 +194,58 @@ class ClientServiceForm(forms.ModelForm):
 
 
 
-
 class ServiceForm(forms.ModelForm):
     class Meta:
         model = Service
-        # add dispatch_message here
-        fields = ['name', 'description', 'total_price', 'category', 'dispatch_message']
+        fields = [
+            'name',
+            'description',
+            'total_price',
+            'category',
+            'dispatch_message',
+            'requires_title_collection',  # ← new field
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Service name'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Enter description','rows': 3}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Enter description', 'rows': 3}),
             'total_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'KSH'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'dispatch_message': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dispatch SMS content'}),
+            'requires_title_collection': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # never required by default; we'll enforce it only if category=GROUND
+        # never required by default; enforce only under TITLE category
         self.fields['dispatch_message'].required = False
+        self.fields['requires_title_collection'].required = False
 
     def clean(self):
         cleaned = super().clean()
         cat = cleaned.get('category')
         dispatch = cleaned.get('dispatch_message')
+        needs_collection = cleaned.get('requires_title_collection')
 
+        # existing rule: GROUND services need a dispatch_message
         if cat == ServiceCategory.GROUND and not dispatch:
             self.add_error(
                 'dispatch_message',
                 'This message is required for dispatch-based (GROUND) services.'
             )
+
+        # new rule: TITLE services need the collection flag
+        if cat == ServiceCategory.TITLE:
+            if not needs_collection:
+                self.add_error(
+                    'requires_title_collection',
+                    'Check this if the service requires a title‑deed collection step.'
+                )
+        else:
+            # reset flag off for non‑title categories
+            cleaned['requires_title_collection'] = False
+
         return cleaned
+
 
 
 class ProcessForm(forms.ModelForm):
@@ -379,52 +412,6 @@ class SiteSettingsForm(forms.ModelForm):
 
 
 # forms.py
-
-class EmailSettingsForm(forms.ModelForm):
-    email_host_password = forms.CharField(
-        required=False,
-        label="Email Host Password",
-        help_text="Use at least 8 characters, mixing letters & numbers.",
-        widget=forms.PasswordInput(
-            render_value=True,
-            attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter email password',
-                'id': 'id_email_host_password',
-            }
-        )
-    )
-
-    class Meta:
-        model = EmailSettings
-        fields = [
-            'email_host',
-            'email_port',
-            'email_host_user',
-            'email_host_password',
-            'default_from_email'
-        ]
-        widgets = {
-            'email_host': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter email host'
-            }),
-            'email_port': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter email port'
-            }),
-            'email_host_user': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter email user'
-            }),
-            'default_from_email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter default from email (e.g. admin@valuetech.co.ke)'
-            }),
-        }
-
-
-
 
 
 class ExpenseForm(forms.ModelForm):

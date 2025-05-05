@@ -5,8 +5,9 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.views.decorators.http import require_POST
 
-from .forms import TitleDeedCollectionForm
-from .models import ClientServiceProcess, ClientService
+from apps.EasyDocs.forms import TitleDeedCollectionForm
+from apps.EasyDocs.models import ClientServiceProcess, ClientService
+from apps.EasyDocs.services.process_workflow import ProcessWorkflowService
 
 
 def is_authorized(user):
@@ -30,23 +31,22 @@ def safe_complete_process(process_id):
 # @user_passes_test(is_authorized)
 @require_POST
 def mark_process_completed(request, pk):
-    process = get_object_or_404(ClientServiceProcess, pk=pk)
+    step = get_object_or_404(ClientServiceProcess, pk=pk)
+    service = ProcessWorkflowService(step.client_service)
 
-    all_processes = process.client_service.service_processes.order_by('process__step_order')
-    prev_steps = all_processes.filter(process__step_order__lt=process.process.step_order)
-
-    if prev_steps.exclude(status='completed').exists():
-        messages.error(request, "Complete all previous steps before marking this one.")
+    # guard: previous steps must be done
+    prev = step.client_service.service_processes.filter(
+        process__step_order__lt=step.process.step_order
+    )
+    if prev.exclude(status='completed').exists():
+        messages.error(request, "Complete all previous steps first.")
         return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
 
-    if process.status == 'completed':
-        messages.info(request, 'This step is already marked as completed.')
-    else:
-        # Mark this process as completed and update completed_at
-        process.status = 'completed'
-        process.completed_at = timezone.now()
-        process.save()
-        messages.success(request, f"Marked '{process.process.name}' as completed.")
+    try:
+        service.complete_step(step)
+        messages.success(request, f"Marked '{step.process.name}' completed.")
+    except ValueError as e:
+        messages.error(request, str(e))
 
     return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
 

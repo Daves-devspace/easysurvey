@@ -5,11 +5,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import Sum, F, Value, Q, DecimalField
+from django.db.models.functions import Coalesce
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from django.core.cache import cache
+from django.utils.functional import cached_property
 
 
 # Gender choices
@@ -28,31 +30,7 @@ class ServiceCategory(models.TextChoices):
 
 # models.py
 
-class EmailSettings(models.Model):
-    _singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
 
-    email_host = models.CharField(max_length=255, blank=True, null=True)
-    email_port = models.PositiveIntegerField(default=587)
-    email_host_user = models.CharField(max_length=255, blank=True, null=True)
-    email_host_password = models.CharField(max_length=255, blank=True, null=True)
-    default_from_email = models.EmailField(validators=[validate_email], blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        if not self.pk and EmailSettings.objects.exists():
-            raise ValidationError("Only one EmailSettings instance is allowed.")
-        super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        raise ValidationError("Cannot delete the EmailSettings singleton instance.")
-
-    def __str__(self):
-        return "Email Settings"
-
-    @classmethod
-    @transaction.atomic
-    def get_instance(cls):
-        instance, created = cls.objects.get_or_create(defaults={'_singleton_enforcer': True})
-        return instance
 
 
 class SiteSettings(models.Model):
@@ -69,12 +47,6 @@ class SiteSettings(models.Model):
     def __str__(self):
         return "Site Settings"
 
-    @property
-    def email(self):
-        try:
-            return EmailSettings.objects.get().default_from_email
-        except EmailSettings.DoesNotExist:
-            return settings.DEFAULT_FROM_EMAIL
 
     class Meta:
         verbose_name = "Site Settings"
@@ -130,6 +102,11 @@ class Service(models.Model):
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=ServiceCategory.TITLE)
     dispatch_message = models.TextField(blank=True, null=True, help_text="Message to send for dispatch-based services.")
 
+    requires_title_collection = models.BooleanField(
+        default=False,
+        help_text="If true, after the final process we show Confirm & Collect buttons; otherwise just Complete"
+    )
+
     def __str__(self):
         return f"{self.name}"
 
@@ -170,12 +147,21 @@ class Process(models.Model):
 
 # Client Service Model
 class ClientService(models.Model):
-    client = models.ForeignKey(Client, related_name='client_services', on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, related_name='client_services', on_delete=models.CASCADE)
+    client = models.ForeignKey(
+        'Client', related_name='client_services', on_delete=models.CASCADE
+    )
+    service = models.ForeignKey(
+        'Service', related_name='client_services', on_delete=models.CASCADE
+    )
     land_description = models.CharField(max_length=255)
     requested_at = models.DateTimeField(auto_now_add=True)
+
     overridden_total_price = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    full_total_price = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        help_text="Denormalized total for fast reads"
     )
 
     STATUS_CHOICES = [
@@ -189,102 +175,104 @@ class ClientService(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['client', 'service', 'land_description'],
-                condition=models.Q(status='active'),
+                condition=Q(status='active'),
                 name='unique_active_service_per_land'
             )
         ]
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['service', 'status']),
+            models.Index(fields=['requested_at']),
+        ]
 
-    @property
-    def current_status(self):
-        if hasattr(self, 'title_deed_collection'):
-            return 'collected'
-        return self.status
+    def save(self, *args, **kwargs):
+        """
+        Override save to ensure full_total_price is computed after primary key exists.
+        """
+        # If new instance (no pk yet), perform initial save to get pk
+        if self.pk is None:
+            super().save(*args, **kwargs)
+            # Now compute and persist full total
+            self.full_total_price = self._calculate_full_total()
+            super().save(update_fields=['full_total_price'])
+        else:
+            # Existing instance: compute then save in one go
+            self.full_total_price = self._calculate_full_total()
+            super().save(*args, **kwargs)
 
-    def total_paid(self):
-        return self.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-    @property
-    def processes_total(self):
+    def _calculate_full_total(self) -> Decimal:
         """
-        Sum of all per-client process costs, using overridden_cost if set.
+        Compute the grand total (processes + sub-services) in one go,
+        using overridden values or defaults.
         """
-        agg = self.service_processes.aggregate(
-            total=Sum(
-                # Use Coalesce to treat overridden_cost if present, else process.cost
-                models.F('overridden_cost'),
-                output_field=models.DecimalField()
-            )
-        )['total']
-        # However F('overridden_cost') will be null for many rows, so fallback:
-        if agg is None:
-            # compute in Python
-            return sum((csp.cost for csp in self.service_processes.all()), Decimal('0.00'))
-        return agg
-
-    @property
-    def sub_services_total(self) -> Decimal:
-        total = Decimal('0.00')
-        for css in self.sub_services.all():
-            total += css.price
-        return total
-
-    @property
-    def full_total_price(self):
-        """
-        Grand total: processes + sub-services.
-        """
-        return self.processes_total + self.sub_services_total
-
-    @property
-    def effective_total_price(self) -> Decimal:
-        """
-        • If the service has NO processes (dispatch-only):
-            – If overridden_total_price is set on this client service, use that.
-            – Otherwise fall back to Service.total_price.
-        • If the service HAS processes (process-based):
-            – Sum each ClientServiceProcess.cost (overridden_cost or template cost).
-            – Then add each ClientSubService.price.
-        """
-        # 1️⃣ Dispatch-only
-        if not self.service.processes.exists():
-            base = (
+        # Process-based total
+        if self.service.processes.exists():
+            proc_agg = self.service_processes.aggregate(
+                total=Coalesce(
+                    Sum(Coalesce(F('overridden_cost'), F('process__cost')),
+                        output_field=DecimalField()),
+                    Value(0), output_field=DecimalField()
+                )
+            )['total']
+            proc_total = proc_agg or Decimal('0.00')
+        else:
+            proc_total = (
                 self.overridden_total_price
                 if self.overridden_total_price is not None
                 else self.service.total_price
             )
-            return base + self.sub_services_total
 
-            # Process‑based
-        total = Decimal('0.00')
-        for csp in self.service_processes.all():
-            step_cost = (
-                csp.overridden_cost
-                if csp.overridden_cost is not None
-                else csp.process.cost
+        # Sub-service total
+        sub_agg = self.sub_services.aggregate(
+            total=Coalesce(
+                Sum(Coalesce(F('overridden_price'), F('sub_service__price')),
+                    output_field=DecimalField()),
+                Value(0), output_field=DecimalField()
             )
-            total += step_cost
+        )['total']
+        sub_total = sub_agg or Decimal('0.00')
 
-        total += self.sub_services_total
-        return total
+        return proc_total + sub_total
 
-    def total_balance(self):
+    @cached_property
+    def total_paid(self) -> Decimal:
+        paid = self.payments.aggregate(
+            total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField())
+        )['total']
+        return Decimal(paid or 0)
+
+    @cached_property
+    def sub_services_total(self) -> Decimal:
+        total = self.sub_services.aggregate(
+            total=Coalesce(
+                Sum(Coalesce(F('overridden_price'), F('sub_service__price')),
+                    output_field=DecimalField()),
+                Value(0), output_field=DecimalField()
+            )
+        )['total']
+        return Decimal(total or 0)
+
+    @cached_property
+    def total_balance(self) -> Decimal:
         """
-        Amount still owed: full total minus what’s been paid.
+        Remaining balance: full_total_price minus total_paid.
         """
-        return self.effective_total_price -self.total_paid()
+        return self.full_total_price - self.total_paid
 
     @property
-    def payment_status(self):
-        balance = self.total_balance()
+    def payment_status(self) -> str:
+        balance = self.total_balance
         if balance <= 0:
             return 'Fully Paid'
-        elif self.total_paid() > 0:
+        if self.total_paid > 0:
             return 'Partially Paid'
-        else:
-            return 'Not Paid'
+        return 'Not Paid'
 
     def __str__(self):
-        return f" {self.service.name} for {self.land_description}"
+        return f"{self.service.name} for {self.land_description}"
+
+
+
 
 class ClientServiceProcess(models.Model):
     STATUS_CHOICES = [
@@ -476,7 +464,7 @@ class Payment(models.Model):
         )
 
     def clean(self):
-        balance = self.client_service.total_balance()
+        balance = self.client_service.total_balance
         if self.amount > balance:
             raise ValidationError(
                 f"You’re trying to pay KES {self.amount:.2f}, but the remaining balance is only KES {balance:.2f}."

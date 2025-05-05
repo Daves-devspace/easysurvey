@@ -2,8 +2,8 @@
 from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Service, Process, SubService, ClientService, Client
-from .forms import ServiceForm, ClientSubServiceForm
+from apps.EasyDocs.models import Service, Process, SubService, ClientService, Client
+from apps.EasyDocs.forms import ServiceForm, ClientSubServiceForm
 from decimal import Decimal, InvalidOperation
 import logging
 logger = logging.getLogger(__name__)

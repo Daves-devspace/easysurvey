@@ -1,17 +1,33 @@
 from decimal import Decimal
+import logging
 
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.utils import timezone
-import logging
 
 from apps.EasyDocs.communication import send_and_log_sms
-from apps.EasyDocs.models import ClientServiceProcess, TitleDeedCollection, ClientService, Process, Payment, \
-    PaymentHistory, ServiceCategory
-
-from apps.EasyDocs.utils import MobileSasaAPI
+from apps.EasyDocs.models import (
+    ClientServiceProcess, TitleDeedCollection, ClientService,
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService
+)
 
 logger = logging.getLogger(__name__)
+
+
+def send_process_sms(client_service, client, phone, message, reason):
+    """Send SMS and log it if phone and message are present."""
+    if phone and message:
+        log = send_and_log_sms(
+            client_service=client_service,
+            client=client,
+            phone=phone,
+            message=message,
+            reason=reason
+        )
+        logger.info(f"SMS log #{log.id}: send_status={log.send_status}")
+        return log
+    return None  # Explicit return if conditions not met
+
 
 
 @receiver(post_save, sender=ClientService)
@@ -19,13 +35,9 @@ def client_service_created_handler(sender, instance, created, **kwargs):
     if not created:
         return
 
-    service = instance.service
-    client  = instance.client
+    service, client = instance.service, instance.client
 
-    if service.category == ServiceCategory.TITLE:
-        if instance.service_processes.exists():
-            return
-
+    if service.category == ServiceCategory.TITLE and not instance.service_processes.exists():
         processes = Process.objects.filter(service=service).order_by('step_order')
         for i, process in enumerate(processes):
             status = 'in_progress' if i == 0 else 'pending'
@@ -34,92 +46,49 @@ def client_service_created_handler(sender, instance, created, **kwargs):
                 process=process,
                 status=status
             )
-
-            # only send/log for the first step
-            if i == 0 and process.message and client.phone:
+            if i == 0:
                 reason = f"{service.name} – process: {process.name}"
-                log = send_and_log_sms(
-                    client_service=instance,
-                    client=client,
-                    phone=client.phone,
-                    message=process.message,
-                    reason=reason
-                )
-                print(f"SMS log #{log.id} created: send_status={log.send_status}")
+                send_process_sms(instance, client, client.phone, process.message, reason)
 
     elif service.category == ServiceCategory.GROUND:
-        dispatch_message = getattr(service, "dispatch_message", None)
-        if dispatch_message and client.phone:
+        if getattr(service, "dispatch_message", None):
             reason = f"{service.name} – dispatch"
-            log = send_and_log_sms(
-                client_service=instance,
-                client=client,
-                phone=client.phone,
-                message=dispatch_message,
-                reason=reason
-            )
-            print(f"Dispatch SMS log #{log.id}: send_status={log.send_status}")
+            send_process_sms(instance, client, client.phone, service.dispatch_message, reason)
 
 
+
+
+def update_full_total(client_service: ClientService):
+    """
+    Recalculate and persist the full_total_price for a given ClientService.
+    """
+    try:
+        client_service.full_total_price = client_service._calculate_full_total()
+        client_service.save(update_fields=['full_total_price'])
+        logger.info(f"Recalculated full_total_price for ClientService #{client_service.pk}: {client_service.full_total_price}")
+    except Exception as e:
+        logger.error(f"Failed to update full_total_price for ClientService #{client_service.pk}: {e}", exc_info=True)
+
+
+@receiver(post_save, sender=ClientSubService)
+@receiver(post_delete, sender=ClientSubService)
+def on_subservice_change(sender, instance, **kwargs):
+    """
+    When a ClientSubService is added, updated, or removed,
+    update the parent ClientService's total price.
+    """
+    update_full_total(instance.client_service)
 
 
 @receiver(post_save, sender=ClientServiceProcess)
-def process_status_handler(sender, instance, **kwargs):
-    if instance.status == 'collected':
-        return
+@receiver(post_delete, sender=ClientServiceProcess)
+def on_process_change(sender, instance, **kwargs):
+    """
+    When a ClientServiceProcess is added, updated, or removed,
+    update the parent ClientService's total price.
+    """
+    update_full_total(instance.client_service)
 
-    svc     = instance.client_service
-    processes = svc.service_processes.order_by('process__step_order')
-    completed = processes.filter(status='completed')
-    last_completed = completed.last().process.step_order if completed.exists() else 0
-    last_step      = processes.last()
-    just_completed_last = False
-
-    for step in processes:
-        # mark earlier steps complete
-        if step.process.step_order <= last_completed and step.status != 'completed':
-            ClientServiceProcess.objects.filter(pk=step.pk).update(
-                status='completed',
-                completed_at=timezone.now()
-            )
-            if step == last_step:
-                just_completed_last = True
-
-        # advance to next
-        elif step.process.step_order == last_completed + 1 and step.status == 'pending':
-            new_status = 'pending' if step == last_step else 'in_progress'
-            ClientServiceProcess.objects.filter(pk=step.pk).update(status=new_status)
-
-            if new_status == 'in_progress' and svc.client.phone and step.process.message:
-                reason = f"{svc.service.name} – process: {step.process.name}"
-                log = send_and_log_sms(
-                    client_service=svc,
-                    client=svc.client,
-                    phone=svc.client.phone,
-                    message=step.process.message,
-                    reason=reason
-                )
-                logger.info(f"SMS log #{log.id} for in-progress step: {log.send_status}")
-
-    # update overall status
-    all_done = all(p.status in ['completed', 'pending'] for p in processes)
-    svc.__class__.objects.filter(pk=svc.pk).update(
-        status='completed' if all_done else 'active'
-    )
-
-    # final-step notification
-    if just_completed_last and not svc.title_deed_collection:
-        last_msg = last_step.process.message
-        if svc.client.phone and last_msg:
-            reason = f"{svc.service.name} – final process: {last_step.process.name}"
-            log = send_and_log_sms(
-                client_service=svc,
-                client=svc.client,
-                phone=svc.client.phone,
-                message=last_msg,
-                reason=reason
-            )
-            logger.info(f"SMS log #{log.id} for final step: {log.send_status}")
 
 
 @receiver(post_save, sender=TitleDeedCollection)
@@ -133,28 +102,17 @@ def title_deed_collected_handler(sender, instance, created, **kwargs):
     if last_process and last_process.status in ['completed', 'pending']:
         last_process.status = 'collected'
         last_process.completed_at = instance.collected_at
-        last_process.save()
+        last_process.save(update_fields=['status', 'completed_at'])
 
     svc.status = 'collected'
-    svc.save()
+    svc.save(update_fields=['status'])
 
-    # build the SMS
     msg = instance.message or f"Your title deed has been collected by {instance.collected_by}"
     if instance.id_number:
         msg += f" (ID: {instance.id_number})"
 
-    # log the send
-    if svc.client.phone:
-        reason = f"{svc.service.name} – deed collected"
-        log = send_and_log_sms(
-            client_service=svc,
-            client=svc.client,
-            phone=svc.client.phone,
-            message=msg,
-            reason=reason
-        )
-        logger.info(f"SMS log #{log.id} for collection notice: {log.send_status}")
-
+    reason = f"{svc.service.name} – deed collected"
+    send_process_sms(svc, svc.client, svc.client.phone, msg, reason)
 
 
 @receiver(post_save, sender=Payment)
@@ -164,43 +122,38 @@ def allocate_payment(sender, instance, created, **kwargs):
 
     remaining = Decimal(str(instance.amount))
 
-    # Allocate to service processes first
+    # Allocate to service processes
     for csp in instance.client_service.service_processes.order_by('process__step_order'):
         if remaining <= 0:
             break
-        to_pay = min(remaining, csp.pending_amount)  # Pay the minimum of the remaining amount or the pending amount
+        to_pay = min(remaining, csp.pending_amount)
         if to_pay > 0:
-            csp.paid_amount += to_pay  # Update the paid amount for the process step
-            csp.save(update_fields=['paid_amount'])  # Save the updated service process
-            remaining -= to_pay  # Subtract the paid amount from the remaining balance
+            csp.paid_amount += to_pay
+            csp.save(update_fields=['paid_amount'])
+            remaining -= to_pay
             PaymentHistory.objects.create(
                 payment=instance,
                 client_service=instance.client_service,
                 amount=to_pay,
-                reason="service_step",  # Reason for payment: allocated to a service process step
-                service_process=csp  # Link this payment to the service process
+                reason="service_step",
+                service_process=csp
             )
 
-    # Allocate remaining balance to sub-services if any
-    for css in instance.client_service.sub_services.all():
+    # Allocate to sub-services
+    for sub in instance.client_service.sub_services.all():
         if remaining <= 0:
             break
-        to_pay = min(remaining, css.balance)  # Pay the minimum of remaining amount or sub-service balance
+        to_pay = min(remaining, sub.balance)
         if to_pay > 0:
-            css.paid_amount += to_pay  # Update the paid amount for the sub-service
-            css.save(update_fields=['paid_amount'])  # Save the updated sub-service
-            remaining -= to_pay  # Subtract the paid amount from the remaining balance
+            sub.paid_amount += to_pay
+            sub.save(update_fields=['paid_amount'])
+            remaining -= to_pay
             PaymentHistory.objects.create(
                 payment=instance,
                 client_service=instance.client_service,
                 amount=to_pay,
-                reason="sub_service",  # Reason for payment: allocated to a sub-service
-                sub_service=css  # Link this payment to the sub-service
+                reason="sub_service",
+                sub_service=sub
             )
 
-    # Optional: Handle any remaining balance, e.g., if there is unallocated money
-    if remaining > 0:
-        # You can handle remaining unallocated balance here, or log it as necessary.
-        pass
-
-
+    # Optional: Handle any remaining balance here if needed

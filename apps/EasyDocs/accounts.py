@@ -1,27 +1,27 @@
 # clients/utils.py
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import  ROUND_HALF_UP, InvalidOperation,Decimal
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db.models.functions import TruncMonth
-from django.shortcuts import get_object_or_404, redirect, render
+
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
 from .forms import ExpenseForm
-from .models import ClientService, ClientServiceProcess, Service, Payment, Expense, ClientSubService
+from .models import  ClientServiceProcess, Payment, Expense, ClientSubService
 
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.db.models import Sum, F, Value, ExpressionWrapper, DecimalField
+from django.db.models.functions import Coalesce
 
 from .models import ClientService, PaymentHistory
 import logging
-from decimal import Decimal
-from django.db.models import Sum
+
 
 logger = logging.getLogger(__name__)
 
@@ -148,18 +148,19 @@ def add_payment_to_client_service(
     }
 
 
+
 def add_payment_view(request, client_id):
     if request.method == 'POST':
         client_service_id = request.POST.get('client_service_id')
-        amount = request.POST.get('amount')
+        raw_amount = request.POST.get('amount')
         payment_method = request.POST.get('payment_method')
         transaction_id = request.POST.get('transaction_id', '')
 
         try:
             client_service = get_object_or_404(ClientService, id=client_service_id)
 
-            # Use Decimal for precise comparison
-            amount = Decimal(amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            # Precise rounding
+            amount = Decimal(raw_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
             payment = Payment(
                 client_service=client_service,
@@ -168,151 +169,150 @@ def add_payment_view(request, client_id):
                 transaction_id=transaction_id or None
             )
 
-            payment.full_clean()  # This will call clean() and raise ValidationError if overpaid
+            payment.full_clean()  # runs your `clean()`
             payment.save()
 
             messages.success(request, f"✅ Payment of KES {amount:.2f} recorded successfully.")
 
         except ValidationError as ve:
-            # Display user-friendly validation error
             messages.error(request, f"❌ {ve.messages[0]}")
-        except (ValueError, InvalidOperation):
+        except (InvalidOperation, ValueError):
             messages.error(request, "❌ Invalid amount entered. Please enter a valid number.")
         except Exception as e:
-            messages.error(request, "❌ An unexpected error occurred. Please try again later.")
+            logger.exception(
+                "Error in add_payment_view (client_id=%s, cs_id=%s): %s",
+                client_id, client_service_id, e
+            )
+            messages.error(request, f"❌ Unexpected error: {e}")
 
     return redirect('client_details', client_id=client_id)
-
 from collections import defaultdict
 
 
 
 
+
+
+
 def get_client_payment_history(client_id):
+    """
+    Returns a list of dicts, one per ClientService for this client,
+    each with total_amount, total_paid, pending_balance,
+    a chronological payment_breakdown list, and allocations.
+    """
     try:
-        client_services = (
+        # Annotate only total_paid; we'll use cs.total_balance below
+        services = (
             ClientService.objects
             .filter(client_id=client_id)
             .select_related('service')
+            .annotate(
+                total_paid=Coalesce(
+                    Sum('payments__amount'),
+                    Value(0),
+                    output_field=DecimalField()
+                )
+            )
         )
-        cs_map = {cs.id: cs for cs in client_services}
-    except Exception as e:
-        logger.error(f"[get_client_payment_history] Error loading services for client {client_id}: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Failed to load ClientService for client %s", client_id)
         return []
 
-    # Load related PaymentHistory entries
-    try:
-        histories_qs = (
-            PaymentHistory.objects
-            .select_related('payment', 'service_process', 'sub_service')
-            .filter(client_service__in=cs_map.keys())
+    history = []
+    for cs in services:
+        # Fetch payments & history in proper order, crushing N+1s
+        payments = cs.payments.all().order_by('payment_date', 'id')
+        allocations = (
+            cs.payment_history
+                .select_related('service_process__process',
+                                'sub_service__sub_service')
+                .order_by('created_at')
         )
-    except Exception as e:
-        logger.error(f"[get_client_payment_history] Error loading PaymentHistory for client {client_id}: {e}",
-                     exc_info=True)
-        return []
 
-    # Load payments directly
-    try:
-        payments_qs = (
-            Payment.objects
-            .filter(client_service__in=cs_map.keys())
-            .order_by('payment_date', 'id')
-        )
-    except Exception as e:
-        logger.error(f"[get_client_payment_history] Error loading Payments for client {client_id}: {e}", exc_info=True)
-        return []
+        # Build the payment ledger with running balance
+        ledger = []
+        running_paid = Decimal('0.00')
+        for p in payments:
+            running_paid += p.amount
+            ledger.append({
+                'date': p.payment_date.strftime('%Y-%m-%d'),
+                'amount': str(p.amount),
+                'method': p.payment_method,
+                'reference': p.transaction_id or '',
+                'remaining_balance': str(cs.full_total_price - running_paid),
+            })
 
-    aggregated = {}
+        # Build allocation entries with running balance
+        alloc_list = []
+        running_allocated = Decimal('0.00')
+        for h in allocations:
+            amt = h.amount or Decimal('0.00')
+            running_allocated += amt
+            remaining_after = cs.full_total_price - running_allocated
 
-    # Step 1: Use Payment to build the payment breakdown
-    for p in payments_qs:
-        cs = cs_map.get(p.client_service_id)
-        if not cs:
-            continue
-        sid = cs.id
-        if sid not in aggregated:
-            aggregated[sid] = {
-                'id': cs.id,
-                'service_name': f"{cs.service.name} for Plot {cs.land_description}",
-                'total_amount': float(cs.effective_total_price),
-                'total_paid': 0.0,
-                'payment_breakdown': [],
-                'allocations': [],
-            }
+            if h.reason == 'service_step' and h.service_process:
+                proc = h.service_process
+                name = proc.process.name
+                paid = proc.paid_amount
+                cost = proc.cost
+                status = 'Fully Paid' if paid >= cost else 'Partially Paid'
+                alloc_list.append({
+                    'type': 'step',
+                    'name': name,
+                    'amount': str(amt),
+                    'remaining_balance': str(remaining_after),
+                    'status': status,
+                    'order': proc.process.step_order,
+                })
 
-        amt = float(p.amount or 0)
-        aggregated[sid]['total_paid'] += amt
-        remaining = aggregated[sid]['total_amount'] - aggregated[sid]['total_paid']
+            elif h.reason == 'sub_service' and h.sub_service:
+                sub = h.sub_service
+                name = sub.sub_service.name
+                paid = sub.paid_amount
+                cost = sub.price
+                status = 'Fully Paid' if paid >= cost else 'Partially Paid'
+                alloc_list.append({
+                    'type': 'sub',
+                    'name': name,
+                    'amount': str(amt),
+                    'remaining_balance': str(remaining_after),
+                    'status': status,
+                    'order': h.created_at,
+                })
 
-        aggregated[sid]['payment_breakdown'].append({
-            'payment_date': p.payment_date.strftime('%d-%m-%y'),
-            'amount_paid': amt,
-            'method': p.payment_method,
-            'reference': p.transaction_id or 'N/A',
-            'remaining_balance': remaining,
+            else:
+                alloc_list.append({
+                    'type': 'other',
+                    'name': h.get_reason_display(),
+                    'amount': str(amt),
+                    'remaining_balance': str(remaining_after),
+                    'status': '',
+                    'order': h.created_at,
+                })
+
+        # Sort allocations: steps by order, then others by timestamp
+        steps = sorted([a for a in alloc_list if a['type']=='step'], key=lambda x: x['order'])
+        subs  = sorted([a for a in alloc_list if a['type']!='step'], key=lambda x: x['order'])
+        ordered_allocs = steps + subs
+
+        history.append({
+            'service_id':      cs.id,
+            'service_label':   f"{cs.service.name} — {cs.land_description}",
+            'total_amount':    str(cs.full_total_price),
+            'total_paid':      str(cs.total_paid),
+            'pending_balance': str(cs.total_balance),          # now using model property
+            'payment_status':  (
+                                  'Fully Paid'   if cs.total_balance <= 0 else
+                                  'Partially Paid' if cs.total_paid > 0 else
+                                  'Not Paid'
+                               ),
+            'payment_breakdown': ledger,
+            'allocations':       ordered_allocs,
         })
 
-    # Step 2: Use PaymentHistory for allocation breakdown
-    for h in histories_qs:
-        cs = cs_map.get(h.client_service_id)
-        if not cs:
-            continue
-        sid = cs.id
-        amt = float(h.amount or 0)
+    return history
 
-        if h.reason == 'service_step' and h.service_process:
-            proc = h.service_process
-            name = proc.process.name
-            paid = float(proc.paid_amount)
-            cost = float(proc.cost)
-            status = 'Fully Paid' if paid >= cost else 'Partially Paid'
-            alloc = {
-                'reason': name,
-                'amount': amt,
-                'status': status,
-                'step_order': proc.process.step_order,
-            }
-        elif h.reason == 'sub_service' and h.sub_service:
-            sub = h.sub_service
-            name = sub.sub_service.name
-            paid = float(sub.paid_amount)
-            cost = float(sub.price)
-            status = 'Fully Paid' if paid >= cost else 'Partially Paid'
-            alloc = {
-                'reason': name,
-                'amount': amt,
-                'status': status,
-                'added_on': h.created_at,
-            }
-        else:
-            alloc = {
-                'reason': h.get_reason_display() or 'Unknown',
-                'amount': amt,
-                'status': '',
-                'added_on': h.created_at,
-            }
 
-        aggregated[sid]['allocations'].append(alloc)
-
-    # Step 3: Finalize results
-    result = []
-    for sid, data in aggregated.items():
-        procs = [a for a in data['allocations'] if 'step_order' in a]
-        procs.sort(key=lambda x: x['step_order'])
-        subs = [a for a in data['allocations'] if 'step_order' not in a]
-        subs.sort(key=lambda x: x['added_on'])
-        data['allocations'] = procs + subs
-
-        data['pending_balance'] = data['total_amount'] - data['total_paid']
-        data['payment_status'] = (
-            'Fully Paid' if data['total_paid'] >= data['total_amount']
-            else 'Partially Paid'
-        )
-
-        result.append(data)
-
-    return result
 
 
 class ExpenseView(View):
