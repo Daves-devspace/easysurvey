@@ -1,16 +1,18 @@
 import logging
-
+from datetime import datetime
 from django import forms
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 
-from .models import EmployeeProfile
+from .models import EmployeeProfile, Payroll, EmployeeSalary, DeductionTemplate, AllowanceTemplate
 import secrets
 import string
 
@@ -149,5 +151,56 @@ class EmployeeProfileForm(forms.ModelForm):
                 )
 
         return profile
+
+
+
+# forms.py snippet
+
+
+class EmployeeSalaryForm(forms.ModelForm):
+    class Meta:
+        model = EmployeeSalary
+        fields = ['amount', 'effective_from']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'effective_from': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        }
+        labels = {
+            'amount': 'Salary Amount (KES)',
+            'effective_from': 'Effective From',
+        }
+
+
+# forms.py
+from django import forms
+from .models import Payroll
+
+class PayrollMarkPaidForm(forms.ModelForm):
+    class Meta:
+        model = Payroll
+        fields = ['payment_reference', 'is_paid']
+        widgets = {
+            'payment_reference': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('is_paid') and not cleaned_data.get('payment_reference'):
+            self.add_error('payment_reference', 'Payment reference is required when marking as paid.')
+
+
+
+class AllowanceTemplateForm(forms.ModelForm):
+    class Meta:
+        model = AllowanceTemplate
+        fields = ['name', 'amount', 'recurring', 'start_date', 'end_date']
+
+class DeductionTemplateForm(forms.ModelForm):
+    class Meta:
+        model = DeductionTemplate
+        fields = ['name', 'amount', 'recurring', 'start_date', 'end_date']
+
+
+
 
 

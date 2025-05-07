@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist, PermissionDenied
 from django.db.models import Q, Prefetch, Sum, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
@@ -300,6 +300,8 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return redirect('client_details', client_id=client.id)
 
     def handle_send_client_sms(self, request, client):
+        if not request.user.has_perm('easydocs.send_client_sms'):
+            raise PermissionDenied("You don't have permission to send SMS messages.")
         form = ClientSmsForm(request.POST)
         if not form.is_valid():
             messages.error(request, "❌ Please enter a valid message.")
@@ -335,6 +337,9 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return redirect('client_details', client_id=client.id)
 
     def handle_add_client_service(self, request, client):
+        if not request.user.has_perm('easydocs.add_clientservice'):
+            raise PermissionDenied("You don't have permission to add client services.")
+
         form = ClientServiceForm(request.POST)
         if form.is_valid():
             # Extract key fields to check for duplicates
@@ -413,6 +418,9 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return self.render_invalid_context('client_service_form', form)
 
     def handle_edit_client_service(self, request, client):
+        if not request.user.has_perm('easydocs.change_clientservice'):
+            raise PermissionDenied("You don't have permission to edit client services.")
+
         cs_id = request.POST.get('client_service_id')
         cs = get_object_or_404(ClientService, id=cs_id, client=client)
         form = ClientServiceForm(request.POST, instance=cs)
@@ -457,7 +465,11 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         messages.error(request, "❌ Error updating service.")
         return self.render_invalid_context('client_service_form', form)
 
+
     def handle_delete_client_service(self, request, client):
+        if not request.user.has_perm('easydocs.delete_clientservice'):
+            raise PermissionDenied("You don't have permission to delete client services.")
+
         cs_id = request.POST.get('client_service_id')
         try:
             cs = ClientService.objects.get(id=cs_id, client=client)
@@ -468,6 +480,9 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return redirect('client_details', client_id=client.id)
 
     def handle_add_client_subservice(self, request, client):
+        def handle_add_client_subservice(self, request, client):
+            if not request.user.has_perm('easydocs.add_clientsubservice'):
+                raise PermissionDenied("You don't have permission to add subservices.")
         # form includes fields: sub_service, overridden_price
         form = ClientSubServiceForm(request.POST)
         if form.is_valid():
@@ -488,6 +503,8 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return self.render_invalid_context('client_subservice_form', form)
 
     def handle_edit_client_subservice(self, request, client):
+        if not request.user.has_perm('easydocs.change_clientsubservice'):
+            raise PermissionDenied("You don't have permission to edit subservices.")
         css_id = request.POST.get('client_subservice_id')
         css = get_object_or_404(ClientSubService, id=css_id, client_service__client=client)
 
@@ -502,6 +519,8 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
 
     @staticmethod
     def handle_delete_client_subservice(request, client):
+        if not request.user.has_perm('easydocs.delete_clientsubservice'):
+            raise PermissionDenied("You don't have permission to delete subservices.")
         css_id = request.POST.get('client_subservice_id')
         try:
             css = ClientSubService.objects.get(
