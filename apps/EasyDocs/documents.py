@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 import os
 
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.db.models import Q
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -161,21 +161,25 @@ def send_doc_email_to_client(request, client_id, doc_id):
 
     from_email = f"ValueTech Admin <{settings.DEFAULT_FROM_EMAIL}>"
     subject = f"Document from {site_settings.company_name if site_settings else 'Our Company'}"
-    doc_url = request.build_absolute_uri(document.doc_file.url)
     tagline = site_settings.tagline if site_settings and site_settings.tagline else "Thank you for letting us serve you!"
 
     message = f"""
     Hello {client.first_name},
 
-    Please find your document below:
-    {doc_url}
+    Please find your document attached.
 
     {tagline}
     """
 
+    email = EmailMessage(subject, message, from_email, [client.email])
+
+    # Attach file
+    if document.doc_file:
+        email.attach(document.doc_file.name, document.doc_file.read(), document.doc_file.file.content_type)
+
     try:
-        send_mail(subject, message, from_email, [client.email])
-        messages.success(request, f"Email successfully sent to {client.email}")
+        email.send()
+        messages.success(request, f"Email with attachment successfully sent to {client.email}")
     except Exception as e:
         messages.error(request, f"Failed to send email: {str(e)}")
 

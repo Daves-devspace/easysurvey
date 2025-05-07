@@ -18,12 +18,12 @@
                     <ul class="breadcrumb">
                         <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
                         <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
-                        <li class="breadcrumb-item" aria-current="page">Account Profile</li>
+                        <li class="breadcrumb-item" aria-current="page">Profile</li>
                     </ul>
                 </div>
                 <div class="col-md-12">
                     <div class="page-header-title">
-                        <h2 class="mb-0">Account Profile</h2>
+                        <h2 class="mb-0" Client Profile</h2>
 
                     </div>
 
@@ -95,7 +95,7 @@
             </div>
             <div class="card-body">
                 <div class="tab-content">
-                <!--profile-->
+                    <!--profile-->
                     <div class="tab-pane show active" id="profile-1" role="tabpanel"
                          aria-labelledby="profile-tab-1">
                         <div class="row">
@@ -156,18 +156,20 @@
                             </div>
 
                             <div class="col-lg-8 col-xxl-9">
-                                
+
 
                                 <div class="card" style="height: 600px; overflow-y: auto;">
                                     <div class="card-header d-flex justify-content-between align-items-center">
                                         <h5 class="mb-0 text-capitalize">
                                             {{ client.first_name }} {{ client.last_name }}'s Services
                                         </h5>
-                                        <button class="btn btn-sm btn-success d-flex align-items-center"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#addClientServiceModal">
-                                            <i class="ti ti-circle-plus me-1"></i> Add Service
-                                        </button>
+                                        {% if perms.EasyDocs.add_clientservice %}
+                                            <button class="btn btn-sm btn-success d-flex align-items-center"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addClientServiceModal">
+                                                <i class="ti ti-circle-plus me-1"></i> Add Service
+                                            </button>
+                                        {% endif %}
                                     </div>
 
                                     <div class="accordion" id="clientServiceAccordion">
@@ -211,17 +213,19 @@
                                                             </div>
                                                             <div class="col-12 col-md-6 text-md-end">
                                                                 <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
-                                                                    <button
-                                                                            type="button"
-                                                                            class="btn btn-sm bg-green-200"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#addSubServiceModal"
-                                                                            data-service-id="{{ cs.id }}"
-                                                                            data-service-name="{{ cs.service.name|escape }}"
-                                                                    >
-                                                                        <i class="ti ti-plus"></i> Add SubService
-                                                                    </button>
-
+                                                                    {% if perms.EasyDocs.add_clientsubservice %}
+                                                                        <button
+                                                                                type="button"
+                                                                                class="btn btn-sm bg-green-200"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#addSubServiceModal"
+                                                                                data-service-id="{{ cs.id }}"
+                                                                                data-service-name="{{ cs.service.name|escape }}"
+                                                                        >
+                                                                            <i class="ti ti-plus"></i> Add SubService
+                                                                        </button>
+                                                                    {% endif %}
+                                                                    {% if perms.EasyDocs.change_clientservice %}
                                                                     <button
                                                                             class="btn btn-sm btn-primary edit-client-service-btn"
                                                                             data-bs-toggle="modal"
@@ -241,6 +245,7 @@
                                                                                     
 
 
+
                                                                                     {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                             data-ps-costs="
                                                                                     
@@ -250,10 +255,14 @@
                                                                                     
 
 
+
                                                                                     {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                     >
                                                                         <i class="ti ti-pencil"></i> Edit
                                                                     </button>
+                                                                {% endif %}
+
+                                    {% if perms.EasyDocs.delete_clientservice %}
 
                                                                     <button
                                                                             class="btn btn-sm btn-danger"
@@ -263,6 +272,7 @@
                                                                             data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}">
                                                                         <i class="ti ti-trash"></i>
                                                                     </button>
+                                                                {% endif %}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -355,66 +365,79 @@
                 {% endif %}
               </span>
                                                                                 </td>
-                                                                             <td>
-  {% comment %} Determine if this is the final step {% endcomment %}
-  {% if sp == cs.latest_process %}
-    {% if cs.needs_collection %}
-      {# Services requiring title‐deed flow #}
-      {% if sp.status == 'completed' and not cs.title_deed_collection %}
-        <!-- Collect -->
-        <button type="button"
-                class="btn btn-primary btn-sm"
-                data-bs-toggle="modal"
-                data-bs-target="#collectModal{{ cs.id }}">
-          <i class="bi bi-box"></i> Collect
-        </button>
-      {% elif cs.title_deed_collection %}
-        <!-- Already collected: View -->
-        <button type="button"
-                class="btn btn-secondary btn-sm"
-                data-bs-toggle="modal"
-                data-bs-target="#collectModal{{ cs.id }}">
-          <i class="bi bi-eye"></i> View
-        </button>
-      {% else %}
-        <!-- Final step not yet completed: Confirm -->
-        <form action="{% url 'mark_process_completed' sp.id %}"
-              method="POST" class="d-inline">
-          {% csrf_token %}
-          <button class="btn btn-sm btn-success" type="submit">
-            <i class="bi bi-check-circle"></i> Confirm
-          </button>
-        </form>
-      {% endif %}
+
+                                                                               <td>
+    {% comment %} Determine if this is the final step {% endcomment %}
+    {% if sp == cs.latest_process %}
+        {% if cs.needs_collection %}
+            {# Services requiring title‐deed flow #}
+            {% if sp.status == 'completed' and not cs.title_deed_collection %}
+                {% if perms.EasyDocs.add_titledeedcollection %}
+                    <!-- Collect -->
+                    <button type="button"
+                            class="btn btn-primary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#collectModal{{ cs.id }}">
+                        <i class="bi bi-box"></i> Collect
+                    </button>
+                {% endif %}
+            {% elif cs.title_deed_collection %}
+                {% if perms.EasyDocs.view_titledeedcollection %}
+                    <!-- Already collected: View -->
+                    <button type="button"
+                            class="btn btn-secondary btn-sm"
+                            data-bs-toggle="modal"
+                            data-bs-target="#collectModal{{ cs.id }}">
+                        <i class="bi bi-eye"></i> View
+                    </button>
+                {% endif %}
+            {% else %}
+                {% if perms.EasyDocs.change_clientprocess %}
+                    <!-- Final step not yet completed: Confirm -->
+                    <form action="{% url 'mark_process_completed' sp.id %}"
+                          method="POST"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-success" type="submit">
+                            <i class="bi bi-check-circle"></i> Confirm
+                        </button>
+                    </form>
+                {% endif %}
+            {% endif %}
+        {% else %}
+            {# Non‑title services just get Complete/Done #}
+            {% if sp.status != 'completed' %}
+                {% if perms.EasyDocs.change_clientprocess %}
+                    <form action="{% url 'mark_process_completed' sp.id %}"
+                          method="POST"
+                          class="d-inline">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-success" type="submit">
+                            <i class="bi bi-check-circle"></i> Complete
+                        </button>
+                    </form>
+                {% endif %}
+            {% else %}
+                <span class="text-muted small">Done</span>
+            {% endif %}
+        {% endif %}
+    {% elif sp.status == 'in_progress' %}
+        {# In‑progress non‑last steps always get Complete #}
+        {% if perms.EasyDocs.change_clientprocess %}
+            <form action="{% url 'mark_process_completed' sp.id %}"
+                  method="POST"
+                  class="d-inline">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-success" type="submit">
+                    <i class="bi bi-check-circle"></i> Complete
+                </button>
+            </form>
+        {% endif %}
     {% else %}
-      {# Non‑title services just get Complete/Done #}
-      {% if sp.status != 'completed' %}
-        <form action="{% url 'mark_process_completed' sp.id %}"
-              method="POST" class="d-inline">
-          {% csrf_token %}
-          <button class="btn btn-sm btn-success" type="submit">
-            <i class="bi bi-check-circle"></i> Complete
-          </button>
-        </form>
-      {% else %}
-        <span class="text-muted small">Done</span>
-      {% endif %}
+        <span class="text-muted small"><i class="ti ti-list-check"></i></span>
     {% endif %}
-
-  {% elif sp.status == 'in_progress' %}
-    {# In‑progress non‑last steps always get Complete #}
-    <form action="{% url 'mark_process_completed' sp.id %}"
-          method="POST" class="d-inline">
-      {% csrf_token %}
-      <button class="btn btn-sm btn-success" type="submit">
-        <i class="bi bi-check-circle"></i> Complete
-      </button>
-    </form>
-
-  {% else %}
-    <span class="text-muted small">N/A</span>
-  {% endif %}
 </td>
+
 
 
                                                                                 <td>{{ sp.total_paid }}</td>
@@ -449,9 +472,13 @@
                                                                         <th>Cost</th>
                                                                         <th>Paid</th>
                                                                         <th>Pending</th>
-                                                                        <th>Status</th>
-                                                                        <th>Actions</th>
-                                                                        <th>Actions</th>
+                                                                        <th>paymentStatus</th>
+                                                                        {% if perms.EasyDocs.change_clientsubservice %}
+                                                                        <th>edit</th>
+                                                                        {% endif %}
+                                                                        {% if perms.EasyDocs.delete_clientsubservice %}
+                                                                        <th>delete</th>
+                                                                    {% endif %}
                                                                     </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -473,6 +500,7 @@
                                                                                         <span class="badge bg-warning text-dark">Pending</span>
                                                                                     {% endif %}
                                                                                 </td>
+                                                                            {% if perms.EasyDocs.change_clientsubservice %}
                                                                                 <td>
                                                                                     <button class="btn btn-sm btn-outline-primary"
                                                                                             data-bs-toggle="modal"
@@ -487,6 +515,8 @@
                                                                                     </button>
 
                                                                                 </td>
+                                                                            {% endif %}
+                                                                            {% if perms.EasyDocs.delete_clientsubservice %}
                                                                                 <td>
                                                                                     <button class="btn btn-sm btn-outline-danger delete-subservice-btn"
                                                                                             data-bs-toggle="modal"
@@ -496,6 +526,7 @@
                                                                                         <i class="ti ti-trash"></i>
                                                                                     </button>
                                                                                 </td>
+                                                                            {% endif %}
                                                                             </tr>
                                                                         {% endfor %}
                                                                     {% else %}
@@ -842,7 +873,7 @@
                                         </div>
                                     </div>
                                 </div>
-                               
+
                             </div>
                             <div class="col-12 text-end btn-page">
                                 <div class="btn btn-outline-secondary">Cancel</div>
@@ -1151,7 +1182,8 @@
                                                                                     <td>{{ alloc.name }}</td>
                                                                                     <td>
                                                                                         KES {{ alloc.amount|floatformat:2 }}</td>
-                                                                                <td>KES {{ alloc.remaining_balance|floatformat:2 }}</td>
+                                                                                    <td>
+                                                                                        KES {{ alloc.remaining_balance|floatformat:2 }}</td>
                                                                                     <td>
                                                                                         {% if alloc.status %}
                                                                                             <span class="badge
@@ -1283,7 +1315,7 @@
 
                     </div>
 
-<!--messages-->
+                    <!--messages-->
                     <div class="tab-pane" id="profile-6" role="tabpanel"
                          aria-labelledby="profile-tab-6">
                         <div class="row">
@@ -1367,7 +1399,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                         </div>
                     </div>
                 </div>

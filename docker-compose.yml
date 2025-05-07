@@ -1,88 +1,103 @@
-#version: '3.9'
-
-services:
-  web:
-    build: .
-    command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
-    volumes:
-      - .:/app
-      - ./static:/app/static
-      - ./staticfiles:/app/static_files
-      - media_volume:/app/media
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - redis
-    environment:
-      RUN_MIGRATIONS: "true"
-      WAIT_FOR_REDIS: "true"
-      DB_HOST: db
-      DB_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
-  db:
-    image: postgres:15
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
-  redis:
-    image: redis:7
-
-  celery:
-    build: .
-    command: celery -A GGI worker -Q celery,email --loglevel=info
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - redis
-    environment:
-      RUN_MIGRATIONS: "false"
-      WAIT_FOR_REDIS: "true"
-      DB_HOST: db
-      DB_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
-  celery-beat:
-    build: .
-    command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - .:/app
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - redis
-    environment:
-      RUN_MIGRATIONS: "false"
-      WAIT_FOR_REDIS: "true"
-      DB_HOST: db
-      DB_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "8080:80"
-    volumes:
-      - ./nginx:/etc/nginx/conf.d
-      - ./static:/app/static
-      - ./staticfiles:/app/static_files
-      - media_volume:/app/media
-    depends_on:
-      - web
-
-volumes:
-  postgres_data:
-  static_volume:
-  media_volume:
+  #version: '3.9'
+  
+  services:
+    web:
+      build: .
+      command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
+      volumes:
+        - .:/app
+        - ./static:/app/static
+        - ./staticfiles:/app/static_files
+        - media_volume:/app/media
+      env_file:
+        - .env
+      depends_on:
+        - db
+        - redis
+      environment:
+        RUN_MIGRATIONS: "true"
+        WAIT_FOR_REDIS: "true"
+        DB_HOST: db
+        DB_PORT: 5432
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+  
+    db:
+      image: postgres:15
+      volumes:
+        - postgres_data:/var/lib/postgresql/data/
+      environment:
+        POSTGRES_DB: ${POSTGRES_DB}
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  
+    redis:
+      image: redis:7
+  
+    celery:
+      build: .
+      command: celery -A GGI worker -Q celery,email --loglevel=info
+      volumes:
+        - .:/app
+      env_file:
+        - .env
+      depends_on:
+        - db
+        - redis
+      environment:
+        RUN_MIGRATIONS: "false"
+        WAIT_FOR_REDIS: "true"
+        DB_HOST: db
+        DB_PORT: 5432
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+  
+  
+  
+    celery-beat:
+      build: .
+      command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+      volumes:
+        - .:/app
+      env_file:
+        - .env
+      depends_on:
+        - db
+        - redis
+      environment:
+        RUN_MIGRATIONS: "false"
+        WAIT_FOR_REDIS: "true"
+        DB_HOST: db
+        DB_PORT: 5432
+        REDIS_HOST: redis
+        REDIS_PORT: 6379
+  
+    nginx:
+      image: nginx:alpine
+      ports:
+        - "8080:80"
+      volumes:
+        - ./nginx:/etc/nginx/conf.d
+        - ./static:/app/static
+        - ./staticfiles:/app/static_files
+        - media_volume:/app/media
+      depends_on:
+        - web
+  
+    flower:
+      image: mher/flower
+      command: >
+        python3 -m flower --broker=redis://redis:6379/0
+        --basic_auth=user:password
+  
+      ports:
+        - "5555:5555"
+      depends_on:
+        - redis
+  
+  
+  
+  volumes:
+    postgres_data:
+    static_volume:
+    media_volume:

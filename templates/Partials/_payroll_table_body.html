@@ -1,0 +1,42 @@
+{% for employee in employees %}
+    {% if employee.filtered_payrolls %}
+        {% for payroll in employee.filtered_payrolls %}
+        <tr>
+            <td>{{ employee.user.get_full_name }}</td>
+            <td>{{ employee.department.name }}</td>
+            <td>{{ employee.role }}</td>
+            <td>{{ employee.phone }}</td>
+            <td>{{ payroll.basic_salary }}</td>
+            <td>{{ payroll.net_salary }}</td>
+            <td>{{ payroll.pay_for_month|date:"F Y" }}</td>
+            <td>
+                {% if payroll.is_paid %}
+                    <span class="badge bg-success">Yes</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">No</span>
+                {% endif %}
+            </td>
+            <td>{{ payroll.paid_on|date:"Y-m-d" }}</td>
+            <td>
+                <!-- Actions like edit payroll -->
+            </td>
+        </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td>{{ employee.user.get_full_name }}</td>
+            <td>{{ employee.department.name }}</td>
+            <td>{{ employee.role }}</td>
+            <td>{{ employee.phone }}</td>
+            <td colspan="6" class="text-center text-muted">
+                No payroll found for selected filter.
+                <a href="#" class="btn btn-sm btn-primary create-payroll-btn"
+                   data-bs-toggle="modal"
+                   data-bs-target="#payrollCreateModal"
+                   data-employee-id="{{ employee.id }}">
+                    Create Payroll
+                </a>
+            </td>
+        </tr>
+    {% endif %}
+{% endfor %}

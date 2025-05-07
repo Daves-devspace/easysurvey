@@ -1,0 +1,20 @@
+<div class="modal-content">
+  <form method="post" action="{{ salary_action_url }}">
+    {% csrf_token %}
+    <div class="modal-header">
+      <h5 class="modal-title">
+        {% if form.instance.pk %}Update{% else %}Add{% endif %} Salary
+      </h5>
+      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      {{ form.as_p }}
+    </div>
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-primary">
+        {% if form.instance.pk %}Save Changes{% else %}Create Salary{% endif %}
+      </button>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    </div>
+  </form>
+</div>

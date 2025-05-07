@@ -11,7 +11,12 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
 from pathlib import Path
+
+import sentry_sdk
 from dotenv import load_dotenv
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 load_dotenv()
 
@@ -135,9 +140,11 @@ EMAIL_HOST_PASSWORD  = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL   = os.getenv("DEFAULT_FROM_EMAIL")
 EMAIL_TIMEOUT        = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
+
 CELERY_EMAIL_TASK_CONFIG = {
-    "queue": "default",
+    "queue": "email",
     "expires": 3600,
+    "retry": True,
 }
 
 
@@ -146,6 +153,88 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",  # If needed
     # "http://yourdomain.com",  # In production
 ]
+
+
+
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
+
+# Sentry Initialization
+# Initialize Sentry
+sentry_sdk.init(
+    dsn=SENTRY_DSN,
+    integrations=[
+        DjangoIntegration(),
+        CeleryIntegration(),
+        LoggingIntegration(level=None, event_level=None),
+    ],
+    environment=ENVIRONMENT,
+    send_default_pii=True  # Sends user info if available (e.g., request.user)
+)
+
+# Logging Configuration
+LOG_LEVEL = "DEBUG" if DEBUG else "INFO"
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {name} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'level': LOG_LEVEL,
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'sentry': {
+            'level': 'ERROR',  # Only send ERRORs and above to Sentry
+            'class': 'sentry_sdk.integrations.logging.EventHandler',
+        },
+    },
+
+    'root': {
+        'handlers': ['console', 'sentry'],
+        'level': 'INFO',  # Adjust root log level to INFO for production
+    },
+
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'sentry'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+        'celery': {
+            'handlers': ['console', 'sentry'],
+            'level': 'INFO',  # Adjust Celery log level to INFO for production
+            'propagate': True,
+        },
+        'django.request': {
+            'handlers': ['console', 'sentry'],
+            'level': 'ERROR',  # Keep error-level logging for requests
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],  # Log SQL queries to the console
+            'level': 'WARNING',  # Reduce logging for database queries
+            'propagate': False,
+        },
+    }
+}
+
+
+
+
+
 
 
 # EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
