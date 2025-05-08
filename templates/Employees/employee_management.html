@@ -279,13 +279,13 @@
                                                             generate next month's payroll.
                                                         </div>
                                                     {% endif %}
-                                                    <form method="post" action="{% url 'payroll_generate_all' %}" class="mb-3">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-primary">
-    Generate All Payrolls
-  </button>
-</form>
-
+                                                    <form method="post" action="{% url 'payroll_generate_all' %}"
+                                                          class="mb-3">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-primary">
+                                                            Generate All Payrolls
+                                                        </button>
+                                                    </form>
 
 
                                                     <button id="toggleFilterBtn"
@@ -375,21 +375,44 @@
                                                     {% for employee in employees %}
                                                         {% with payroll=employee.payrolls.first %}
                                                             <div class="accordion-item">
-                                                                <h2 class="accordion-header d-flex align-items-center justify-content-between"
+                                                                <h2 class="accordion-header d-flex align-items-center justify-content-between px-3 py-2"
                                                                     id="heading-{{ employee.id }}">
-                                                                    <button class="accordion-button collapsed flex-grow-1 text-start"
+                                                                    <button class="accordion-button collapsed flex-grow-1 text-start py-2"
                                                                             type="button"
                                                                             data-bs-toggle="collapse"
                                                                             data-bs-target="#collapse-{{ employee.id }}"
                                                                             aria-expanded="false"
                                                                             aria-controls="collapse-{{ employee.id }}">
-                                                                        {{ employee.user.get_full_name }}
-                                                                        <small class="text-muted">({{ employee.department }}
-                                                                            — {{ employee.get_role_display }})</small>
+
+                                                                        <div class="d-flex align-items-center flex-wrap gap-3">
+                                                                            <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name }}</span>
+
+                                                                            <small class="text-muted mb-0">
+                                                                                {{ employee.department }}
+                                                                                — {{ employee.get_role_display }}
+                                                                            </small>
+
+                                                                            {% with last_salary=employee.salaries.first %}
+                                                                                {% if last_salary %}
+                                                                                    <small class="text-success mb-0 d-flex align-items-center">
+                                                                                        💰
+                                                                                        <span class="badge bg-light text-dark border ms-1">
+                    {{ last_salary.amount }} KES
+                </span>
+                                                                                        <span class="text-muted ms-2">
+                    (Effective {{ last_salary.effective_from }})
+                </span>
+                                                                                    </small>
+                                                                                {% else %}
+                                                                                    <small class="text-danger mb-0">No
+                                                                                        salary set</small>
+                                                                                {% endif %}
+                                                                            {% endwith %}
+                                                                        </div>
+
                                                                     </button>
 
-                                                                    <div class="btn-group btn-group-sm ms-2">
-                                                                        {# Salary management #}
+                                                                    <div class="btn-group btn-group-sm ms-3">
                                                                         {% with last_salary=employee.salaries.first %}
                                                                             {% if last_salary %}
                                                                                 <button class="btn btn-outline-secondary open-salary-modal"
@@ -408,13 +431,8 @@
                                                                             {% endif %}
                                                                         {% endwith %}
 
-
-
-                                                                        {# Generate payroll #}
-
                                                                         {% with last_salary=employee.salaries.first payroll=employee.payrolls.first %}
                                                                             {% if last_salary %}
-                                                                                {% comment %}Only show enabled Generate when no payroll yet OR last is paid{% endcomment %}
                                                                                 {% if not payroll or payroll.is_paid %}
                                                                                     <form method="post"
                                                                                           action="{% url 'payroll_generate_one' employee.pk %}"
@@ -433,7 +451,6 @@
                                                                                     </button>
                                                                                 {% endif %}
                                                                             {% else %}
-                                                                                {# No salary—prompt admin to add salary first #}
                                                                                 <button type="button"
                                                                                         class="btn btn-primary disabled"
                                                                                         title="Set salary before generating payroll">
@@ -441,7 +458,6 @@
                                                                                 </button>
                                                                             {% endif %}
                                                                         {% endwith %}
-
                                                                     </div>
                                                                 </h2>
 
@@ -474,19 +490,30 @@
                                                                                 </div>
                                                                                 <div class="text-end">
                                                                                     {% if not payroll.is_paid %}
-                                                                                        <button class="btn btn-sm btn-success"
+                                                                                        <button class="btn btn-sm btn-success open-mark-paid-modal"
+                                                                                                data-url="{% url 'payroll_mark_paid' payroll.pk %}"
                                                                                                 data-bs-toggle="modal"
-                                                                                                data-bs-target="#markPaidModal"
-                                                                                                data-url="{% url 'payroll_mark_paid' payroll.pk %}">
-                                                                                            Mark as Paid
+                                                                                                data-bs-target="#markPaidModal">
+                                                                                            pay salary
                                                                                         </button>
+
+
                                                                                     {% endif %}
                                                                                 </div>
                                                                             </div>
 
                                                                             <div class="row">
                                                                                 <div class="col-md-6">
-                                                                                    <h6>Allowances</h6>
+                                                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                        <h6>Allowances</h6>
+                                                                                        <button
+                                                                                                class="btn btn-sm btn-outline-success open-allowance-modal"
+                                                                                                data-url="{% url 'allowance_create' employee.id %}"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#allowanceModal">
+                                                                                            + Add
+                                                                                        </button>
+                                                                                    </div>
                                                                                     <table class="table table-sm">
                                                                                         <thead>
                                                                                         <tr>
@@ -496,16 +523,26 @@
                                                                                         </tr>
                                                                                         </thead>
                                                                                         <tbody>
-                                                                                        {% for a in payroll.allowancesnapshot_set.all %}
+                                                                                        {% for tpl in employee.allowance_templates.all %}
                                                                                             <tr>
-                                                                                                <td>{{ a.name }}</td>
+                                                                                                <td>{{ tpl.name }}</td>
                                                                                                 <td>
-                                                                                                    KES {{ a.amount }}</td>
+                                                                                                    KES {{ tpl.amount }}</td>
                                                                                                 <td>
-                                                                                                    <a href="{% url 'allowance_update' a.pk %}"
-                                                                                                       class="btn btn-sm btn-outline-primary">Edit</a>
-                                                                                                    <a href="{% url 'allowance_delete' a.pk %}"
-                                                                                                       class="btn btn-sm btn-outline-danger">Delete</a>
+                                                                                                    <button
+                                                                                                            class="btn btn-sm btn-outline-primary open-allowance-modal"
+                                                                                                            data-url="{% url 'allowance_edit' tpl.pk %}"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#allowanceModal">
+                                                                                                        Edit
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                            class="btn btn-sm btn-outline-danger open-allowance-delete-modal"
+                                                                                                            data-url="{% url 'allowance_delete' tpl.pk %}"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#allowanceDeleteModal">
+                                                                                                        Delete
+                                                                                                    </button>
                                                                                                 </td>
                                                                                             </tr>
                                                                                         {% empty %}
@@ -521,7 +558,16 @@
                                                                                 </div>
 
                                                                                 <div class="col-md-6">
-                                                                                    <h6>Deductions</h6>
+                                                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                        <h6>Deductions</h6>
+                                                                                        <button
+                                                                                                class="btn btn-sm btn-outline-success open-deduction-modal"
+                                                                                                data-url="{% url 'deduction_create' employee.id %}"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#deductionModal">
+                                                                                            + Add
+                                                                                        </button>
+                                                                                    </div>
                                                                                     <table class="table table-sm">
                                                                                         <thead>
                                                                                         <tr>
@@ -531,16 +577,26 @@
                                                                                         </tr>
                                                                                         </thead>
                                                                                         <tbody>
-                                                                                        {% for d in payroll.deductionsnapshot_set.all %}
+                                                                                        {% for tpl in employee.deduction_templates.all %}
                                                                                             <tr>
-                                                                                                <td>{{ d.name }}</td>
+                                                                                                <td>{{ tpl.name }}</td>
                                                                                                 <td>
-                                                                                                    KES {{ d.amount }}</td>
+                                                                                                    KES {{ tpl.amount }}</td>
                                                                                                 <td>
-                                                                                                    <a href="{% url 'deduction_update' d.pk %}"
-                                                                                                       class="btn btn-sm btn-outline-primary">Edit</a>
-                                                                                                    <a href="{% url 'deduction_delete' d.pk %}"
-                                                                                                       class="btn btn-sm btn-outline-danger">Delete</a>
+                                                                                                    <button
+                                                                                                            class="btn btn-sm btn-outline-primary open-deduction-modal"
+                                                                                                            data-url="{% url 'deduction_edit' tpl.pk %}"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#deductionModal">
+                                                                                                        Edit
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                            class="btn btn-sm btn-outline-danger open-deduction-delete-modal"
+                                                                                                            data-url="{% url 'deduction_delete' tpl.pk %}"
+                                                                                                            data-bs-toggle="modal"
+                                                                                                            data-bs-target="#deductionDeleteModal">
+                                                                                                        Delete
+                                                                                                    </button>
                                                                                                 </td>
                                                                                             </tr>
                                                                                         {% empty %}
@@ -705,43 +761,43 @@
         </div>
     </div>
 
-    <div class="modal fade" id="markPaidModal" tabindex="-1" aria-labelledby="markPaidModalLabel" aria-hidden="true">
+    <!-- employee_management.html -->
+    …
+    <!-- “Mark as Paid” modal container -->
+    <div class="modal fade" id="markPaidModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <form method="post" id="markPaidForm">
-                {% csrf_token %}
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Confirm Payment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Are you sure you want to mark this payroll as <strong>paid</strong>?</p>
-                        <div class="mb-3">
-                            <label for="paymentRef" class="form-label">Payment Reference</label>
-                            <input type="text" class="form-control" name="payment_reference" id="paymentRef" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary"
-                                data-bs-dismiss="modal">Cancel
-                        </button>
-                        <button type="submit" class="btn btn-success">Mark as Paid</button>
-                    </div>
-                </div>
-            </form>
+            <div class="modal-content" id="markPaidModalContent">
+                <!-- AJAX will inject our partial here -->
+            </div>
         </div>
     </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            var markPaidModal = document.getElementById('markPaidModal');
-            markPaidModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var url = button.getAttribute('data-url');
-                document.getElementById('markPaidForm').setAttribute('action', url);
+            const modalEl = document.getElementById('markPaidModal');
+            const contentEl = document.getElementById('markPaidModalContent');
+            const modal = new bootstrap.Modal(modalEl);
+
+            document.querySelectorAll('.open-mark-paid-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    fetch(btn.dataset.url, {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    })
+                        .then(r => r.text())
+                        .then(html => {
+                            contentEl.innerHTML = html;
+                            modal.show();
+                        })
+                        .catch(err => {
+                            console.error('Could not load mark‑paid form', err);
+                            alert('Failed to load form — check console');
+                        });
+                });
             });
         });
     </script>
+
+
 
 
     <!-- Payroll Create Modal -->
@@ -772,6 +828,93 @@
     </div>
 
 
+    <!-- allowance add/edit -->
+    <div class="modal fade" id="allowanceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="allowanceModalContent">
+                <!-- JS will load _allowance_form.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- allowance delete -->
+    <div class="modal fade" id="allowanceDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="allowanceDeleteModalContent">
+                <!-- JS will load _allowance_confirm_delete.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- deduction add/edit -->
+    <div class="modal fade" id="deductionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="deductionModalContent">
+                <!-- JS will load _deduction_form.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- deduction delete -->
+    <div class="modal fade" id="deductionDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="deductionDeleteModalContent">
+                <!-- JS will load _deduction_confirm_delete.html here -->
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // helper
+            async function load(url, targetId) {
+                const res = await fetch(url);
+                const html = await res.text();
+                document.getElementById(targetId).innerHTML = html;
+            }
+
+            // Allowance
+            document.querySelectorAll('.open-allowance-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'allowanceModalContent');
+            });
+            document.querySelectorAll('.open-allowance-delete-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'allowanceDeleteModalContent');
+            });
+
+            // Deduction
+            document.querySelectorAll('.open-deduction-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'deductionModalContent');
+            });
+            document.querySelectorAll('.open-deduction-delete-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'deductionDeleteModalContent');
+            });
+
+            // Intercept form submits inside any of these modals
+            document.body.addEventListener('submit', async (e) => {
+                const frm = e.target.closest('form');
+                if (!frm) return;
+                if (
+                    frm.closest('#allowanceModalContent') ||
+                    frm.closest('#allowanceDeleteModalContent') ||
+                    frm.closest('#deductionModalContent') ||
+                    frm.closest('#deductionDeleteModalContent')
+                ) {
+                    e.preventDefault();
+                    const res = await fetch(frm.action, {
+                        method: frm.method,
+                        body: new FormData(frm),
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    });
+                    if (res.redirected) {
+                        window.location.href = res.url;
+                    } else {
+                        // re‑render form with errors
+                        const text = await res.text();
+                        frm.closest('.modal-content').innerHTML = text;
+                    }
+                }
+            });
+        });
+    </script>
 
 
 
@@ -793,7 +936,8 @@
     <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-labelledby="addEmployeeModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
-            <form method="post" id="payrollCreateForm">
+            <form method="post" id="payrollCreateForm" action="{% url 'employee_add' %}">
+
 
                 {% csrf_token %}
                 <div class="modal-content">
@@ -879,7 +1023,8 @@
         <div class="modal fade show" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel"
              aria-modal="true" style="display: block;">
             <div class="modal-dialog">
-                <form method="post" id="payrollEditForm">
+                <form method="post" id="payrollEditForm" action="{% url 'employee_edit' edit_employee_id %}">
+
                     {% csrf_token %}
                     <div class="modal-content">
                         <div class="modal-header">

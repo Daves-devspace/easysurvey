@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from .salary.salary import EmployeeSalaryCreateView, EmployeeSalaryDeleteView, EmployeeSalaryUpdateView, \
     AllowanceCreateView, AllowanceUpdateView, AllowanceDeleteView, DeductionCreateView, DeductionUpdateView, \
-    DeductionDeleteView, EmployeePayrollGenerateView
+    DeductionDeleteView, EmployeePayrollGenerateView, PayrollMarkPaidView
 from .views import PayrollGenerateAllView
 
 urlpatterns = [
@@ -44,5 +44,9 @@ urlpatterns = [
         name='payroll_generate_one'
     ),
 
-
+    path(
+        'payroll/<int:pk>/mark-paid/',
+        PayrollMarkPaidView.as_view(),
+        name='payroll_mark_paid'
+    ),
 ]

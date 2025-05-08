@@ -35,7 +35,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ALLOWED_HOSTS = ['*']
 SITE_DOMAIN = "http://127.0.0.1:8000"  # or your production domain
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -106,7 +105,6 @@ CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-
 # Optional: store results in Redis
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
@@ -119,27 +117,23 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-
-
-
 # settings.py
 # 1) Use the CeleryEmailBackend so every send_mail() enqueues a Celery task
 # settings.py
 DEBUG = os.getenv("DEBUG") == "True"
-#EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
-EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
-EMAIL_HOST           = os.getenv("EMAIL_HOST")
-EMAIL_PORT           = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS        = os.getenv("EMAIL_USE_TLS", "True") == "True"
-EMAIL_USE_SSL        = os.getenv("EMAIL_USE_SSL", "False") == "True"
-EMAIL_HOST_USER      = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD  = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL   = os.getenv("DEFAULT_FROM_EMAIL")
-EMAIL_TIMEOUT        = int(os.getenv("EMAIL_TIMEOUT", "10"))
-
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
 CELERY_EMAIL_TASK_CONFIG = {
     "queue": "email",
@@ -147,14 +141,11 @@ CELERY_EMAIL_TASK_CONFIG = {
     "retry": True,
 }
 
-
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8000",  # If needed
     # "http://yourdomain.com",  # In production
 ]
-
-
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development")
@@ -228,14 +219,15 @@ LOGGING = {
             'level': 'WARNING',  # Reduce logging for database queries
             'propagate': False,
         },
+        'loggers': {
+            'apps.Employee.salary.payroll_generator': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+        }
     }
 }
-
-
-
-
-
-
 
 # EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 # # DO NOT expose in form
