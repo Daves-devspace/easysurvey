@@ -109,17 +109,31 @@ class EmployeeSalaryDeleteView(DeleteView):
 
 # ALLOWANCE CBVs
 
+# views.py
+
+
 class AllowanceCreateView(CreateView):
     model = AllowanceTemplate
     form_class = AllowanceTemplateForm
     template_name = 'Employees/partials/allowance_form.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        # grab employee once
+        self.employee = get_object_or_404(EmployeeProfile, pk=kwargs['employee_id'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.employee
+        ctx['employee_id'] = self.employee.pk
+        return ctx
+
     def form_valid(self, form):
-        form.instance.employee = get_object_or_404(EmployeeProfile, pk=self.kwargs['employee_id'])
+        form.instance.employee = self.employee
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.kwargs['employee_id']})
+        return reverse_lazy('employee_list')
 
 
 class AllowanceUpdateView(UpdateView):
@@ -127,31 +141,57 @@ class AllowanceUpdateView(UpdateView):
     form_class = AllowanceTemplateForm
     template_name = 'Employees/partials/allowance_form.html'
 
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.object.employee
+        ctx['employee_id'] = self.object.employee.pk
+        return ctx
+
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.object.employee.id})
+        return reverse_lazy('employee_list')
 
 
 class AllowanceDeleteView(DeleteView):
     model = AllowanceTemplate
     template_name = 'Employees/partials/allowance_confirm_delete.html'
 
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.object.employee
+        ctx['employee_id'] = self.object.employee.pk
+        return ctx
+
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.object.employee.id})
+        return reverse_lazy('employee_list')
 
 
 # DEDUCTION CBVs
+
+# views.py
+
 
 class DeductionCreateView(CreateView):
     model = DeductionTemplate
     form_class = DeductionTemplateForm
     template_name = 'Employees/partials/deduction_form.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        # grab the employee up front
+        self.employee = get_object_or_404(EmployeeProfile, pk=kwargs['employee_id'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.employee
+        ctx['employee_id'] = self.employee.pk
+        return ctx
+
     def form_valid(self, form):
-        form.instance.employee = get_object_or_404(EmployeeProfile, pk=self.kwargs['employee_id'])
+        form.instance.employee = self.employee
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.kwargs['employee_id']})
+        return reverse_lazy('employee_list')
 
 
 class DeductionUpdateView(UpdateView):
@@ -159,16 +199,29 @@ class DeductionUpdateView(UpdateView):
     form_class = DeductionTemplateForm
     template_name = 'Employees/partials/deduction_form.html'
 
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.object.employee
+        ctx['employee_id'] = self.object.employee.pk
+        return ctx
+
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.object.employee.id})
+        return reverse_lazy('employee_list')
 
 
 class DeductionDeleteView(DeleteView):
     model = DeductionTemplate
     template_name = 'Employees/partials/deduction_confirm_delete.html'
 
+    def get_context_data(self, **ctx):
+        ctx = super().get_context_data(**ctx)
+        ctx['employee']    = self.object.employee
+        ctx['employee_id'] = self.object.employee.pk
+        return ctx
+
     def get_success_url(self):
-        return reverse_lazy('employee_detail', kwargs={'pk': self.object.employee.id})
+        return reverse_lazy('employee_list')
+
 
 
 
@@ -186,3 +239,34 @@ class EmployeePayrollGenerateView(View):
             messages.warning(request, "⚠️ Could not generate payroll.")
         return redirect('employee_list')
 
+# views.py
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
+from django.views import View
+
+class PayrollMarkPaidView(View):
+    def get(self, request, pk):
+        payroll = get_object_or_404(
+            Payroll.objects
+                   .prefetch_related('allowance_snapshots', 'deduction_snapshots'),
+            pk=pk
+        )
+        return render(request, "Employees/partials/_payroll_mark_paid_form.html", {
+            "payroll": payroll
+        })
+
+
+    def post(self, request, pk):
+        payroll = get_object_or_404(Payroll, pk=pk)
+        ref = request.POST.get('payment_reference', '').strip()
+        payroll.is_paid = True
+        payroll.paid_on = timezone.now()
+        payroll.payment_reference = ref
+        payroll.save(update_fields=['is_paid', 'paid_on', 'payment_reference'])
+
+        messages.success(
+            request,
+            f"✅ Marked payroll for {payroll.month:%B %Y} as paid (ref: {ref})"
+        )
+        return redirect('employee_list')
