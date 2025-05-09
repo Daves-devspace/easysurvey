@@ -1,5 +1,5 @@
 # clients/utils.py
-from decimal import  ROUND_HALF_UP, InvalidOperation,Decimal
+from decimal import ROUND_HALF_UP, InvalidOperation, Decimal
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -8,25 +8,28 @@ from django.core.exceptions import ValidationError
 
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils import timezone
-from django.views import View
-from django.views.generic import TemplateView
 
-from .forms import ExpenseForm
-from .models import  ClientServiceProcess, Payment, Expense, ClientSubService
+from apps.EasyDocs.forms import ExpenseForm
+from apps.EasyDocs.models import ClientServiceProcess, Payment, Expense, ClientSubService
 
-from django.http import JsonResponse
-from django.db.models import Sum, F, Value, ExpressionWrapper, DecimalField
+from django.db.models import Sum, Value, DecimalField, ExpressionWrapper, F, When, Case
 from django.db.models.functions import Coalesce
 
-from .models import ClientService, PaymentHistory
+from apps.EasyDocs.models import ClientService
+
+from django.views.generic import TemplateView, View, FormView
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.contrib import messages
+from django.utils import timezone
+
+from apps.EasyDocs.forms import LegalPayoutForm
+from apps.EasyDocs.models import Expense, ClientSubService
+from apps.EasyDocs.accounts.legal_payout import create_legal_payout
+
 import logging
 
-
 logger = logging.getLogger(__name__)
-
-
-
 
 
 def get_payment_context(client, service_id=None):
@@ -148,7 +151,6 @@ def add_payment_to_client_service(
     }
 
 
-
 def add_payment_view(request, client_id):
     if request.method == 'POST':
         client_service_id = request.POST.get('client_service_id')
@@ -186,12 +188,9 @@ def add_payment_view(request, client_id):
             messages.error(request, f"❌ Unexpected error: {e}")
 
     return redirect('client_details', client_id=client_id)
+
+
 from collections import defaultdict
-
-
-
-
-
 
 
 def get_client_payment_history(client_id):
@@ -224,9 +223,9 @@ def get_client_payment_history(client_id):
         payments = cs.payments.all().order_by('payment_date', 'id')
         allocations = (
             cs.payment_history
-                .select_related('service_process__process',
-                                'sub_service__sub_service')
-                .order_by('created_at')
+            .select_related('service_process__process',
+                            'sub_service__sub_service')
+            .order_by('created_at')
         )
 
         # Build the payment ledger with running balance
@@ -291,28 +290,26 @@ def get_client_payment_history(client_id):
                 })
 
         # Sort allocations: steps by order, then others by timestamp
-        steps = sorted([a for a in alloc_list if a['type']=='step'], key=lambda x: x['order'])
-        subs  = sorted([a for a in alloc_list if a['type']!='step'], key=lambda x: x['order'])
+        steps = sorted([a for a in alloc_list if a['type'] == 'step'], key=lambda x: x['order'])
+        subs = sorted([a for a in alloc_list if a['type'] != 'step'], key=lambda x: x['order'])
         ordered_allocs = steps + subs
 
         history.append({
-            'service_id':      cs.id,
-            'service_label':   f"{cs.service.name} — {cs.land_description}",
-            'total_amount':    str(cs.full_total_price),
-            'total_paid':      str(cs.total_paid),
-            'pending_balance': str(cs.total_balance),          # now using model property
-            'payment_status':  (
-                                  'Fully Paid'   if cs.total_balance <= 0 else
-                                  'Partially Paid' if cs.total_paid > 0 else
-                                  'Not Paid'
-                               ),
+            'service_id': cs.id,
+            'service_label': f"{cs.service.name} — {cs.land_description}",
+            'total_amount': str(cs.full_total_price),
+            'total_paid': str(cs.total_paid),
+            'pending_balance': str(cs.total_balance),  # now using model property
+            'payment_status': (
+                'Fully Paid' if cs.total_balance <= 0 else
+                'Partially Paid' if cs.total_paid > 0 else
+                'Not Paid'
+            ),
             'payment_breakdown': ledger,
-            'allocations':       ordered_allocs,
+            'allocations': ordered_allocs,
         })
 
     return history
-
-
 
 
 class ExpenseView(View):
@@ -329,6 +326,7 @@ class ExpenseView(View):
 
         return redirect(request.META.get("HTTP_REFERER", "/accounts/"))
 
+
 def get_all_payment_history():
     return (
         Payment.objects
@@ -337,10 +335,10 @@ def get_all_payment_history():
     )
 
 
-
 from collections import defaultdict
 from decimal import Decimal
 from django.utils.timezone import now
+
 
 def get_subservice_summary():
     current_year = now().year
@@ -390,63 +388,66 @@ def get_subservice_summary():
     return summary
 
 
+# views.py
+
+
 class AccountsDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Management/accounts.html'
-    # login_url, redirect_field_name etc. can be configured if needed
+
+    def get_queryset_with_balance(self):
+        return ClientSubService.objects.select_related(
+            'client_service__client', 'sub_service'
+        ).annotate(
+            annotated_price=Coalesce(F('overridden_price'), F('sub_service__price')),
+            annotated_balance=ExpressionWrapper(
+                Coalesce(F('overridden_price'), F('sub_service__price')) - F('paid_amount'),
+                output_field=DecimalField()
+            )
+        ).order_by('-added_on')
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-
-        # 1. All expenses
+        qs = self.get_queryset_with_balance()
+        ctx['sub_services'] = qs
+        unpaid = qs.filter(annotated_balance__gt=0)
+        ctx['unpaid_sub_services'] = unpaid  # ✅ this must match the template
+        ctx['summary'] = self.compute_summary(qs)
         ctx['expenses'] = Expense.objects.all().order_by('-date')
-
-        now = timezone.now()
-        first = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        ctx['sub_services'] = (ClientSubService.objects.select_related('client_service__client', 'sub_service')
-                               .order_by('-added_on'))
-        # summary for initial month
-        ctx['summary'] = self.compute_summary(ctx['sub_services'])
-
         ctx['client_payments'] = get_all_payment_history()
-
-        ctx['form'] = ExpenseForm()  # only needed for rendering empty modal
-        ctx['users'] = User.objects.all()  # needed for select options
-
+        ctx['form'] = ExpenseForm()
+        ctx['users'] = User.objects.all()
         return ctx
 
     def get(self, request, *args, **kwargs):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-
-
-            # parse dates
             start = request.GET.get('start_date')
             end = request.GET.get('end_date')
-            qs = ClientSubService.objects.select_related('client_service__client', 'sub_service')
+
+            qs = self.get_queryset_with_balance()
             if start:
                 qs = qs.filter(added_on__date__gte=start)
             if end:
                 qs = qs.filter(added_on__date__lte=end)
-            qs = qs.order_by('-added_on')
-            # build JSON response
+
             summary = self.compute_summary(qs)
-            rows = []
-            for css in qs:
-                rows.append({
-                    'added_on': css.added_on.strftime('%Y-%m-%d %H:%M'),
-                    'client': str(css.client_service.client),
-                    'sub_service': css.sub_service.name,
-                    'price': float(css.price),
-                    'paid': float(css.paid_amount),
-                    'balance': float(css.balance),
-                    'status': 'Fully Paid' if css.balance <= 0 else 'Pending'
-                })
+            rows = [{
+                'added_on': css.added_on.strftime('%Y-%m-%d %H:%M'),
+                'client': str(css.client_service.client),
+                'sub_service': css.sub_service.name,
+                'price': float(css.annotated_price),
+                'paid': float(css.paid_amount),
+                'balance': float(css.annotated_balance),
+                'status': 'Fully Paid' if css.annotated_balance <= 0 else 'Pending'
+            } for css in qs]
+
             return JsonResponse({'summary': summary, 'rows': rows})
+
         return super().get(request, *args, **kwargs)
 
     def compute_summary(self, qs):
-        total_price = sum(css.price for css in qs)
+        total_price = sum(css.annotated_price for css in qs)
         total_paid = sum(css.paid_amount for css in qs)
-        total_balance = total_price - total_paid
+        total_balance = sum(css.annotated_balance for css in qs)
         return {
             'total_price': f"{total_price:.2f}",
             'total_paid': f"{total_paid:.2f}",
@@ -455,6 +456,57 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
 
 
 
+class SubServiceFilterView(View):
+    def get(self, request):
+        start = request.GET.get('start_date')
+        end = request.GET.get('end_date')
+        qs = ClientSubService.objects.select_related(
+            'client_service__client', 'sub_service'
+        ).order_by('-added_on')
+        if start:
+            qs = qs.filter(added_on__date__gte=start)
+        if end:
+            qs = qs.filter(added_on__date__lte=end)
+        summary = AccountsDashboardView().compute_summary(qs)
+        return render(request, 'Management/partials/_subservices_table.html', {
+            'sub_services': qs,
+            'summary': summary
+        })
+
+
+class LegalPayoutCreateView(FormView):
+    form_class = LegalPayoutForm
+    success_url = '/management/accounts/'  # or name‑reverse
+
+    def form_valid(self, form):
+        try:
+            payout = create_legal_payout(
+                form.cleaned_data['subservices'],
+                form.cleaned_data['paid_month']
+            )
+            messages.success(
+                self.request,
+                f"✅ Created payout for {payout.paid_month:%B %Y}, total KES {payout.total_amount:.2f}."
+            )
+            return JsonResponse({'success': True})
+        except Exception as e:
+            messages.error(self.request, f"❌ Could not create payout: {e}")
+            return JsonResponse(
+                {'success': False, 'html': self.get_form_html(form)},
+                status=400
+            )
+
+    def form_invalid(self, form):
+        return JsonResponse(
+            {'success': False, 'html': self.get_form_html(form)},
+            status=400
+        )
+
+    def get_form_html(self, form):
+        # render just the form inside the modal
+        return render(self.request, 'Management/partials/_legal_payout_form.html', {
+            'form': form
+        }).content.decode()
 
 
 def expense_delete(request, pk):

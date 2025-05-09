@@ -270,3 +270,46 @@ class PayrollMarkPaidView(View):
             f"✅ Marked payroll for {payroll.month:%B %Y} as paid (ref: {ref})"
         )
         return redirect('employee_list')
+
+
+class BulkPayrollMarkPaidView(View):
+    def post(self, request):
+        month = request.POST.get("month")
+        ref = request.POST.get("payment_reference", "").strip()
+
+        if not month:
+            messages.error(request, "❌ No payroll month provided.")
+            return redirect("employee_list")
+
+        try:
+            month_obj = timezone.datetime.strptime(month, "%Y-%m").date()
+        except ValueError:
+            messages.error(request, "❌ Invalid month format.")
+            return redirect("employee_list")
+
+        payrolls = Payroll.objects.filter(month=month_obj)
+        to_pay = payrolls.filter(is_paid=False).select_related("employee")
+        already_paid = payrolls.filter(is_paid=True)
+
+        # Update unpaid payrolls
+        paid_names = []
+        for payroll in to_pay:
+            payroll.is_paid = True
+            payroll.paid_on = now()
+            payroll.payment_reference = ref
+            payroll.save(update_fields=["is_paid", "paid_on", "payment_reference"])
+            paid_names.append(str(payroll.employee))
+
+        if paid_names:
+            names_str = ", ".join(paid_names)
+            messages.success(
+                request,
+                f"✅ Marked {len(paid_names)} payroll(s) as paid for {month_obj:%B %Y}: {names_str}"
+            )
+        else:
+            messages.info(request, f"ℹ️ No unpaid payrolls found for {month_obj:%B %Y}.")
+
+        if already_paid.exists():
+            messages.warning(request, f"⚠️ {already_paid.count()} payroll(s) were already paid and skipped.")
+
+        return redirect("employee_list")
