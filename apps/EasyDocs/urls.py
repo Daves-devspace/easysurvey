@@ -1,11 +1,14 @@
 from django.urls import path
 from . import views, auth_views, documents, accounts, reciepts, analytics
+from .accounts.legal_payout import BulkPayoutView
 from .services import processes, services
-from .accounts import AccountsDashboardView, ExpenseView
+from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
+    LegalPayoutCreateView
+
 from .auth_views import CustomPasswordResetConfirmView
 from .communication import CommunicationView
 from .views import ManagementView, ClientDetailView
-from django.contrib.auth.views import  PasswordResetDoneView, PasswordResetCompleteView
+from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
     path('password_reset/', auth_views.CustomPasswordResetView.as_view(), name='password_reset'),
@@ -64,7 +67,7 @@ urlpatterns = [
     # path('client/<int:pk>/payment-context/', accounts.payment_context, name='payment_context'),
     # # Endpoint to actually make a payment
     # path('client-service/<int:cs_id>/pay/', accounts.make_payment, name='make_payment'),
-    path('clients/<int:client_id>/add-payment/', accounts.add_payment_view, name='add_payment'),
+    path('clients/<int:client_id>/add-payment/', accounts.accounts.add_payment_view, name='add_payment'),
 
     path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
 
@@ -85,10 +88,16 @@ urlpatterns = [
          name='send_doc_email_to_client'),
 
     path('accounts/', AccountsDashboardView.as_view(), name='accounts_dashboard'),
+
+    path('accounts/subservices/filter/', SubServiceFilterView.as_view(), name='subservice_filter'),
+    path('accounts/payout/create/', LegalPayoutCreateView.as_view(), name='legal_payout_create'),
+
+    path('bulk-payout/', BulkPayoutView.as_view(), name='bulk_payout'),
+
     # Create new expense
     path("submit-expense/", ExpenseView.as_view(), name="submit_expense"),
 
-    path('expenses/<int:pk>/delete/', accounts.expense_delete, name='expense_delete'),
+    path('expenses/<int:pk>/delete/', accounts.accounts.expense_delete, name='expense_delete'),
 
     path('api/chart-data/', views.chart_data, name='chart-data'),
 

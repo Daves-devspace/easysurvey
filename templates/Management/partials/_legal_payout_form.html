@@ -1,0 +1,5 @@
+<form id="legalPayoutForm" method="post" action="{% url 'legal_payout_create' %}">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-success">Create Payout</button>
+</form>

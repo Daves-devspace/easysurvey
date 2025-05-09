@@ -23,7 +23,7 @@
                 </div>
                 <div class="col-md-12">
                     <div class="page-header-title">
-                        <h2 class="mb-0" Client Profile</h2>
+                        <h2 class="mb-0"> Client Profile</h2>
 
                     </div>
 
@@ -144,7 +144,7 @@
                                             <div class="d-inline-flex align-items-center justify-content-between w-100">
                                                 <i class="ti ti-link"></i>
                                                 <a href="#" class="link-primary">
-                                                    <p class="mb-0">https://anshan.dh.url</p>
+                                                    <p class="mb-0">Active</p>
                                                 </a>
                                             </div>
 
@@ -628,7 +628,62 @@
                     <div class="tab-pane" id="profile-2" role="tabpanel"
                          aria-labelledby="profile-tab-2">
                         <div class="row">
-                            <div class="col-lg-6">
+                        <div class="col-lg-4 col-xxl-3">
+                                <div class="card">
+                                    <div class="card-body position-relative">
+                                        <div class="position-absolute end-0 top-0 p-3">
+                                            <span class="badge bg-primary">Pro</span>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <div class="chat-avtar d-inline-flex mx-auto">
+                                                <img class="rounded-circle img-fluid wid-70"
+                                                     src="{% static 'assets/images/user/avatar-5.jpg' %}"
+                                                     alt="User image">
+                                            </div>
+                                            <h5 class="mb-0">{{ client.first_name }} {{ client.last_name }}</h5>
+                                            <p class="text-muted text-sm">client</p>
+                                            <hr class="my-3">
+                                            <div class="row g-3">
+                                                <div class="col-4">
+                                                    <h5 class="mb-0">86</h5>
+                                                    <small class="text-muted">Post</small>
+                                                </div>
+                                                <div class="col-4 border border-top-0 border-bottom-0">
+                                                    <h5 class="mb-0">40</h5>
+                                                    <small class="text-muted">Project</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <h5 class="mb-0">4.5K</h5>
+                                                    <small class="text-muted">Members</small>
+                                                </div>
+                                            </div>
+                                            <hr class="my-3">
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-mail"></i>
+                                                <p class="mb-0">{{ client.email }}</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-phone"></i>
+                                                <p class="mb-0">{{ client.phone }}</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-map-pin"></i>
+                                                <p class="mb-0">New York</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100">
+                                                <i class="ti ti-link"></i>
+                                                <a href="#" class="link-primary">
+                                                    <p class="mb-0">Active</p>
+                                                </a>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="col-lg-8">
                                 <!-- Upload Document Modal -->
                                 <div class="modal fade" id="uploadDocModal" tabindex="-1"
                                      aria-labelledby="uploadDocModalLabel" aria-hidden="true">
@@ -731,7 +786,7 @@
                                     </div>
                                     <div class="card-body table-card">
                                         <div class="table-responsive mt-3">
-                                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
                                                 <thead class="table-success">
                                                 <tr>
                                                     <th>
@@ -814,71 +869,8 @@
 
                                 </div>
                             </div>
-                            <div class="col-lg-6">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Social Network</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="flex-grow-1 me-3">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-shrink-0">
-                                                        <div class="avtar avtar-xs btn-light-twitter">
-                                                            <i class="fab fa-twitter f-16"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0">Twitter</h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex-shrink-0">
-                                                <button class="btn btn-link-danger">Connect</button>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="flex-grow-1 me-3">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-shrink-0">
-                                                        <div class="avtar avtar-xs btn-light-facebook">
-                                                            <i class="fab fa-facebook-f f-16"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0">Facebook</h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex-shrink-0">
-                                                <div class="text-facebook">Anshan Handgun</div>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex align-items-center">
-                                            <div class="flex-grow-1 me-3">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-shrink-0">
-                                                        <div class="avtar avtar-xs btn-light-linkedin">
-                                                            <i class="fab fa-linkedin-in f-16"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex-grow-1 ms-3">
-                                                        <h6 class="mb-0">Linkedin</h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex-shrink-0">
-                                                <button class="btn btn-link-danger">Connect</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
 
-                            </div>
-                            <div class="col-12 text-end btn-page">
-                                <div class="btn btn-outline-secondary">Cancel</div>
-                                <div class="btn btn-primary">Update Profile</div>
-                            </div>
+
                         </div>
                     </div>
 

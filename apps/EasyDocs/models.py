@@ -364,13 +364,43 @@ class ClientSubService(models.Model):
 
 
 class SubService(models.Model):
-    name = models.CharField(max_length=100)
+    class RoleChoices(models.TextChoices):
+        LEGAL = 'Legal', 'Legal'
+
+    name = models.CharField(
+        max_length=20,
+        choices=RoleChoices.choices,
+        default=RoleChoices.LEGAL
+    )
     department = models.CharField(max_length=100)  # e.g. Legal Department
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    date_recorded = models.DateField(default=timezone.now)
+
+    # New Fields for Payout Tracking
+    is_paid_to_legal_office = models.BooleanField(default=False)
+    paid_month = models.DateField(blank=True, null=True)  # e.g., 2025-05-01
 
     def __str__(self):
         return f"{self.name} – KSH {self.price}"
+
+    def month_label(self):
+        return self.date_recorded.strftime('%B %Y')
+
+
+
+class LegalOfficePayout(models.Model):
+    month = models.DateField(unique=True)  # Represents the payout month
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    paid_at = models.DateTimeField(auto_now_add=True)
+    subservices = models.ManyToManyField(SubService)
+
+    def __str__(self):
+        return f"Payout for {self.month.strftime('%B %Y')} – KSH {self.total_amount}"
+
+    def service_count(self):
+        return self.subservices.count()
+
 
 
 

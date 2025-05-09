@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 import logging
 
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import DecimalField, F, ExpressionWrapper, Case, When
 from django.template.loader import render_to_string
 
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
@@ -345,10 +346,7 @@ class SubServiceForm(forms.ModelForm):
         model = SubService
         fields = ['name', 'department', 'description', 'price']
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter SubService name',
-            }),
+            'name': forms.Select(attrs={'class': 'form-control'}),
             'department': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Enter department name (e.g. Legal Department)',
@@ -364,6 +362,49 @@ class SubServiceForm(forms.ModelForm):
                 'min': 0,
             }),
         }
+
+from django import forms
+from django.db.models import F, Case, When, DecimalField, ExpressionWrapper
+from .models import ClientSubService
+
+class LegalPayoutForm(forms.Form):
+    subservices = forms.ModelMultipleChoiceField(
+        queryset=ClientSubService.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        label="Unpaid Sub‑services",
+        help_text="Select all unpaid sub-services you want to pay out."
+    )
+    paid_month = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}),
+        label="Payout Month"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['subservices'].queryset = self.get_unpaid_subservices()
+
+    def get_unpaid_subservices(self):
+        return ClientSubService.objects.select_related('sub_service').annotate(
+            annotated_price=Case(
+                When(overridden_price__isnull=False, then=F('overridden_price')),
+                default=F('sub_service__price'),
+                output_field=DecimalField()
+            ),
+            annotated_balance=ExpressionWrapper(
+                Case(
+                    When(overridden_price__isnull=False, then=F('overridden_price')),
+                    default=F('sub_service__price'),
+                    output_field=DecimalField()
+                ) - F('paid_amount'),
+                output_field=DecimalField()
+            )
+        ).filter(annotated_balance__gt=0)
+
+    def clean_paid_month(self):
+        d = self.cleaned_data['paid_month']
+        return d.replace(day=1)
+
+
 
 class ClientSubServiceForm(forms.ModelForm):
     class Meta:

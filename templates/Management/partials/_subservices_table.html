@@ -1,0 +1,33 @@
+<table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+    <thead class="table-success">
+    <tr>
+        <th>Date</th>
+        <th>Client</th>
+        <th>Service</th>
+        <th>Price</th>
+        <th>Paid</th>
+        <th>Balance</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for css in sub_services %}
+        <tr>
+            <td>{{ css.added_on|date:"Y‑m‑d H:i" }}</td>
+            <td>{{ css.client_service.client }}</td>
+            <td>{{ css.sub_service.name }}</td>
+            <td>{{ css.price }}</td>
+            <td>{{ css.paid_amount }}</td>
+            <td>{{ css.balance }}</td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="6" class="text‑muted">No records.</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div class="alert alert-info">
+    Total Price: KES {{ summary.total_price }} &nbsp;|&nbsp;
+    Total Paid: KES {{ summary.total_paid }} &nbsp;|&nbsp;
+    Balance: KES {{ summary.total_balance }}
+</div>

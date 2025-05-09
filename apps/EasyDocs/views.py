@@ -3,28 +3,25 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist, PermissionDenied
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q, Prefetch, Sum, DecimalField, F
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.template.defaultfilters import first
-from django.urls import reverse
+from django.shortcuts import render, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
     SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, \
     ClientSubServiceEditForm, ClientSmsForm
-from apps.EasyDocs.models import Client, Service, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
+from apps.EasyDocs.models import Client, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
     ClientSubService, SiteSettings, SmsProviderToken,  PaymentHistory, Expense, Payment, MessageLog
 
 from django.views.generic import TemplateView, DetailView
 from django.shortcuts import redirect
 
-from .accounts import get_client_payment_history, get_all_payment_history
+from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
 from .analytics import get_yearly_revenue_data, get_available_years
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
