@@ -17,6 +17,7 @@
       environment:
         RUN_MIGRATIONS: "true"
         WAIT_FOR_REDIS: "true"
+        RUN_COLLECT_STATIC: "true"
         DB_HOST: db
         DB_PORT: 5432
         REDIS_HOST: redis
@@ -101,3 +102,8 @@
     postgres_data:
     static_volume:
     media_volume:
+      driver: local
+      driver_opts:
+        type: none
+        device: ${PWD}/media
+        o: bind

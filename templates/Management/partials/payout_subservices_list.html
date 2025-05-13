@@ -1,0 +1,37 @@
+<div id="payout_summary" class="mt-3">
+    <h5>Total Payouts: <span id="total_count">{{ total_count }}</span></h5>
+    <h5>Total Amount: <span id="total_amount">{{ total_amount|floatformat:2 }}</span></h5>
+</div>
+
+{# TABLE OF INDIVIDUAL SUBSERVICES #}
+<div class="card-body p-0">
+    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+        <thead class="table-success">
+        <th>Client</th>
+        <th>Service</th>
+        <th>Paid Amount</th>
+        <th>Month</th>
+        <th>Month1</th>
+        <th>Date Paid</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for ss in payout_subservices %}
+            <tr>
+                <td>{{ ss.client_service.client }}</td>
+                <td>{{ ss.sub_service }}</td>
+                <td>KES {{ ss.paid_amount|floatformat:2 }}</td>
+                <td>{{ ss.paid_month|date:"Y-m" }}</td>
+                <td>{{ ss.paid_month }}</td>
+                <td>{{ ss.paid_at|date:"Y-m-d" }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    No paid subservices found for {{ month_filter|default:"this month" }}.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

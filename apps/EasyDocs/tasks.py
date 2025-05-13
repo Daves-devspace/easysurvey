@@ -2,9 +2,9 @@
 from datetime import datetime
 
 from celery import shared_task
+from django.utils import timezone
 
-
-from apps.EasyDocs.models import Client, MessageLog
+from apps.EasyDocs.models import Client, MessageLog, Booking
 from apps.EasyDocs.utils import update_pending_sms_logs_and_balance, personalize
 
 
@@ -84,3 +84,50 @@ def send_single_sms(self, client_id, text):
         )
         raise self.retry(exc=exc)
 
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_today_ground_reminders(self):
+    from .utils import send_single_sms as _send_single
+
+    today = timezone.localdate()
+    bookings = Booking.objects.filter(scheduled_date=today)
+
+    logger.info(f"📅 Checking for ground bookings on {today}... Found {bookings.count()}")
+
+    for booking in bookings:
+        client_service = booking.client_service
+        client = client_service.client
+        service = client_service.service
+
+        time_str = booking.scheduled_time.strftime('%I:%M %p')
+        text = f"Reminder: Our surveyor will visit you today at {time_str} for your '{service.name}' service."
+
+        try:
+            status, raw = _send_single(client, text, reason="Ground Service Reminder")
+            logger.debug(f"→ SMS send returned status={status} for client {client.id}")
+
+            log = MessageLog.objects.create(
+                client=client,
+                phone=client.phone,
+                message=text,
+                reason="Ground Service Reminder",
+                message_id=raw.get("message_id") if raw else None,
+                send_status="sent" if status else "failed",
+                delivery_status="pending",
+                error_details=None if status else "Unknown sending failure"
+            )
+            logger.info(f"✅ Reminder sent and MessageLog created for client {client.id}, log id={log.id}")
+
+        except Exception as exc:
+            logger.error(f"❌ Failed to send reminder to client {client.id}: {exc}", exc_info=True)
+            MessageLog.objects.create(
+                client=client,
+                phone=client.phone,
+                message=text,
+                reason="Ground Service Reminder",
+                send_status="failed",
+                delivery_status="failed",
+                error_details=str(exc)
+            )
+            self.retry(exc=exc)

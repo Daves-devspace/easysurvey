@@ -100,7 +100,7 @@ class Service(models.Model):
 
     # NEW FIELDS
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=ServiceCategory.TITLE)
-    dispatch_message = models.TextField(blank=True, null=True, help_text="Message to send for dispatch-based services.")
+    # dispatch_message = models.TextField(blank=True, null=True, help_text="Message to send for dispatch-based services.")
 
     requires_title_collection = models.BooleanField(
         default=False,
@@ -114,7 +114,6 @@ class Service(models.Model):
         agg = self.processes.aggregate(total=Sum('cost'))
         self.total_price = agg['total'] or 0
         self.save(update_fields=['total_price'])
-
 
 
 # Process Model
@@ -143,7 +142,6 @@ class Process(models.Model):
 
     def __str__(self):
         return f"{self.service.name} – {self.name} "
-
 
 # Client Service Model
 class ClientService(models.Model):
@@ -185,28 +183,49 @@ class ClientService(models.Model):
             models.Index(fields=['requested_at']),
         ]
 
+
     def save(self, *args, **kwargs):
+
         """
-        Override save to ensure full_total_price is computed after primary key exists.
-        """
-        # If new instance (no pk yet), perform initial save to get pk
-        if self.pk is None:
+      Override save to ensure full_total_price is computed correctly after first save.
+    Handles both process-based (TITLE) and non-process-based (GROUND) services.
+               """
+
+        is_new = self.pk is None
+
+        if is_new:
+            # Save initially to assign a primary key
             super().save(*args, **kwargs)
-            # Now compute and persist full total
-            self.full_total_price = self._calculate_full_total()
+
+        # ✅ Step 1: Make sure service total is correct BEFORE calculating full_total_price
+        if self.service.category == ServiceCategory.GROUND and self.service.total_price == 0:
+            self.service.update_total_price()
+
+        # ✅ Step 2: Calculate total now that service price is up-to-date
+        self.full_total_price = self._calculate_full_total()
+
+        # ✅ Step 3: Save full total to DB
+        if is_new:
             super().save(update_fields=['full_total_price'])
         else:
-            # Existing instance: compute then save in one go
-            self.full_total_price = self._calculate_full_total()
             super().save(*args, **kwargs)
+
+    def update_full_total(self, save=True):
+        """
+        Public method to recalculate and update the full_total_price field.
+        """
+        self.full_total_price = self._calculate_full_total()
+        if save:
+            self.save(update_fields=['full_total_price'])
 
     def _calculate_full_total(self) -> Decimal:
         """
-        Compute the grand total (processes + sub-services) in one go,
-        using overridden values or defaults.
+        Compute the grand total (processes + sub-services).
+        Uses overridden values if provided.
         """
-        # Process-based total
-        if self.service.processes.exists():
+        # Determine if service has processes by category
+        if self.service.category == ServiceCategory.TITLE:
+            # Aggregate cost of all processes
             proc_agg = self.service_processes.aggregate(
                 total=Coalesce(
                     Sum(Coalesce(F('overridden_cost'), F('process__cost')),
@@ -216,13 +235,14 @@ class ClientService(models.Model):
             )['total']
             proc_total = proc_agg or Decimal('0.00')
         else:
+            # Use overridden total or fallback to service's total_price
             proc_total = (
                 self.overridden_total_price
                 if self.overridden_total_price is not None
                 else self.service.total_price
             )
 
-        # Sub-service total
+        # Sum all sub-service costs
         sub_agg = self.sub_services.aggregate(
             total=Coalesce(
                 Sum(Coalesce(F('overridden_price'), F('sub_service__price')),
@@ -232,10 +252,14 @@ class ClientService(models.Model):
         )['total']
         sub_total = sub_agg or Decimal('0.00')
 
+        # Return the grand total
         return proc_total + sub_total
 
     @cached_property
     def total_paid(self) -> Decimal:
+        """
+        Total payments made toward this client service.
+        """
         paid = self.payments.aggregate(
             total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField())
         )['total']
@@ -243,6 +267,9 @@ class ClientService(models.Model):
 
     @cached_property
     def sub_services_total(self) -> Decimal:
+        """
+        Total cost of all sub-services (uses overridden price if available).
+        """
         total = self.sub_services.aggregate(
             total=Coalesce(
                 Sum(Coalesce(F('overridden_price'), F('sub_service__price')),
@@ -255,12 +282,15 @@ class ClientService(models.Model):
     @cached_property
     def total_balance(self) -> Decimal:
         """
-        Remaining balance: full_total_price minus total_paid.
+        Remaining balance after payments.
         """
         return self.full_total_price - self.total_paid
 
     @property
     def payment_status(self) -> str:
+        """
+        Human-readable payment status.
+        """
         balance = self.total_balance
         if balance <= 0:
             return 'Fully Paid'
@@ -271,6 +301,22 @@ class ClientService(models.Model):
     def __str__(self):
         return f"{self.service.name} for {self.land_description}"
 
+
+class Booking(models.Model):
+    client_service = models.ForeignKey(ClientService, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)  # When the booking was created
+    scheduled_date = models.DateTimeField()               # When the service is scheduled to occur
+    dispatch_message = models.TextField(blank=True, null=True)
+
+    def generate_default_message(self):
+        return (
+            f"Hi {self.client_service.client.first_name}, surveyors for "
+            f"{self.client_service.service.name} have been scheduled for "
+            f"{self.scheduled_date.strftime('%A, %d %B %Y at %I:%M %p')}."
+        )
+
+    def __str__(self):
+        return f"{self.client_service} - Scheduled: {self.scheduled_date.strftime('%Y-%m-%d %H:%M')}"
 
 
 
@@ -351,6 +397,11 @@ class ClientSubService(models.Model):
         help_text="Leave blank to use default sub-service price"
     )
 
+    # New Fields for Payout Tracking
+    is_paid_to_legal_office = models.BooleanField(default=False)
+    paid_month = models.DateField(blank=True, null=True)  # e.g., 2025-05-01
+    paid_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
     def __str__(self):
         return f"{self.client_service} → {self.sub_service.name}"
 
@@ -367,19 +418,17 @@ class SubService(models.Model):
     class RoleChoices(models.TextChoices):
         LEGAL = 'Legal', 'Legal'
 
-    name = models.CharField(
+    name = models.CharField(max_length=100)  # e.g. Legal stamp
+    department = models.CharField(
         max_length=20,
         choices=RoleChoices.choices,
         default=RoleChoices.LEGAL
     )
-    department = models.CharField(max_length=100)  # e.g. Legal Department
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     date_recorded = models.DateField(default=timezone.now)
 
-    # New Fields for Payout Tracking
-    is_paid_to_legal_office = models.BooleanField(default=False)
-    paid_month = models.DateField(blank=True, null=True)  # e.g., 2025-05-01
+
 
     def __str__(self):
         return f"{self.name} – KSH {self.price}"
@@ -393,7 +442,7 @@ class LegalOfficePayout(models.Model):
     month = models.DateField(unique=True)  # Represents the payout month
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_at = models.DateTimeField(auto_now_add=True)
-    subservices = models.ManyToManyField(SubService)
+    subservices = models.ManyToManyField('ClientSubService',related_name='legalofficepayouts')  # Linking subservices paid for that month
 
     def __str__(self):
         return f"Payout for {self.month.strftime('%B %Y')} – KSH {self.total_amount}"
@@ -410,7 +459,7 @@ class LegalOfficePayout(models.Model):
 
 # Title Deed Collection Model
 class TitleDeedCollection(models.Model):
-    client_service = models.OneToOneField(ClientService, related_name='title_deed_collection', on_delete=models.CASCADE)
+    client_service = models.OneToOneField(ClientService, on_delete=models.CASCADE, related_name='title_deed_collection')
     collected_by = models.CharField(max_length=100, help_text="Name of the person who picked the title deed")
     id_number = models.CharField(max_length=20, help_text="ID number of collector", blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)

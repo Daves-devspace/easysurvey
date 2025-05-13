@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
 from apps.EasyDocs.forms import ExpenseForm
-from apps.EasyDocs.models import ClientServiceProcess, Payment, Expense, ClientSubService
+from apps.EasyDocs.models import ClientServiceProcess, Payment, Expense, ClientSubService, SubService
 
 from django.db.models import Sum, Value, DecimalField, ExpressionWrapper, F, When, Case
 from django.db.models.functions import Coalesce
@@ -394,55 +394,23 @@ def get_subservice_summary():
 class AccountsDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Management/accounts.html'
 
-    def get_queryset_with_balance(self):
-        return ClientSubService.objects.select_related(
-            'client_service__client', 'sub_service'
-        ).annotate(
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        qs = ClientSubService.objects.annotate(
             annotated_price=Coalesce(F('overridden_price'), F('sub_service__price')),
             annotated_balance=ExpressionWrapper(
                 Coalesce(F('overridden_price'), F('sub_service__price')) - F('paid_amount'),
                 output_field=DecimalField()
             )
-        ).order_by('-added_on')
+        )
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        qs = self.get_queryset_with_balance()
-        ctx['sub_services'] = qs
-        unpaid = qs.filter(annotated_balance__gt=0)
-        ctx['unpaid_sub_services'] = unpaid  # ✅ this must match the template
         ctx['summary'] = self.compute_summary(qs)
         ctx['expenses'] = Expense.objects.all().order_by('-date')
         ctx['client_payments'] = get_all_payment_history()
         ctx['form'] = ExpenseForm()
         ctx['users'] = User.objects.all()
         return ctx
-
-    def get(self, request, *args, **kwargs):
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            start = request.GET.get('start_date')
-            end = request.GET.get('end_date')
-
-            qs = self.get_queryset_with_balance()
-            if start:
-                qs = qs.filter(added_on__date__gte=start)
-            if end:
-                qs = qs.filter(added_on__date__lte=end)
-
-            summary = self.compute_summary(qs)
-            rows = [{
-                'added_on': css.added_on.strftime('%Y-%m-%d %H:%M'),
-                'client': str(css.client_service.client),
-                'sub_service': css.sub_service.name,
-                'price': float(css.annotated_price),
-                'paid': float(css.paid_amount),
-                'balance': float(css.annotated_balance),
-                'status': 'Fully Paid' if css.annotated_balance <= 0 else 'Pending'
-            } for css in qs]
-
-            return JsonResponse({'summary': summary, 'rows': rows})
-
-        return super().get(request, *args, **kwargs)
 
     def compute_summary(self, qs):
         total_price = sum(css.annotated_price for css in qs)
@@ -453,6 +421,10 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
             'total_paid': f"{total_paid:.2f}",
             'total_balance': f"{total_balance:.2f}"
         }
+
+
+
+
 
 
 
