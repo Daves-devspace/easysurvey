@@ -126,46 +126,61 @@
 
 
                 <div class="row g-4">
-                    <!-- Revenue Analytics Card -->
-                    <div class="col-12 col-lg-6 ">
+                    <!-- Tabs + Shared Chart Area -->
+                    <div class="col-12 col-lg-6">
                         <div class="card h-100">
-                            <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                <h5 class="mb-0">Revenue Analytics</h5>
-                                <div class="d-flex gap-2">
-                                    <select id="year-selector" class="form-select form-select-sm"
-                                            style="min-width: 120px;"></select>
-                                    <button id="export-csv-btn" class="btn btn-outline-primary btn-sm"
-                                            style="min-width: 120px;">Export CSV
-                                    </button>
+                            <div class="card-header bg-green-100">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <ul class="nav nav-tabs" id="chartTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab" data-bs-target="#revenue" type="button" role="tab">Revenue</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">Service Analysis</button>
+            </li>
+        </ul>
+
+        <!-- Filters Container -->
+        <div id="revenue-filters" class="d-flex gap-2">
+            <select id="year-selector" class="form-select form-select-sm" style="min-width: 120px;"></select>
+            <button id="export-csv-btn" class="btn btn-outline-primary btn-sm" style="min-width: 120px;">Export CSV</button>
+        </div>
+
+        <div id="service-filters" class="d-flex gap-2 d-none">
+            <select id="service-year-selector" class="form-select form-select-sm" style="min-width: 120px;"></select>
+            <select id="service-selector" class="form-select form-select-sm" style="min-width: 150px;"></select>
+        </div>
+    </div>
+</div>
+
+                            <div class="card-body tab-content shadow-lg">
+                                <!-- Revenue Tab -->
+                                <div class="tab-pane fade show active" id="revenue" role="tabpanel">
+                                    <div id="survey-sales-report-chart" style="min-height: 430px;"></div>
                                 </div>
-                            </div>
-                            <div class="card-body shadow-lg">
-                                <div id="survey-sales-report-chart" style="min-height: 430px;"></div>
+                                <!-- Service Analysis Tab -->
+                                <div class="tab-pane fade" id="services" role="tabpanel">
+
+                                    <div id="chart-summary" class="mb-3">
+                                        <h6 id="summary-year" class="fw-bold"></h6>
+                                        <p id="summary-services" class="mb-1"></p>
+                                        <p id="summary-revenue"></p>
+                                    </div>
+                                    <div id="chart" style="min-height: 300px;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Services Overview Card -->
+                    <!-- Calendar or Other Right-Side Content -->
                     <div class="col-12 col-lg-6">
                         <div class="card h-100">
                             <div class="card-header bg-green-100">
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                    <h5 class="mb-0">Services Overview</h5>
-                                    <div class="d-flex gap-2">
-                                        <select id="service-year-selector" class="form-select form-select-sm"
-                                                style="min-width: 120px;"></select>
-                                        <select id="service-selector" class="form-select form-select-sm"
-                                                style="min-width: 150px;"></select>
-                                    </div>
-                                </div>
+                                <h5 class="mb-0">Calendar</h5>
                             </div>
                             <div class="card-body shadow-lg">
-                                <div id="chart-summary" class="mb-3">
-                                    <h6 id="summary-year" class="fw-bold"></h6>
-                                    <p id="summary-services" class="mb-1"></p>
-                                    <p id="summary-revenue"></p>
-                                </div>
-                                <div id="chart" style="min-height: 300px;"></div>
+                                <!-- Your calendar component here -->
+                                <div id="calendar" style="min-height: 430px;"></div>
                             </div>
                         </div>
                     </div>
@@ -177,7 +192,7 @@
                     <div class="card tbl-card shadow-lg mt-2">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Recent Payments</h5>
-                            <a href="{%  url 'accounts_dashboard' %}  ">View All</a>
+                            <a href="{% url 'accounts_dashboard' %}  ">View All</a>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
@@ -322,5 +337,25 @@
             </div>
         </div>
     </div>
+
+{% endblock %}
+{% block scripts %}
+    <script>
+    const revenueTab = document.getElementById("revenue-tab");
+    const servicesTab = document.getElementById("services-tab");
+
+    const revenueFilters = document.getElementById("revenue-filters");
+    const serviceFilters = document.getElementById("service-filters");
+
+    revenueTab.addEventListener("click", () => {
+        revenueFilters.classList.remove("d-none");
+        serviceFilters.classList.add("d-none");
+    });
+
+    servicesTab.addEventListener("click", () => {
+        serviceFilters.classList.remove("d-none");
+        revenueFilters.classList.add("d-none");
+    });
+</script>
 
 {% endblock %}

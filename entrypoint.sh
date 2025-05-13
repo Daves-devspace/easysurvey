@@ -25,10 +25,18 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
 fi
 
 
-if [ "$RUN_COLLECTSTATIC" = "true" ]; then
+if [ "$RUN_COLLECT_STATIC" = "true" ]; then
   echo "Collecting static files..."
   python manage.py collectstatic --noinput
 fi
+
+# Fix media folder permissions if it exists
+if [ -d "/app/media" ]; then
+  echo "Setting write permission for media directory..."
+  chmod -R 775 /app/media
+  chown -R django:django /app/media
+fi
+
 
 # Start the service
 exec "$@"

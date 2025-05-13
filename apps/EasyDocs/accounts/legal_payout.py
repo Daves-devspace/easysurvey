@@ -1,11 +1,19 @@
 # services/legal_payout.py
+
+from decimal import Decimal
+
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
+from django.db.models import Sum, F
+from django.http import JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views import View
+import json
+from apps.EasyDocs.models import LegalOfficePayout, ClientSubService, SubService
 
-from apps.EasyDocs.models import LegalOfficePayout, ClientSubService
 
 def create_legal_payout(subservices, paid_month):
     total = sum(s.balance for s in subservices)
@@ -19,44 +27,110 @@ def create_legal_payout(subservices, paid_month):
     return payout
 
 
-class BulkPayoutView(View):
+
+
+
+
+
+
+class BulkPayToLegalView(View):
     def post(self, request, *args, **kwargs):
-        subservice_ids = request.POST.getlist('subservices')
-        paid_month = request.POST.get('paid_month')
-
-        if not subservice_ids:
-            messages.error(request, "No sub-services selected.")
-            return redirect('accounts_dashboard')
-
-        if not paid_month:
-            messages.error(request, "Please select a payout month.")
-            return redirect('accounts_dashboard')
-
         try:
-            payout_date = parse_date(paid_month + "-01")  # Normalize to first of month
-        except Exception:
-            messages.error(request, "Invalid payout month.")
-            return redirect('accounts_dashboard')
+            data = json.loads(request.body)
+            ids = data.get('subservice_ids', [])
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON.'}, status=400)
 
-        subservices = ClientSubService.objects.filter(id__in=subservice_ids)
+        if not ids:
+            return JsonResponse({'status': 'error', 'message': '❌ No subservices selected.'}, status=400)
 
-        with transaction.atomic():
-            for sub in subservices:
-                # Example logic: only pay if balance remains
-                if sub.overridden_price and sub.paid_amount >= sub.overridden_price:
-                    continue  # already fully paid
+        # Fetch unpaid subservices
+        subs_qs = ClientSubService.objects.filter(
+            id__in=ids,
+            is_paid_to_legal_office=False
+        )
 
-                price = sub.overridden_price or sub.sub_service.price
-                sub.paid_amount = price
-                sub.save()
+        count = subs_qs.count()
+        if count == 0:
+            return JsonResponse({
+                'status': 'error',
+                'message': '❌ No valid unpaid legal subservices found in your selection.'
+            }, status=400)
 
-                # Optional: log to LegalPayout or another model
-                LegalOfficePayout.objects.create(
-                    client_sub_service=sub,
-                    amount_paid=price,
-                    paid_month=payout_date,
-                    added_by=request.user
-                )
+        # Calculate total amount to be paid
+        total = subs_qs.aggregate(total=Sum('paid_amount'))['total'] or Decimal('0.00')
 
-        messages.success(request, f"Payout successful for {len(subservices)} sub-services.")
-        return redirect('accounts_dashboard')
+        # Mark as paid
+        subs_qs.update(is_paid_to_legal_office=True)
+
+        # Convert to list for M2M assignment
+        subservices_to_add = list(subs_qs)
+
+        # Create or update monthly payout
+        month_start = timezone.now().date().replace(day=1)
+        payout, created = LegalOfficePayout.objects.get_or_create(
+            month=month_start,
+            defaults={'total_amount': total}
+        )
+        if not created:
+            payout.total_amount = F('total_amount') + total
+            payout.save()
+
+        # Link subservices to payout
+        payout.subservices.add(*subservices_to_add)
+
+        return JsonResponse({
+            'status': 'success',
+            'updated_count': count,
+            'total_paid': f"{total:.2f}"
+        })
+
+
+
+
+
+
+
+
+
+# class BulkPayoutView(View):
+#     def post(self, request, *args, **kwargs):
+#         subservice_ids = request.POST.getlist('subservices')
+#         paid_month = request.POST.get('paid_month')
+#
+#         if not subservice_ids:
+#             messages.error(request, "No sub-services selected.")
+#             return redirect('accounts_dashboard')
+#
+#         if not paid_month:
+#             messages.error(request, "Please select a payout month.")
+#             return redirect('accounts_dashboard')
+#
+#         try:
+#             payout_date = parse_date(paid_month + "-01")  # Normalize to first of month
+#         except Exception:
+#             messages.error(request, "Invalid payout month.")
+#             return redirect('accounts_dashboard')
+#
+#         subservices = ClientSubService.objects.filter(id__in=subservice_ids)
+#
+#         with transaction.atomic():
+#             for sub in subservices:
+#                 # Example logic: only pay if balance remains
+#                 if sub.overridden_price and sub.paid_amount >= sub.overridden_price:
+#                     continue  # already fully paid
+#
+#                 price = sub.overridden_price or sub.sub_service.price
+#                 sub.paid_amount = price
+#                 sub.save()
+#
+#                 # Optional: log to LegalPayout or another model
+#                 LegalOfficePayout.objects.create(
+#                     client_sub_service=sub,
+#                     amount_paid=price,
+#                     paid_month=payout_date,
+#                     added_by=request.user
+#                 )
+#
+#         messages.success(request, f"Payout successful for {len(subservices)} sub-services.")
+#         return redirect('accounts_dashboard')

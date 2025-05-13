@@ -65,13 +65,7 @@
                                         <i class="ti ti-file-text me-2"></i>Expenses
                                     </a>
                                 </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-id me-2"></i>Legal Services 💰
-                                    </a>
-                                </li>
+
                                 <li class="nav-item">
                                     <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
                                        role="tab"
@@ -223,7 +217,7 @@
 
 
                                                 <div class="card-body p-0">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
                                                         <thead class="table-success">
                                                         <tr>
                                                             <th>Date</th>
@@ -279,187 +273,7 @@
 
                                     </div>
                                 </div>
-                                <!--sub services-->
-                                <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
-                                    <div class="col-lg-12">
-                                        <div class="card">
 
-
-                                            <!-- Tabs Navigation -->
-<ul class="nav nav-tabs mb-3" id="subserviceTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-tab-pane" type="button" role="tab">
-      All Sub-services
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="unpaid-tab" data-bs-toggle="tab" data-bs-target="#unpaid-tab-pane" type="button" role="tab">
-      Unpaid Sub-services
-    </button>
-  </li>
-</ul>
-
-<!-- Tabs Content -->
-<div class="tab-content" id="subserviceTabsContent">
-
-  <!-- All Sub-services Tab -->
-  <div class="tab-pane fade show active" id="all-tab-pane" role="tabpanel">
-    <div class="table-responsive">
-      <table class="table table-bordered table-hover">
-        <thead class="table-light">
-          <tr>
-            <th>Date</th>
-            <th>Client</th>
-            <th>Sub-service</th>
-            <th>Price</th>
-            <th>Paid</th>
-            <th>Balance</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in sub_services %}
-          <tr>
-            <td>{{ item.added_on|date:"Y-m-d H:i" }}</td>
-            <td>{{ item.client_service.client }}</td>
-            <td>{{ item.sub_service.name }}</td>
-            <td>{{ item.annotated_price }}</td>
-            <td>{{ item.paid_amount }}</td>
-            <td>{{ item.annotated_balance }}</td>
-            <td>
-              {% if item.annotated_balance <= 0 %}
-              <span class="badge bg-success">Paid</span>
-              {% else %}
-              <span class="badge bg-warning text-dark">Unpaid</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Unpaid Sub-services Tab -->
-  <div class="tab-pane fade" id="unpaid-tab-pane" role="tabpanel">
-    <form id="payoutForm" method="post" action="{% url 'bulk_payout' %}">
-      {% csrf_token %}
-      <div class="table-responsive">
-        <table class="table table-bordered table-hover">
-          <thead class="table-light">
-            <tr>
-              <th><input type="checkbox" id="selectAll"></th>
-              <th>Date</th>
-              <th>Client</th>
-              <th>Sub-service</th>
-              <th>Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in unpaid_sub_services %}
-            <tr>
-              <td><input type="checkbox" name="subservices" value="{{ item.id }}" class="subservice-checkbox"></td>
-              <td>{{ item.added_on|date:"Y-m-d H:i" }}</td>
-              <td>{{ item.client_service.client }}</td>
-              <td>{{ item.sub_service.name }}</td>
-              <td>{{ item.annotated_balance }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Trigger Modal -->
-      <button type="button" class="btn btn-primary mt-3" id="openPayoutModal" disabled>
-        Bulk Pay Selected
-      </button>
-    </form>
-  </div>
-
-</div>
-
-
-                                            <div class="card-header d-flex justify-content-between">
-                                                <button class="btn btn-lg btn-success mt-3" data-bs-toggle="modal"
-                                                        data-bs-target="#payoutModal">
-                                                    Bulk Payout to Legal Office
-                                                </button>
-
-                                                <button
-                                                        id="toggleFilterBtn"
-                                                        class="btn btn-sm btn-outline-secondary mb-3"
-                                                        data-bs-toggle="collapse"
-                                                        data-bs-target="#filterPanel"
-                                                        aria-expanded="false"
-                                                        aria-controls="filterPanel">
-                                                    <i class="fas fa-filter"></i> Filter Dates
-                                                </button>
-                                            </div>
-
-
-                                            <!-- Toggle filter -->
-                                            <!-- Toggle Filter -->
-
-
-                                            <!-- Collapsible Filter Panel -->
-                                            <div id="filterPanel" class="collapse mb-4">
-
-                                                <form id="filterForm" class="row g-2 mb-3">
-                                                    <div class="col-auto">
-                                                        <input type="month" name="start_date" class="form-control">
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <input type="month" name="end_date" class="form-control">
-                                                    </div>
-                                                    <div class="col-auto">
-                                                        <button class="btn btn-primary">Filter</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-
-
-                                            <!-- Summary cards -->
-                                            <div class="row mb-4">
-                                                <div class="col-md-4">
-                                                    <div class="card shadow">
-                                                        <div class="card-body text-success">
-                                                            Total Payable:<br>
-                                                            <strong id="summaryTotalPrice">KES {{ summary.total_price }}</strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="card shadow">
-                                                        <div class="card-body text-primary">
-                                                            Total Paid:<br>
-                                                            <strong id="summaryTotalPaid">KES {{ summary.total_paid }}</strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="card shadow">
-                                                        <div class="card-body text-danger">
-                                                            Balance:<br>
-                                                            <strong id="summaryTotalBalance">KES {{ summary.total_balance }}</strong>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Sub-service table -->
-
-
-                                            <div class="card-body p-0">
-                                                <div id="subservices-section">
-                                                    {% include "Management/partials/_subservices_table.html" %}
-                                                </div>
-
-                                            </div>
-
-
-                                        </div>
-                                    </div>
-                                </div>
                                 <!--/analytics-->
                                 <div class="tab-pane" id="profile-4" role="tabpanel" aria-labelledby="profile-tab-4">
                                     <div class="row">
@@ -537,38 +351,12 @@
     <!-- [ Main Content ] end -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Payout Modal -->
-    <div class="modal fade" id="payoutModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content" id="payoutModalContent">
-                {% include "Management/partials/_legal_payout_form.html" with form=payout_form %}
-            </div>
-        </div>
-    </div>
-<!-- Bulk Payout Modal -->
-<div class="modal fade" id="payoutModal" tabindex="-1" aria-labelledby="payoutModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="payoutModalLabel">Confirm Bulk Payout</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p>You are about to pay <strong><span id="selectedCount">0</span></strong> sub-service(s).</p>
-        <p>Total balance: <strong>KES <span id="totalBalance">0.00</span></strong></p>
-        <div class="mb-3">
-          <label for="payoutMonth" class="form-label">Payout Month</label>
-          <input type="month" class="form-control" name="paid_month" id="payoutMonth" required form="payoutForm">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary" form="payoutForm">Confirm & Pay</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 
+
+
+{% endblock %}
+{% block scripts %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
@@ -605,63 +393,6 @@
             });
         });
     </script>
-
-
-{% endblock %}
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const selectAll = document.getElementById('selectAll');
-  const checkboxes = document.querySelectorAll('.subservice-checkbox');
-  const openModalBtn = document.getElementById('openPayoutModal');
-  const payoutModal = new bootstrap.Modal(document.getElementById('payoutModal'));
-  const selectedCountEl = document.getElementById('selectedCount');
-  const totalBalanceEl = document.getElementById('totalBalance');
-
-  // Store balances by row for quick lookup
-  const balanceMap = {};
-  checkboxes.forEach(checkbox => {
-    const row = checkbox.closest('tr');
-    const balance = parseFloat(row.querySelector('td:last-child').innerText);
-    balanceMap[checkbox.value] = balance;
-  });
-
-  function updateButtonState() {
-    const selected = Array.from(checkboxes).filter(cb => cb.checked);
-    openModalBtn.disabled = selected.length === 0;
-  }
-
-  function calculateTotalBalance() {
-    const selected = Array.from(checkboxes).filter(cb => cb.checked);
-    let total = 0;
-    selected.forEach(cb => {
-      total += balanceMap[cb.value] || 0;
-    });
-    return { count: selected.length, total };
-  }
-
-  // Checkbox event listeners
-  checkboxes.forEach(cb => {
-    cb.addEventListener('change', () => {
-      updateButtonState();
-    });
-  });
-
-  // Select all logic
-  selectAll.addEventListener('change', (e) => {
-    checkboxes.forEach(cb => cb.checked = e.target.checked);
-    updateButtonState();
-  });
-
-  // Open modal and display totals
-  openModalBtn.addEventListener('click', () => {
-    const { count, total } = calculateTotalBalance();
-    selectedCountEl.textContent = count;
-    totalBalanceEl.textContent = total.toFixed(2);
-    payoutModal.show();
-  });
-});
-</script>
 
 {% endblock %}
 

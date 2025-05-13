@@ -122,11 +122,19 @@
                         <span class="pc-mtext">Communication</span>
                     </a>
                 </li>
-                <li class="pc-item">
-                    <a href="{% url 'accounts_dashboard' %}" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-report-money"></i></span>
-                        <span class="pc-mtext">Accounts</span>
-                    </a>
+                <li class="pc-item pc-caption">
+                    <label>Account</label>
+                    <i class="ti ti-report-money"></i>
+                </li>
+                <li class="pc-item pc-hasmenu">
+                    <a href="#!" class="pc-link"><span class="pc-micon"><i class="ti ti-report-money"></i></span><span
+                            class="pc-mtext">Accounts</span><span class="pc-arrow"><i data-feather="chevron-right"></i></span></a>
+                    <ul class="pc-submenu">
+                        <li class="pc-item"><a class="pc-link" href="{% url 'accounts_dashboard' %}">Payments</a></li>
+                        <li class="pc-item"><a class="pc-link" href="{% url 'subservices_status' %}">Legal Services</a>
+                        </li>
+
+                    </ul>
                 </li>
                 <li class="pc-item">
                     <a href="{% url 'employee_list' %}" class="pc-link">
@@ -159,64 +167,16 @@
                     </a>
                 </li>
 
-                <li class="pc-item pc-caption">
-                    <label>Other</label>
-                    <i class="ti ti-brand-chrome"></i>
-                </li>
-                <li class="pc-item pc-hasmenu">
-                    <a href="#!" class="pc-link"><span class="pc-micon"><i class="ti ti-menu"></i></span><span
-                            class="pc-mtext">Menu
-              levels</span><span class="pc-arrow"><i data-feather="chevron-right"></i></span></a>
-                    <ul class="pc-submenu">
-                        <li class="pc-item"><a class="pc-link" href="#!">Level 2.1</a></li>
-                        <li class="pc-item pc-hasmenu">
-                            <a href="#!" class="pc-link">Level 2.2<span class="pc-arrow"><i
-                                    data-feather="chevron-right"></i></span></a>
-                            <ul class="pc-submenu">
-                                <li class="pc-item"><a class="pc-link" href="#!">Level 3.1</a></li>
-                                <li class="pc-item"><a class="pc-link" href="#!">Level 3.2</a></li>
-                                <li class="pc-item pc-hasmenu">
-                                    <a href="#!" class="pc-link">Level 3.3<span class="pc-arrow"><i
-                                            data-feather="chevron-right"></i></span></a>
-                                    <ul class="pc-submenu">
-                                        <li class="pc-item"><a class="pc-link" href="#!">Level 4.1</a></li>
-                                        <li class="pc-item"><a class="pc-link" href="#!">Level 4.2</a></li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </li>
-                        <li class="pc-item pc-hasmenu">
-                            <a href="#!" class="pc-link">Level 2.3<span class="pc-arrow"><i
-                                    data-feather="chevron-right"></i></span></a>
-                            <ul class="pc-submenu">
-                                <li class="pc-item"><a class="pc-link" href="#!">Level 3.1</a></li>
-                                <li class="pc-item"><a class="pc-link" href="#!">Level 3.2</a></li>
-                                <li class="pc-item pc-hasmenu">
-                                    <a href="#!" class="pc-link">Level 3.3<span class="pc-arrow"><i
-                                            data-feather="chevron-right"></i></span></a>
-                                    <ul class="pc-submenu">
-                                        <li class="pc-item"><a class="pc-link" href="#!">Level 4.1</a></li>
-                                        <li class="pc-item"><a class="pc-link" href="#!">Level 4.2</a></li>
-                                    </ul>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li class="pc-item">
-                    <a href="../other/sample-page.html" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-brand-chrome"></i></span>
-                        <span class="pc-mtext">Sample page</span>
-                    </a>
-                </li>
+
             </ul>
             <div class="card text-center">
-               <div class="card-body">
-                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" alt="images" class="img-fluid mb-2">
+                <div class="card-body">
+                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" alt="images"
+                         class="img-fluid mb-2">
                     <h5>🤔 Not sure what to do next? </h5>
                     <p>Our assistant is here 24/7 </p>
                     <a href="" target="_blank"
-                       class="btn btn-success">and get instant help!</a>
+                       class="btn btn-success">Start chat</a>
                 </div>
             </div>
         </div>
@@ -472,7 +432,9 @@
 {% endblock %}
 {% block extra_js %}
     <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}"></script>
-    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>
+    <script type="module" src="{% static 'assets/js/clientdetails.js' %}"></script>
+
+{#    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>#}
 {% endblock %}
 
 <footer class="pc-footer">
@@ -532,18 +494,19 @@
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
 <script>
-  $(document).ready(function () {
-    $('.datatable').DataTable({
-      responsive: true,
-      paging: true,
-      searching: true,
-      ordering: true,
-      info: true,
-        language: {
-    emptyTable: "No data found."
-  }
+    $(document).ready(function () {
+        $('.datatable').DataTable({
+            responsive: true,
+            paging: true,
+            autoWidth: false,
+            searching: true,
+            ordering: true,
+            info: true,
+            language: {
+                emptyTable: "No data found."
+            }
+        });
     });
-  });
 </script>
 
 
@@ -565,7 +528,6 @@
 <script>font_change("Public-Sans");</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 
 
 </body>

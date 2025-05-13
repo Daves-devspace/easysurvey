@@ -226,18 +226,18 @@
                                                                         </button>
                                                                     {% endif %}
                                                                     {% if perms.EasyDocs.change_clientservice %}
-                                                                    <button
-                                                                            class="btn btn-sm btn-primary edit-client-service-btn"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#editClientServiceModal"
-                                                                            data-client-service-id="{{ cs.id }}"
-                                                                            data-client-name="{{ cs.client.first_name }} {{ cs.client.last_name }}"
-                                                                            data-client-phone="{{ cs.client.phone }}"
-                                                                            data-category="{{ cs.service.category }}"
-                                                                            data-service-id="{{ cs.service.id }}"
-                                                                            data-land-description="{{ cs.land_description|default_if_none:'' }}"
-                                                                            data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
-                                                                            data-ps-ids="
+                                                                        <button
+                                                                                class="btn btn-sm btn-primary edit-client-service-btn"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#editClientServiceModal"
+                                                                                data-client-service-id="{{ cs.id }}"
+                                                                                data-client-name="{{ cs.client.first_name }} {{ cs.client.last_name }}"
+                                                                                data-client-phone="{{ cs.client.phone }}"
+                                                                                data-category="{{ cs.service.category }}"
+                                                                                data-service-id="{{ cs.service.id }}"
+                                                                                data-land-description="{{ cs.land_description|default_if_none:'' }}"
+                                                                                data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
+                                                                                data-ps-ids="
                                                                                     
                                                                                     
                                                                                     
@@ -246,8 +246,17 @@
 
 
 
-                                                                                    {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                                            data-ps-costs="
+
+
+
+
+
+
+
+
+
+                                                                                        {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                                data-ps-costs="
                                                                                     
                                                                                     
                                                                                     
@@ -256,23 +265,32 @@
 
 
 
-                                                                                    {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                                    >
-                                                                        <i class="ti ti-pencil"></i> Edit
-                                                                    </button>
-                                                                {% endif %}
 
-                                    {% if perms.EasyDocs.delete_clientservice %}
 
-                                                                    <button
-                                                                            class="btn btn-sm btn-danger"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#deleteClientServiceModal"
-                                                                            data-csid="{{ cs.id }}"
-                                                                            data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}">
-                                                                        <i class="ti ti-trash"></i>
-                                                                    </button>
-                                                                {% endif %}
+
+
+
+
+
+
+
+                                                                                        {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                        >
+                                                                            <i class="ti ti-pencil"></i> Edit
+                                                                        </button>
+                                                                    {% endif %}
+
+                                                                    {% if perms.EasyDocs.delete_clientservice %}
+
+                                                                        <button
+                                                                                class="btn btn-sm btn-danger"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#deleteClientServiceModal"
+                                                                                data-csid="{{ cs.id }}"
+                                                                                data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}">
+                                                                            <i class="ti ti-trash"></i>
+                                                                        </button>
+                                                                    {% endif %}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -329,134 +347,150 @@
                                                             {# —————————————————————— #}
                                                             {#     Processes Table       #}
                                                             {# —————————————————————— #}
-                                                            <h6 class="mt-4">Processes:</h6>
-                                                            <div class="table-responsive">
-                                                                <table class="table table-bordered table-sm align-middle">
-                                                                    <thead class="table-light">
-                                                                    <tr>
-                                                                        <th>#</th>
-                                                                        <th>Process</th>
-                                                                        <th>Cost (KSH)</th>
-                                                                        <th>Status</th>
-                                                                        <th>Update</th>
-                                                                        <th>Paid</th>
-                                                                        <th>Pending</th>
-                                                                        <th>Service Balance</th>
-                                                                        <th>Completed At</th>
-                                                                    </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                    {% if cs.service_processes.all %}
-                                                                        {% for sp in cs.service_processes.all %}
-                                                                            <tr>
-                                                                                <td>{{ forloop.counter }}</td>
-                                                                                <td>{{ sp.process.name }}</td>
-                                                                                <td>{{ sp.process.cost }}</td>
-                                                                                <td>
+                                                            {% if cs.service.category == "title" %}
+                                                                <h6 class="mt-4">Processes:</h6>
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-bordered table-sm align-middle">
+                                                                        <thead class="table-light">
+                                                                        <tr>
+                                                                            <th>#</th>
+                                                                            <th>Process</th>
+                                                                            <th>Cost (KSH)</th>
+                                                                            <th>Status</th>
+                                                                            <th>Update</th>
+                                                                            <th>Paid</th>
+                                                                            <th>Pending</th>
+                                                                            <th>Service Balance</th>
+                                                                            <th>Completed At</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                        {% if cs.service_processes.all %}
+                                                                            {% for sp in cs.service_processes.all %}
+                                                                                <tr>
+                                                                                    <td>{{ forloop.counter }}</td>
+                                                                                    <td>{{ sp.process.name }}</td>
+                                                                                    <td>{{ sp.process.cost }}</td>
+                                                                                    <td>
               <span class="badge
-                {% if sp == cs.service_processes.last and cs.title_deed_collection %}bg-info
+                {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
                 {% elif sp.status == 'completed' %}bg-success
                 {% elif sp.status == 'in_progress' %}bg-warning
                 {% else %}bg-secondary{% endif %}">
-                {% if sp == cs.service_processes.last and cs.title_deed_collection %}
+                {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}
                     Collected
                 {% else %}
                     {{ sp.get_status_display }}
                 {% endif %}
               </span>
+                                                                                    </td>
+
+                                                                                    <td>
+                                                                                        {% comment %} Determine if this is the final step {% endcomment %}
+                                                                                        {% if sp == cs.latest_process %}
+                                                                                            {% if cs.needs_collection %}
+                                                                                                {# Services requiring title‐deed flow #}
+                                                                                                {# {% if sp.status == 'completed' and not cs.title_deed_collection %}#}
+                                                                                                {% if sp.status == 'completed' and not cs.needs_collection %}
+                                                                                                    {% if perms.EasyDocs.add_titledeedcollection %}
+                                                                                                        <!-- Collect -->
+                                                                                                        <button type="button"
+                                                                                                                class="btn btn-primary btn-sm"
+                                                                                                                data-bs-toggle="modal"
+                                                                                                                data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                            <i class="bi bi-box"></i>
+                                                                                                            Collect
+                                                                                                        </button>
+                                                                                                    {% endif %}
+                                                                                                {% elif cs.has_title_deed_collection  %}
+                                                                                                    {% if perms.EasyDocs.view_titledeedcollection %}
+                                                                                                        <!-- Already collected: View -->
+                                                                                                        <button type="button"
+                                                                                                                class="btn btn-secondary btn-sm"
+                                                                                                                data-bs-toggle="modal"
+                                                                                                                data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                            <i class="bi bi-eye"></i>
+                                                                                                            View
+                                                                                                        </button>
+                                                                                                    {% endif %}
+                                                                                                {% else %}
+                                                                                                    {% if perms.EasyDocs.change_clientprocess %}
+                                                                                                        <!-- Final step not yet completed: Confirm -->
+                                                                                                        <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                              method="POST"
+                                                                                                              class="d-inline">
+                                                                                                            {% csrf_token %}
+                                                                                                            <button class="btn btn-sm btn-success"
+                                                                                                                    type="submit">
+                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                                Confirm
+                                                                                                            </button>
+                                                                                                        </form>
+                                                                                                    {% endif %}
+                                                                                                {% endif %}
+                                                                                            {% else %}
+                                                                                                {# Non‑title services just get Complete/Done #}
+                                                                                                {% if sp.status != 'completed' %}
+                                                                                                    {% if perms.EasyDocs.change_clientprocess %}
+                                                                                                        <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                              method="POST"
+                                                                                                              class="d-inline">
+                                                                                                            {% csrf_token %}
+                                                                                                            <button class="btn btn-sm btn-success"
+                                                                                                                    type="submit">
+                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                                Complete
+                                                                                                            </button>
+                                                                                                        </form>
+                                                                                                    {% endif %}
+                                                                                                {% else %}
+                                                                                                    <span class="text-muted small">Done</span>
+                                                                                                {% endif %}
+                                                                                            {% endif %}
+                                                                                        {% elif sp.status == 'in_progress' %}
+                                                                                            {# In‑progress non‑last steps always get Complete #}
+                                                                                            {% if perms.EasyDocs.change_clientprocess %}
+                                                                                                <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                      method="POST"
+                                                                                                      class="d-inline">
+                                                                                                    {% csrf_token %}
+                                                                                                    <button class="btn btn-sm btn-success"
+                                                                                                            type="submit">
+                                                                                                        <i class="bi bi-check-circle"></i>
+                                                                                                        Complete
+                                                                                                    </button>
+                                                                                                </form>
+                                                                                            {% endif %}
+                                                                                        {% else %}
+                                                                                            <span class="text-muted small"><i
+                                                                                                    class="ti ti-list-check"></i></span>
+                                                                                        {% endif %}
+                                                                                    </td>
+
+
+                                                                                    <td>{{ sp.total_paid }}</td>
+                                                                                    <td>{{ sp.pending_amount }}</td>
+                                                                                    <td>{{ cs.total_balance }}</td>
+                                                                                    <td>{{ sp.completed_at|date:"M d, Y" }}</td>
+                                                                                </tr>
+                                                                            {% endfor %}
+                                                                        {% else %}
+                                                                            <tr>
+                                                                                <td colspan="9"
+                                                                                    class="text-center text-muted py-3">
+                                                                                    No processes available.
                                                                                 </td>
-
-                                                                               <td>
-    {% comment %} Determine if this is the final step {% endcomment %}
-    {% if sp == cs.latest_process %}
-        {% if cs.needs_collection %}
-            {# Services requiring title‐deed flow #}
-            {% if sp.status == 'completed' and not cs.title_deed_collection %}
-                {% if perms.EasyDocs.add_titledeedcollection %}
-                    <!-- Collect -->
-                    <button type="button"
-                            class="btn btn-primary btn-sm"
-                            data-bs-toggle="modal"
-                            data-bs-target="#collectModal{{ cs.id }}">
-                        <i class="bi bi-box"></i> Collect
-                    </button>
-                {% endif %}
-            {% elif cs.title_deed_collection %}
-                {% if perms.EasyDocs.view_titledeedcollection %}
-                    <!-- Already collected: View -->
-                    <button type="button"
-                            class="btn btn-secondary btn-sm"
-                            data-bs-toggle="modal"
-                            data-bs-target="#collectModal{{ cs.id }}">
-                        <i class="bi bi-eye"></i> View
-                    </button>
-                {% endif %}
-            {% else %}
-                {% if perms.EasyDocs.change_clientprocess %}
-                    <!-- Final step not yet completed: Confirm -->
-                    <form action="{% url 'mark_process_completed' sp.id %}"
-                          method="POST"
-                          class="d-inline">
-                        {% csrf_token %}
-                        <button class="btn btn-sm btn-success" type="submit">
-                            <i class="bi bi-check-circle"></i> Confirm
-                        </button>
-                    </form>
-                {% endif %}
-            {% endif %}
-        {% else %}
-            {# Non‑title services just get Complete/Done #}
-            {% if sp.status != 'completed' %}
-                {% if perms.EasyDocs.change_clientprocess %}
-                    <form action="{% url 'mark_process_completed' sp.id %}"
-                          method="POST"
-                          class="d-inline">
-                        {% csrf_token %}
-                        <button class="btn btn-sm btn-success" type="submit">
-                            <i class="bi bi-check-circle"></i> Complete
-                        </button>
-                    </form>
-                {% endif %}
-            {% else %}
-                <span class="text-muted small">Done</span>
-            {% endif %}
-        {% endif %}
-    {% elif sp.status == 'in_progress' %}
-        {# In‑progress non‑last steps always get Complete #}
-        {% if perms.EasyDocs.change_clientprocess %}
-            <form action="{% url 'mark_process_completed' sp.id %}"
-                  method="POST"
-                  class="d-inline">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-success" type="submit">
-                    <i class="bi bi-check-circle"></i> Complete
-                </button>
-            </form>
-        {% endif %}
-    {% else %}
-        <span class="text-muted small"><i class="ti ti-list-check"></i></span>
-    {% endif %}
-</td>
-
-
-
-                                                                                <td>{{ sp.total_paid }}</td>
-                                                                                <td>{{ sp.pending_amount }}</td>
-                                                                                <td>{{ cs.total_balance }}</td>
-                                                                                <td>{{ sp.completed_at|date:"M d, Y" }}</td>
                                                                             </tr>
-                                                                        {% endfor %}
-                                                                    {% else %}
-                                                                        <tr>
-                                                                            <td colspan="9"
-                                                                                class="text-center text-muted py-3">
-                                                                                No processes available.
-                                                                            </td>
-                                                                        </tr>
-                                                                    {% endif %}
-                                                                    </tbody>
-                                                                </table>
-                                                            </div>
+                                                                        {% endif %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if cs.service.category == "ground" %}
+                                                                {% include "Management/partials/booking_row.html" %}
+
+
+                                                            {% endif %}
 
 
                                                             {# —————————————————————— #}
@@ -474,11 +508,11 @@
                                                                         <th>Pending</th>
                                                                         <th>paymentStatus</th>
                                                                         {% if perms.EasyDocs.change_clientsubservice %}
-                                                                        <th>edit</th>
+                                                                            <th>edit</th>
                                                                         {% endif %}
                                                                         {% if perms.EasyDocs.delete_clientsubservice %}
-                                                                        <th>delete</th>
-                                                                    {% endif %}
+                                                                            <th>delete</th>
+                                                                        {% endif %}
                                                                     </tr>
                                                                     </thead>
                                                                     <tbody>
@@ -500,33 +534,33 @@
                                                                                         <span class="badge bg-warning text-dark">Pending</span>
                                                                                     {% endif %}
                                                                                 </td>
-                                                                            {% if perms.EasyDocs.change_clientsubservice %}
-                                                                                <td>
-                                                                                    <button class="btn btn-sm btn-outline-primary"
-                                                                                            data-bs-toggle="modal"
-                                                                                            data-bs-target="#editSubServiceModal"
-                                                                                            data-client-subservice-id="{{ ss.id }}"
-                                                                                            data-client-service-id="{{ cs.id }}"
-                                                                                            data-subservice-name="{{ ss.sub_service.name }}"
-                                                                                            data-service-name="{{ cs.service.name }}"
-                                                                                            data-department="{{ ss.sub_service.department }}"
-                                                                                            data-overridden-price="{{ ss.price|floatformat:2 }}">
-                                                                                        <i class="ti ti-pencil"></i>
-                                                                                    </button>
+                                                                                {% if perms.EasyDocs.change_clientsubservice %}
+                                                                                    <td>
+                                                                                        <button class="btn btn-sm btn-outline-primary"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#editSubServiceModal"
+                                                                                                data-client-subservice-id="{{ ss.id }}"
+                                                                                                data-client-service-id="{{ cs.id }}"
+                                                                                                data-subservice-name="{{ ss.sub_service.name }}"
+                                                                                                data-service-name="{{ cs.service.name }}"
+                                                                                                data-department="{{ ss.sub_service.department }}"
+                                                                                                data-overridden-price="{{ ss.price|floatformat:2 }}">
+                                                                                            <i class="ti ti-pencil"></i>
+                                                                                        </button>
 
-                                                                                </td>
-                                                                            {% endif %}
-                                                                            {% if perms.EasyDocs.delete_clientsubservice %}
-                                                                                <td>
-                                                                                    <button class="btn btn-sm btn-outline-danger delete-subservice-btn"
-                                                                                            data-bs-toggle="modal"
-                                                                                            data-bs-target="#deleteSubServiceModal"
-                                                                                            data-client-subservice-id="{{ ss.id }}"
-                                                                                            data-csinfo="{{ ss.sub_service.name }} — {{ ss.client_service.land_description }}">
-                                                                                        <i class="ti ti-trash"></i>
-                                                                                    </button>
-                                                                                </td>
-                                                                            {% endif %}
+                                                                                    </td>
+                                                                                {% endif %}
+                                                                                {% if perms.EasyDocs.delete_clientsubservice %}
+                                                                                    <td>
+                                                                                        <button class="btn btn-sm btn-outline-danger delete-subservice-btn"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#deleteSubServiceModal"
+                                                                                                data-client-subservice-id="{{ ss.id }}"
+                                                                                                data-csinfo="{{ ss.sub_service.name }} — {{ ss.client_service.land_description }}">
+                                                                                            <i class="ti ti-trash"></i>
+                                                                                        </button>
+                                                                                    </td>
+                                                                                {% endif %}
                                                                             </tr>
                                                                         {% endfor %}
                                                                     {% else %}
@@ -563,16 +597,16 @@
                                                                     aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">
-                                                            {% if cs.title_deed_collection %}
+                                                            {% if cs.has_title_deed_collection %}
                                                                 <div class="alert alert-warning text-start">
                                                                     <strong>Already
                                                                         Collected</strong><br>
                                                                     Collected by:
-                                                                    <strong>{{ cs.title_deed_collection.collected_by }}</strong><br>
-                                                                    ID: {{ cs.title_deed_collection.id_number }}<br>
-                                                                    Phone: {{ cs.title_deed_collection.phone_number }}<br>
+                                                                    <strong>{{ cs.has_title_deed_collection.collected_by }}</strong><br>
+                                                                    ID: {{ cs.has_title_deed_collection.id_number }}<br>
+                                                                    Phone: {{ cs.has_title_deed_collection.phone_number }}<br>
                                                                     Collected
-                                                                    on: {{ cs.title_deed_collection.collected_at|date:"M d, Y H:i" }}
+                                                                    on: {{ cs.has_title_deed_collection.collected_at|date:"M d, Y H:i" }}
                                                                 </div>
                                                             {% else %}
                                                                 <form method="POST"
@@ -601,12 +635,12 @@
                                                                 </form>
                                                             {% endif %}
                                                         </div>
-                                                        {% if cs.title_deed_collection %}
+                                                        {% if cs.has_title_deed_collection %}
                                                             <div class="modal-footer">
                                                                 <small class="text-muted">
                                                                     Submitted by:
-                                                                    {% if cs.title_deed_collection.submitted_by %}
-                                                                        {{ cs.title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
+                                                                    {% if cs.has_title_deed_collection.submitted_by %}
+                                                                        {{ cs.has_title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
                                                                     {% else %}
                                                                         <em>Unknown user</em>
                                                                     {% endif %}
@@ -628,7 +662,7 @@
                     <div class="tab-pane" id="profile-2" role="tabpanel"
                          aria-labelledby="profile-tab-2">
                         <div class="row">
-                        <div class="col-lg-4 col-xxl-3">
+                            <div class="col-lg-4 col-xxl-3">
                                 <div class="card">
                                     <div class="card-body position-relative">
                                         <div class="position-absolute end-0 top-0 p-3">
@@ -1042,44 +1076,44 @@
                                             </div>
 
                                             <!-- Filter Panel -->
-                                            <div class="card-body p-3 collapse" id="filterPanel">
-                                                <form id="filterForm" class="row g-3 align-items-end"
-                                                      method="get">
-                                                    <div class="col-md-5">
-                                                        <label for="serviceFilter" class="form-label">Service</label>
-                                                        <select name="service" id="serviceFilter"
-                                                                class="form-select">
-                                                            <option value="">All Services</option>
-                                                            {% for cs in all_services %}
-                                                                <option value="{{ cs.id }}"
-                                                                        {% if request.GET.service == cs.id|stringformat:"s" %}selected{% endif %}>
-                                                                    {{ cs.service.name }}
-                                                                    – {{ cs.land_description }}
-                                                                </option>
-                                                            {% endfor %}
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label for="startDateFilter" class="form-label">Start
-                                                            Date</label>
-                                                        <input type="date" name="start_date"
-                                                               id="startDateFilter" class="form-control"
-                                                               value="{{ request.GET.start_date }}">
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label for="endDateFilter" class="form-label">End
-                                                            Date</label>
-                                                        <input type="date" name="end_date"
-                                                               id="endDateFilter" class="form-control"
-                                                               value="{{ request.GET.end_date }}">
-                                                    </div>
-                                                    <div class="col-md-1 text-end">
-                                                        <button type="submit"
-                                                                class="btn btn-primary w-100">Go
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
+{#                                            <div class="card-body p-3 collapse" id="filterPanel">#}
+{#                                                <form id="filterForm" class="row g-3 align-items-end"#}
+{#                                                      method="get">#}
+{#                                                    <div class="col-md-5">#}
+{#                                                        <label for="serviceFilter" class="form-label">Service</label>#}
+{#                                                        <select name="service" id="serviceFilter"#}
+{#                                                                class="form-select">#}
+{#                                                            <option value="">All Services</option>#}
+{#                                                            {% for cs in all_services %}#}
+{#                                                                <option value="{{ cs.id }}"#}
+{#                                                                        {% if request.GET.service == cs.id|stringformat:"s" %}selected{% endif %}>#}
+{#                                                                    {{ cs.service.name }}#}
+{#                                                                    – {{ cs.land_description }}#}
+{#                                                                </option>#}
+{#                                                            {% endfor %}#}
+{#                                                        </select>#}
+{#                                                    </div>#}
+{#                                                    <div class="col-md-3">#}
+{#                                                        <label for="startDateFilter" class="form-label">Start#}
+{#                                                            Date</label>#}
+{#                                                        <input type="date" name="start_date"#}
+{#                                                               id="startDateFilter" class="form-control"#}
+{#                                                               value="{{ request.GET.start_date }}">#}
+{#                                                    </div>#}
+{#                                                    <div class="col-md-3">#}
+{#                                                        <label for="endDateFilter" class="form-label">End#}
+{#                                                            Date</label>#}
+{#                                                        <input type="date" name="end_date"#}
+{#                                                               id="endDateFilter" class="form-control"#}
+{#                                                               value="{{ request.GET.end_date }}">#}
+{#                                                    </div>#}
+{#                                                    <div class="col-md-1 text-end">#}
+{#                                                        <button type="submit"#}
+{#                                                                class="btn btn-primary w-100">Go#}
+{#                                                        </button>#}
+{#                                                    </div>#}
+{#                                                </form>#}
+{#                                            </div>#}
 
                                             <!-- Payment History Table -->
                                             <div class="card-body p-0"
@@ -1248,61 +1282,12 @@
                                 </div>
                             </div>
 
-                            <!-- Embed initial grouped_payments as JSON -->
-                            {{ grouped_payments|json_script:"gpData" }}
+{#                            <!-- Embed initial grouped_payments as JSON -->#}
+{#                            {{ grouped_payments|json_script:"gpData" }}#}
 
 
                         </div>
 
-                        <!-- FILTER MODAL (shared) -->
-                        <div class="modal fade" id="filterModal" tabindex="-1"
-                             aria-labelledby="filterModalLabel" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="filterModalLabel">Filter
-                                            Options</h5>
-                                        <button type="button" class="btn-close"
-                                                data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <form method="get" class="row g-3 align-items-end">
-                                            <div class="col-md-4">
-                                                <label for="service" class="form-label">Service</label>
-                                                <select name="service" id="service" class="form-select">
-                                                    <option value="">All Services</option>
-                                                    {% for cs in all_services %}
-                                                        <option value="{{ service.id }}"
-                                                                {% if request.GET.service == service.id|stringformat:"s" %}selected{% endif %}>
-                                                            {{ cs.service.name }}-{{ cs.land_description }}
-                                                        </option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label for="start_date" class="form-label">Start
-                                                    Date</label>
-                                                <input type="date" name="start_date" id="start_date"
-                                                       class="form-control"
-                                                       value="{{ request.GET.start_date }}">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label for="end_date" class="form-label">End
-                                                    Date</label>
-                                                <input type="date" name="end_date" id="end_date"
-                                                       class="form-control"
-                                                       value="{{ request.GET.end_date }}">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <button type="submit" class="btn btn-primary w-100">
-                                                    Apply
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
 
                     </div>
@@ -1405,11 +1390,11 @@
 </div>
 
     <!-- Add Client Service Modal -->
-    <div class="modal fade" id="addClientServiceModal" tabindex="-1"
+    <div class="modal fade" data-client-name="{{ client.first_name }}" id="addClientServiceModal" tabindex="-1"
          aria-labelledby="addClientServiceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-service' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="add_client_service" value="1">
                     <input type="hidden" name="client" value="{{ client.id }}">
@@ -1479,6 +1464,22 @@
                             {{ client_service_form.land_description.label_tag }}
                             {{ client_service_form.land_description }}
                         </div>
+                        <!-- inside both Add & Edit modals, below land description -->
+                        <!-- Instead of manual markup, do this: -->
+                        <div id="groundFields" style="display:none; margin-top:1rem;">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    {{ client_service_form.scheduled_date.label_tag }}
+                                    {{ client_service_form.scheduled_date }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ client_service_form.dispatch_preview.label_tag }}
+                                    {{ client_service_form.dispatch_preview }}
+                                </div>
+                            </div>
+                        </div>
+
+
                     </div>
 
                     <div class="modal-footer">
@@ -1493,11 +1494,11 @@
         </div>
     </div>
     <!-- Edit Client Service Modal -->
-    <div class="modal fade" id="editClientServiceModal" tabindex="-1"
+    <div class="modal fade" id="editClientServiceModal" data-client-name="{{ client.first_name }}" tabindex="-1"
          aria-labelledby="editClientServiceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-service' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="edit_client_service" value="1">
                     <input type="hidden" name="client" value="{{ client.id }}">
@@ -1576,6 +1577,22 @@
                             <textarea name="land_description" id="editLandDescription" class="form-control"
                                       rows="3"></textarea>
                         </div>
+                        <!-- inside both Add & Edit modals, below land description -->
+                        <!-- Instead of manual markup, do this: -->
+                        <div id="groundFields" style="display:none; margin-top:1rem;">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    {{ client_service_form.scheduled_date.label_tag }}
+                                    {{ client_service_form.scheduled_date }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ client_service_form.dispatch_preview.label_tag }}
+                                    {{ client_service_form.dispatch_preview }}
+                                </div>
+                            </div>
+                        </div>
+
+
                     </div>
 
                     <div class="modal-footer">
@@ -1591,12 +1608,14 @@
     </div>
 
 
+
+
     <!-- Delete Client Service Modal -->
     <div class="modal fade" id="deleteClientServiceModal" tabindex="-1"
          aria-labelledby="deleteClientServiceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-delete-service' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="delete_client_service" value="1">
                     <input type="hidden" name="client_service_id" id="deleteClientServiceId">
@@ -1627,7 +1646,7 @@
          aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-add-subservice' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="add_client_subservice" value="1">
                     <input type="hidden" id="modal_service_id" name="client_service" value="">
@@ -1700,7 +1719,7 @@
          aria-labelledby="editSubServiceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-edit-subservice' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="edit_client_subservice" value="1">
                     <input type="hidden" name="client_subservice_id" id="editSubServiceId">
@@ -1748,7 +1767,7 @@
          aria-labelledby="deleteSubServiceModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client_details' client.id %}">
+                <form method="POST" action="{% url 'client-delete-subservice' client.id %}">
                     {% csrf_token %}
                     <input type="hidden" name="delete_client_subservice" value="1">
                     <input type="hidden" name="client_subservice_id" id="deleteSubServiceId">
@@ -1888,255 +1907,11 @@
     </div>
 
 
-    {#                <script>#}
-    {#                    async function loadServicesByCategory(category, serviceSelect) {#}
-    {#                        serviceSelect.innerHTML = "<option>Loading…</option>";#}
-    {#                        const res = await fetch(`/services/by-category/?category=${category}`);#}
-    {#                        const json = await res.json();#}
-    {##}
-    {#                        serviceSelect.innerHTML = `<option value="">Select Service</option>`;#}
-    {#                        json.services.forEach(s =>#}
-    {#                            serviceSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`#}
-    {#                        );#}
-    {#                    }#}
-    {##}
-    {#                    async function loadProcessesForService(serviceId, modalEl, skipListeners = false) {#}
-    {#                        const procSec = modalEl.querySelector(".processCostSection");#}
-    {#                        const procBody = modalEl.querySelector(".processTableBody");#}
-    {#                        const totalEls = modalEl.querySelectorAll(".totalCost");#}
-    {#                        const overSec = modalEl.querySelector(".totalPriceOverride");#}
-    {#                        const overInput = modalEl.querySelector(".overrideTotalPrice");#}
-    {##}
-    {#                        const res = await fetch(`/get_service_processes/${serviceId}/`);#}
-    {#                        const data = await res.json();#}
-    {##}
-    {#                        procBody.innerHTML = "";#}
-    {#                        let total = 0;#}
-    {##}
-    {#                        if (data.processes.length) {#}
-    {#                            overSec.style.display = "none";#}
-    {#                            procSec.style.display = "block";#}
-    {#                            data.processes.forEach(p => {#}
-    {#                                total += p.default_cost;#}
-    {#                                procBody.innerHTML += `#}
-    {#                <tr>#}
-    {#                    <td>${p.name}#}
-    {#                        <input type="hidden" name="process_id[]" value="${p.id}">#}
-    {#                    </td>#}
-    {#                    <td>#}
-    {#                        <input type="number" name="process_cost[]" class="form-control cost-input" step="0.01" value="${p.default_cost}">#}
-    {#                    </td>#}
-    {#                </tr>`;#}
-    {#                            });#}
-    {#                        } else {#}
-    {#                            procSec.style.display = "none";#}
-    {#                            overSec.style.display = "block";#}
-    {#                            overInput.value = data.total_price;#}
-    {#                            total = data.total_price;#}
-    {#                        }#}
-    {##}
-    {#                        totalEls.forEach(el => el.textContent = total.toFixed(2));#}
-    {##}
-    {#                        // Only set up listeners if not skipped (for initial edit load)#}
-    {#                        if (!skipListeners) {#}
-    {#                            modalEl.querySelectorAll(".cost-input").forEach(inp => {#}
-    {#                                inp.addEventListener("input", () => {#}
-    {#                                    let sum = 0;#}
-    {#                                    modalEl.querySelectorAll(".cost-input").forEach(c => {#}
-    {#                                        sum += parseFloat(c.value || 0);#}
-    {#                                    });#}
-    {#                                    totalEls.forEach(el => el.textContent = sum.toFixed(2));#}
-    {#                                });#}
-    {#                            });#}
-    {#                        }#}
-    {##}
-    {#                        return data;#}
-    {#                    }#}
-    {##}
-    {##}
-    {#                    function initServiceModal(modalSelector) {#}
-    {#                        const modalEl = document.querySelector(modalSelector);#}
-    {#                        if (!modalEl) return;#}
-    {##}
-    {#                        const catSel = modalEl.querySelector("[name='category']");#}
-    {#                        const svcSel = modalEl.querySelector("[name='service']");#}
-    {##}
-    {#                        catSel.addEventListener("change", async () => {#}
-    {#                            await loadServicesByCategory(catSel.value, svcSel);#}
-    {#                        });#}
-    {##}
-    {#                        svcSel.addEventListener("change", async () => {#}
-    {#                            await loadProcessesForService(svcSel.value, modalEl);#}
-    {#                        });#}
-    {#                    }#}
-    {##}
-    {#                    async function bindEditButton(btn) {#}
-    {#                        btn.addEventListener("click", async () => {#}
-    {#                            const modal = document.getElementById("editClientServiceModal");#}
-    {##}
-    {#                            const svId = btn.dataset.serviceId;#}
-    {#                            const ctg = btn.dataset.category;#}
-    {#                            const csId = btn.dataset.clientServiceId;#}
-    {#                            const land = btn.dataset.landDescription || "";#}
-    {#                            const overrideTotal = btn.dataset.overrideTotal || "";#}
-    {##}
-    {#                            const psIds = (btn.dataset.psIds || "")#}
-    {#                                .split(",")#}
-    {#                                .map(x => x.trim());#}
-    {#                            const psCosts = (btn.dataset.psCosts || "")#}
-    {#                                .split(",")#}
-    {#                                .map(x => parseFloat(x.trim() || 0));#}
-    {##}
-    {#                            document.getElementById("editClientServiceId").value = csId;#}
-    {#                            document.getElementById("editClientName").value = "{{ client.first_name }} {{ client.last_name }}";#}
-    {#                            document.getElementById("editClientPhone").value = "{{ client.phone }}";#}
-    {#                            document.getElementById("editLandDescription").value = land;#}
-    {##}
-    {#                            const catSel = document.getElementById("editCategory");#}
-    {#                            const svcSel = document.getElementById("editService");#}
-    {##}
-    {#                            catSel.value = ctg;#}
-    {#                            await loadServicesByCategory(ctg, svcSel);#}
-    {##}
-    {#                            svcSel.value = svId;#}
-    {#                            const data = await loadProcessesForService(svId, modal, true); // skipListeners = true#}
-    {##}
-    {#                            // Override custom process costs#}
-    {#                            if (data.processes.length && psIds.length && psCosts.length) {#}
-    {#                                psIds.forEach((id, i) => {#}
-    {#                                    const input = modal.querySelector(`input[name="process_id[]"][value="${id}"]`);#}
-    {#                                    if (input) {#}
-    {#                                        const costInput = input.closest("tr").querySelector('input[name="process_cost[]"]');#}
-    {#                                        if (costInput) costInput.value = psCosts[i];#}
-    {#                                    }#}
-    {#                                });#}
-    {##}
-    {#                                let sum = psCosts.reduce((a, c) => a + (parseFloat(c) || 0), 0);#}
-    {#                                document.querySelectorAll(".totalCost").forEach(el => el.textContent = sum.toFixed(2));#}
-    {#                            } else {#}
-    {#                                document.getElementById("editOverrideTotalPrice").value = overrideTotal;#}
-    {#                            }#}
-    {##}
-    {#                            // Add input listeners to update total when changing costs#}
-    {#                            modal.querySelectorAll(".cost-input").forEach(inp => {#}
-    {#                                inp.addEventListener("input", () => {#}
-    {#                                    let sum = 0;#}
-    {#                                    modal.querySelectorAll(".cost-input").forEach(c => {#}
-    {#                                        sum += parseFloat(c.value || 0);#}
-    {#                                    });#}
-    {#                                    document.querySelectorAll(".totalCost").forEach(el => el.textContent = sum.toFixed(2));#}
-    {#                                });#}
-    {#                            });#}
-    {##}
-    {#                            $('#editClientServiceModal').modal('show');#}
-    {#                        });#}
-    {#                    }#}
-    {##}
-    {##}
-    {#                    document.addEventListener("DOMContentLoaded", () => {#}
-    {#                        initServiceModal("#addClientServiceModal");#}
-    {#                        initServiceModal("#editClientServiceModal");#}
-    {##}
-    {#                        document.querySelectorAll(".edit-client-service-btn").forEach(btn => bindEditButton(btn));#}
-    {#                    });#}
-    {#                </script>#}
-    {##}
-    {##}
-    {#                <script>#}
-    {#                    document.addEventListener("DOMContentLoaded", function () {#}
-    {#                        const deleteModal = document.getElementById('deleteClientServiceModal');#}
-    {#                        deleteModal.addEventListener('show.bs.modal', function (event) {#}
-    {#                            const btn = event.relatedTarget;#}
-    {#                            const csId = btn.getAttribute('data-csid');#}
-    {#                            const csInfo = btn.getAttribute('data-csinfo');#}
-    {##}
-    {#                            // fill hidden input#}
-    {#                            this.querySelector('#deleteClientServiceId').value = csId;#}
-    {#                            // show info text#}
-    {#                            this.querySelector('#deleteClientServiceInfo').textContent = csInfo;#}
-    {#                        });#}
-    {#                    });#}
-    {#                </script>#}
-    {##}
-    {##}
-    {#            <script>#}
-    {#document.addEventListener("DOMContentLoaded", function () {#}
-    {#  const modal = document.getElementById("editSubServiceModal");#}
-    {#  if (!modal) return;#}
-    {##}
-    {#  modal.addEventListener("show.bs.modal", function (event) {#}
-    {#    const btn = event.relatedTarget;#}
-    {##}
-    {#    // 1) Set the hidden client_subservice_id#}
-    {#    this.querySelector("#editSubServiceId").value = btn.dataset.clientSubserviceId;#}
-    {##}
-    {#    // 2) Update the modal title span if you have one:#}
-    {#    const svcNameSpan = this.querySelector("#editModalServiceName");#}
-    {#    if (svcNameSpan) {#}
-    {#      svcNameSpan.textContent = btn.dataset.serviceName || "";#}
-    {#    }#}
-    {##}
-    {#    // 3) Prefill the SubService name input#}
-    {#    this.querySelector("#editModalSubServiceName").value = btn.dataset.subserviceName || "";#}
-    {##}
-    {#    // 4) Prefill department (readonly)#}
-    {#    this.querySelector("#editModalDepartment").value = btn.dataset.department || "";#}
-    {##}
-    {#    // 5) Prefill overridden price#}
-    {#    this.querySelector("#editModalOverriddenPrice").value = btn.dataset.overriddenPrice || "";#}
-    {#  });#}
-    {#});#}
-    {#</script>#}
-    {##}
-    {##}
-    {#                <script>#}
-    {#                    document.addEventListener("DOMContentLoaded", function () {#}
-    {#                        const modal = document.getElementById('deleteSubServiceModal');#}
-    {#                        modal.addEventListener('show.bs.modal', function (event) {#}
-    {#                            const btn = event.relatedTarget;#}
-    {#                            const ssId = btn.getAttribute('data-client-subservice-id');#}
-    {#                            const info = btn.getAttribute('data-csinfo');#}
-    {##}
-    {#                            this.querySelector('#deleteSubServiceId').value = ssId;#}
-    {#                            this.querySelector('#deleteSubServiceInfo').textContent = info;#}
-    {#                        });#}
-    {#                    });#}
-    {#                </script>#}
-    {#                <script>#}
-    {#                    document.addEventListener("DOMContentLoaded", function () {#}
-    {#                        const modal = document.getElementById("addSubServiceModal");#}
-    {##}
-    {#                        modal?.addEventListener("show.bs.modal", function (event) {#}
-    {#                            const button = event.relatedTarget;#}
-    {#                            const serviceId = button.getAttribute("data-service-id");#}
-    {#                            const serviceName = button.getAttribute("data-service-name");#}
-    {##}
-    {#                            document.getElementById("modal_service_id").value = serviceId;#}
-    {#                            document.getElementById("modal_service_name").textContent = serviceName;#}
-    {##}
-    {#                            // Reset the fields when modal opens#}
-    {#                            document.getElementById("modal_sub_service").selectedIndex = 0;#}
-    {#                            document.getElementById("modal_department").value = '';#}
-    {#                            document.getElementById("modal_overridden_price").value = '';#}
-    {#                        });#}
-    {##}
-    {#                        // When a subservice is selected#}
-    {#                        const subServiceSelect = document.getElementById("modal_sub_service");#}
-    {#                        subServiceSelect?.addEventListener("change", function () {#}
-    {#                            const selectedOption = this.options[this.selectedIndex];#}
-    {##}
-    {#                            const price = selectedOption.getAttribute("data-price");#}
-    {#                            const department = selectedOption.getAttribute("data-dept");#}
-    {##}
-    {#                            console.log("Selected option:", selectedOption);#}
-    {#                            console.log("Data-price:", price);#}
-    {#                            console.log("Data-dept:", department);#}
-    {##}
-    {#                            document.getElementById("modal_overridden_price").value = price || '';#}
-    {#                            document.getElementById("modal_department").value = department || '';#}
-    {#                        });#}
-    {#                    });#}
-    {#                </script>#}
+
+
+
+
+
 
 
 {% endblock %}
@@ -2146,5 +1921,5 @@
 {% block extra_js %}
     {{ block.super }}
     {# If you have page‑specific scripts beyond the two in base, include them here #}
-    {# e.g. <script src="{% static 'myapp/js/another.js' %}" defer></script> #}
+    <script src="{% static 'assets/js/modals/bookingModal.js' %}" defer></script>
 {% endblock %}

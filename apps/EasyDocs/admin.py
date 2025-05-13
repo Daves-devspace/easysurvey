@@ -138,3 +138,46 @@ class ClientDocAdmin(admin.ModelAdmin):
 @admin.register(SmsProviderToken)
 class SmsProviderTokenAdmin(admin.ModelAdmin):
     list_display = ('api_token', 'sender_id')
+
+
+from django.contrib import admin, messages
+from django.db.models import Q, Sum, F
+from .models import LegalOfficePayout, ClientSubService
+
+
+@admin.action(description="🔁 Relink missing subservices to selected payout(s)")
+def relink_missing_subservices(modeladmin, request, queryset):
+    total_linked = 0
+    payout_count = 0
+
+    for payout in queryset:
+        # Find subservices marked paid, with matching month, but not linked
+        missing_subs = ClientSubService.objects.filter(
+            is_paid_to_legal_office=True,
+            paid_month=payout.month
+        ).exclude(legalofficepayouts=payout)
+
+        if missing_subs.exists():
+            payout.subservices.add(*missing_subs)
+
+            # Recalculate and update total
+            missing_total = missing_subs.aggregate(total=Sum('paid_amount'))['total'] or 0
+            payout.total_amount = F('total_amount') + missing_total
+            payout.save()
+
+            total_linked += missing_subs.count()
+            payout_count += 1
+
+    if total_linked > 0:
+        messages.success(
+            request,
+            f"✅ Relinked {total_linked} subservice(s) across {payout_count} payout(s)."
+        )
+    else:
+        messages.info(request, "ℹ️ No missing subservices found to relink.")
+
+
+@admin.register(LegalOfficePayout)
+class LegalOfficePayoutAdmin(admin.ModelAdmin):
+    list_display = ("month", "total_amount")
+    actions = [relink_missing_subservices]

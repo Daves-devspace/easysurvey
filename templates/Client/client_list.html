@@ -304,6 +304,18 @@
 
                         {{ client_service_form.land_description.label_tag }}
                         {{ client_service_form.land_description }}
+                        <div id="groundFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="scheduledDate" class="form-label">Scheduled Date</label>
+                                <input type="date" name="scheduled_date" id="scheduledDate" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="dispatchMessage" class="form-label">Dispatch Message (optional)</label>
+                                <textarea name="dispatch_message" id="dispatchMessage" class="form-control" rows="3"
+                                          placeholder="e.g. Dispatching officer on Wednesday at 10 AM..."></textarea>
+                            </div>
+                        </div>
+
 
                     </div>
                     <div class="modal-footer">
@@ -356,16 +368,24 @@
                 fetch(`/get_service_processes/${serviceId}/`)
                     .then(res => res.json())
                     .then(data => {
+                        const isGround = data.is_ground === true;  // backend must return this flag
+                        const groundFields = document.getElementById("groundFields");
+
+                        // Show/hide GROUND-specific fields
+                        if (isGround) {
+                            groundFields.style.display = "block";
+                        } else {
+                            groundFields.style.display = "none";
+                        }
+
                         processTableBody.innerHTML = '';
                         let total = 0;
 
                         if (data.processes.length === 0) {
-                            // Ground service or no processes — show override input with default total_price
                             processSection.style.display = "none";
                             overridePriceSection.style.display = "block";
                             overridePriceInput.value = data.total_price;
                         } else {
-                            // Services with processes
                             overridePriceSection.style.display = "none";
                             processSection.style.display = "block";
 
@@ -373,26 +393,25 @@
                                 total += process.default_cost;
 
                                 processTableBody.innerHTML += `
-                                <tr>
-                                    <td>
-                                        ${process.name}
-                                        <input type="hidden" name="process_id[]" value="${process.id}">
-                                        <input type="hidden" name="process_name[]" value="${process.name}">
-                                    </td>
-                                    <td>
-                                        <input type="number"
-                                               name="process_cost[]"
-                                               value="${process.default_cost}"
-                                               step="0.01"
-                                               class="form-control cost-input">
-                                    </td>
-                                </tr>
-                            `;
+                        <tr>
+                            <td>
+                                ${process.name}
+                                <input type="hidden" name="process_id[]" value="${process.id}">
+                                <input type="hidden" name="process_name[]" value="${process.name}">
+                            </td>
+                            <td>
+                                <input type="number"
+                                       name="process_cost[]"
+                                       value="${process.default_cost}"
+                                       step="0.01"
+                                       class="form-control cost-input">
+                            </td>
+                        </tr>
+                    `;
                             });
 
                             totalCostDisplay.innerText = total.toFixed(2);
 
-                            // Recalculate total on input change
                             document.querySelectorAll(".cost-input").forEach(input => {
                                 input.addEventListener("input", () => {
                                     let newTotal = 0;
@@ -405,6 +424,7 @@
                         }
                     });
             });
+
         });
     </script>
 

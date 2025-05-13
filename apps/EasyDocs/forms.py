@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from django import forms
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -8,7 +10,7 @@ from django.db.models import DecimalField, F, ExpressionWrapper, Case, When
 from django.template.loader import render_to_string
 
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
-    SmsProviderToken, Document, Expense, ServiceCategory
+    SmsProviderToken, Document, Expense, ServiceCategory, Booking
 
 from .models import Client, ClientService, Service, Process
 from django.conf import settings
@@ -126,29 +128,36 @@ class ClientForm(forms.ModelForm):
 
 
 
+# forms.py
+
+
 class ClientServiceForm(forms.ModelForm):
     category = forms.ChoiceField(
         choices=ServiceCategory.choices,
         required=False,
         label="Service Category",
-        widget=forms.Select(attrs={
-            'class': 'form-select',
-        })
+        widget=forms.Select(attrs={'class': 'form-select'})
     )
 
     service = forms.ModelChoiceField(
         queryset=Service.objects.none(),
-        widget=forms.Select(attrs={
-            'class': 'form-select',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    scheduled_date = forms.DateTimeField(
+        required=False,
+        label="Scheduled Date (for Ground services)",
+        widget=forms.DateTimeInput(attrs={
+            'type': 'datetime-local',
+            'class': 'form-control',
         })
     )
 
     dispatch_preview = forms.CharField(
         required=False,
         label="Dispatch Message",
-        help_text="Preview only for dispatch services",
+        help_text="You can refine this before sending.",
         widget=forms.Textarea(attrs={
-            'readonly': True,
             'class': 'form-control',
             'rows': 3,
         })
@@ -156,11 +165,16 @@ class ClientServiceForm(forms.ModelForm):
 
     class Meta:
         model = ClientService
-        fields = ['client', 'category', 'service', 'land_description']
+        fields = [
+            'client',
+            'category',
+            'service',
+            'land_description',
+            'scheduled_date',
+            'dispatch_preview',
+        ]
         widgets = {
-            'client': forms.Select(attrs={
-                'class': 'form-select',
-            }),
+            'client': forms.Select(attrs={'class': 'form-select'}),
             'land_description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
@@ -170,27 +184,144 @@ class ClientServiceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        # Filter the services if category is provided via POST
+        # Filter services by selected category if present
         if 'category' in self.data:
-            category = self.data.get('category')
-            self.fields['service'].queryset = Service.objects.filter(category=category)
+            self.fields['service'].queryset = Service.objects.filter(
+                category=self.data.get('category')
+            )
         else:
             self.fields['service'].queryset = Service.objects.all()
 
-        # Hide dispatch preview unless dispatch service is selected
-        if 'service' in self.data:
-            try:
-                service_id = int(self.data.get('service'))
-                service = Service.objects.get(id=service_id)
-                if service.category == ServiceCategory.GROUND and service.dispatch_message:
-                    self.fields['dispatch_preview'].initial = service.dispatch_message
-                else:
-                    self.fields['dispatch_preview'].widget = forms.HiddenInput()
-            except (ValueError, Service.DoesNotExist):
-                self.fields['dispatch_preview'].widget = forms.HiddenInput()
-        else:
-            self.fields['dispatch_preview'].widget = forms.HiddenInput()
+    def clean(self):
+        cleaned = super().clean()
+        category = cleaned.get('category')
+        # If category is GROUND, enforce scheduled_date + dispatch_preview
+        if category == ServiceCategory.GROUND:
+            sd = cleaned.get('scheduled_date')
+            msg = cleaned.get('dispatch_preview', '').strip()
+            errors = {}
+            if not sd:
+                errors['scheduled_date'] = ValidationError(
+                    "A scheduled date is required for ground services."
+                )
+            if not msg:
+                errors['dispatch_preview'] = ValidationError(
+                    "A dispatch message is required for ground services."
+                )
+            if errors:
+                raise ValidationError(errors)
+        return cleaned
+
+    def save(self, commit=True):
+        # Just save the ClientService record. Booking is handled in the view.
+        return super().save(commit=commit)
+
+# class ClientServiceForm(forms.ModelForm):
+#     category = forms.ChoiceField(
+#         choices=ServiceCategory.choices,
+#         required=False,
+#         label="Service Category",
+#         widget=forms.Select(attrs={'class': 'form-select'})
+#     )
+#
+#     service = forms.ModelChoiceField(
+#         queryset=Service.objects.none(),
+#         widget=forms.Select(attrs={'class': 'form-select'})
+#     )
+#
+#     scheduled_date = forms.DateTimeField(
+#         required=False,
+#         label="Scheduled Date (for Ground services)",
+#         widget=forms.DateTimeInput(attrs={
+#             'type': 'datetime-local',
+#             'class': 'form-control',
+#         })
+#     )
+#
+#     dispatch_preview = forms.CharField(
+#         required=False,
+#         label="Dispatch Message",
+#         help_text="You can refine this before sending.",
+#         widget=forms.Textarea(attrs={
+#             'class': 'form-control',
+#             'rows': 3,
+#         })
+#     )
+#
+#     class Meta:
+#         model = ClientService
+#         fields = [
+#             'client',
+#             'category',
+#             'service',
+#             'land_description',
+#             'scheduled_date',
+#             'dispatch_preview',
+#         ]
+#         widgets = {
+#             'client': forms.Select(attrs={'class': 'form-select'}),
+#             'land_description': forms.Textarea(attrs={
+#                 'class': 'form-control',
+#                 'rows': 4,
+#                 'placeholder': 'Enter a brief land description...',
+#             }),
+#         }
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#         # Filter services by selected category if present
+#         if 'category' in self.data:
+#             self.fields['service'].queryset = Service.objects.filter(
+#                 category=self.data.get('category')
+#             )
+#         else:
+#             self.fields['service'].queryset = Service.objects.all()
+#
+#     def save(self, commit=True):
+#         client_service = super().save(commit=False)
+#         if commit:
+#             client_service.save()
+#             self.save_m2m()
+#
+#         # Create Booking for ground services if needed
+#         if client_service.service.category == ServiceCategory.GROUND:
+#             sd = self.cleaned_data.get('scheduled_date') or (datetime.now() + timedelta(days=1, hours=9))
+#             msg = self.cleaned_data.get('dispatch_preview', '').strip()
+#             booking = Booking.objects.create(
+#                 client_service=client_service,
+#                 scheduled_date=sd,
+#                 dispatch_message=msg or ''
+#             )
+#             if not booking.dispatch_message:
+#                 booking.dispatch_message = booking.generate_default_message()
+#                 booking.save(update_fields=['dispatch_message'])
+#         return client_service
+
+
+class BookingForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = ['scheduled_date', 'dispatch_message']
+        widgets = {
+            'scheduled_date': forms.DateTimeInput(attrs={
+                'type': 'datetime-local',
+                'class': 'form-control'
+            }),
+            'dispatch_message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional custom dispatch message...'
+            }),
+        }
+
+    def save(self, commit=True):
+        booking = super().save(commit=False)
+        if not booking.dispatch_message:
+            booking.dispatch_message = booking.generate_default_message()
+        if commit:
+            booking.save()
+        return booking
 
 
 
@@ -203,7 +334,7 @@ class ServiceForm(forms.ModelForm):
             'description',
             'total_price',
             'category',
-            'dispatch_message',
+
             'requires_title_collection',  # ← new field
         ]
         widgets = {
@@ -211,28 +342,22 @@ class ServiceForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Enter description', 'rows': 3}),
             'total_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'KSH'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
-            'dispatch_message': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Dispatch SMS content'}),
+
             'requires_title_collection': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # never required by default; enforce only under TITLE category
-        self.fields['dispatch_message'].required = False
         self.fields['requires_title_collection'].required = False
 
     def clean(self):
         cleaned = super().clean()
         cat = cleaned.get('category')
-        dispatch = cleaned.get('dispatch_message')
+
         needs_collection = cleaned.get('requires_title_collection')
 
-        # existing rule: GROUND services need a dispatch_message
-        if cat == ServiceCategory.GROUND and not dispatch:
-            self.add_error(
-                'dispatch_message',
-                'This message is required for dispatch-based (GROUND) services.'
-            )
+
 
         # new rule: TITLE services need the collection flag
         if cat == ServiceCategory.TITLE:
@@ -346,11 +471,11 @@ class SubServiceForm(forms.ModelForm):
         model = SubService
         fields = ['name', 'department', 'description', 'price']
         widgets = {
-            'name': forms.Select(attrs={'class': 'form-control'}),
-            'department': forms.TextInput(attrs={
+            'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Enter department name (e.g. Legal Department)',
+                'placeholder': 'Enter lega service  name (e.g. Legal stamp)',
             }),
+            'department': forms.Select(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,

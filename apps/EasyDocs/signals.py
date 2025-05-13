@@ -8,7 +8,7 @@ from django.utils import timezone
 from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
-    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking
 )
 
 logger = logging.getLogger(__name__)
@@ -28,15 +28,16 @@ def send_process_sms(client_service, client, phone, message, reason):
         return log
     return None  # Explicit return if conditions not met
 
-
+# signals.py
 
 @receiver(post_save, sender=ClientService)
 def client_service_created_handler(sender, instance, created, **kwargs):
-    if not created:
-        return
+    # if not created:
+    #     return
 
     service, client = instance.service, instance.client
 
+    # TITLE‐category: create the process entries & send SMS for the first one
     if service.category == ServiceCategory.TITLE and not instance.service_processes.exists():
         processes = Process.objects.filter(service=service).order_by('step_order')
         for i, process in enumerate(processes):
@@ -48,12 +49,51 @@ def client_service_created_handler(sender, instance, created, **kwargs):
             )
             if i == 0:
                 reason = f"{service.name} – process: {process.name}"
-                send_process_sms(instance, client, client.phone, process.message, reason)
+                send_process_sms(
+                    instance,
+                    client,
+                    client.phone,
+                    process.message,
+                    reason
+                )
 
-    elif service.category == ServiceCategory.GROUND:
-        if getattr(service, "dispatch_message", None):
-            reason = f"{service.name} – dispatch"
-            send_process_sms(instance, client, client.phone, service.dispatch_message, reason)
+
+
+
+
+@receiver(post_save, sender=Booking)
+def booking_created_handler(sender, instance, created, **kwargs):
+    # Only on creation (not on every save)
+
+    cs      = instance.client_service
+    service = cs.service
+    client  = cs.client
+
+    # Only for Ground‐category services
+    if service.category != ServiceCategory.GROUND:
+        return
+
+    reason  = f"{service.name} – booking scheduled"
+    message = instance.dispatch_message
+
+    send_process_sms(
+        client_service=cs,
+        client=client,
+        phone=client.phone,
+        message=message,
+        reason=reason
+    )
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -65,7 +105,8 @@ def update_full_total(client_service: ClientService):
     try:
         client_service.full_total_price = client_service._calculate_full_total()
         client_service.save(update_fields=['full_total_price'])
-        logger.info(f"Recalculated full_total_price for ClientService #{client_service.pk}: {client_service.full_total_price}")
+        logger.info(
+            f"Recalculated full_total_price for ClientService #{client_service.pk}: {client_service.full_total_price}")
     except Exception as e:
         logger.error(f"Failed to update full_total_price for ClientService #{client_service.pk}: {e}", exc_info=True)
 
@@ -88,7 +129,6 @@ def on_process_change(sender, instance, **kwargs):
     update the parent ClientService's total price.
     """
     update_full_total(instance.client_service)
-
 
 
 @receiver(post_save, sender=TitleDeedCollection)
@@ -121,26 +161,29 @@ def allocate_payment(sender, instance, created, **kwargs):
         return
 
     remaining = Decimal(str(instance.amount))
+    client_service = instance.client_service
+    service = client_service.service
 
-    # Allocate to service processes
-    for csp in instance.client_service.service_processes.order_by('process__step_order'):
-        if remaining <= 0:
-            break
-        to_pay = min(remaining, csp.pending_amount)
-        if to_pay > 0:
-            csp.paid_amount += to_pay
-            csp.save(update_fields=['paid_amount'])
-            remaining -= to_pay
-            PaymentHistory.objects.create(
-                payment=instance,
-                client_service=instance.client_service,
-                amount=to_pay,
-                reason="service_step",
-                service_process=csp
-            )
+    # Allocate to service processes (for TITLE services)
+    if service.category == ServiceCategory.TITLE:
+        for csp in client_service.service_processes.order_by('process__step_order'):
+            if remaining <= 0:
+                break
+            to_pay = min(remaining, csp.pending_amount)
+            if to_pay > 0:
+                csp.paid_amount += to_pay
+                csp.save(update_fields=['paid_amount'])
+                remaining -= to_pay
+                PaymentHistory.objects.create(
+                    payment=instance,
+                    client_service=client_service,
+                    amount=to_pay,
+                    reason="service_step",
+                    service_process=csp
+                )
 
-    # Allocate to sub-services
-    for sub in instance.client_service.sub_services.all():
+    # Allocate to sub-services (shared by both TITLE and GROUND)
+    for sub in client_service.sub_services.all():
         if remaining <= 0:
             break
         to_pay = min(remaining, sub.balance)
@@ -150,10 +193,21 @@ def allocate_payment(sender, instance, created, **kwargs):
             remaining -= to_pay
             PaymentHistory.objects.create(
                 payment=instance,
-                client_service=instance.client_service,
+                client_service=client_service,
                 amount=to_pay,
                 reason="sub_service",
                 sub_service=sub
             )
 
-    # Optional: Handle any remaining balance here if needed
+    # Handle remaining balance for GROUND service (no processes or subs)
+    if remaining > 0 and service.category == ServiceCategory.GROUND:
+        PaymentHistory.objects.create(
+            payment=instance,
+            client_service=client_service,
+            amount=remaining,
+            reason="ground_service"
+        )
+        # Optionally, store this directly on ClientService if needed
+        # (e.g. a `paid_amount` field if tracking is required)
+
+

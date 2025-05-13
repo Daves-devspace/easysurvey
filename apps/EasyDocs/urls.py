@@ -1,13 +1,17 @@
 from django.urls import path
 from . import views, auth_views, documents, accounts, reciepts, analytics
-from .accounts.legal_payout import BulkPayoutView
+from .accounts.legal_payout import BulkPayToLegalView
+from .clients.client_views import SendClientSMSView, \
+    DeleteClientServiceView, AddClientSubserviceView, EditClientSubserviceView, DeleteClientSubserviceView, \
+    ClientServiceManageView
 from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
-
+from apps.EasyDocs.services.sub_services import SubServicesStatusView
 from .auth_views import CustomPasswordResetConfirmView
 from .communication import CommunicationView
-from .views import ManagementView, ClientDetailView
+from .services.services import BookingUpdateView
+from .views import ManagementView, ClientDetailView, ClientServiceCreateView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
@@ -36,7 +40,7 @@ urlpatterns = [
     path('clients', views.client_list, name='clients'),
     path('clients/add/', views.add_client, name='add_client'),
     path('clients/edit/<int:client_id>/', views.edit_client, name='edit_client'),
-    path('add-client-service/', views.add_client_service, name='add_client_service'),
+    path('add-client-service/', ClientServiceCreateView.as_view(), name='add_client_service'),
     path('client/<int:client_id>/edit_service/', views.edit_client_service, name='edit_client_service'),
     path('clients/search/', views.search_clients, name='search_clients'),
     path('clients/details/<int:client_id>/', ClientDetailView.as_view(), name='client_details'),
@@ -63,10 +67,16 @@ urlpatterns = [
 
     # Client detail page
 
-    # AJAX endpoint to get payment context
-    # path('client/<int:pk>/payment-context/', accounts.payment_context, name='payment_context'),
-    # # Endpoint to actually make a payment
-    # path('client-service/<int:cs_id>/pay/', accounts.make_payment, name='make_payment'),
+    path('clients/<int:client_id>/sms/', SendClientSMSView.as_view(), name='client-send-sms'),
+    path('clients/<int:client_id>/services/', ClientServiceManageView.as_view(), name='client-service'),
+    # path('clients/<int:client_id>/services/edit/', EditClientServiceView.as_view(), name='client-edit-service'),
+    path('clients/<int:client_id>/services/delete/', DeleteClientServiceView.as_view(), name='client-delete-service'),
+    path('clients/<int:client_id>/subservices/add/', AddClientSubserviceView.as_view(), name='client-add-subservice'),
+    path('clients/<int:client_id>/subservices/edit/', EditClientSubserviceView.as_view(),
+         name='client-edit-subservice'),
+    path('clients/<int:client_id>/subservices/delete/', DeleteClientSubserviceView.as_view(),
+         name='client-delete-subservice'),
+
     path('clients/<int:client_id>/add-payment/', accounts.accounts.add_payment_view, name='add_payment'),
 
     path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
@@ -89,10 +99,12 @@ urlpatterns = [
 
     path('accounts/', AccountsDashboardView.as_view(), name='accounts_dashboard'),
 
+    path('subservices/', SubServicesStatusView.as_view(), name='subservices_status'),
+
     path('accounts/subservices/filter/', SubServiceFilterView.as_view(), name='subservice_filter'),
     path('accounts/payout/create/', LegalPayoutCreateView.as_view(), name='legal_payout_create'),
 
-    path('bulk-payout/', BulkPayoutView.as_view(), name='bulk_payout'),
+    path('bulk-payout/', BulkPayToLegalView.as_view(), name='bulk_pay_to_legal'),
 
     # Create new expense
     path("submit-expense/", ExpenseView.as_view(), name="submit_expense"),
@@ -109,4 +121,5 @@ urlpatterns = [
 
     path('message-logs/', CommunicationView.as_view(), name='communication_bulk'),
 
+    path('booking/<int:pk>/edit/', BookingUpdateView.as_view(), name='edit_booking'),
 ]
