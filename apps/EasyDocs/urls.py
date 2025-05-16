@@ -10,6 +10,7 @@ from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, 
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
 from .auth_views import CustomPasswordResetConfirmView
 from .communication import CommunicationView
+from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.services import BookingUpdateView
 from .views import ManagementView, ClientDetailView, ClientServiceCreateView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
@@ -122,4 +123,9 @@ urlpatterns = [
     path('message-logs/', CommunicationView.as_view(), name='communication_bulk'),
 
     path('booking/<int:pk>/edit/', BookingUpdateView.as_view(), name='edit_booking'),
+
+    path('bookings/<int:pk>/', MarkBookingHandledView.as_view(), name='mark-booking-handled'),
+    path('bookings/<int:pk>/', AssignSurveyorsView.as_view(), name='assign-surveyor-booking'),
+    path('bookings/', BookingManagementView.as_view(), name='booking-management'),
+    path('calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
 ]

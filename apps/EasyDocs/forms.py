@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django import forms
+from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 import logging
@@ -10,11 +11,13 @@ from django.db.models import DecimalField, F, ExpressionWrapper, Case, When
 from django.template.loader import render_to_string
 
 from .models import TitleDeedCollection, ClientDoc, DocType, SubService, ClientSubService, SiteSettings, \
-    SmsProviderToken, Document, Expense, ServiceCategory, Booking
+    SmsProviderToken, Document, Expense, ServiceCategory, Booking, BookingAssignment
 
 from .models import Client, ClientService, Service, Process
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm, SetPasswordForm
+
+from ..Employee.models import EmployeeProfile
 
 logger = logging.getLogger(__name__)
 
@@ -324,6 +327,53 @@ class BookingForm(forms.ModelForm):
         return booking
 
 
+# forms.py
+
+
+class BookingManageForm(forms.ModelForm):
+    surveyors = forms.ModelMultipleChoiceField(
+        queryset=User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR),
+        required=False,
+        widget=forms.CheckboxSelectMultiple
+    )
+    mark_handled = forms.BooleanField(
+        required=False,
+        label="Mark as handled"
+    )
+
+    class Meta:
+        model = Booking
+        fields = ['scheduled_date', 'dispatch_message']  # if you want inline reschedule/edit
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre‐populate surveyors field from the through‐model
+        if self.instance.pk:
+            self.fields['surveyors'].initial = self.instance.surveyors.values_list('pk', flat=True)
+            self.fields['mark_handled'].initial = self.instance.handled
+
+    def save(self, commit=True):
+        booking = super().save(commit=False)
+        # handle the boolean
+        if self.cleaned_data['mark_handled'] and not booking.handled:
+            booking.handled = True
+            booking.handled_at = timezone.now()
+            # handled_by will be set in the view
+        elif not self.cleaned_data['mark_handled'] and booking.handled:
+            booking.handled = False
+            booking.handled_at = None
+            booking.handled_by = None
+
+        if commit:
+            booking.save()
+            # sync surveyors
+            self.instance.bookingassignment_set.all().delete()
+            for surveyor in self.cleaned_data['surveyors']:
+                BookingAssignment.objects.create(
+                    booking=booking,
+                    surveyor=surveyor
+                )
+        return booking
 
 
 class ServiceForm(forms.ModelForm):

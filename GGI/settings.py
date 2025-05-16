@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'djcelery_email',
     'apps.Employee',
     'apps.EasyDocs',
+    'widget_tweaks',
 ]
 
 # settings.py

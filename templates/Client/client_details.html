@@ -391,7 +391,7 @@
                                                                                             {% if cs.needs_collection %}
                                                                                                 {# Services requiring title‐deed flow #}
                                                                                                 {# {% if sp.status == 'completed' and not cs.title_deed_collection %}#}
-                                                                                                {% if sp.status == 'completed' and not cs.needs_collection %}
+                                                                                                {% if sp.status == 'completed' and not cs.has_title_deed_collection %}
                                                                                                     {% if perms.EasyDocs.add_titledeedcollection %}
                                                                                                         <!-- Collect -->
                                                                                                         <button type="button"
@@ -602,11 +602,11 @@
                                                                     <strong>Already
                                                                         Collected</strong><br>
                                                                     Collected by:
-                                                                    <strong>{{ cs.has_title_deed_collection.collected_by }}</strong><br>
-                                                                    ID: {{ cs.has_title_deed_collection.id_number }}<br>
-                                                                    Phone: {{ cs.has_title_deed_collection.phone_number }}<br>
+                                                                    <strong>{{ cs.title_deed_collection.collected_by }}</strong><br>
+                                                                    ID: {{ cs.title_deed_collection.id_number }}<br>
+                                                                    Phone: {{ cs.title_deed_collection.phone_number }}<br>
                                                                     Collected
-                                                                    on: {{ cs.has_title_deed_collection.collected_at|date:"M d, Y H:i" }}
+                                                                    on: {{ cs.title_deed_collection.collected_at|date:"M d, Y H:i" }}
                                                                 </div>
                                                             {% else %}
                                                                 <form method="POST"
@@ -639,8 +639,8 @@
                                                             <div class="modal-footer">
                                                                 <small class="text-muted">
                                                                     Submitted by:
-                                                                    {% if cs.has_title_deed_collection.submitted_by %}
-                                                                        {{ cs.has_title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
+                                                                    {% if cs.title_deed_collection.submitted_by %}
+                                                                        {{ cs.title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
                                                                     {% else %}
                                                                         <em>Unknown user</em>
                                                                     {% endif %}

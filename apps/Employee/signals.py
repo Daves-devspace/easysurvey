@@ -73,31 +73,41 @@ def _recalc_payroll(p: Payroll):
     p.net_salary        = p.gross_salary + p.total_allowances - p.total_deductions
     p.save(update_fields=['total_allowances','total_deductions','net_salary'])
 
+
+
+
 @receiver(post_save, sender=AllowanceTemplate)
-@receiver(post_delete, sender=AllowanceTemplate)
-def sync_allowance_snapshot(sender, instance, **kwargs):
+@receiver(post_save, sender=DeductionTemplate)
+def template_post_save(sender, instance, **kwargs):
     """
-    On create/update/delete of a template, patch the current payroll snapshot
-    and then recalc that payroll’s totals.
+    Handles post_save signal for both AllowanceTemplate and DeductionTemplate.
+    Updates or creates the related snapshot for the current payroll,
+    then triggers payroll recalculation.
     """
-    # find *this* employee’s payroll for this month
     today = now().date().replace(day=1)
+
     try:
         payroll = Payroll.objects.get(employee=instance.employee, month=today)
     except Payroll.DoesNotExist:
         return
 
-    # on delete: purge
-    if kwargs.get('signal') == post_delete:
-        AllowanceSnapshot.objects.filter(payroll=payroll, template=instance).delete()
-    else:
-        # create or update
+    if isinstance(instance, AllowanceTemplate):
         AllowanceSnapshot.objects.update_or_create(
             payroll=payroll,
             template=instance,
             defaults={
-                'name':      instance.name,
-                'amount':    instance.amount,
+                'name': instance.name,
+                'amount': instance.amount,
+                'recurring': instance.recurring,
+            }
+        )
+    elif isinstance(instance, DeductionTemplate):
+        DeductionSnapshot.objects.update_or_create(
+            payroll=payroll,
+            template=instance,
+            defaults={
+                'name': instance.name,
+                'amount': instance.amount,
                 'recurring': instance.recurring,
             }
         )
@@ -105,29 +115,81 @@ def sync_allowance_snapshot(sender, instance, **kwargs):
     _recalc_payroll(payroll)
 
 
-@receiver(post_save, sender=DeductionTemplate)
+@receiver(post_delete, sender=AllowanceTemplate)
 @receiver(post_delete, sender=DeductionTemplate)
-def sync_deduction_snapshot(sender, instance, **kwargs):
+def template_post_delete(sender, instance, **kwargs):
     """
-    Same as above but for deductions.
+    Handles post_delete signal for both AllowanceTemplate and DeductionTemplate.
+    Recalculates the payroll. Snapshot deletion is handled automatically by CASCADE.
     """
     today = now().date().replace(day=1)
+
     try:
         payroll = Payroll.objects.get(employee=instance.employee, month=today)
     except Payroll.DoesNotExist:
         return
 
-    if kwargs.get('signal') == post_delete:
-        DeductionSnapshot.objects.filter(payroll=payroll, template=instance).delete()
-    else:
-        DeductionSnapshot.objects.update_or_create(
-            payroll=payroll,
-            template=instance,
-            defaults={
-                'name':      instance.name,
-                'amount':    instance.amount,
-                'recurring': instance.recurring,
-            }
-        )
-
+    # Don't manually delete snapshots — CASCADE handles this.
     _recalc_payroll(payroll)
+
+
+
+
+# @receiver(post_save, sender=AllowanceTemplate)
+# @receiver(post_delete, sender=AllowanceTemplate)
+# def sync_allowance_snapshot(sender, instance, **kwargs):
+#     """
+#     On create/update/delete of a template, patch the current payroll snapshot
+#     and then recalc that payroll’s totals.
+#     """
+#     # find *this* employee’s payroll for this month
+#     today = now().date().replace(day=1)
+#     try:
+#         payroll = Payroll.objects.get(employee=instance.employee, month=today)
+#     except Payroll.DoesNotExist:
+#         return
+#
+#     # on delete: purge
+#     if kwargs.get('signal') == post_delete:
+#         AllowanceSnapshot.objects.filter(payroll=payroll, template=instance).delete()
+#     else:
+#         # create or update
+#         AllowanceSnapshot.objects.update_or_create(
+#             payroll=payroll,
+#             template=instance,
+#             defaults={
+#                 'name':      instance.name,
+#                 'amount':    instance.amount,
+#                 'recurring': instance.recurring,
+#             }
+#         )
+#
+#     _recalc_payroll(payroll)
+#
+#
+# @receiver(post_save, sender=DeductionTemplate)
+# @receiver(post_delete, sender=DeductionTemplate)
+# def sync_deduction_snapshot(sender, instance, **kwargs):
+#     """
+#     Same as above but for deductions.
+#     """
+#     today = now().date().replace(day=1)
+#     try:
+#         payroll = Payroll.objects.get(employee=instance.employee, month=today)
+#     except Payroll.DoesNotExist:
+#         return
+#
+#     if kwargs.get('signal') == post_delete:
+#         DeductionSnapshot.objects.filter(payroll=payroll, template=instance).delete()
+#     else:
+#         DeductionSnapshot.objects.update_or_create(
+#             payroll=payroll,
+#             template=instance,
+#             defaults={
+#                 'name':      instance.name,
+#                 'amount':    instance.amount,
+#                 'recurring': instance.recurring,
+#             }
+#         )
+#
+#     _recalc_payroll(payroll)
