@@ -29,6 +29,69 @@ def generate_random_password(length=8):
 
 
 
+
+from django import forms
+from django.contrib.auth.models import User
+from .models import EmployeeProfile
+
+# —————————————————————————————
+# For superusers (or anyone without an EmployeeProfile)
+# —————————————————————————————
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+        widgets = {
+            'first_name': forms.TextInput( attrs={'class':'form-control'} ),
+            'last_name':  forms.TextInput( attrs={'class':'form-control'} ),
+            'email':      forms.EmailInput( attrs={'class':'form-control'} ),
+        }
+
+
+# —————————————————————————————
+# For staff/employees
+# —————————————————————————————
+class EmployeeProfileUpdateForm(forms.ModelForm):
+    # Mirror their User fields, but all disabled
+    first_name = forms.CharField(disabled=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    last_name  = forms.CharField(disabled=True, widget=forms.TextInput(attrs={'class':'form-control'}))
+    email      = forms.EmailField(disabled=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+
+    class Meta:
+        model = EmployeeProfile
+        fields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'profile_picture', 'role', 'department']
+        widgets = {
+            'phone_number':    forms.TextInput   (attrs={'class':'form-control'}),
+            'address':         forms.Textarea    (attrs={'class':'form-control','rows':3}),
+            'profile_picture': forms.ClearableFileInput(attrs={'class':'form-control'}),
+            'role':            forms.Select      (attrs={'class':'form-control'}),
+            'department':      forms.TextInput   (attrs={'class':'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user')        # we’ll pass request.user in the view
+        super().__init__(*args, **kwargs)
+
+        # Populate the readonly User fields:
+        if self.instance and self.instance.user:
+            u = self.instance.user
+            self.fields['first_name'].initial = u.first_name
+            self.fields['last_name'].initial  = u.last_name
+            self.fields['email'].initial      = u.email
+
+        # **ONLY superusers can edit role/department**:
+        if not user.is_superuser:
+            self.fields['role'].disabled       = True
+            self.fields['department'].disabled = True
+
+
+
+
+
+
+
+
+
 class EmployeeProfileForm(forms.ModelForm):
     first_name = forms.CharField(
         max_length=150,
@@ -190,15 +253,52 @@ class PayrollMarkPaidForm(forms.ModelForm):
 
 
 
+# forms.py
+
+
+DATE_INPUT = forms.DateInput(attrs={
+    'type': 'date',
+    'class': 'form-control'
+})
+
 class AllowanceTemplateForm(forms.ModelForm):
     class Meta:
         model = AllowanceTemplate
         fields = ['name', 'amount', 'recurring', 'start_date', 'end_date']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'recurring': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_recurring_allowance'}),
+            'start_date': DATE_INPUT,
+            'end_date': DATE_INPUT,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # If not recurring, hide the date fields initially
+        if not (self.instance and self.instance.recurring):
+            self.fields['start_date'].widget = forms.HiddenInput()
+            self.fields['end_date'].widget = forms.HiddenInput()
+
 
 class DeductionTemplateForm(forms.ModelForm):
     class Meta:
         model = DeductionTemplate
         fields = ['name', 'amount', 'recurring', 'start_date', 'end_date']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'recurring': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_recurring_deduction'}),
+            'start_date': DATE_INPUT,
+            'end_date': DATE_INPUT,
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not (self.instance and self.instance.recurring):
+            self.fields['start_date'].widget = forms.HiddenInput()
+            self.fields['end_date'].widget = forms.HiddenInput()
+
 
 
 

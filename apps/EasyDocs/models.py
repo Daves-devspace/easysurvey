@@ -3,12 +3,10 @@ from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
-from django.db import models, transaction
+
+from django.db import models
 from django.db.models import Sum, F, Value, Q, DecimalField
 from django.db.models.functions import Coalesce
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
 from django.utils import timezone
 from django.core.cache import cache
 from django.utils.functional import cached_property
@@ -308,6 +306,25 @@ class Booking(models.Model):
     scheduled_date = models.DateTimeField()               # When the service is scheduled to occur
     dispatch_message = models.TextField(blank=True, null=True)
 
+    # NEW FIELDS
+    handled = models.BooleanField(default=False)
+    handled_at = models.DateTimeField(null=True, blank=True)
+    handled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='handled_bookings',
+        help_text="Who marked this booking as handled"
+    )
+    surveyors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through='BookingAssignment',
+        related_name='assigned_bookings',
+        limit_choices_to={'groups__name': 'Surveyor'},
+        help_text="Which surveyors were allocated"
+    )
+
+
     def generate_default_message(self):
         return (
             f"Hi {self.client_service.client.first_name}, surveyors for "
@@ -317,6 +334,27 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.client_service} - Scheduled: {self.scheduled_date.strftime('%Y-%m-%d %H:%M')}"
+
+
+
+class BookingAssignment(models.Model):
+    booking     = models.ForeignKey(Booking, on_delete=models.CASCADE)
+    surveyor    = models.ForeignKey(
+                    settings.AUTH_USER_MODEL,
+                    on_delete=models.CASCADE,
+                    limit_choices_to={'groups__name': 'Surveyor'}
+                  )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('booking', 'surveyor')
+        ordering = ['assigned_at']
+
+    def __str__(self):
+        return f"{self.surveyor} → {self.booking}"
+
+
+
 
 
 

@@ -32,10 +32,11 @@ def safe_complete_process(process_id):
 @require_POST
 def mark_process_completed(request, pk):
     step = get_object_or_404(ClientServiceProcess, pk=pk)
-    service = ProcessWorkflowService(step.client_service)
+    cs   = step.client_service
+    service = ProcessWorkflowService(cs)
 
-    # guard: previous steps must be done
-    prev = step.client_service.service_processes.filter(
+    # guard: all previous steps must be done
+    prev = cs.service_processes.filter(
         process__step_order__lt=step.process.step_order
     )
     if prev.exclude(status='completed').exists():
@@ -43,13 +44,26 @@ def mark_process_completed(request, pk):
         return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
 
     try:
-        service.complete_step(step)
-        messages.success(request, f"Marked '{step.process.name}' completed.")
+        # 1) Complete the step & get *this* SMS log
+        sms_log = service.complete_step(step)
+
+        # 2) Build feedback from *that* log
+        if not sms_log:
+            sms_note = " ⚠️ No SMS was attempted."
+        elif sms_log.send_status == 'sent':
+            sms_note = f" 📤 SMS sent ({sms_log.reason})."
+        else:
+            sms_note = f" ❌ SMS failed ({sms_log.reason})."
+
+        # 3) Push a success message
+        messages.success(
+            request,
+            f"✅ Marked '{step.process.name}' completed.{sms_note}"
+        )
     except ValueError as e:
         messages.error(request, str(e))
 
     return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
-
 
 # @login_required
 # @user_passes_test(is_authorized)

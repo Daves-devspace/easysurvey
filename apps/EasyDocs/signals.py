@@ -148,8 +148,8 @@ def title_deed_collected_handler(sender, instance, created, **kwargs):
     svc.save(update_fields=['status'])
 
     msg = instance.message or f"Your title deed has been collected by {instance.collected_by}"
-    if instance.id_number:
-        msg += f" (ID: {instance.id_number})"
+    # if instance.id_number:
+    #     msg += f" (ID: {instance.id_number})"
 
     reason = f"{svc.service.name} – deed collected"
     send_process_sms(svc, svc.client, svc.client.phone, msg, reason)

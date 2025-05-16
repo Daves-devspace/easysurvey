@@ -8,7 +8,7 @@ var d = date.getDate();
 var m = date.getMonth();
 var y = date.getFullYear();
 
-var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+var calendar = new FullCalendar.Calendar(document.getElementById('calendar-modal'), {
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',

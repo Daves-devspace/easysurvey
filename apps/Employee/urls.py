@@ -1,9 +1,10 @@
 from django.urls import path
 from . import views
+from .admin_views import AdminUserListView, toggle_user_active, UserProfileUpdateView, EmployeeProfileDashboardView
 from .salary.salary import EmployeeSalaryCreateView, EmployeeSalaryDeleteView, EmployeeSalaryUpdateView, \
     AllowanceCreateView, AllowanceUpdateView, AllowanceDeleteView, DeductionCreateView, DeductionUpdateView, \
     DeductionDeleteView, EmployeePayrollGenerateView, PayrollMarkPaidView, BulkPayrollMarkPaidView
-from .views import PayrollGenerateAllView
+from .views import PayrollGenerateAllView, EmployeeProfileUpdateView
 
 urlpatterns = [
 
@@ -54,4 +55,9 @@ urlpatterns = [
        BulkPayrollMarkPaidView.as_view(),
         name='payroll_bulk_mark_paid'
     ),
+    path('dashboard/', EmployeeProfileDashboardView.as_view(), name='employee-dashboard'),
+    path('profile/user/', UserProfileUpdateView.as_view(), name='user-profile-update'),
+
+    path('admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('admin/user/<int:user_id>/toggle/', toggle_user_active, name='toggle-user-active'),
 ]
