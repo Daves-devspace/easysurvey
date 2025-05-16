@@ -349,7 +349,7 @@
 
                                                                                                             <button
                                                                                                                     class="btn btn-sm btn-outline-danger open-allowance-delete-modal"
-                                                                                                                    data-url="{% url 'allowance_delete' tpl.pk %}"
+                                                                                                                    data-url="{% url 'allowance_delete' snap.template.pk %}"
                                                                                                                     data-bs-toggle="modal"
                                                                                                                     data-bs-target="#allowanceDeleteModal">
                                                                                                                 Delete
@@ -400,14 +400,14 @@
                                                                                                         {% if snap.template %}
                                                                                                             <button
                                                                                                                     class="btn btn-sm btn-outline-primary open-deduction-modal"
-                                                                                                                    data-url="{% url 'deduction_edit' tpl.pk %}"
+                                                                                                                    data-url="{% url 'deduction_edit' snap.template.pk %}"
                                                                                                                     data-bs-toggle="modal"
                                                                                                                     data-bs-target="#deductionModal">
                                                                                                                 Edit
                                                                                                             </button>
                                                                                                             <button
                                                                                                                     class="btn btn-sm btn-outline-danger open-deduction-delete-modal"
-                                                                                                                    data-url="{% url 'deduction_delete' tpl.pk %}"
+                                                                                                                    data-url="{% url 'deduction_delete' snap.template.pk %}"
                                                                                                                     data-bs-toggle="modal"
                                                                                                                     data-bs-target="#deductionDeleteModal">
                                                                                                                 Delete
