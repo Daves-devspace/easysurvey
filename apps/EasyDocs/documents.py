@@ -175,7 +175,7 @@ def send_doc_email_to_client(request, client_id, doc_id):
 
     # Attach file
     if document.doc_file:
-        email.attach(document.doc_file.name, document.doc_file.read(), document.doc_file.file.content_type)
+        email.attach(document.doc_file.name, document.doc_file.read(), document.doc_file.mime_type)
 
     try:
         email.send()

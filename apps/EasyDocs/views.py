@@ -4,11 +4,12 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
 from django.db.models import Q, Prefetch, Sum, DecimalField, F
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncWeek
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -23,6 +24,7 @@ from django.shortcuts import redirect
 
 from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
 from .analytics import get_yearly_revenue_data, get_available_years
+from .clients.client_views import get_client_service_summary
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 
@@ -53,69 +55,225 @@ def get_years(request):
     return JsonResponse({'years': years})
 
 
+from django.db.models import Count
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+from datetime import date
+
+from django.db.models.functions import TruncMonth
+from collections import OrderedDict
+import calendar
+from decimal import Decimal
+from django.db.models import Count
+
+from collections import OrderedDict
+from datetime import date
+import calendar
+from decimal import Decimal
+from django.db.models import Sum, Count, F
+from django.db.models.functions import TruncMonth, Coalesce
+
+
 def get_dashboard_data():
     today = date.today()
     current_year = today.year
     prev_year = current_year - 1
+    current_month = today.month
+    prev_month = current_month - 1 if current_month > 1 else 12
 
-    # ————————— Collections —————————
-    current_col = Payment.objects.filter(
-        payment_date__year=current_year
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # Revenue
+    current_col = Payment.objects.filter(payment_date__year=current_year).aggregate(total=Sum('amount'))[
+                      'total'] or Decimal('0.00')
+    prev_col = Payment.objects.filter(payment_date__year=prev_year).aggregate(total=Sum('amount'))['total'] or Decimal(
+        '0.00')
 
-    prev_col = Payment.objects.filter(
-        payment_date__year=prev_year
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    # Calculate revenue growth percentage
+    revenue_growth = 0
+    if prev_col and prev_col > 0:
+        revenue_growth = round(((current_col - prev_col) / prev_col) * 100, 2)
 
-    # ————————— Expenses —————————
-    # sub‑services added this year
-    sub_exp = ClientSubService.objects.filter(
-        added_on__year=current_year
-    ).aggregate(
-        total=Sum(
-            Coalesce('overridden_price', F('sub_service__price')),
-            output_field=DecimalField()
-        )
+    # Expenses
+    sub_exp = ClientSubService.objects.filter(added_on__year=current_year).aggregate(
+        total=Sum(Coalesce('overridden_price', F('sub_service__price')))
     )['total'] or Decimal('0.00')
-
-    # general expenses this year
-    gen_exp = Expense.objects.filter(
-        date__year=current_year
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
+    gen_exp = Expense.objects.filter(date__year=current_year).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     total_exp = sub_exp + gen_exp
-
-    # ————————— Net Revenue —————————
     net_rev = current_col - total_exp
 
-    # ————————— Trend & Extra —————————
-    extra = current_col - prev_col
-    pct = (extra / prev_col * 100) if prev_col else Decimal('100.00')
+    # Calculate expense growth percentage
+    prev_sub_exp = ClientSubService.objects.filter(added_on__year=prev_year).aggregate(
+        total=Sum(Coalesce('overridden_price', F('sub_service__price')))
+    )['total'] or Decimal('0.00')
+    prev_gen_exp = Expense.objects.filter(date__year=prev_year).aggregate(total=Sum('amount'))['total'] or Decimal(
+        '0.00')
+    prev_total_exp = prev_sub_exp + prev_gen_exp
 
-    if extra < 0:
-        extra_class = 'text-danger'
-        badge_class = 'bg-light-danger border border-danger'
-        badge_icon = 'ti ti-trending-down'
-    else:
-        extra_class = 'text-success'
-        badge_class = 'bg-light-success border border-success'
-        badge_icon = 'ti ti-trending-up'
+    expense_growth = 0
+    if prev_total_exp and prev_total_exp > 0:
+        expense_growth = round(((total_exp - prev_total_exp) / prev_total_exp) * 100, 2)
+
+    # Clients metrics
+    current_month_clients = Client.objects.filter(created_at__year=current_year,
+                                                  created_at__month=current_month).count()
+    prev_month_clients = Client.objects.filter(created_at__year=current_year if prev_month != 12 else prev_year,
+                                               created_at__month=prev_month).count()
+
+    clients_growth = 0
+    if prev_month_clients > 0:
+        clients_growth = round(((current_month_clients - prev_month_clients) / prev_month_clients) * 100, 2)
+
+    # Title deed metrics
+    current_week_titles = TitleDeedCollection.objects.filter(
+        collected_at__year=current_year,
+        collected_at__week=today.isocalendar()[1]
+    ).count()
+
+    prev_week_titles = TitleDeedCollection.objects.filter(
+        collected_at__year=current_year,
+        collected_at__week=today.isocalendar()[1] - 1
+    ).count()
+
+    title_growth = 0
+    if prev_week_titles > 0:
+        title_growth = round(((current_week_titles - prev_week_titles) / prev_week_titles) * 100, 2)
+
+    # Net revenue growth
+    prev_net_rev = prev_col - prev_total_exp
+    net_rev_growth = 0
+    if prev_net_rev and prev_net_rev > 0:
+        net_rev_growth = round(((net_rev - prev_net_rev) / prev_net_rev) * 100, 2)
+
+    # Monthly Clients
+    monthly_clients = Client.objects.filter(created_at__year=current_year).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(count=Count('id')).order_by('month')
+
+    clients_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    for entry in monthly_clients:
+        clients_data[calendar.month_abbr[entry['month'].month]] = entry['count']
+
+    # Monthly Title Deeds
+    monthly_titles = TitleDeedCollection.objects.filter(collected_at__year=current_year).annotate(
+        month=TruncMonth('collected_at')
+    ).values('month').annotate(count=Count('id')).order_by('month')
+
+    title_deeds_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    for entry in monthly_titles:
+        title_deeds_data[calendar.month_abbr[entry['month'].month]] = entry['count']
+
+    # Monthly Revenue
+    monthly_col = Payment.objects.filter(payment_date__year=current_year).annotate(
+        month=TruncMonth('payment_date')
+    ).values('month').annotate(total=Sum('amount')).order_by('month')
+
+
+    # Monthly Expenses
+    monthly_collected_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    for entry in monthly_col:
+        # The key must remain as is (string)
+        month_key = calendar.month_abbr[entry['month'].month]
+        # The value can be a float
+        monthly_collected_data[month_key] = float(entry['total'])
+
+    # Monthly Expenses
+    monthly_expenses = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    for m in range(1, 13):
+        month_key = calendar.month_abbr[m]
+        monthly_expenses[month_key] = float(
+            ClientSubService.objects.filter(added_on__year=current_year, added_on__month=m).aggregate(
+                total=Sum(Coalesce('overridden_price', F('sub_service__price')))
+            )['total'] or 0
+        ) + float(
+            Expense.objects.filter(date__year=current_year, date__month=m).aggregate(total=Sum('amount'))['total'] or 0
+        )
+    # Monthly Net Revenue
+    monthly_net = OrderedDict()
+    for m in calendar.month_abbr[1:]:
+        monthly_net[m] = monthly_collected_data[m] - monthly_expenses[m]
+
+    # Current month stats
+    current_month_abbr = calendar.month_abbr[current_month]
+    current_month_revenue = monthly_collected_data[current_month_abbr]
+    current_month_expenses = monthly_expenses[current_month_abbr]
+    current_month_net = monthly_net[current_month_abbr]
+
+    # Weekly stats for title deeds
+    weekly_titles = TitleDeedCollection.objects.filter(
+        collected_at__year=current_year,
+        collected_at__month=current_month
+    ).annotate(
+        week=TruncWeek('collected_at')
+    ).values('week').annotate(count=Count('id')).order_by('week')
+
+    # Get this month's days for weekly data
+    import datetime
+    first_day = datetime.date(current_year, current_month, 1)
+    days_in_month = calendar.monthrange(current_year, current_month)[1]
+    last_day = datetime.date(current_year, current_month, days_in_month)
+
+    # Get all weeks in the month
+    weeks_in_month = []
+    current_date = first_day
+    while current_date <= last_day:
+        week_start = current_date - datetime.timedelta(days=current_date.weekday())
+        week_end = week_start + datetime.timedelta(days=6)
+        weeks_in_month.append((week_start, week_end))
+        current_date = week_end + datetime.timedelta(days=1)
+
+    # Get weekly labels
+    weekly_labels = ["Week " + str(i + 1) for i in range(len(weeks_in_month))]
+
+    # Convert OrderedDict values to lists and format as JSON for JavaScript
+    import json
+
+    clients_data_list = list(clients_data.values())
+    title_deeds_data_list = list(title_deeds_data.values())
+    collected_data_list = list(monthly_collected_data.values())
+    expenses_data_list = list(monthly_expenses.values())
+    net_revenue_data_list = list(monthly_net.values())
+    month_labels_list = list(clients_data.keys())
 
     return {
-        'current_year_revenue': current_col,
-        'previous_year_revenue': prev_col,
         'current_year': current_year,
         'previous_year': prev_year,
+        'current_year_revenue': current_col,
+        'previous_year_revenue': prev_col,
+        'revenue_growth': revenue_growth,
         'total_expenses': total_exp,
+        'expense_growth': expense_growth,
         'net_revenue': net_rev,
-        'extra_amount': abs(extra),
-        'extra_class': extra_class,
-        'trending_badge': {
-            'class': badge_class,
-            'icon': badge_icon,
-            'percentage': f"{pct:.2f}%"
-        }
+        'net_revenue_growth': net_rev_growth,
+
+        # Client metrics
+        'total_clients': Client.objects.count(),
+        'current_month_clients': current_month_clients,
+        'extra_clients': clients_growth,
+
+        # Title deed metrics
+        'total_processed_title_deeds': TitleDeedCollection.objects.filter(collected_at__isnull=False).count(),
+        'current_week_titles': current_week_titles,
+        'title_growth': title_growth,
+
+        # Current month highlights
+        'current_month': current_month_abbr,
+        'current_month_revenue': current_month_revenue,
+        'current_month_expenses': current_month_expenses,
+        'current_month_net': current_month_net,
+
+        # Chart data - convert to JSON strings for use in JavaScript
+        'clients_data': json.dumps(clients_data_list),
+        'title_deeds_data': json.dumps(title_deeds_data_list),
+        'collected_data': json.dumps(collected_data_list),
+        'expenses_data': json.dumps(expenses_data_list),
+        'net_revenue_data': json.dumps(net_revenue_data_list),
+        'month_labels': json.dumps(month_labels_list),
+
+        # Weekly title deeds data
+        'weekly_titles_data': json.dumps([entry['count'] for entry in weekly_titles]),
+        'weekly_labels': json.dumps(weekly_labels)
     }
+
+
 
 
 def home(request):
@@ -126,7 +284,7 @@ def home(request):
         'dashboard': dashboard_data,
     }
 
-    return render(request, 'Home/admin.html', context )
+    return render(request, 'Home/admin.html', context)
 
 
 class ClientDetailView(PermissionRequiredMixin, DetailView):
@@ -144,6 +302,9 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         client = self.object
+        summary = get_client_service_summary(client)
+
+        context['client_service_summary'] = summary
 
         # Fetch subservices
         try:
@@ -185,21 +346,33 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
                 Prefetch(
                     'service_processes',
                     queryset=ClientServiceProcess.objects.select_related('process')
-                        .order_by('process__step_order')
+                    .order_by('process__step_order')
                 )
             ).order_by('-requested_at')
 
             # Annotate latest_process and needs_collection
             for cs in services_qs:
+                # existing annotations…
                 cs.latest_process = cs.service_processes.last() if cs.service_processes.exists() else None
                 cs.needs_collection = cs.service.requires_title_collection
-
-                # Safe check
                 try:
                     _ = cs.title_deed_collection
                     cs.has_title_deed_collection = True
                 except TitleDeedCollection.DoesNotExist:
                     cs.has_title_deed_collection = False
+
+                # --- NEW ground_data dict ---
+                try:
+                    booking = cs.ground_booking  # may raise DoesNotExist
+                    cs.ground_data = {
+                        'scheduled_date': booking.scheduled_date,
+                        'dispatch_message': booking.dispatch_message,
+                    }
+                except ObjectDoesNotExist:
+                    cs.ground_data = {
+                        'scheduled_date': None,
+                        'dispatch_message': None,
+                    }
 
             context['all_services'] = services_qs
 
@@ -231,422 +404,12 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
             'title_deed_form': TitleDeedCollectionForm(),
             'doc_form': ClientDocumentForm(),
             'doc_type_form': DocTypeForm(),
+            'add_client_form': ClientForm(),
             'client_sms_form': ClientSmsForm(),
         })
 
         return context
 
-
-# class ClientDetailView(PermissionRequiredMixin, DetailView):
-#     model = Client
-#     template_name = 'Client/client_details.html'
-#     context_object_name = 'client'
-#     pk_url_kwarg = 'client_id'
-#     permission_required = 'easydocs.view_client'  # Make sure app_label is correct
-#     raise_exception = True  # Optional: raises 403 instead of redirecting to login
-#
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         client = self.object
-#
-#         # — Subservices —
-#         try:
-#             subservices = SubService.objects.all()
-#         except Exception as e:
-#             logger.warning(f"SubService fetch error: {e}")
-#             subservices = []
-#             messages.error(self.request, "Could not load subservices.")
-#
-#         # — Raw history (for debug or timeline if you need it) —
-#         try:
-#             histories = (
-#                 PaymentHistory.objects
-#                 .filter(client_service__client=client)
-#                 .order_by('-created_at')
-#             )
-#         except Exception as e:
-#             logger.error(f"PaymentHistory fetch error: {e}")
-#             histories = []
-#             messages.error(self.request, "Could not load payment history.")
-#
-#         # — Client-subservices —
-#         try:
-#             client_subservices = (
-#                 ClientSubService.objects
-#                 .filter(client_service__client=client)
-#                 .select_related('sub_service', 'client_service')
-#             )
-#         except Exception as e:
-#             logger.warning(f"ClientSubService fetch error: {e}")
-#             client_subservices = []
-#             messages.error(self.request, "Could not load client subservices.")
-#
-#         # — All client services, with latest process annotated —
-#         try:
-#             all_services = (
-#                 ClientService.objects
-#                 .filter(client=client)
-#                 .select_related('service')
-#                 .prefetch_related(
-#                     Prefetch(
-#                         'service_processes',
-#                         queryset=ClientServiceProcess.objects
-#                         .select_related('process')
-#                         .order_by('process__step_order')
-#                     ),
-#                     # optional: prefetch payments if you’re displaying paid/balance
-#                     Prefetch('payments'),
-#                     # optional: prefetch sub‑services
-#                     Prefetch('sub_services'),
-#                 )
-#                 .order_by('-requested_at')
-#             )
-#
-#             for cs in all_services:
-#                 # 1️⃣ which step is the “last” one?
-#                 cs.latest_process = (
-#                     cs.service_processes.last()
-#                     if cs.service_processes.exists()
-#                     else None
-#                 )
-#
-#                 # 2️⃣ does this service need a title‑deed collection flow?
-#                 cs.needs_collection = cs.service.requires_title_collection
-#
-#             context['all_services'] = all_services
-#
-#         except Exception as e:
-#             logger.error(f"ClientService fetch error: {e}", exc_info=True)
-#             context['all_services'] = []
-#             messages.error(self.request, "Could not load client services.")
-#
-#         # — Flat (aggregated) payment history — no filters applied here any more
-#         try:
-#             flat_history = get_client_payment_history(client_id=client.id)
-#         except Exception as e:
-#             logger.error(f"Payment history utility error: {e}", exc_info=True)
-#             flat_history = []
-#             messages.error(self.request, "Error generating payment history.")
-#
-#         try:
-#             logs = MessageLog.objects.filter(client=client).order_by('-timestamp')
-#         except MessageLog.DoesNotExist:
-#             logs = []
-#
-#         # — Documents —
-#         try:
-#             doc_types = DocType.objects.all()
-#             client_docs = ClientDoc.objects.filter(client=client)
-#         except Exception as e:
-#             logger.warning(f"Document fetch error: {e}")
-#             doc_types = []
-#             client_docs = []
-#             messages.error(self.request, "Could not load documents.")
-#
-#         # — Prepare add/edit ClientServiceForm —
-#         edit_id = self.request.GET.get('edit_service')
-#         cs_instance = None
-#         if edit_id:
-#             try:
-#                 cs_instance = ClientService.objects.get(id=edit_id, client=client)
-#             except ClientService.DoesNotExist:
-#                 messages.warning(self.request, "Service to edit not found.")
-#
-#         try:
-#             client_service_form = ClientServiceForm(
-#                 instance=cs_instance,
-#                 initial={'client': client} if not cs_instance else None
-#             )
-#         except Exception as e:
-#             logger.error(f"ClientServiceForm init error: {e}", exc_info=True)
-#             client_service_form = ClientServiceForm(initial={'client': client})
-#             messages.error(self.request, "Could not load service form.")
-#
-#         # — Inject everything into context —
-#         context.update({
-#             'message_logs':logs,
-#             'subservices': subservices,
-#             'histories': histories,
-#             'client_subservices': client_subservices,
-#             'all_services': all_services,
-#             'flat_payment_history': flat_history,
-#             'doc_types': doc_types,
-#             'client_docs': client_docs,
-#             'client_service_form': client_service_form,
-#             'editing_service': cs_instance,
-#             'client_subservice_form': ClientSubServiceForm(),
-#             'title_deed_form': TitleDeedCollectionForm(),
-#             'doc_form': ClientDocumentForm(),
-#             'doc_type_form': DocTypeForm(),
-#             'client_sms_form': ClientSmsForm(),
-#         })
-#         return context
-#
-#     def post(self, request, *args, **kwargs):
-#         # Make sure self.object is set
-#         self.object = self.get_object()
-#         client = self.object
-#
-#         handlers = {
-#             'send_sms': self.handle_send_client_sms,
-#             'add_client_service': self.handle_add_client_service,
-#             'edit_client_service': self.handle_edit_client_service,
-#             'delete_client_service': self.handle_delete_client_service,
-#             'add_client_subservice': self.handle_add_client_subservice,  # ←
-#             'edit_client_subservice': self.handle_edit_client_subservice,  # ←
-#             'delete_client_subservice': self.handle_delete_client_subservice,  # ←
-#         }
-#         for key, handler in handlers.items():
-#             if key in request.POST:
-#                 return handler(request, client)
-#
-#         # Fallback: just reload
-#         return redirect('client_details', client_id=client.id)
-#
-#     def handle_send_client_sms(self, request, client):
-#         if not request.user.has_perm('easydocs.send_client_sms'):
-#             raise PermissionDenied("You don't have permission to send SMS messages.")
-#         form = ClientSmsForm(request.POST)
-#         if not form.is_valid():
-#             messages.error(request, "❌ Please enter a valid message.")
-#             return self.render_invalid_context('client_sms_form', form)
-#
-#         text = form.cleaned_data['message']
-#         api = MobileSasaAPI()
-#         resp = api.send_sms(client.phone, text)
-#
-#         # Determine send status
-#         sent = bool(resp.get('status'))
-#         status = 'sent' if sent else 'failed'
-#         delivery = 'pending' if sent else 'failed'
-#         error = '' if sent else resp.get('message', 'Unknown error')
-#
-#         # Log it (reason left blank)
-#         MessageLog.objects.create(
-#             client=client,
-#             phone=client.phone,
-#             message=text,
-#             reason='',
-#             send_status=status,
-#             delivery_status=delivery,
-#             error_details=error
-#         )
-#
-#         # User feedback
-#         if sent:
-#             messages.success(request, "✅ SMS sent successfully.")
-#         else:
-#             messages.error(request, f"❌ SMS failed: {error}")
-#
-#         return redirect('client_details', client_id=client.id)
-#
-#     def handle_add_client_service(self, request, client):
-#         if not request.user.has_perm('easydocs.add_clientservice'):
-#             raise PermissionDenied("You don't have permission to add client services.")
-#
-#         form = ClientServiceForm(request.POST)
-#         if form.is_valid():
-#             # Extract key fields to check for duplicates
-#             service = form.cleaned_data.get("service")
-#             land_description = form.cleaned_data.get("land_description").strip()
-#
-#             # Duplicate check
-#             exists = ClientService.objects.filter(
-#                 client=client,
-#                 service=service,
-#                 land_description__iexact=land_description  # case-insensitive match
-#             ).exists()
-#
-#             if exists:
-#                 messages.warning(
-#                     request,
-#                     f"⚠️ This service for '{land_description}' already exists for the client."
-#                 )
-#                 return self.render_invalid_context('client_service_form', form)
-#
-#             # Save the ClientService
-#             cs = form.save(commit=False)
-#             cs.client = client
-#             cs.save()
-#             form.save_m2m()
-#
-#             # ⬇️ Override per-process costs if any
-#             pids = request.POST.getlist('process_id[]')
-#             costs = request.POST.getlist('process_cost[]')
-#             if pids and costs:
-#                 for pid, cost_str in zip(pids, costs):
-#                     try:
-#                         cost = Decimal(cost_str)
-#                         csp = cs.service_processes.get(process_id=pid)
-#                         csp.overridden_cost = cost
-#                         csp.save(update_fields=['overridden_cost'])
-#                     except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-#                         continue
-#                 # Clear total price override if any
-#                 if cs.overridden_total_price is not None:
-#                     cs.overridden_total_price = None
-#                     cs.save(update_fields=['overridden_total_price'])
-#             else:
-#                 # ⬇️ Override total price if given (no processes)
-#                 otp = request.POST.get('override_total_price')
-#                 if otp:
-#                     try:
-#                         cs.overridden_total_price = Decimal(otp)
-#                         cs.save(update_fields=['overridden_total_price'])
-#                     except InvalidOperation:
-#                         messages.warning(request, "⚠️ Invalid total price value—ignored.")
-#                 else:
-#                     # Clear any previous override
-#                     if cs.overridden_total_price is not None:
-#                         cs.overridden_total_price = None
-#                         cs.save(update_fields=['overridden_total_price'])
-#
-#             # SMS Feedback
-#             sms_log = cs.message_logs.order_by('-timestamp').first()
-#             sms_note = ""
-#             if sms_log:
-#                 if sms_log.send_status == 'sent':
-#                     sms_note = f" 📤 SMS sent ({sms_log.reason})."
-#                 else:
-#                     sms_note = f" ❌ SMS failed ({sms_log.reason}): {sms_log.error_details or 'no details'}."
-#             else:
-#                 sms_note = " ⚠️ No SMS was attempted."
-#
-#             messages.success(
-#                 request,
-#                 f"✅ Service assigned successfully.{sms_note}"
-#             )
-#             return redirect('client_details', client_id=client.id)
-#
-#         messages.error(request, "❌ Error assigning service.")
-#         return self.render_invalid_context('client_service_form', form)
-#
-#     def handle_edit_client_service(self, request, client):
-#         if not request.user.has_perm('easydocs.change_clientservice'):
-#             raise PermissionDenied("You don't have permission to edit client services.")
-#
-#         cs_id = request.POST.get('client_service_id')
-#         cs = get_object_or_404(ClientService, id=cs_id, client=client)
-#         form = ClientServiceForm(request.POST, instance=cs)
-#
-#         if form.is_valid():
-#             form.save()
-#
-#             # 1️⃣ Override per‐process costs if any
-#             pids = request.POST.getlist('process_id[]')
-#             costs = request.POST.getlist('process_cost[]')
-#             if pids and costs:
-#                 for pid, cost_str in zip(pids, costs):
-#                     try:
-#                         cost = Decimal(cost_str)
-#                         csp = cs.service_processes.get(process_id=pid)
-#                         csp.overridden_cost = cost
-#                         csp.save(update_fields=['overridden_cost'])
-#                     except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-#                         continue
-#                 # Clear any previous total override
-#                 if cs.overridden_total_price is not None:
-#                     cs.overridden_total_price = None
-#                     cs.save(update_fields=['overridden_total_price'])
-#             else:
-#                 # 2️⃣ No processes? handle total override
-#                 otp = request.POST.get('override_total_price')
-#                 if otp:
-#                     try:
-#                         cs.overridden_total_price = Decimal(otp)
-#                         cs.save(update_fields=['overridden_total_price'])
-#                     except InvalidOperation:
-#                         messages.warning(request, "⚠️ Invalid total price value—ignored.")
-#                 else:
-#                     # If neither processes nor override given, clear override
-#                     if cs.overridden_total_price is not None:
-#                         cs.overridden_total_price = None
-#                         cs.save(update_fields=['overridden_total_price'])
-#
-#             messages.success(request, "✅ Service updated successfully.")
-#             return redirect('client_details', client_id=client.id)
-#
-#         messages.error(request, "❌ Error updating service.")
-#         return self.render_invalid_context('client_service_form', form)
-#
-#
-#     def handle_delete_client_service(self, request, client):
-#         if not request.user.has_perm('easydocs.delete_clientservice'):
-#             raise PermissionDenied("You don't have permission to delete client services.")
-#
-#         cs_id = request.POST.get('client_service_id')
-#         try:
-#             cs = ClientService.objects.get(id=cs_id, client=client)
-#             cs.delete()
-#             messages.success(request, "🗑️ Client service deleted.")
-#         except ClientService.DoesNotExist:
-#             messages.error(request, "⚠️ Client service not found.")
-#         return redirect('client_details', client_id=client.id)
-#
-#     def handle_add_client_subservice(self, request, client):
-#         def handle_add_client_subservice(self, request, client):
-#             if not request.user.has_perm('easydocs.add_clientsubservice'):
-#                 raise PermissionDenied("You don't have permission to add subservices.")
-#         # form includes fields: sub_service, overridden_price
-#         form = ClientSubServiceForm(request.POST)
-#         if form.is_valid():
-#             css = form.save(commit=False)
-#             # tie to the correct ClientService
-#             css.client_service = get_object_or_404(
-#                 ClientService,
-#                 id=request.POST.get('client_service'),
-#                 client=client
-#             )
-#             # cleaned_data already has overridden_price or None
-#             css.overridden_price = form.cleaned_data.get('overridden_price')
-#             css.save()
-#             messages.success(request, "✅ SubService added successfully.")
-#             return redirect('client_details', client_id=client.id)
-#
-#         messages.error(request, "❌ Error adding subservice.")
-#         return self.render_invalid_context('client_subservice_form', form)
-#
-#     def handle_edit_client_subservice(self, request, client):
-#         if not request.user.has_perm('easydocs.change_clientsubservice'):
-#             raise PermissionDenied("You don't have permission to edit subservices.")
-#         css_id = request.POST.get('client_subservice_id')
-#         css = get_object_or_404(ClientSubService, id=css_id, client_service__client=client)
-#
-#         form = ClientSubServiceEditForm(request.POST, instance=css)
-#         if form.is_valid():
-#             form.save()
-#             messages.success(request, "✅ SubService updated successfully.")
-#             return redirect('client_details', client_id=client.id)
-#
-#         messages.error(request, "❌ Error updating subservice.")
-#         return self.render_invalid_context('client_subservice_form', form)
-#
-#     @staticmethod
-#     def handle_delete_client_subservice(request, client):
-#         if not request.user.has_perm('easydocs.delete_clientsubservice'):
-#             raise PermissionDenied("You don't have permission to delete subservices.")
-#         css_id = request.POST.get('client_subservice_id')
-#         try:
-#             css = ClientSubService.objects.get(
-#                 id=css_id,
-#                 client_service__client=client
-#             )
-#             css.delete()
-#             messages.success(request, "🗑️ SubService deleted.")
-#         except ClientSubService.DoesNotExist:
-#             messages.error(request, "⚠️ SubService not found.")
-#         return redirect('client_details', client_id=client.id)
-#
-#     def render_invalid_context(self, form_key, form):
-#         context = self.get_context_data()
-#         context[form_key] = form
-#         return self.render_to_response(context)
-#
-#     def render_to_response(self, context, **response_kwargs):
-#         # AJAX payment history case
-#         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-#             return JsonResponse({'payment_history': context.get('flat_payment_history', [])})
-#         return super().render_to_response(context, **response_kwargs)
 
 
 def client_list(request):
@@ -713,17 +476,27 @@ def add_client(request):
 
 
 # Edit Client
+
+
 def edit_client(request, client_id):
     client = get_object_or_404(Client, id=client_id)
+
     if request.method == 'POST':
         form = ClientForm(request.POST, instance=client)
         if form.is_valid():
             form.save()
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'message': 'Client updated successfully.'})
             messages.success(request, 'Client updated successfully.')
         else:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'errors': form.errors}, status=400)
             messages.error(request, 'Failed to update client. Please check the form.')
-    return redirect('clients')
 
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+    return redirect(reverse('client_details', kwargs={'client_id': client_id}))
 
 
 
@@ -946,9 +719,6 @@ def update_sms_token(request):
     return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
-
-
-
 class ManagementView(TemplateView):
     template_name = "Management/management.html"
 
@@ -976,8 +746,6 @@ class ManagementView(TemplateView):
         except SiteSettings.DoesNotExist:
             messages.warning(self.request, "Site settings not found. You can create new settings.")
             context['settings_form'] = SiteSettingsForm()
-
-        
 
         try:
             sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)

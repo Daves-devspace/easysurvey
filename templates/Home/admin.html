@@ -1,7 +1,27 @@
 {% extends 'Home/base.html' %}
+{% load humanize %}
 {% load static %}
 
 {% block body %}
+    <style>
+        .nav-tabs .nav-link.active {
+            background-color: #198754; /* Bootstrap green */
+            color: white;
+            box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link {
+            transition: all 0.3s ease;
+            border-radius: 0.5rem;
+        }
+
+        .nav-tabs {
+            border-bottom: none;
+        }
+    </style>
 
     <!-- [ Main Content ] start -->
     <div class="pc-container">
@@ -32,97 +52,219 @@
             <!-- [ Main Content ] start -->
             <div class="row">
                 <!-- [ sample-page ] start -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="mb-2 f-w-400 text-muted">Total Processed Title Deeds</h6>
-                            <h4 class="mb-3">4,42,236 <span class="badge bg-light-primary border border-primary"><i
-                                    class="ti ti-trending-up"></i> 59.3%</span></h4>
-                            <p class="mb-0 text-muted text-sm">You made an extra <span
-                                    class="text-primary">35,000</span> this year
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="mb-2 f-w-400 text-muted">Total Clients</h6>
-                            <h4 class="mb-3">78,250 <span class="badge bg-light-success border border-success"><i
-                                    class="ti ti-trending-up"></i> 70.5%</span></h4>
-                            <p class="mb-0 text-muted text-sm">You made an extra <span class="text-success">8,900</span>
-                                this year</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="mb-2 f-w-400 text-muted">Total Sold Properties</h6>
-                            <h4 class="mb-3">18,800 <span class="badge bg-light-warning border border-warning"><i
-                                    class="ti ti-trending-down"></i> 27.4%</span></h4>
-                            <p class="mb-0 text-muted text-sm">You made an extra <span class="text-warning">1,943</span>
-                                this year</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Total Collected -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="text-muted">Total Collected {{ dashboard.current_year }}</h6>
-                            <h4>
-                                Ksh &nbsp;{{ dashboard.current_year_revenue|floatformat:2 }}
-                                <span class="badge {{ dashboard.trending_badge.class }}">
-            <i class="{{ dashboard.trending_badge.icon }}"></i>
-            {{ dashboard.trending_badge.percentage }}
-          </span>
-                            </h4>
-                            <p class="mb-0 text-muted text-sm">
-                                {% if dashboard.current_year_revenue >= dashboard.previous_year_revenue %}
-                                    You made an extra
-                                    <span class="{{ dashboard.extra_class }}">
-      Ksh &nbsp;{{ dashboard.extra_amount|floatformat:2 }}
-    </span>
-                                    compared to {{ dashboard.previous_year }}.
-                                {% else %}
-                                    You made
-                                    <span class="{{ dashboard.extra_class }}">
-      Ksh &nbsp;{{ dashboard.extra_amount|floatformat:2 }}
-    </span>
-                                    less than {{ dashboard.previous_year }}.
-                                {% endif %}
-                            </p>
+                <!-- Total Processed Title Deeds -->
+<div class="container-fluid mt-4">
+  <div class="row">
+    <!-- Clients Card -->
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark rounded-pill me-2">
+                  <i class="fas fa-users text-primary"></i>
+                </span>
+                <h5 class="card-title mb-0">{{ dashboard.total_clients }}</h5>
+              </div>
+              <small class="text-muted">Total Clients</small>
+            </div>
+            <div class="text-end">
+              <span class="badge {% if dashboard.extra_clients > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                {% if dashboard.extra_clients > 0 %}+{{ dashboard.extra_clients }}{% else %}{{ dashboard.extra_clients }}{% endif %}%
+              </span>
+              <div>
+                <small class="text-muted">This month</small>
+                <i class="fas fa-arrow-circle-right ms-1 small"></i>
+              </div>
+            </div>
+          </div>
 
-                        </div>
-                    </div>
-                </div>
+          <!-- Sparkline Chart -->
+          <div id="sparkline-clients" class="mt-2"></div>
 
-                <!-- Total Expenses -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="text-muted">Total Expenses {{ dashboard.current_year }}</h6>
-                            <h4>
-                                Ksh &nbsp;{{ dashboard.total_expenses|floatformat:2 }}
-                            </h4>
-                            <p class="text-sm text-muted">Includes sub‑services & general expenses</p>
-                        </div>
-                    </div>
-                </div>
+          <!-- Insight Text -->
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-circle {% if dashboard.clients_data|last > dashboard.clients_data|first %}text-success{% else %}text-danger{% endif %} me-1" style="font-size: 8px;"></i>
+              {% with last_month=dashboard.clients_data|last|floatformat:0 %}
+              You added <span class="{% if dashboard.clients_data|last > dashboard.clients_data|first %}text-success{% else %}text-danger{% endif %} fw-bold">{{ last_month }}</span> new clients this month
+              {% endwith %}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
 
-                <!-- Net Revenue -->
-                <div class="col-md-6 col-xl-3">
-                    <div class="card shadow">
-                        <div class="card-body">
-                            <h6 class="text-muted">Net Revenue {{ dashboard.current_year }}</h6>
-                            <h4>
-                                Ksh &nbsp;{{ dashboard.net_revenue|floatformat:2 }}
-                            </h4>
-                            <p class="text-sm text-muted">Collected minus expenses</p>
-                        </div>
-                    </div>
-                </div>
+    <!-- Revenue Card -->
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark rounded-pill me-2">
+                  <i class="fas fa-money-bill-wave text-success"></i>
+                </span>
+                <h5 class="card-title mb-0">KES {{ dashboard.current_year_revenue|intcomma }}</h5>
+              </div>
+              <small class="text-muted">Total Revenue</small>
+            </div>
+            <div class="text-end">
+              {% with revenue_percent=dashboard.current_year_revenue|default:1|floatformat:0|add:0 %}
+              <span class="badge {% if revenue_percent > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                {{ revenue_percent }}%
+              </span>
+              <div>
+                <small class="text-muted">This year</small>
+                <i class="fas fa-arrow-circle-right ms-1 small"></i>
+              </div>
+              {% endwith %}
+            </div>
+          </div>
+
+          <!-- Sparkline Chart -->
+          <div id="sparkline-revenue" class="mt-2"></div>
+
+          <!-- Highlight Point -->
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-circle text-primary me-1" style="font-size: 8px;"></i>
+              {% with latest_value=dashboard.collected_data|last|floatformat:0|intcomma %}
+              You collected <span class="text-primary fw-bold">KES {{ latest_value }}</span> this month
+              {% endwith %}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expenses Card -->
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark rounded-pill me-2">
+                  <i class="fas fa-file-invoice text-danger"></i>
+                </span>
+                <h5 class="card-title mb-0">KES {{ dashboard.total_expenses|intcomma }}</h5>
+              </div>
+              <small class="text-muted">Total Expenses</small>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-danger rounded-pill">
+                -2%
+              </span>
+              <div>
+                <small class="text-muted">This year</small>
+                <i class="fas fa-arrow-circle-right ms-1 small"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sparkline Chart -->
+          <div id="sparkline-expenses" class="mt-2"></div>
+
+          <!-- Highlight Point -->
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-circle text-danger me-1" style="font-size: 8px;"></i>
+              {% with expense_value=dashboard.expenses_data|last|floatformat:0|intcomma %}
+              Expenses of <span class="text-danger fw-bold">KES {{ expense_value }}</span> this month
+              {% endwith %}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Net Revenue Card -->
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark rounded-pill me-2">
+                  <i class="fas fa-chart-line text-warning"></i>
+                </span>
+                <h5 class="card-title mb-0">KES {{ dashboard.net_revenue|intcomma }}</h5>
+              </div>
+              <small class="text-muted">Net Revenue</small>
+            </div>
+            <div class="text-end">
+              {% with net_percent=8 %}
+              <span class="badge {% if net_percent > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                +{{ net_percent }}%
+              </span>
+              <div>
+                <small class="text-muted">This year</small>
+                <i class="fas fa-arrow-circle-right ms-1 small"></i>
+              </div>
+              {% endwith %}
+            </div>
+          </div>
+
+          <!-- Sparkline Chart -->
+          <div id="sparkline-net-revenue" class="mt-2"></div>
+
+          <!-- Insight Text -->
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-circle text-warning me-1" style="font-size: 8px;"></i>
+              {% with net_value=dashboard.net_revenue_data|last|floatformat:0|intcomma %}
+              Net income of <span class="text-warning fw-bold">KES {{ net_value }}</span> this month
+              {% endwith %}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title Deeds Card -->
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="d-flex align-items-center">
+                <span class="badge bg-light text-dark rounded-pill me-2">
+                  <i class="fas fa-file-contract text-info"></i>
+                </span>
+                <h5 class="card-title mb-0">{{ dashboard.total_processed_title_deeds }}</h5>
+              </div>
+              <small class="text-muted">Title Deeds Processed</small>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-success rounded-pill">
+                +4.93%
+              </span>
+              <div>
+                <small class="text-muted">This week</small>
+                <i class="fas fa-arrow-circle-right ms-1 small"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sparkline Chart -->
+          <div id="sparkline-title-deeds" class="mt-2"></div>
+
+          <!-- Insight Text -->
+          <div class="mt-3">
+            <small class="text-muted">
+              <i class="fas fa-circle text-info me-1" style="font-size: 8px;"></i>
+              {% with title_value=dashboard.title_deeds_data|last|floatformat:0 %}
+              You processed <span class="text-info fw-bold">{{ title_value }}</span> title deeds this month
+              {% endwith %}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 
                 <div class="row g-4">
@@ -130,16 +272,20 @@
                     <div class="col-12 col-lg-6">
                         <div class="card h-100">
                             <div class="card-header bg-green-100">
+
+
                                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <ul class="nav nav-tabs" id="chartTab" role="tablist">
+                                    <ul class="nav nav-tabs border-0" id="chartTab" role="tablist">
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab"
-                                                    data-bs-target="#revenue" type="button" role="tab">Revenue
+                                                    data-bs-target="#revenue" type="button" role="tab">
+                                                Revenue
                                             </button>
                                         </li>
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link" id="services-tab" data-bs-toggle="tab"
-                                                    data-bs-target="#services" type="button" role="tab">Service Analysis
+                                                    data-bs-target="#services" type="button" role="tab">
+                                                Service Analysis
                                             </button>
                                         </li>
                                     </ul>
@@ -149,7 +295,8 @@
                                         <select id="year-selector" class="form-select form-select-sm"
                                                 style="min-width: 120px;"></select>
                                         <button id="export-csv-btn" class="btn btn-outline-primary btn-sm"
-                                                style="min-width: 120px;">Export CSV
+                                                style="min-width: 120px;">
+                                            Export CSV
                                         </button>
                                     </div>
 
@@ -160,6 +307,7 @@
                                                 style="min-width: 150px;"></select>
                                     </div>
                                 </div>
+
                             </div>
 
                             <div class="card-body tab-content shadow-lg">
@@ -385,82 +533,148 @@
 {% block scripts %}
 
     <!-- Required includes (place in <head> or before script) -->
+<script>
+  // Expose real JS arrays to your chart script
+  window.DASHBOARD_DATA = {
+    monthLabels:     {{ dashboard.month_labels|safe }},
+    clientsData:     {{ dashboard.clients_data|safe }},
+    titleDeedsData:  {{ dashboard.title_deeds_data|safe }},
+    revenueData:     {{ dashboard.collected_data|safe }},
+    expensesData:    {{ dashboard.expenses_data|safe }},
+    netRevenueData:  {{ dashboard.net_revenue_data|safe }}
+  };
+</script>
+
+<script>
+/* global ApexCharts */
+document.addEventListener('DOMContentLoaded', () => {
+  // 1️⃣ Pull in your preloaded data
+  const {
+    monthLabels,
+    clientsData,
+    titleDeedsData,
+    revenueData,
+    expensesData,
+    netRevenueData
+  } = window.DASHBOARD_DATA || {};
+
+  if (!monthLabels) {
+    console.error('DASHBOARD_DATA is missing or incomplete:', window.DASHBOARD_DATA);
+    return;
+  }
+
+  // 2️⃣ Build a shared “createChartConfig” factory
+  function createChartConfig(data, color, name, categories) {
+    const lastValue = data[data.length - 1];
+    const values = data.filter(v => v != null);
+    const minValue = values.length ? Math.min(...values) * 0.9 : 0;
+    const maxValue = values.length ? Math.max(...values) * 1.1 : 10;
+
+    // Discrete markers for each point, larger on the last one
+    const discreteMarkers = data.map((_, i) => ({
+      seriesIndex: 0,
+      dataPointIndex: i,
+      fillColor: '#fff',
+      strokeColor: color,
+      size: i === data.length - 1 ? 8 : 4
+    }));
+
+    return {
+      chart: {
+        type: 'line',
+        height: 150,
+        sparkline: { enabled: false },
+        toolbar: { show: false },
+        animations: { enabled: true, speed: 800, easing: 'easeinout' },
+        zoom: { enabled: false }
+      },
+      series: [{ name, data }],
+      stroke: { curve: 'smooth', width: 3 },
+      grid: {
+        show: true,
+        borderColor: '#eee',
+        padding: { top: 20, right: 20, bottom: 0, left: 0 }
+      },
+      xaxis: {
+        categories,
+        axisBorder: { show: true, color: '#ccc' },
+        axisTicks:  { show: true, color: '#ccc' },
+        labels:    { show: true, style: { colors: '#666', fontSize: '12px' } }
+      },
+      yaxis: {
+        min: minValue,
+        max: maxValue,
+        labels: { show: true, style: { colors: '#666', fontSize: '12px' } }
+      },
+      markers: {
+        size: 4,
+        colors: [color],
+        strokeColors: '#fff',
+        strokeWidth: 2,
+        hover: { sizeOffset: 2 },
+        discrete: discreteMarkers
+      },
+      annotations: {
+        xaxis: [{
+          x: categories[categories.length - 1],
+          strokeDashArray: 4,
+          borderColor: '#888',
+          label: {
+            borderColor: '#888',
+            style: { color: '#fff', background: '#888' },
+            text: 'Now'
+          }
+        }]
+      },
+      tooltip: {
+        enabled: true,
+        theme: 'dark',
+        x: { show: true, format: 'dd MMM' },
+        y: {
+          formatter: val => {
+            if (/revenue|expense/i.test(name)) {
+              return 'KES ' + val.toLocaleString();
+            }
+            return val.toLocaleString();
+          }
+        }
+      },
+      colors: [color]
+    };
+  }
+
+  // 3️⃣ Define your five chart targets
+  const chartConfigs = [
+    { selector: '#sparkline-clients',    data: clientsData,    color: '#198754', name: 'Clients' },
+    { selector: '#sparkline-title-deeds', data: titleDeedsData, color: '#0dcaf0', name: 'Title Deeds' },
+    { selector: '#sparkline-revenue',     data: revenueData,    color: '#007bff', name: 'Revenue' },
+    { selector: '#sparkline-expenses',    data: expensesData,   color: '#dc3545', name: 'Expenses' },
+    { selector: '#sparkline-net-revenue', data: netRevenueData, color: '#ffc107', name: 'Net Revenue' }
+  ];
+
+  // 4️⃣ Render each chart
+  chartConfigs.forEach(cfg => {
+    const el = document.querySelector(cfg.selector);
+    if (!el) {
+      console.warn(`Missing container for ${cfg.selector}`);
+      return;
+    }
+    const options = createChartConfig(cfg.data, cfg.color, cfg.name, monthLabels);
+    new ApexCharts(el, options).render();
+  });
+});
+
+</script>
+
+
+    <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
+    <script src="{% static 'assets/js/modals/dashCardAnalytics.js' %}"></script>
 
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const calendarEl = document.getElementById('calendar');
-            const API_URL = "{% url 'booking-calendar-json' %}";
+  console.log('ApexCharts loaded:', typeof ApexCharts !== 'undefined');
+</script>
 
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                eventSources: [
-                    // 1. Summary Events (Month view only)
-                    {
-                        url: API_URL,
-                        extraParams: () => ({
-                            handled: document.getElementById('toggle-handled').checked ? 1 : 0,
-                            summary: 1
-                        }),
-                        display: 'background',
-                        filter: function (info) {
-                            return info.view.type === 'dayGridMonth';
-                        },
-                        eventDidMount: function (info) {
-                            const details = info.event.extendedProps.details || [];
-                            if (details.length > 0) {
-                                tippy(info.el, {
-                                    content: details.join('<br>'),
-                                    allowHTML: true,
-                                    theme: 'light',
-                                    placement: 'top'
-                                });
-                            }
-                        }
-                    },
-                    // 2. Detail Events (Week/Day view only)
-                    {
-                        url: API_URL,
-                        extraParams: () => ({
-                            handled: document.getElementById('toggle-handled').checked ? 1 : 0,
-                            summary: 0
-                        }),
-                        display: 'auto',
-                        filter: function (info) {
-                            return info.view.type !== 'dayGridMonth';
-                        }
-                    }
-                ],
-                eventClick: function (info) {
-                    const props = info.event.extendedProps;
-
-                    const modalHtml = `
-                          <strong>Client:</strong>
-                          <a href="/clients/${props.client_id}/" target="_blank">${props.client_name}</a><br>
-                          <strong>Service:</strong> ${props.service || 'N/A'}<br>
-                          <strong>Time:</strong> ${props.time || info.event.start.toLocaleString()}<br>
-                          <strong>Message:</strong> ${props.dispatchMessage || 'N/A'}<br>
-                          <strong>Status:</strong> ${props.handled ? 'Handled' : 'Pending'}
-                        `;
-
-
-                    document.getElementById('modalBody').innerHTML = modalHtml;
-                    new bootstrap.Modal(document.getElementById('bookingModal')).show();
-                }
-            });
-
-            calendar.render();
-
-            document
-                .getElementById('toggle-handled')
-                .addEventListener('change', () => calendar.refetchEvents());
-        });
-    </script>
 
 
     <script>

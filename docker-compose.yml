@@ -3,6 +3,7 @@
   services:
     web:
       build: .
+      entrypoint: ["/app/entrypoint.sh"]
       command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
       volumes:
         - .:/app

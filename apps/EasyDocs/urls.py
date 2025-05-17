@@ -125,7 +125,7 @@ urlpatterns = [
     path('booking/<int:pk>/edit/', BookingUpdateView.as_view(), name='edit_booking'),
 
     path('bookings/<int:pk>/', MarkBookingHandledView.as_view(), name='mark-booking-handled'),
-    path('bookings/<int:pk>/', AssignSurveyorsView.as_view(), name='assign-surveyor-booking'),
+    path('bookings/<int:pk>/', AssignSurveyorsView.as_view(), name='assign-surveyors'),
     path('bookings/', BookingManagementView.as_view(), name='booking-management'),
-    path('calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
+    path('api/calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
 ]

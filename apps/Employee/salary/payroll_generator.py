@@ -81,6 +81,8 @@ def generate_payroll_for_employee(emp, new_month):
                 name=tmpl.name,
                 amount=tmpl.amount,
                 recurring=tmpl.recurring,
+                start_date=tmpl.start_date,
+                end_date=tmpl.end_date,
             ) for tmpl in allow_qs
         ])
         # bulk-create deduction snapshots
@@ -91,6 +93,8 @@ def generate_payroll_for_employee(emp, new_month):
                 name=tmpl.name,
                 amount=tmpl.amount,
                 recurring=tmpl.recurring,
+                start_date=tmpl.start_date,
+                end_date=tmpl.end_date,
             ) for tmpl in deduct_qs
         ])
 

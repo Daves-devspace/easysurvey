@@ -49,7 +49,7 @@
     <!-- FullCalendar Script -->
     {#    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>#}
 
-
+    <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
 
     <!-- [plugin for searching] start -->
@@ -179,7 +179,7 @@
                     </a>
                 </li>
                 <li class="pc-item">
-                    <a href="../pages/register.html" class="pc-link">
+                    <a href="{% url 'user-profile-update' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-user-plus"></i></span>
                         <span class="pc-mtext">Register</span>
                     </a>
@@ -450,6 +450,7 @@
 {% endblock %}
 {% block scripts %}
 
+
 {% endblock %}
 
 <footer class="pc-footer">
@@ -471,6 +472,7 @@
 
 <!-- [Page Specific JS] start -->
 <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
+
 <!-- calender js -->
 <script src="{% static 'assets/js/plugins/index.global.min.js' %}"></script>
 <!-- Sweet Alert -->
@@ -504,7 +506,7 @@
 <script src="{% static 'assets/js/plugins/dataTables.responsive.min.js' %}"></script>
 <script src="{% static 'assets/js/plugins/responsive.bootstrap5.min.js' %}"></script>
 <!-- [ grapghs  -->
-<script src="{% static 'assets/js/pages/dashboard-analytics.js' %}"></script>
+<script src="{% static 'assets/js/modals/dashboardAnalytics.js' %}"></script>
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
 <script>

@@ -46,9 +46,20 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 COPY . /app
 RUN chown -R django:django /app
 
+
+
+# … up through copying your code …
+
+# Copy + chmod in one go
+COPY --chmod=0755 entrypoint.sh /app/entrypoint.sh
+
+# Then switch
 USER django
 
+ENTRYPOINT ["/app/entrypoint.sh"]
+
 CMD ["gunicorn", "GGI.wsgi:application", "--bind", "0.0.0.0:8000"]
+
 
 
 

@@ -111,6 +111,23 @@ def update_full_total(client_service: ClientService):
         logger.error(f"Failed to update full_total_price for ClientService #{client_service.pk}: {e}", exc_info=True)
 
 
+
+@receiver(post_save, sender=ClientService)
+def on_client_service_change(sender, instance: ClientService, created, **kwargs):
+    """
+    Whenever a ClientService is saved—whether from overrides or any other edit—
+    re‑compute and persist its full_total_price.
+    """
+    # Skip the very first save (when created) because .save() override already did it
+    if created:
+        return
+
+    # Now that overridden_total_price or land_description or whatever may have changed,
+    # recalc the full total using your helper (which does a .save(update_fields=['full_total_price']))
+    update_full_total(instance)
+
+
+
 @receiver(post_save, sender=ClientSubService)
 @receiver(post_delete, sender=ClientSubService)
 def on_subservice_change(sender, instance, **kwargs):

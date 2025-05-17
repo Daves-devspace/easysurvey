@@ -161,37 +161,31 @@ class BookingManagementView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # 1) Define today as a date object
         today = timezone.localdate()
 
-        # 2) Fetch only today’s unhandled bookings
-        context['today_bookings'] = Booking.objects.filter(
+        # Today's unhandled bookings
+        today_bookings = Booking.objects.filter(
             scheduled_date__date=today,
             handled=False
         )
+        context['today_bookings'] = today_bookings
 
-        # 3) (Optional) all unhandled for the calendar
+        # Optional: All unhandled
         context['unhandled_bookings'] = Booking.objects.filter(handled=False)
+
+        # All surveyors for assigning in modals
+        context['surveyors'] = User.objects.filter(
+            employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR
+        )
+
+        # For each booking, store assigned surveyors (dict format: booking_id => [ids])
+        context['assigned_ids_map'] = {
+            booking.id: list(booking.bookingassignment_set.values_list('surveyor_id', flat=True))
+            for booking in today_bookings
+        }
+
         return context
 
-# class BookingManageView(UpdateView):
-#     model = Booking
-#     form_class = BookingManageForm
-#     template_name = 'Management/bookings/booking_management.html'
-#     context_object_name = 'booking'
-#
-#     def form_valid(self, form):
-#         # tag who handled it
-#         booking = form.save(commit=False)
-#         if form.cleaned_data['mark_handled']:
-#             booking.handled_by = self.request.user
-#         booking.save()
-#         form.save_m2m()  # this calls our override to reassign surveyors
-#         messages.success(self.request, "Booking updated.")
-#         return super().form_valid(form)
-#
-#     def get_success_url(self):
-#         return reverse_lazy('booking-calendar')
 
 
 
@@ -221,7 +215,7 @@ class AssignSurveyorsView(View):
             BookingAssignment.objects.create(booking=booking, surveyor_id=uid)
 
         messages.success(request, "Surveyors assigned successfully.")
-        return redirect('booking-calendar')  # Or any relevant redirect
+        return redirect('booking-management')  # Or any relevant redirect
 
 
 
@@ -255,4 +249,4 @@ class MarkBookingHandledView(View):
         booking.save(update_fields=['handled', 'handled_at', 'handled_by'])
 
         messages.success(request, "Booking marked as handled and surveyors confirmed.")
-        return redirect('booking-calendar')
+        return redirect('booking-management')
