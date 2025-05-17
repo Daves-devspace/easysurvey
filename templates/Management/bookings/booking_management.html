@@ -1,6 +1,7 @@
 {% extends 'Home/base.html' %}
 {% load static %}
 
+
 {% load custom_filters %}
 
 
@@ -114,29 +115,119 @@
                                                                         <td>{{ booking.scheduled_date }}</td>
                                                                         <td>
                                                                             {% if booking.handled %}
-                                                                                <span class="badge badge-success">Handled</span>
+                                                                                <span class="badge badge-primary">Handled</span>
                                                                             {% else %}
-                                                                                <span class="badge badge-danger">Unhandled</span>
+                                                                                <span class="badge badge-secondary">Unhandled</span>
                                                                             {% endif %}
                                                                         </td>
                                                                         <td>
                                                                             <!-- Assign Surveyors Button -->
-                                                                            <button class="btn btn-sm btn-primary"
+                                                                            <button type="button"
+                                                                                    class="btn btn-outline-primary"
                                                                                     data-bs-toggle="modal"
-                                                                                    data-bs-target="#assignSurveyorsModal{{ booking.id }}">
+                                                                                    data-bs-target="#assignSurveyorsModal">
                                                                                 Assign Surveyors
                                                                             </button>
                                                                         </td>
                                                                         <td>
 
                                                                             <!-- Mark as Handled Button -->
-                                                                            <button class="btn btn-sm btn-success"
+                                                                            <button type="button"
+                                                                                    class="btn btn-outline-success"
                                                                                     data-bs-toggle="modal"
-                                                                                    data-bs-target="#markHandledModal{{ booking.id }}">
+                                                                                    data-bs-target="#markHandledModal">
                                                                                 Mark as Handled
                                                                             </button>
                                                                         </td>
                                                                     </tr>
+                                                                    <!-- Assign Surveyors Modal -->
+                                                                    <div class="modal fade" id="assignSurveyorsModal"
+                                                                         tabindex="-1"
+                                                                         aria-labelledby="assignSurveyorsLabel"
+                                                                         aria-hidden="true">
+                                                                        <div class="modal-dialog">
+                                                                            <form method="POST"
+                                                                                  action="{% url 'assign-surveyors' booking.id %}">
+                                                                                {% csrf_token %}
+                                                                                <div class="modal-content">
+                                                                                    <div class="modal-header">
+                                                                                        <h5 class="modal-title"
+                                                                                            id="assignSurveyorsLabel">
+                                                                                            Assign Surveyors</h5>
+                                                                                        <button type="button"
+                                                                                                class="btn-close"
+                                                                                                data-bs-dismiss="modal"></button>
+                                                                                    </div>
+                                                                                    <div class="modal-body">
+                                                                                        {% for surveyor in surveyors %}
+                                                                                            <div class="form-check">
+                                                                                                <input class="form-check-input"
+                                                                                                       type="checkbox"
+                                                                                                       name="surveyors"
+                                                                                                       value="{{ surveyor.id }}"
+                                                                                                       id="assign-s{{ surveyor.id }}"
+                                                                                                       {% if surveyor.id in assigned_ids %}checked{% endif %}>
+                                                                                                <label class="form-check-label"
+                                                                                                       for="assign-s{{ surveyor.id }}">{{ surveyor.get_full_name }}</label>
+                                                                                            </div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    <div class="modal-footer">
+                                                                                        <button type="submit"
+                                                                                                class="btn btn-primary">
+                                                                                            Assign
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
+
+
+                                                                    <!-- Mark Booking as Handled Modal -->
+                                                                    <div class="modal fade" id="markHandledModal"
+                                                                         tabindex="-1"
+                                                                         aria-labelledby="markHandledLabel"
+                                                                         aria-hidden="true">
+                                                                        <div class="modal-dialog">
+                                                                            <form method="POST"
+                                                                                  action="{% url 'mark-booking-handled' booking.id %}">
+                                                                                {% csrf_token %}
+                                                                                <div class="modal-content">
+                                                                                    <div class="modal-header">
+                                                                                        <h5 class="modal-title"
+                                                                                            id="markHandledLabel">Mark
+                                                                                            Booking as Handled</h5>
+                                                                                        <button type="button"
+                                                                                                class="btn-close"
+                                                                                                data-bs-dismiss="modal"></button>
+                                                                                    </div>
+                                                                                    <div class="modal-body">
+                                                                                        <p>Select final surveyors who
+                                                                                            handled this booking:</p>
+                                                                                        {% for surveyor in surveyors %}
+                                                                                            <div class="form-check">
+                                                                                                <input class="form-check-input"
+                                                                                                       type="checkbox"
+                                                                                                       name="surveyors"
+                                                                                                       value="{{ surveyor.id }}"
+                                                                                                       id="handle-s{{ surveyor.id }}"
+                                                                                                       {% if surveyor.id in assigned_ids %}checked{% endif %}>
+                                                                                                <label class="form-check-label"
+                                                                                                       for="handle-s{{ surveyor.id }}">{{ surveyor.get_full_name }}</label>
+                                                                                            </div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    <div class="modal-footer">
+                                                                                        <button type="submit"
+                                                                                                class="btn btn-success">
+                                                                                            Mark as Handled
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
                                                                 {% endfor %}
                                                                 </tbody>
                                                             </table>
@@ -147,7 +238,6 @@
                                                 </div>
                                             </div>
                                         </div>
-
 
 
                                     </div>
@@ -162,7 +252,7 @@
 
                                                     <h5>Bookings</h5>
                                                     <!-- Button to open modal -->
-                                                     <label>
+                                                    <label>
                                                         <input type="checkbox" id="toggle-handled" checked>
                                                         Show handled bookings
                                                     </label>
@@ -170,7 +260,7 @@
 
                                                 <div class="card-body">
 
-                                                    <div id="calendar" style="min-height: 400px; margin: 20px;"></div>
+                                                    <div id="calendar" style="min-height: 600px; margin: 20px;"></div>
 
                                                 </div>
 
@@ -255,7 +345,26 @@
             </div>
         </div>
     </div>
+
     <!-- [ Main Content ] end -->
+
+    <div class="modal fade" id="bookingModal" tabindex="-1"
+         aria-labelledby="bookingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bookingModalLabel">Booking Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Details go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 {% endblock %}
@@ -263,80 +372,7 @@
 
 {% block scripts %}
 
-     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const calendarEl = document.getElementById('calendar');
-            const API_URL = "{% url 'booking-calendar-json' %}";
-
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                eventSources: [
-                    // 1. Summary Events (Month view only)
-                    {
-                        url: API_URL,
-                        extraParams: () => ({
-                            handled: document.getElementById('toggle-handled').checked ? 1 : 0,
-                            summary: 1
-                        }),
-                        display: 'background',
-                        filter: function (info) {
-                            return info.view.type === 'dayGridMonth';
-                        },
-                        eventDidMount: function (info) {
-                            const details = info.event.extendedProps.details || [];
-                            if (details.length > 0) {
-                                tippy(info.el, {
-                                    content: details.join('<br>'),
-                                    allowHTML: true,
-                                    theme: 'light',
-                                    placement: 'top'
-                                });
-                            }
-                        }
-                    },
-                    // 2. Detail Events (Week/Day view only)
-                    {
-                        url: API_URL,
-                        extraParams: () => ({
-                            handled: document.getElementById('toggle-handled').checked ? 1 : 0,
-                            summary: 0
-                        }),
-                        display: 'auto',
-                        filter: function (info) {
-                            return info.view.type !== 'dayGridMonth';
-                        }
-                    }
-                ],
-                eventClick: function (info) {
-                    const props = info.event.extendedProps;
-
-                    const modalHtml = `
-                          <strong>Client:</strong>
-                          <a href="/clients/${props.client_id}/" target="_blank">${props.client_name}</a><br>
-                          <strong>Service:</strong> ${props.service || 'N/A'}<br>
-                          <strong>Time:</strong> ${props.time || info.event.start.toLocaleString()}<br>
-                          <strong>Message:</strong> ${props.dispatchMessage || 'N/A'}<br>
-                          <strong>Status:</strong> ${props.handled ? 'Handled' : 'Pending'}
-                        `;
-
-
-                    document.getElementById('modalBody').innerHTML = modalHtml;
-                    new bootstrap.Modal(document.getElementById('bookingModal')).show();
-                }
-            });
-
-            calendar.render();
-
-            document
-                .getElementById('toggle-handled')
-                .addEventListener('change', () => calendar.refetchEvents());
-        });
-    </script>
+    <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
 {% endblock %}
 
 

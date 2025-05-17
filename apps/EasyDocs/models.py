@@ -1,3 +1,4 @@
+import mimetypes
 from decimal import Decimal
 
 from django.conf import settings
@@ -63,6 +64,7 @@ class DocType(models.Model):
 class Document(models.Model):
     doc_name = models.CharField(max_length=100, help_text="Enter a short name for the document")
     doc_type = models.ForeignKey(DocType, on_delete=models.CASCADE, related_name='documents')
+    mime_type = models.CharField(max_length=100, blank=True)
     location = models.CharField(max_length=50)
     reference = models.CharField(max_length=50)
     file = models.FileField(upload_to='office_documents/', blank=True, null=True, help_text="Upload office-related documents")
@@ -75,6 +77,12 @@ class Document(models.Model):
             models.Index(fields=['uploaded_at']),
         ]
 
+    def save(self, *args, **kwargs):
+        if self.doc_file and not self.mime_type:
+            mime, _ = mimetypes.guess_type(self.doc_file.name)
+            self.mime_type = mime or 'application/octet-stream'
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.doc_name} - {self.reference} ({self.location})"
 
@@ -84,6 +92,7 @@ class Client(models.Model):
     last_name = models.CharField(max_length=100,db_index=True)
     email = models.EmailField(unique=True, blank=True, null=True,db_index=True)
     phone = models.CharField(max_length=15,db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.first_name
@@ -301,7 +310,7 @@ class ClientService(models.Model):
 
 
 class Booking(models.Model):
-    client_service = models.ForeignKey(ClientService, on_delete=models.CASCADE)
+    client_service = models.OneToOneField(ClientService, on_delete=models.CASCADE, related_name='ground_booking')
     created_at = models.DateTimeField(auto_now_add=True)  # When the booking was created
     scheduled_date = models.DateTimeField()               # When the service is scheduled to occur
     dispatch_message = models.TextField(blank=True, null=True)

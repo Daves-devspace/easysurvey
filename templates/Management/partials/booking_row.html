@@ -10,99 +10,95 @@
             <th>Action</th>
         </tr>
         </thead>
-        <tbody>
-        {% if cs.booking_set.all %}
-            {% for booking in cs.booking_set.all %}
+    <tbody>
+  {% if cs.ground_data.scheduled_date %}
+    {# We know there's a booking if scheduled_date is non‑empty #}
+    {% with gd=cs.ground_data %}
+      <tr id="booking-row-{{ cs.id }}">
+        <td>1</td>
+        <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
+        <th>
+          {{ cs.ground_booking.created_at }}
+        </th>
+        <td>
+          {% if gd.dispatch_message %}
+            <span
+              id="msg-preview-{{ cs.id }}"
+              class="preview-with-tooltip"
+              data-bs-toggle="tooltip"
+              title="{{ gd.dispatch_message|escapejs }}">
+              {{ gd.dispatch_message|truncatechars:60 }}
+            </span>
+          {% else %}
+            <em class="text-muted">No message</em>
+          {% endif %}
+        </td>
+        <td>
+          <button
+            class="btn btn-sm btn-outline-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#editBookingModal{{ cs.id }}">
+            Edit
+          </button>
+        </td>
+      </tr>
 
-                <tr id="booking-row-{{ booking.id }}">
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ booking.scheduled_date|date:"M d, Y H:i" }}</td>
-                    <th>{{ booking.created_at }}</th>
-                    <td>
-                        {% if booking.dispatch_message %}
-                            <span
-                                    id="msg-preview-{{ booking.id }}"
-                                    class="preview-with-tooltip"
-                                    data-bs-toggle="tooltip"
-                                    title="{{ booking.dispatch_message|escapejs }}">
-  {{ booking.dispatch_message|truncatechars:60 }}
-</span>
-
-                        {% else %}
-                            <em class="text-muted">No message</em>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editBookingModal{{ booking.id }}">
-                            Edit
-                        </button>
-                    </td>
-                </tr>
-
-
-
-
-                <!-- Modal (must be inside the loop so booking.id is defined) -->
-                <!-- Edit Booking Modal -->
-                <div class="modal fade" id="editBookingModal{{ booking.id }}" tabindex="-1"
-                     aria-labelledby="editBookingModalLabel{{ booking.id }}" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <form
-                                    class="modal-content edit-booking-form"
-                                    data-id="{{ booking.id }}"
-                                    data-client-name="{{ booking.client_service.client.first_name|escapejs }}"
-                                    data-service-name="{{ booking.client_service.service.name|escapejs }}"
-                                    method="POST"
-                                    action="{% url 'edit_booking' booking.id %}">
-                                {% csrf_token %}
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="editBookingModalLabel{{ booking.id }}">Edit Booking</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <label for="scheduled_date{{ booking.id }}" class="form-label">Scheduled
-                                            Date</label>
-                                        <input
-                                                type="datetime-local"
-                                                name="scheduled_date"
-                                                class="form-control scheduled-date-input"
-                                                value="{{ booking.scheduled_date|date:'Y-m-d\\TH:i' }}"
-                                                required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="dispatch_message{{ booking.id }}" class="form-label">Dispatch
-                                            Message</label>
-                                        <textarea name="dispatch_message" id="dispatch_message{{ booking.id }}" rows="3"
-                                                  class="form-control message-input">{{ booking.dispatch_message }}</textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+      {# Edit Booking Modal (unchanged) #}
+      <div class="modal fade" id="editBookingModal{{ cs.id }}" tabindex="-1"
+           aria-labelledby="editBookingModalLabel{{ cs.id }}" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form
+              class="edit-booking-form"
+              data-id="{{ cs.id }}"
+              data-client-name="{{ cs.client.first_name|escapejs }}"
+              data-service-name="{{ cs.service.name|escapejs }}"
+              method="POST"
+              action="{% url 'edit_booking' cs.id %}">
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title" id="editBookingModalLabel{{ cs.id }}">Edit Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-3">
+                  <label for="scheduled_date{{ cs.id }}" class="form-label">Scheduled Date</label>
+                  <input
+                    type="datetime-local"
+                    name="scheduled_date"
+                    class="form-control scheduled-date-input"
+                    value="{{ gd.scheduled_date|date:'Y-m-d\\TH:i' }}"
+                    required>
                 </div>
+                <div class="mb-3">
+                  <label for="dispatch_message{{ cs.id }}" class="form-label">Dispatch Message</label>
+                  <textarea
+                    name="dispatch_message"
+                    id="dispatch_message{{ cs.id }}"
+                    rows="3"
+                    class="form-control message-input">{{ gd.dispatch_message }}</textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endwith %}
+  {% else %}
+    <tr>
+      <td colspan="5" class="text-center text-muted py-3">
+        No bookings available.
+      </td>
+    </tr>
+  {% endif %}
+</tbody>
 
 
-            {% endfor %}
 
-        {% else %}
-            <tr>
-                <td colspan="5"
-                    class="text-center text-muted py-3">
-                    No bookings available.
-                </td>
-            </tr>
-        {% endif %}
-        </tbody>
     </table>
 </div>
 

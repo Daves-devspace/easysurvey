@@ -1,4 +1,6 @@
+from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
+from django.utils.timezone import now
 from django.views.generic import CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView, View
@@ -161,8 +163,28 @@ class AllowanceDeleteView(DeleteView):
         ctx['employee_id'] = self.object.employee.pk
         return ctx
 
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        used_in_paid = AllowanceSnapshot.objects.filter(
+            template=self.object,
+            payroll__is_paid=True
+        ).exists()
+
+        if used_in_paid:
+            messages.error(
+                request,
+                "Cannot delete this allowance template because it has already been applied in a paid payroll."
+            )
+            return HttpResponseRedirect(self.get_success_url())
+
+        response = super().delete(request, *args, **kwargs)
+        messages.success(request, "Allowance template deleted successfully.")
+        return response
+
     def get_success_url(self):
         return reverse_lazy('employee_list')
+
 
 
 # DEDUCTION CBVs
@@ -209,6 +231,9 @@ class DeductionUpdateView(UpdateView):
         return reverse_lazy('employee_list')
 
 
+
+
+
 class DeductionDeleteView(DeleteView):
     model = DeductionTemplate
     template_name = 'Employees/partials/deduction_confirm_delete.html'
@@ -219,8 +244,32 @@ class DeductionDeleteView(DeleteView):
         ctx['employee_id'] = self.object.employee.pk
         return ctx
 
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        # Before deleting the template, check if any snapshot tied to a paid payroll exists
+        used_in_paid = DeductionSnapshot.objects.filter(
+            template=self.object,
+            payroll__is_paid=True
+        ).exists()
+
+        if used_in_paid:
+            messages.error(
+                request,
+                "Cannot delete this deduction template because it has already been applied in a paid payroll."
+            )
+            return HttpResponseRedirect(self.get_success_url())
+
+        # Safe to delete
+        response = super().delete(request, *args, **kwargs)
+        messages.success(request, "Deduction template deleted successfully.")
+        return response
+
     def get_success_url(self):
         return reverse_lazy('employee_list')
+
+
+
 
 
 

@@ -1,9 +1,11 @@
 # views/actions.py
-
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import Value, F, Sum, DecimalField
+from django.db.models.functions import Coalesce, Cast
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
@@ -159,6 +161,7 @@ class ClientServiceManageView(View):
             cs.save()
 
             update_client_service_overrides(cs, request.POST)
+            cs.save(update_fields=['overridden_total_price'])  # ← persist the override
 
             book_note = self._handle_booking_service(cs, form)
             sms_note = self._sms_feedback(cs)
@@ -192,164 +195,6 @@ class ClientServiceManageView(View):
             return f" 📤 SMS sent ({sms_log.reason})."
         return f" ❌ SMS failed ({sms_log.reason})."
 
-
-
-# class ClientServiceManageView(ClientActionView):
-#     def get_permission_required(self):
-#         action = self._detect_action()
-#         if action == 'add':
-#             return ['easydocs.add_clientservice']
-#         elif action == 'edit':
-#             return ['easydocs.change_clientservice']
-#         return []
-#
-#     def _detect_action(self):
-#         return 'edit' if 'client_service_id' in self.request.POST else 'add'
-#
-#     def handle(self, request, client):
-#         action = self._detect_action()
-#         if action == 'edit':
-#             return self.handle_edit_client_service(request, client)
-#         return self.handle_add_client_service(request, client)
-#
-#     def handle_add_client_service(self, request, client):
-#         form = ClientServiceForm(request.POST)
-#         if not form.is_valid():
-#             for field, errs in form.errors.items():
-#                 for err in errs:
-#                     messages.error(request, f"{field}: {err}")
-#             return redirect('client_details', client_id=client.id)
-#
-#         # Bind client and save
-#         form.instance.client = client
-#         cs = form.save()
-#
-#         # Override per-process costs
-#         pids = request.POST.getlist('process_id[]')
-#         costs = request.POST.getlist('process_cost[]')
-#         if pids and costs:
-#             for pid, cost_str in zip(pids, costs):
-#                 try:
-#                     cost = Decimal(cost_str)
-#                     csp = cs.service_processes.get(process_id=pid)
-#                     csp.overridden_cost = cost
-#                     csp.save(update_fields=['overridden_cost'])
-#                 except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-#                     continue
-#         else:
-#             otp = request.POST.get('override_total_price')
-#             if otp:
-#                 try:
-#                     cs.overridden_total_price = Decimal(otp)
-#                     cs.save(update_fields=['overridden_total_price'])
-#                 except InvalidOperation:
-#                     messages.warning(request, "⚠️ Invalid total price—ignored.")
-#             elif cs.overridden_total_price is not None:
-#                 cs.overridden_total_price = None
-#                 cs.save(update_fields=['overridden_total_price'])
-#
-#         # Ground-service booking
-#         svc = cs.service
-#         book_note = ""
-#         if svc.category == ServiceCategory.GROUND:
-#             sd = form.cleaned_data.get('scheduled_date') or (datetime.now() + timedelta(days=1, hours=9))
-#             msg = form.cleaned_data.get('dispatch_preview', '').strip()
-#             booking = Booking.objects.create(
-#                 client_service=cs,
-#                 scheduled_date=sd,
-#                 dispatch_message=msg or ''
-#             )
-#             if not booking.dispatch_message:
-#                 booking.dispatch_message = booking.generate_default_message()
-#                 booking.save(update_fields=['dispatch_message'])
-#             book_note = f" 🗓 Scheduled for {sd.strftime('%A, %d %B %Y at %I:%M %p')}"
-#
-#         # SMS feedback
-#         sms_log = cs.message_logs.order_by('-timestamp').first()
-#         sms_note = (
-#             f" 📤 SMS sent ({sms_log.reason})." if sms_log and sms_log.send_status == 'sent'
-#             else f" ❌ SMS failed ({sms_log.reason})." if sms_log
-#             else " ⚠️ No SMS was attempted."
-#         )
-#
-#         messages.success(
-#             request,
-#             f"✅ Service assigned successfully.{book_note}{sms_note}"
-#         )
-#         return redirect('client_details', client_id=client.id)
-#
-#     def handle_edit_client_service(self, request, client):
-#         cs_id = request.POST.get('client_service_id')
-#         cs = get_object_or_404(ClientService, id=cs_id, client=client)
-#         form = ClientServiceForm(request.POST, instance=cs)
-#         if not form.is_valid():
-#             for field, errs in form.errors.items():
-#                 for err in errs:
-#                     messages.error(request, f"{field}: {err}")
-#             return redirect('client_details', client_id=client.id)
-#
-#         # Save changes
-#         form.instance.client = client
-#         cs = form.save()
-#
-#         # Override per-process costs
-#         pids = request.POST.getlist('process_id[]')
-#         costs = request.POST.getlist('process_cost[]')
-#         if pids and costs:
-#             for pid, cost_str in zip(pids, costs):
-#                 try:
-#                     cost = Decimal(cost_str)
-#                     csp = cs.service_processes.get(process_id=pid)
-#                     csp.overridden_cost = cost
-#                     csp.save(update_fields=['overridden_cost'])
-#                 except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-#                     continue
-#         else:
-#             otp = request.POST.get('override_total_price')
-#             if otp:
-#                 try:
-#                     cs.overridden_total_price = Decimal(otp)
-#                     cs.save(update_fields=['overridden_total_price'])
-#                 except InvalidOperation:
-#                     messages.warning(request, "⚠️ Invalid total price—ignored.")
-#             elif cs.overridden_total_price is not None:
-#                 cs.overridden_total_price = None
-#                 cs.save(update_fields=['overridden_total_price'])
-#
-#         # Update/create Ground booking
-#         book_note = ""
-#         if cs.service.category == ServiceCategory.GROUND:
-#             sd = form.cleaned_data.get('scheduled_date') or (datetime.now() + timedelta(days=1, hours=9))
-#             msg = form.cleaned_data.get('dispatch_preview', '').strip()
-#             booking = getattr(cs, 'ground_booking', None)
-#             if booking:
-#                 booking.scheduled_date = sd
-#                 booking.dispatch_message = msg or booking.dispatch_message
-#                 booking.save(update_fields=['scheduled_date', 'dispatch_message'])
-#             else:
-#                 booking = Booking.objects.create(
-#                     client_service=cs,
-#                     scheduled_date=sd,
-#                     dispatch_message=msg or ''
-#                 )
-#                 if not booking.dispatch_message:
-#                     booking.dispatch_message = booking.generate_default_message()
-#                     booking.save(update_fields=['dispatch_message'])
-#             book_note = f" 🗓 Scheduled for {sd.strftime('%A, %d %B %Y at %I:%M %p')}"
-#
-#         # SMS feedback
-#         sms_log = cs.message_logs.order_by('-timestamp').first()
-#         sms_note = (
-#             f" 📤 SMS sent ({sms_log.reason})." if sms_log and sms_log.send_status == 'sent'
-#             else f" ❌ SMS failed ({sms_log.reason})." if sms_log
-#             else " ⚠️ No SMS was attempted."
-#         )
-#
-#         messages.success(
-#             request,
-#             f"✅ Service updated successfully.{book_note}{sms_note}"
-#         )
-#         return redirect('client_details', client_id=client.id)
 
 
 
@@ -418,3 +263,17 @@ class DeleteClientSubserviceView(ClientActionView):
 
 
 
+def get_client_service_summary(client):
+    qs = ClientService.objects.filter(client=client)
+
+    active_count = qs.filter(status='active').count()
+    completed_count = qs.filter(status='completed').count()
+
+    # Safely sum the total_balance from each instance
+    total_balance = sum((cs.total_balance for cs in qs), Decimal('0.00'))
+
+    return {
+        'active_services': active_count,
+        'completed_services': completed_count,
+        'total_balance': total_balance,
+    }

@@ -65,6 +65,7 @@ def mark_process_completed(request, pk):
 
     return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
 
+
 # @login_required
 # @user_passes_test(is_authorized)
 

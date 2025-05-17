@@ -76,40 +76,44 @@ def _recalc_payroll(p: Payroll):
 
 
 
+def get_current_payroll(employee):
+    today = now().date().replace(day=1)
+    try:
+        return Payroll.objects.get(employee=employee, month=today)
+    except Payroll.DoesNotExist:
+        return None
+
 @receiver(post_save, sender=AllowanceTemplate)
 @receiver(post_save, sender=DeductionTemplate)
 def template_post_save(sender, instance, **kwargs):
     """
-    Handles post_save signal for both AllowanceTemplate and DeductionTemplate.
-    Updates or creates the related snapshot for the current payroll,
-    then triggers payroll recalculation.
+    On template create/update, update or create the snapshot
+    for the current payroll, copying name, amount, recurring,
+    plus the start_date and end_date from the template.
     """
-    today = now().date().replace(day=1)
-
-    try:
-        payroll = Payroll.objects.get(employee=instance.employee, month=today)
-    except Payroll.DoesNotExist:
+    payroll = get_current_payroll(instance.employee)
+    if not payroll:
         return
+
+    defaults = {
+        'name':       instance.name,
+        'amount':     instance.amount,
+        'recurring':  instance.recurring,
+        'start_date': instance.start_date,
+        'end_date':   instance.end_date,
+    }
 
     if isinstance(instance, AllowanceTemplate):
         AllowanceSnapshot.objects.update_or_create(
             payroll=payroll,
             template=instance,
-            defaults={
-                'name': instance.name,
-                'amount': instance.amount,
-                'recurring': instance.recurring,
-            }
+            defaults=defaults
         )
-    elif isinstance(instance, DeductionTemplate):
+    else:
         DeductionSnapshot.objects.update_or_create(
             payroll=payroll,
             template=instance,
-            defaults={
-                'name': instance.name,
-                'amount': instance.amount,
-                'recurring': instance.recurring,
-            }
+            defaults=defaults
         )
 
     _recalc_payroll(payroll)
@@ -119,18 +123,12 @@ def template_post_save(sender, instance, **kwargs):
 @receiver(post_delete, sender=DeductionTemplate)
 def template_post_delete(sender, instance, **kwargs):
     """
-    Handles post_delete signal for both AllowanceTemplate and DeductionTemplate.
-    Recalculates the payroll. Snapshot deletion is handled automatically by CASCADE.
+    On template delete, Django’s CASCADE will drop the snapshot,
+    but we still need to recalc the current payroll.
     """
-    today = now().date().replace(day=1)
-
-    try:
-        payroll = Payroll.objects.get(employee=instance.employee, month=today)
-    except Payroll.DoesNotExist:
-        return
-
-    # Don't manually delete snapshots — CASCADE handles this.
-    _recalc_payroll(payroll)
+    payroll = get_current_payroll(instance.employee)
+    if payroll:
+        _recalc_payroll(payroll)
 
 
 

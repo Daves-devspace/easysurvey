@@ -84,7 +84,10 @@ def update_client_service_overrides(cs, data) -> None:
                 raise OverrideError(f"Invalid cost value: {cost_str}")
     else:
         # Update the overridden total price if provided
-        otp = data.get('override_total_price', '').strip()
+        import logging
+        logging.getLogger(__name__).info("POST keys: %s", data.keys())
+        logging.getLogger(__name__).info("override_total POST value: %r", data.get('overridden_total_price'))
+        otp = data.get('overridden_total_price', '').strip()
         if otp:
             try:
                 cs.overridden_total_price = Decimal(otp)

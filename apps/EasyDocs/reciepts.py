@@ -1,16 +1,10 @@
 # utils/receipts.py
 
-import io
-from decimal import Decimal
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from reportlab.lib.units import mm
-from reportlab.lib import colors
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import landscape, portrait
-from apps.EasyDocs.models import ClientService, SiteSettings
+
+from apps.EasyDocs.models import ClientService, SiteSettings, ServiceCategory
 
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -18,23 +12,39 @@ import io
 from decimal import Decimal
 from django.utils import timezone
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+from decimal import Decimal, ROUND_HALF_UP
+
+def safe_price(val):
+    """
+    Ensure val is a Decimal quantized to 2 places.
+    Fallback to 0.00 if None or otherwise falsy.
+    """
+    # If val is already Decimal('0.00'), we still want to keep it.
+    raw = val if val is not None else 0
+    return Decimal(raw).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
 def generate_service_receipt(client_service, printed_by_user):
     """
-    Generate a POS-style receipt PDF for a ClientService, including processes
-    and sub-services with both price and paid columns.
+    Generate a POS-style receipt PDF for a ClientService,
+    including processes or services with both price and paid columns.
     """
     width, height = (80 * mm, 200 * mm)
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=(width, height))
 
-    # Load site settings
     settings = SiteSettings.objects.first()
-
     y = height - 10 * mm
+
+    # ─── Header ────────────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 12)
     c.drawCentredString(width/2, y, "GREAT GUARDIAN INVESTMENT LTD")
     y -= 6 * mm
-
     c.setFont("Helvetica", 10)
     c.drawCentredString(width/2, y, "SERVICE RECEIPT")
     y -= 8 * mm
@@ -47,71 +57,90 @@ def generate_service_receipt(client_service, printed_by_user):
         f"Requested: {client_service.requested_at.strftime('%Y-%m-%d %H:%M')}",
         "-" * 32
     ]:
-        c.drawString(5*mm, y, line)
-        y -= 5*mm
+        c.drawString(5 * mm, y, line)
+        y -= 5 * mm
 
-    # Header for processes
+    # ─── Service / Process Header ─────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(5*mm, y, "Process")
-    c.drawRightString(width - 25*mm, y, "Price")
-    c.drawRightString(width - 5*mm, y, "Paid")
-    y -= 5*mm
-    c.line(5*mm, y+2, width-5*mm, y+2)
-    y -= 2*mm
+    label = "Process" if client_service.service.category == ServiceCategory.TITLE else "Service"
+    c.drawString(5 * mm, y, label)
+    c.drawRightString(width - 25 * mm, y, "Price")
+    c.drawRightString(width - 5 * mm, y, "Paid")
+    y -= 5 * mm
+    c.line(5 * mm, y + 2, width - 5 * mm, y + 2)
+    y -= 2 * mm
 
-    # Processes
+    # ─── Main Content ──────────────────────────────────────────────────────────
     c.setFont("Helvetica", 8)
-    for csp in client_service.service_processes.all().order_by('process__step_order'):
-        name = csp.process.name[:12]
-        price = (csp.overridden_cost if csp.overridden_cost is not None else csp.process.cost).quantize(Decimal('0.01'))
+    if client_service.service.category == ServiceCategory.TITLE:
+        for csp in client_service.service_processes.all().order_by('process__step_order'):
+            name = csp.process.name[:12]
 
-        paid = csp.paid_amount.quantize(Decimal('0.01'))
+            price = safe_price(csp.overridden_cost if csp.overridden_cost is not None else csp.process.cost)
+            paid  = safe_price(csp.paid_amount)
+            c.drawString(5 * mm, y, name)
+            c.drawRightString(width - 25 * mm, y, f"{price}")
+            c.drawRightString(width - 5 * mm, y, f"{paid}")
+            y -= 5 * mm
+    else:
+        name  = client_service.service.name[:12]
+        # determine raw price
+        raw = (
+            client_service.overridden_total_price
+            if client_service.overridden_total_price is not None
+            else client_service.service.total_price
+        )
+        # DEBUG log
+        logger.debug(
+            "Receipt Debug — CS ID %s: overridden_total_price=%r, service.total_price=%r",
+            client_service.pk,
+            client_service.overridden_total_price,
+            client_service.service.total_price,
+        )
+        price = safe_price(raw)
+        paid  = safe_price(client_service.total_paid)
+        c.drawString(5 * mm, y, name)
+        c.drawRightString(width - 25 * mm, y, f"{price}")
+        c.drawRightString(width - 5 * mm, y, f"{paid}")
+        y -= 5 * mm
 
-        c.drawString(5*mm, y, name)
-        c.drawRightString(width - 25*mm, y, f"{price}")
-        c.drawRightString(width - 5*mm, y, f"{paid}")
-        y -= 5*mm
-
-    # Sub-service header
+    # ─── Sub-Services ──────────────────────────────────────────────────────────
     if client_service.sub_services.exists():
-        y -= 3*mm
+        y -= 3 * mm
         c.setFont("Helvetica-Bold", 8)
-        c.drawString(5*mm, y, "Sub-Service")
-        c.drawRightString(width - 25*mm, y, "Price")
-        c.drawRightString(width - 5*mm, y, "Paid")
-        y -= 5*mm
-        c.line(5*mm, y+2, width-5*mm, y+2)
-        y -= 2*mm
+        c.drawString(5 * mm, y, "Sub-Service")
+        c.drawRightString(width - 25 * mm, y, "Price")
+        c.drawRightString(width - 5 * mm, y, "Paid")
+        y -= 5 * mm
+        c.line(5 * mm, y + 2, width - 5 * mm, y + 2)
+        y -= 2 * mm
 
         c.setFont("Helvetica", 8)
         for css in client_service.sub_services.all():
             name = css.sub_service.name[:12]
-            price = (css.overridden_price if css.overridden_price is not None else css.sub_service.price).quantize(Decimal('0.01'))
+            price = safe_price(css.overridden_price if css.overridden_price is not None else css.sub_service.price)
+            paid  = safe_price(css.paid_amount)
+            c.drawString(5 * mm, y, name)
+            c.drawRightString(width - 25 * mm, y, f"{price}")
+            c.drawRightString(width - 5 * mm, y, f"{paid}")
+            y -= 5 * mm
 
-            paid = css.paid_amount.quantize(Decimal('0.01'))
+    # ─── Totals ────────────────────────────────────────────────────────────────
+    y -= 2 * mm
+    c.line(5 * mm, y, width - 5 * mm, y)
+    y -= 4 * mm
 
-            c.drawString(5*mm, y, name)
-            c.drawRightString(width - 25*mm, y, f"{price}")
-            c.drawRightString(width - 5*mm, y, f"{paid}")
-            y -= 5*mm
-
-    # Totals
-    y -= 2*mm
-    c.line(5*mm, y, width-5*mm, y)
-    y -= 4*mm
-
-    total_paid = client_service.total_paid
-    total_balance = client_service.total_balance
-
+    total_paid    = safe_price(client_service.total_paid)
+    total_balance = safe_price(client_service.total_balance)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(5*mm, y, "Total Paid:")
-    c.drawRightString(width-5*mm, y, f"{total_paid.quantize(Decimal('0.01'))}")
-    y -= 5*mm
-    c.drawString(5*mm, y, "Balance:")
-    c.drawRightString(width-5*mm, y, f"{total_balance.quantize(Decimal('0.01'))}")
-    y -= 8*mm
+    c.drawString(5 * mm, y, "Total Paid:")
+    c.drawRightString(width - 5 * mm, y, f"{total_paid}")
+    y -= 5 * mm
+    c.drawString(5 * mm, y, "Balance:")
+    c.drawRightString(width - 5 * mm, y, f"{total_balance}")
+    y -= 8 * mm
 
-    # 8) Footer: printed by & timestamp
+    # ─── Footer ────────────────────────────────────────────────────────────────
     c.setFont("Helvetica", 6)
     ts = timezone.now().strftime("%Y-%m-%d %H:%M")
     c.drawString(5 * mm, y, f"Printed by: {printed_by_user.get_full_name()}")
@@ -119,7 +148,6 @@ def generate_service_receipt(client_service, printed_by_user):
     c.drawString(5 * mm, y, f"At: {ts}")
     y -= 6 * mm
 
-    # 9) Tagline centered
     if settings and settings.tagline:
         c.setFont("Helvetica-Oblique", 7)
         c.drawCentredString(width / 2, y, settings.tagline)
@@ -128,6 +156,8 @@ def generate_service_receipt(client_service, printed_by_user):
     c.save()
     buffer.seek(0)
     return buffer
+
+
 
 
 

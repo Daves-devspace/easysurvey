@@ -87,6 +87,16 @@ class ProcessAdmin(admin.ModelAdmin):
     short_message.short_description = 'Message'
 
 
+from django.contrib import admin
+from .models import Booking
+
+@admin.register(Booking)
+class BookingAdmin(admin.ModelAdmin):
+    list_display = ['id', 'client_service']  # customize as needed
+    search_fields = ['client_service__id']
+
+
+
 class TitleDeedCollectionInline(admin.StackedInline):
     model = TitleDeedCollection
     extra = 0
