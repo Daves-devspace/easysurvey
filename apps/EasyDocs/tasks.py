@@ -90,49 +90,51 @@ def send_single_sms(self, client_id, text):
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_today_ground_reminders(self):
     from .utils import send_single_sms as _send_single
+    from django.db import transaction
+    from django.utils import timezone
 
     today = timezone.localdate()
-    # 1) Log what “today” actually is
-    logger.info(f"📅 [Task] Running ground reminders for date: {today}")
-
-    # 2) Fetch bookings and explicitly list their IDs for clarity
-    bookings = Booking.objects.filter(scheduled_date=today)
+    bookings = Booking.objects.filter(scheduled_date__date=today)
     booking_ids = list(bookings.values_list("id", flat=True))
     logger.info(f"📅 Found {len(booking_ids)} bookings for today: {booking_ids}")
 
     if not bookings:
-        return  # nothing to do
+        return
 
     for booking in bookings:
         client = booking.client_service.client
         service = booking.client_service.service
-        time_str = booking.scheduled_time.strftime('%I:%M %p')
-        text = (f"Reminder: Our surveyor will visit you today at {time_str} "
-                f"for your '{service.name}' service.")
 
-        # 3) Wrap everything in a database transaction so we don't lose logs
+        # derive time string from scheduled_date
+        dt = booking.scheduled_date
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt)
+        local_dt = timezone.localtime(dt)
+        time_str = local_dt.strftime("%I:%M %p")
+
+        text = (
+            f"Reminder: Our surveyor will visit you today at {time_str} "
+            f"for your '{service.name}' service."
+        )
+
         with transaction.atomic():
             try:
                 status, raw = _send_single(client, text,
                                            reason="Ground Service Reminder")
-                logger.debug(f"→ SMS send returned status={status} for "
-                             f"client_id={client.id}")
-
-                MessageLog.objects.create(
+                log = MessageLog.objects.create(
                     client=client,
                     phone=client.phone,
                     message=text,
                     reason="Ground Service Reminder",
                     message_id=(raw or {}).get("message_id"),
                     send_status="sent" if status else "failed",
-                    delivery_status="pending",   # update when you get delivery callbacks
+                    delivery_status="pending",
                     error_details=None if status else "Unknown sending failure"
                 )
-                logger.info(f"✅ Logged reminder (status={status}) for client_id={client.id}")
+                logger.info(f"✅ Reminder sent and log id={log.id} for client {client.id}")
 
             except Exception as exc:
-                # 4) Log full stacktrace
-                logger.exception(f"❌ Exception sending reminder to client_id={client.id}")
+                logger.exception(f"❌ Failed reminder for client {client.id}")
                 MessageLog.objects.create(
                     client=client,
                     phone=client.phone,
@@ -142,5 +144,4 @@ def send_today_ground_reminders(self):
                     delivery_status="failed",
                     error_details=str(exc)
                 )
-                # 5) Retry only on external errors, not on integrity/validation errors
                 raise self.retry(exc=exc)
