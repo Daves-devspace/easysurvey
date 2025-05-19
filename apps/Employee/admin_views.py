@@ -3,8 +3,9 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.models import User
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.generic import UpdateView, ListView
+from django.views.generic import UpdateView, ListView, TemplateView
 
 from apps.Employee.forms import EmployeeProfileForm, EmployeeProfileUpdateForm
 from apps.Employee.models import EmployeeProfile
@@ -54,26 +55,44 @@ class EmployeeProfileDashboardView(LoginRequiredMixin, UpdateView):
 # ——————————————————————
 #  Superuser (or any user w/o EmployeeProfile)
 # ——————————————————————
-class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
-    model = User
-    form_class = ProfileUpdateForm
-    template_name = 'Home/super_profile_form.html'
-    success_url = '/dashboard/'
-
-    def get_object(self):
-        return self.request.user
+def superuser_required(user):
+    return user.is_superuser
 
 
-@method_decorator(staff_member_required, name='dispatch')
-class AdminUserListView(ListView):
-    model = User
-    template_name = 'application/user-list.html'
-    context_object_name = 'users'
+class AdminManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    template_name = 'Home/adminmanagement.html'
+    success_url = reverse_lazy('user-profile-update')
 
-@user_passes_test(lambda u: u.is_superuser)
-def toggle_user_active(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    if user != request.user:
-        user.is_active = not user.is_active
-        user.save()
-    return redirect('admin-user-list')
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # profile form bound to current user
+        ctx['profile_form'] = ProfileUpdateForm(instance=self.request.user)
+        # list of all users to manage
+        ctx['users'] = User.objects.all()
+        return ctx
+
+    def post(self, request, *args, **kwargs):
+        # Distinguish which form was submitted by looking at a hidden field
+        if 'profile_submit' in request.POST:
+            form = ProfileUpdateForm(request.POST, instance=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Your profile has been updated.")
+                return redirect(self.success_url)
+            else:
+                # re‑render with errors
+                return self.render_to_response(self.get_context_data(profile_form=form))
+
+        elif 'toggle_user' in request.POST:
+            target_id = request.POST.get('toggle_user')
+            user = get_object_or_404(User, id=target_id)
+            if user != request.user:
+                user.is_active = not user.is_active
+                user.save()
+            return redirect(request.path)
+
+        # fallback
+        return super().get(request, *args, **kwargs)

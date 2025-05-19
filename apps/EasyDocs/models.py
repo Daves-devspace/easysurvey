@@ -77,9 +77,10 @@ class Document(models.Model):
             models.Index(fields=['uploaded_at']),
         ]
 
+
     def save(self, *args, **kwargs):
-        if self.doc_file and not self.mime_type:
-            mime, _ = mimetypes.guess_type(self.doc_file.name)
+        if self.file and not self.mime_type:
+            mime, _ = mimetypes.guess_type(self.file.name)
             self.mime_type = mime or 'application/octet-stream'
         super().save(*args, **kwargs)
 
@@ -638,8 +639,16 @@ class ClientDoc(models.Model):
     doc_name = models.CharField(max_length=100)
     doc_type = models.ForeignKey('DocType', on_delete=models.CASCADE, related_name='client_doc')
     doc_file = models.FileField(upload_to='client_docs/')
+    mime_type = models.CharField(max_length=100, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, editable=False)
+
+
+    def save(self, *args, **kwargs):
+        if self.doc_file and not self.mime_type:
+            mime, _ = mimetypes.guess_type(self.doc_file.name)
+            self.mime_type = mime or 'application/octet-stream'
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.doc_name} for {self.client.first_name}"

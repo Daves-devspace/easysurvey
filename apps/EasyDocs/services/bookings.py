@@ -155,49 +155,51 @@ class BookingCalendarJSON(View):
 
 
 
-class BookingManagementView(TemplateView):
+# services/bookings.py
+
+
+
+class BookingManagementView(View):
+    """
+    Renders the main booking-management page with calendar and
+    inline modals for assign/handle actions.
+    """
     template_name = 'Management/bookings/booking_management.html'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
+    def get(self, request):
         today = timezone.localdate()
+        unhandled = Booking.objects.filter(handled=False)
+        handled   = Booking.objects.filter(handled=True)
 
-        # Today's unhandled bookings
-        today_bookings = Booking.objects.filter(
-            scheduled_date__date=today,
-            handled=False
-        )
-        context['today_bookings'] = today_bookings
-
-        # Optional: All unhandled
-        context['unhandled_bookings'] = Booking.objects.filter(handled=False)
-
-        # All surveyors for assigning in modals
-        context['surveyors'] = User.objects.filter(
+        # All surveyors (for both modals)
+        surveyors = User.objects.filter(
             employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR
         )
 
-        # For each booking, store assigned surveyors (dict format: booking_id => [ids])
-        context['assigned_ids_map'] = {
-            booking.id: list(booking.bookingassignment_set.values_list('surveyor_id', flat=True))
-            for booking in today_bookings
-        }
+        # Build a map: booking_id -> [assigned_surveyor_ids]
+        assignments = BookingAssignment.objects.filter(booking__in=unhandled)
+        assigned_ids_map = {}
+        for a in assignments:
+            assigned_ids_map.setdefault(a.booking_id, []).append(a.surveyor_id)
 
-        return context
-
-
-
-
-
+        return render(request, self.template_name, {
+            'today_bookings':    unhandled.filter(scheduled_date__date=today),
+            'unhandled_bookings': unhandled,
+            'handled_bookings':   handled,
+            'surveyors':          surveyors,
+            'assigned_ids_map':   assigned_ids_map,
+        })
 
 
 class AssignSurveyorsView(View):
-
+    """
+    Only assigns surveyors—does NOT mark handled.
+    """
+    template_name = 'Management/bookings/assign_surveyors_modal.html'
 
     def get(self, request, pk):
-        booking = get_object_or_404(Booking, pk=pk)
-        surveyors = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
+        booking      = get_object_or_404(Booking, pk=pk)
+        surveyors    = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
         assigned_ids = booking.bookingassignment_set.values_list('surveyor_id', flat=True)
         return render(request, self.template_name, {
             'booking': booking,
@@ -206,47 +208,48 @@ class AssignSurveyorsView(View):
         })
 
     def post(self, request, pk):
-        booking = get_object_or_404(Booking, pk=pk)
+        booking     = get_object_or_404(Booking, pk=pk)
         surveyor_ids = request.POST.getlist('surveyors')
 
-        # Clear old assignments and add new
+        # Clear old assignments, add new ones
         booking.bookingassignment_set.all().delete()
         for uid in surveyor_ids:
             BookingAssignment.objects.create(booking=booking, surveyor_id=uid)
 
-        messages.success(request, "Surveyors assigned successfully.")
-        return redirect('booking-management')  # Or any relevant redirect
-
+        messages.success(request, "✅ Surveyors assigned successfully.")
+        return redirect('booking-management')
 
 
 class MarkBookingHandledView(View):
-
+    """
+    Only marks a booking as handled and allows final surveyor selection.
+    """
+    template_name = 'Management/bookings/mark_handled_modal.html'
 
     def get(self, request, pk):
-        booking = get_object_or_404(Booking, pk=pk)
-        surveyors = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
+        booking      = get_object_or_404(Booking, pk=pk)
+        surveyors    = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
         assigned_ids = booking.bookingassignment_set.values_list('surveyor_id', flat=True)
-
         return render(request, self.template_name, {
             'booking': booking,
             'surveyors': surveyors,
-            'assigned_ids': assigned_ids,  # Pre-check these in form
+            'assigned_ids': assigned_ids,
         })
 
     def post(self, request, pk):
-        booking = get_object_or_404(Booking, pk=pk)
+        booking      = get_object_or_404(Booking, pk=pk)
         surveyor_ids = request.POST.getlist('surveyors')
 
-        # Reassign as final execution team
+        # Final assignments
         booking.bookingassignment_set.all().delete()
         for uid in surveyor_ids:
             BookingAssignment.objects.create(booking=booking, surveyor_id=uid)
 
         # Mark as handled
-        booking.handled = True
-        booking.handled_at = timezone.now()
-        booking.handled_by = request.user
-        booking.save(update_fields=['handled', 'handled_at', 'handled_by'])
+        booking.handled     = True
+        booking.handled_at  = timezone.now()
+        booking.handled_by  = request.user
+        booking.save(update_fields=['handled','handled_at','handled_by'])
 
-        messages.success(request, "Booking marked as handled and surveyors confirmed.")
+        messages.success(request, "✅ Booking marked as handled.")
         return redirect('booking-management')

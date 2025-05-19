@@ -151,7 +151,7 @@
                                                     <p class="mb-0">Active</p>
                                                 </a>
                                             </div>
- {% for client in clients %}
+
                                             <div class="modal fade" id="editClientModal{{ client.id }}"
                                                  tabindex="-1"
                                                  aria-labelledby="editClientModalLabel{{ client.id }}"
@@ -192,7 +192,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                             {% endfor %}
+
 
                                         </div>
 
@@ -392,7 +392,7 @@
                                                                                 <tr>
                                                                                     <td>{{ forloop.counter }}</td>
                                                                                     <td>{{ sp.process.name }}</td>
-                                                                                    <td>{{ sp.process.cost }}</td>
+                                                                                    <td>{{ sp.cost }}</td>
                                                                                     <td>
               <span class="badge
                 {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
@@ -688,7 +688,7 @@
                                 <div class="card">
                                     <div class="card-body position-relative">
                                         <div class="position-absolute end-0 top-0 p-3">
-                                            <span class="badge bg-primary">Pro</span>
+                                            <span class="badge bg-primary">Active</span>
                                         </div>
                                         <div class="text-center mt-3">
                                             <div class="chat-avtar d-inline-flex mx-auto">
@@ -701,16 +701,16 @@
                                             <hr class="my-3">
                                             <div class="row g-3">
                                                 <div class="col-4">
-                                                    <h5 class="mb-0">86</h5>
-                                                    <small class="text-muted">Post</small>
+                                                    <h5 class="mb-0">{{ client_service_summary.active_services }}</h5>
+                                                    <small class="text-muted">Active Services</small>
                                                 </div>
                                                 <div class="col-4 border border-top-0 border-bottom-0">
-                                                    <h5 class="mb-0">40</h5>
-                                                    <small class="text-muted">Project</small>
+                                                    <h5 class="mb-0">{{ client_service_summary.completed_services }}</h5>
+                                                    <small class="text-muted">Completed Services</small>
                                                 </div>
                                                 <div class="col-4">
-                                                    <h5 class="mb-0">4.5K</h5>
-                                                    <small class="text-muted">Members</small>
+                                                    <h5 class="mb-0">{{ client_service_summary.total_balance }}</h5>
+                                                    <small class="text-muted">Total Balance</small>
                                                 </div>
                                             </div>
                                             <hr class="my-3">
@@ -724,7 +724,7 @@
                                             </div>
                                             <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
                                                 <i class="ti ti-map-pin"></i>
-                                                <p class="mb-0">New York</p>
+                                                <p class="mb-0">Location</p>
                                             </div>
                                             <div class="d-inline-flex align-items-center justify-content-between w-100">
                                                 <i class="ti ti-link"></i>
@@ -732,6 +732,48 @@
                                                     <p class="mb-0">Active</p>
                                                 </a>
                                             </div>
+
+                                            <div class="modal fade" id="editClientModal{{ client.id }}"
+                                                 tabindex="-1"
+                                                 aria-labelledby="editClientModalLabel{{ client.id }}"
+                                                 aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+
+                                                            <form method="POST"
+                                                                  action="{% url 'edit_client' client.id %}"
+                                                                  class="edit-client-form">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header bg-warning">
+                                                                    <h5 class="modal-title"
+                                                                        id="editClientModalLabel{{ client.id }}">
+                                                                        Edit Client
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+
+
+                                                                    {% get_client_form client as form %}
+                                                                    {{ form.as_p }}
+
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="submit" class="btn btn-primary">Save
+                                                                        Changes
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-secondary"
+                                                                            data-bs-dismiss="modal">Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
 
                                         </div>
 
@@ -1476,7 +1518,7 @@
                         <div class="mt-4 totalPriceOverride" style="display:none;">
                             <label for="overrideTotalPrice" class="form-label">Override Total Price
                                 (Ksh)</label>
-                            <input type="number" step="0.01" name="override_total_price"
+                            <input type="number" step="0.01" name="overridden_total_price"
                                    class="form-control overrideTotalPrice" id="overrideTotalPrice">
                         </div>
 

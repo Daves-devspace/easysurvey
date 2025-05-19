@@ -22,7 +22,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 
 from django.http import JsonResponse
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.views.generic.edit import UpdateView
 from django.utils.dateformat import format as dformat
 
@@ -99,35 +99,42 @@ def update_client_service_overrides(cs, data) -> None:
 
 def create_client_service_with_overrides(client, service, land_description, post_data):
     try:
-        # Create the ClientService object
+        # 1️⃣ Create the ClientService object (no override persisted yet)
         cs = ClientService.objects.create(
             client=client,
             service=service,
             land_description=land_description,
         )
 
-        # Ensure that ClientServiceProcess records are created for each Process in the Service
+        # 2️⃣ Create ClientServiceProcess entries if this is a TITLE service
         if service.category == ServiceCategory.TITLE:
-            for process in service.processes.all():  # Accessing the processes related to the Service
+            for process in service.processes.all():
                 ClientServiceProcess.objects.get_or_create(
                     client_service=cs,
                     process=process
                 )
 
-        # Now we can safely update the overrides
+        # 3️⃣ Apply any overrides from the form (this only sets cs.overridden_total_price in memory)
         update_client_service_overrides(cs, post_data)
 
-        # If category is GROUND and total_price is 0, update total price
+        # ─── NEW BLOCK ───
+        # 4️⃣ Persist the overridden_total_price if it was set
+        if cs.overridden_total_price is not None:
+            cs.save(update_fields=['overridden_total_price'])
+        # ───────────────────
+
+        # 5️⃣ If it's a GROUND service and we haven't computed the base price yet, do so
         if service.category == ServiceCategory.GROUND and service.total_price == 0:
             service.update_total_price()
 
-        # Update full total of the ClientService object
+        # 6️⃣ Now recalc and persist the denormalized full total
         cs.update_full_total()
         return cs
 
     except (OverrideError, Exception) as e:
         traceback.print_exc()
         raise ClientServiceError(f"Failed to create client service: {str(e)}")
+
 
 # def create_client_service_with_overrides(client, service, land_description, post_data):
 #     try:
@@ -156,24 +163,28 @@ class BookingUpdateView(UpdateView):
     fields = ['scheduled_date', 'dispatch_message']
 
     def form_valid(self, form):
-        # Save and grab the updated instance
         booking = form.save()
-
-        # If AJAX, return JSON that matches your JS
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': True,
                 'scheduled_date': dformat(booking.scheduled_date, 'M d, Y H:i'),
                 'dispatch_message': booking.dispatch_message,
             })
-
-        # Fallback: redirect to referring page
-        return redirect(self.request.META.get('HTTP_REFERER', reverse_lazy('client_details')))
+        return super().form_valid(form)
 
     def form_invalid(self, form):
+        # AJAX clients get JSON errors
         if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors,   # dict of field→[errors]
+            }, status=400)
+        # Non‑AJAX clients just see the form with errors
         return super().form_invalid(form)
+
+    def get_success_url(self):
+        client = self.object.client_service.client
+        return reverse('client_details', kwargs={'client_id': client.id})
 
 
 

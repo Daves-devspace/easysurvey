@@ -19,4 +19,11 @@ def dict_get(d, key):
 
 @register.filter
 def get_item(dictionary, key):
-    return dictionary.get(key, [])
+    """
+    Return dictionary[key] or [] if missing.
+    Usage: mydict|get_item:some_key
+    """
+    try:
+        return dictionary.get(key, [])
+    except Exception:
+        return []

@@ -13,6 +13,39 @@ from apps.EasyDocs.models import (
 
 logger = logging.getLogger(__name__)
 
+import threading
+from functools import wraps
+
+_signal_lock = threading.local()
+
+def prevent_recursion(key_func=None):
+    """
+    Prevents recursive execution of a signal handler.
+    Includes logging for debug purposes.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = key_func(*args, **kwargs) if key_func else func.__name__
+
+            if not hasattr(_signal_lock, 'active_signals'):
+                _signal_lock.active_signals = set()
+
+            if key in _signal_lock.active_signals:
+                logger.warning(f"[prevent_recursion] Skipping recursive signal: {key}")
+                return
+
+            logger.debug(f"[prevent_recursion] Entering signal: {key}")
+            _signal_lock.active_signals.add(key)
+            try:
+                return func(*args, **kwargs)
+            finally:
+                _signal_lock.active_signals.remove(key)
+                logger.debug(f"[prevent_recursion] Exiting signal: {key}")
+
+        return wrapper
+    return decorator
+
 
 def send_process_sms(client_service, client, phone, message, reason):
     """Send SMS and log it if phone and message are present."""
@@ -103,8 +136,8 @@ def update_full_total(client_service: ClientService):
     Recalculate and persist the full_total_price for a given ClientService.
     """
     try:
-        client_service.full_total_price = client_service._calculate_full_total()
-        client_service.save(update_fields=['full_total_price'])
+        total = client_service._calculate_full_total()
+        ClientService.objects.filter(id=client_service.id).update(full_total_price=total)
         logger.info(
             f"Recalculated full_total_price for ClientService #{client_service.pk}: {client_service.full_total_price}")
     except Exception as e:
@@ -113,6 +146,7 @@ def update_full_total(client_service: ClientService):
 
 
 @receiver(post_save, sender=ClientService)
+@prevent_recursion(lambda sender, instance, **kwargs: f"client_service:{instance.pk}")
 def on_client_service_change(sender, instance: ClientService, created, **kwargs):
     """
     Whenever a ClientService is saved—whether from overrides or any other edit—
