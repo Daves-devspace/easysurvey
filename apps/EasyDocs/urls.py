@@ -12,7 +12,7 @@ from .auth_views import CustomPasswordResetConfirmView
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.services import BookingUpdateView
-from .views import ManagementView, ClientDetailView, ClientServiceCreateView
+from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
@@ -36,7 +36,7 @@ urlpatterns = [
     path('login/', auth_views.custom_login, name='login'),
     path('test_404/', auth_views.test_404, name='test_404'),
     path('logout/', auth_views.logout_view, name='logout'),
-    path('', views.home, name='home'),
+    path('', HomeView.as_view(), name='home'),
 
     path('clients', views.client_list, name='clients'),
     path('clients/add/', views.add_client, name='add_client'),
@@ -124,8 +124,8 @@ urlpatterns = [
 
     path('booking/<int:pk>/edit/', BookingUpdateView.as_view(), name='edit_booking'),
 
-    path('bookings/<int:pk>/', MarkBookingHandledView.as_view(), name='mark-booking-handled'),
-    path('bookings/<int:pk>/', AssignSurveyorsView.as_view(), name='assign-surveyors'),
+    path('bookings/<int:pk>/mark-handled/', MarkBookingHandledView.as_view(), name='mark-booking-handled'),
+    path('bookings/<int:pk>/assign/', AssignSurveyorsView.as_view(), name='assign-surveyors'),
     path('bookings/', BookingManagementView.as_view(), name='booking-management'),
     path('api/calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
 ]

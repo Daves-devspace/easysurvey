@@ -50,7 +50,7 @@
     {#    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>#}
 
     <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+{#    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>#}
 
     <!-- [plugin for searching] start -->
     <!-- Select2 CSS -->
@@ -179,9 +179,9 @@
                     </a>
                 </li>
                 <li class="pc-item">
-                    <a href="{% url 'user-profile-update' %}" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-user-plus"></i></span>
-                        <span class="pc-mtext">Register</span>
+                    <a href="{% url 'employee-dashboard' %}" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-user"></i></span>
+                        <span class="pc-mtext">My Profile</span>
                     </a>
                 </li>
 
@@ -189,10 +189,9 @@
             </ul>
             <div class="card text-center">
                 <div class="card-body">
-                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" alt="images"
+                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;" alt="images"
                          class="img-fluid mb-2">
                     <h5>🤔 Not sure what to do next? </h5>
-                    <p>Our assistant is here 24/7 </p>
                     <a href="" target="_blank"
                        class="btn btn-success">Start chat</a>
                 </div>

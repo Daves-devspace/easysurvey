@@ -40,49 +40,83 @@ from .models import EmployeeProfile
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email']
+        # include username along with the other core fields
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+        ]
         widgets = {
-            'first_name': forms.TextInput( attrs={'class':'form-control'} ),
-            'last_name':  forms.TextInput( attrs={'class':'form-control'} ),
-            'email':      forms.EmailInput( attrs={'class':'form-control'} ),
+            'username':   forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name':  forms.TextInput(attrs={'class': 'form-control'}),
+            'email':      forms.EmailInput(attrs={'class': 'form-control'}),
         }
-
+        help_texts = {
+            'username': None,  # remove the default “<30 characters or fewer…” help text
+        }
 
 # —————————————————————————————
 # For staff/employees
 # —————————————————————————————
+
 class EmployeeProfileUpdateForm(forms.ModelForm):
-    # Mirror their User fields, but all disabled
-    first_name = forms.CharField(disabled=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    last_name  = forms.CharField(disabled=True, widget=forms.TextInput(attrs={'class':'form-control'}))
-    email      = forms.EmailField(disabled=True, widget=forms.EmailInput(attrs={'class':'form-control'}))
+    # Mirror user fields, all disabled/read‑only
+    username   = forms.CharField(disabled=True,
+                                 widget=forms.TextInput(attrs={'class':'form-control'}))
+    first_name = forms.CharField(disabled=True,
+                                 widget=forms.TextInput(attrs={'class':'form-control'}))
+    last_name  = forms.CharField(disabled=True,
+                                 widget=forms.TextInput(attrs={'class':'form-control'}))
+    email      = forms.EmailField(disabled=True,
+                                  widget=forms.EmailInput(attrs={'class':'form-control'}))
+
+    # Explicitly declare role & department so we can set disabled here too
+    role       = forms.ChoiceField(choices=EmployeeProfile.RoleChoices.choices,
+                                   widget=forms.Select(attrs={'class':'form-control'}))
+    department = forms.CharField(widget=forms.TextInput(attrs={'class':'form-control'}))
 
     class Meta:
         model = EmployeeProfile
-        fields = ['first_name', 'last_name', 'email', 'phone_number', 'address', 'profile_picture', 'role', 'department']
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'phone_number',
+            'address',
+            'profile_picture',
+            'role',
+            'department',
+        ]
         widgets = {
-            'phone_number':    forms.TextInput   (attrs={'class':'form-control'}),
-            'address':         forms.Textarea    (attrs={'class':'form-control','rows':3}),
+            'phone_number':    forms.TextInput(attrs={'class':'form-control'}),
+            'address':         forms.Textarea(attrs={'class':'form-control','rows':3}),
             'profile_picture': forms.ClearableFileInput(attrs={'class':'form-control'}),
-            'role':            forms.Select      (attrs={'class':'form-control'}),
-            'department':      forms.TextInput   (attrs={'class':'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user')        # we’ll pass request.user in the view
+        user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
-        # Populate the readonly User fields:
-        if self.instance and self.instance.user:
+        # Populate the read‑only User fields
+        if self.instance and hasattr(self.instance, 'user'):
             u = self.instance.user
+            self.fields['username'].initial   = u.username
             self.fields['first_name'].initial = u.first_name
             self.fields['last_name'].initial  = u.last_name
             self.fields['email'].initial      = u.email
 
-        # **ONLY superusers can edit role/department**:
-        if not user.is_superuser:
-            self.fields['role'].disabled       = True
-            self.fields['department'].disabled = True
+        # By default, disable role & department
+        self.fields['role'].disabled       = True
+        self.fields['department'].disabled = True
+
+        # But if the current user is a superuser, allow editing them
+        if user.is_superuser:
+            self.fields['role'].disabled       = False
+            self.fields['department'].disabled = False
+
 
 
 

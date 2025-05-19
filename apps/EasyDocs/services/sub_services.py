@@ -88,9 +88,13 @@ class SubServicesStatusView(LoginRequiredMixin, TemplateView):
         ctx['legal_payouts'] = legal_payouts
 
         # Add flat list of all subservices in all payouts (merged)
-        ctx['payout_subservices'] = ClientSubService.objects.filter(
-            legalofficepayouts__in=legal_payouts
-        ).select_related('client_service__client', 'sub_service')
+        ctx['payout_subservices'] = (
+            ClientSubService.objects
+            .filter(legalofficepayouts__in=legal_payouts)
+            .select_related('client_service__client', 'sub_service')
+            # bring in the payout month onto each sub‑service
+            .annotate(month=F('legalofficepayouts__month'))
+        )
 
         # subservices = []
         # for payout in legal_payouts:

@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
-from django.db.models import Q, Prefetch, Sum, DecimalField, F
+from django.db.models import Q, Prefetch, Sum, DecimalField, F, QuerySet
 from django.db.models.functions import Coalesce, TruncWeek
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
@@ -17,7 +17,8 @@ from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollecti
     SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, \
     ClientSubServiceEditForm, ClientSmsForm
 from apps.EasyDocs.models import Client, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
-    ClientSubService, SiteSettings, SmsProviderToken, PaymentHistory, Expense, Payment, MessageLog, TitleDeedCollection
+    ClientSubService, SiteSettings, SmsProviderToken, PaymentHistory, Expense, Payment, MessageLog, TitleDeedCollection, \
+    Booking
 
 from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
@@ -66,225 +67,248 @@ import calendar
 from decimal import Decimal
 from django.db.models import Count
 
+import calendar
 from collections import OrderedDict
 from datetime import date
-import calendar
 from decimal import Decimal
+
 from django.db.models import Sum, Count, F
 from django.db.models.functions import TruncMonth, Coalesce
+from django.views.generic import TemplateView
 
 
-def get_dashboard_data():
-    today = date.today()
-    current_year = today.year
-    prev_year = current_year - 1
-    current_month = today.month
-    prev_month = current_month - 1 if current_month > 1 else 12
-
-    # Revenue
-    current_col = Payment.objects.filter(payment_date__year=current_year).aggregate(total=Sum('amount'))[
-                      'total'] or Decimal('0.00')
-    prev_col = Payment.objects.filter(payment_date__year=prev_year).aggregate(total=Sum('amount'))['total'] or Decimal(
-        '0.00')
-
-    # Calculate revenue growth percentage
-    revenue_growth = 0
-    if prev_col and prev_col > 0:
-        revenue_growth = round(((current_col - prev_col) / prev_col) * 100, 2)
-
-    # Expenses
-    sub_exp = ClientSubService.objects.filter(added_on__year=current_year).aggregate(
-        total=Sum(Coalesce('overridden_price', F('sub_service__price')))
-    )['total'] or Decimal('0.00')
-    gen_exp = Expense.objects.filter(date__year=current_year).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    total_exp = sub_exp + gen_exp
-    net_rev = current_col - total_exp
-
-    # Calculate expense growth percentage
-    prev_sub_exp = ClientSubService.objects.filter(added_on__year=prev_year).aggregate(
-        total=Sum(Coalesce('overridden_price', F('sub_service__price')))
-    )['total'] or Decimal('0.00')
-    prev_gen_exp = Expense.objects.filter(date__year=prev_year).aggregate(total=Sum('amount'))['total'] or Decimal(
-        '0.00')
-    prev_total_exp = prev_sub_exp + prev_gen_exp
-
-    expense_growth = 0
-    if prev_total_exp and prev_total_exp > 0:
-        expense_growth = round(((total_exp - prev_total_exp) / prev_total_exp) * 100, 2)
-
-    # Clients metrics
-    current_month_clients = Client.objects.filter(created_at__year=current_year,
-                                                  created_at__month=current_month).count()
-    prev_month_clients = Client.objects.filter(created_at__year=current_year if prev_month != 12 else prev_year,
-                                               created_at__month=prev_month).count()
-
-    clients_growth = 0
-    if prev_month_clients > 0:
-        clients_growth = round(((current_month_clients - prev_month_clients) / prev_month_clients) * 100, 2)
-
-    # Title deed metrics
-    current_week_titles = TitleDeedCollection.objects.filter(
-        collected_at__year=current_year,
-        collected_at__week=today.isocalendar()[1]
-    ).count()
-
-    prev_week_titles = TitleDeedCollection.objects.filter(
-        collected_at__year=current_year,
-        collected_at__week=today.isocalendar()[1] - 1
-    ).count()
-
-    title_growth = 0
-    if prev_week_titles > 0:
-        title_growth = round(((current_week_titles - prev_week_titles) / prev_week_titles) * 100, 2)
-
-    # Net revenue growth
-    prev_net_rev = prev_col - prev_total_exp
-    net_rev_growth = 0
-    if prev_net_rev and prev_net_rev > 0:
-        net_rev_growth = round(((net_rev - prev_net_rev) / prev_net_rev) * 100, 2)
-
-    # Monthly Clients
-    monthly_clients = Client.objects.filter(created_at__year=current_year).annotate(
-        month=TruncMonth('created_at')
-    ).values('month').annotate(count=Count('id')).order_by('month')
-
-    clients_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
-    for entry in monthly_clients:
-        clients_data[calendar.month_abbr[entry['month'].month]] = entry['count']
-
-    # Monthly Title Deeds
-    monthly_titles = TitleDeedCollection.objects.filter(collected_at__year=current_year).annotate(
-        month=TruncMonth('collected_at')
-    ).values('month').annotate(count=Count('id')).order_by('month')
-
-    title_deeds_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
-    for entry in monthly_titles:
-        title_deeds_data[calendar.month_abbr[entry['month'].month]] = entry['count']
-
-    # Monthly Revenue
-    monthly_col = Payment.objects.filter(payment_date__year=current_year).annotate(
-        month=TruncMonth('payment_date')
-    ).values('month').annotate(total=Sum('amount')).order_by('month')
+def pct_growth(current: Decimal, previous: Decimal) -> Decimal:
+    """
+    Calculate percentage growth, returns 100 if previous is zero.
+    """
+    if previous and previous > 0:
+        return ((current - previous) / previous * 100).quantize(Decimal('0.01'))
+    return Decimal('100.00')
 
 
-    # Monthly Expenses
-    monthly_collected_data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
-    for entry in monthly_col:
-        # The key must remain as is (string)
-        month_key = calendar.month_abbr[entry['month'].month]
-        # The value can be a float
-        monthly_collected_data[month_key] = float(entry['total'])
+def aggregate_ytd(model_or_qs, date_field: str, amount_field: str, start_date, end_date) -> Decimal:
+    """
+    Sum `amount_field` between start_date and end_date.
+    Accepts either:
+      - a Model class (you’ll get model.objects.filter)
+      - or a pre‑filtered QuerySet (it will further .filter on that)
+    """
+    if isinstance(model_or_qs, QuerySet):
+        qs = model_or_qs
+    else:
+        # assume it’s a Model class
+        qs = model_or_qs.objects.all()
 
-    # Monthly Expenses
-    monthly_expenses = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
-    for m in range(1, 13):
-        month_key = calendar.month_abbr[m]
-        monthly_expenses[month_key] = float(
-            ClientSubService.objects.filter(added_on__year=current_year, added_on__month=m).aggregate(
-                total=Sum(Coalesce('overridden_price', F('sub_service__price')))
-            )['total'] or 0
-        ) + float(
-            Expense.objects.filter(date__year=current_year, date__month=m).aggregate(total=Sum('amount'))['total'] or 0
+    qs = qs.filter(**{f"{date_field}__range": (start_date, end_date)})
+    return qs.aggregate(total=Sum(amount_field))['total'] or Decimal('0.00')
+
+
+def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[float]:
+    """
+    Build a 12‑element list (Jan→Dec) of aggregated values:
+      - If agg_field == 'id', performs COUNT('id')
+      - Otherwise performs SUM(agg_field)
+    `source` may be either:
+      * A Model class (e.g. Payment)
+      * A pre‑filtered/annotated QuerySet
+    """
+    # 1️⃣ Accept Model or QuerySet
+    if isinstance(source, QuerySet):
+        qs = source
+    else:
+        # assume `source` is a Django Model class
+        qs = source.objects.all()
+
+    # 2️⃣ Restrict to the given year and annotate by month
+    qs = (qs
+          .filter(**{f"{date_field}__year": year})
+          .annotate(month=TruncMonth(date_field))
+          )
+
+    # 3️⃣ Aggregate in one shot, grouping by month
+    aggregate_expr = Count('id') if agg_field == 'id' else Sum(agg_field)
+    month_vals = (
+        qs
+        .values('month')
+        .annotate(val=aggregate_expr)
+        .order_by('month')
+    )
+
+    # 4️⃣ Build the default 12‑month dict, fill in returned months
+    data = OrderedDict((calendar.month_abbr[m], 0.0) for m in range(1, 13))
+    for entry in month_vals:
+        mon = entry['month'].month
+        key = calendar.month_abbr[mon]
+        data[key] = float(entry['val'] or 0)
+
+    return list(data.values())
+
+
+class DashboardView(TemplateView):
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.localdate()
+        current_year = today.year
+        prev_year = current_year - 1
+
+        # ── REVENUE YTD vs Last Year YTD ───────────────────────────────
+        rev_cur = (
+                Payment.objects
+                .filter(payment_date__year=current_year)
+                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         )
-    # Monthly Net Revenue
-    monthly_net = OrderedDict()
-    for m in calendar.month_abbr[1:]:
-        monthly_net[m] = monthly_collected_data[m] - monthly_expenses[m]
+        rev_prev = (
+                Payment.objects
+                .filter(
+                    payment_date__year=prev_year,
+                    payment_date__month__lte=today.month,
+                    payment_date__day__lte=today.day
+                )
+                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        )
+        rev_growth = pct_growth(rev_cur, rev_prev)
+        rev_diff = rev_cur - rev_prev
 
-    # Current month stats
-    current_month_abbr = calendar.month_abbr[current_month]
-    current_month_revenue = monthly_collected_data[current_month_abbr]
-    current_month_expenses = monthly_expenses[current_month_abbr]
-    current_month_net = monthly_net[current_month_abbr]
+        context.update({
+            'rev_cur': rev_cur,
+            'rev_prev': rev_prev,
+            'rev_growth_pct': rev_growth,
+            'rev_diff': rev_diff,
+            'rev_diff_abs': abs(rev_diff),
+        })
 
-    # Weekly stats for title deeds
-    weekly_titles = TitleDeedCollection.objects.filter(
-        collected_at__year=current_year,
-        collected_at__month=current_month
-    ).annotate(
-        week=TruncWeek('collected_at')
-    ).values('week').annotate(count=Count('id')).order_by('week')
+        # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
+        # Sub‑services
+        ss_cur = (
+                ClientSubService.objects
+                .annotate(amt=Coalesce('overridden_price', F('sub_service__price')))
+                .filter(added_on__year=current_year)
+                .aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
+        )
+        ss_prev = (
+                ClientSubService.objects
+                .annotate(amt=Coalesce('overridden_price', F('sub_service__price')))
+                .filter(
+                    added_on__year=prev_year,
+                    added_on__month__lte=today.month,
+                    added_on__day__lte=today.day
+                )
+                .aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
+        )
+        # General expenses
+        ge_cur = (
+                Expense.objects
+                .filter(date__year=current_year)
+                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        )
+        ge_prev = (
+                Expense.objects
+                .filter(
+                    date__year=prev_year,
+                    date__month__lte=today.month,
+                    date__day__lte=today.day
+                )
+                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        )
+        exp_cur = ss_cur + ge_cur
+        exp_prev = ss_prev + ge_prev
+        exp_growth = pct_growth(exp_cur, exp_prev)
+        exp_diff = exp_cur - exp_prev
 
-    # Get this month's days for weekly data
-    import datetime
-    first_day = datetime.date(current_year, current_month, 1)
-    days_in_month = calendar.monthrange(current_year, current_month)[1]
-    last_day = datetime.date(current_year, current_month, days_in_month)
+        context.update({
+            'exp_cur': exp_cur,
+            'exp_prev': exp_prev,
+            'exp_growth_pct': exp_growth,
+            'exp_diff': exp_diff,
+            'exp_diff_abs': abs(exp_diff),
+        })
 
-    # Get all weeks in the month
-    weeks_in_month = []
-    current_date = first_day
-    while current_date <= last_day:
-        week_start = current_date - datetime.timedelta(days=current_date.weekday())
-        week_end = week_start + datetime.timedelta(days=6)
-        weeks_in_month.append((week_start, week_end))
-        current_date = week_end + datetime.timedelta(days=1)
+        # ── NET REVENUE YTD vs Last Year YTD ───────────────────────────
+        net_cur = rev_cur - exp_cur
+        net_prev = rev_prev - exp_prev
+        net_growth = pct_growth(net_cur, net_prev)
+        net_diff = net_cur - net_prev
 
-    # Get weekly labels
-    weekly_labels = ["Week " + str(i + 1) for i in range(len(weeks_in_month))]
+        context.update({
+            'net_cur': net_cur,
+            'net_prev': net_prev,
+            'net_growth_pct': net_growth,
+            'net_diff': net_diff,
+            'net_diff_abs': abs(net_diff),
+        })
 
-    # Convert OrderedDict values to lists and format as JSON for JavaScript
-    import json
+        # ── CLIENTS YTD vs Last Year YTD ──────────────────────────────
+        clients_cur = Client.objects.filter(created_at__year=current_year).count()
+        clients_prev = Client.objects.filter(
+            created_at__year=prev_year,
+            created_at__month__lte=today.month,
+            created_at__day__lte=today.day
+        ).count()
+        clients_growth = pct_growth(Decimal(clients_cur), Decimal(clients_prev))
+        clients_diff = clients_cur - clients_prev
 
-    clients_data_list = list(clients_data.values())
-    title_deeds_data_list = list(title_deeds_data.values())
-    collected_data_list = list(monthly_collected_data.values())
-    expenses_data_list = list(monthly_expenses.values())
-    net_revenue_data_list = list(monthly_net.values())
-    month_labels_list = list(clients_data.keys())
+        context.update({
+            'clients_cur': clients_cur,
+            'clients_prev': clients_prev,
+            'clients_growth_pct': clients_growth,
+            'clients_diff': clients_diff,
+            'clients_diff_abs': abs(clients_diff),
+        })
 
-    return {
-        'current_year': current_year,
-        'previous_year': prev_year,
-        'current_year_revenue': current_col,
-        'previous_year_revenue': prev_col,
-        'revenue_growth': revenue_growth,
-        'total_expenses': total_exp,
-        'expense_growth': expense_growth,
-        'net_revenue': net_rev,
-        'net_revenue_growth': net_rev_growth,
+        # ── TITLE DEEDS YTD vs Last Year YTD ──────────────────────────
+        titles_cur = TitleDeedCollection.objects.filter(collected_at__year=current_year).count()
+        titles_prev = TitleDeedCollection.objects.filter(
+            collected_at__year=prev_year,
+            collected_at__month__lte=today.month,
+            collected_at__day__lte=today.day
+        ).count()
+        titles_growth = pct_growth(Decimal(titles_cur), Decimal(titles_prev))
+        titles_diff = titles_cur - titles_prev
 
-        # Client metrics
-        'total_clients': Client.objects.count(),
-        'current_month_clients': current_month_clients,
-        'extra_clients': clients_growth,
+        context.update({
+            'titles_cur': titles_cur,
+            'titles_prev': titles_prev,
+            'titles_growth_pct': titles_growth,
+            'titles_diff': titles_diff,
+            'titles_diff_abs': abs(titles_diff),
+        })
 
-        # Title deed metrics
-        'total_processed_title_deeds': TitleDeedCollection.objects.filter(collected_at__isnull=False).count(),
-        'current_week_titles': current_week_titles,
-        'title_growth': title_growth,
+        # ── Monthly drill‑down series (current year Jan→Dec) ───────────
+        context['month_labels'] = list(OrderedDict((calendar.month_abbr[m], None) for m in range(1, 13)))
+        context['clients_monthly'] = monthly_series(Client, 'created_at', 'id', current_year)
+        context['titles_monthly'] = monthly_series(TitleDeedCollection, 'collected_at', 'id', current_year)
+        context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
 
-        # Current month highlights
-        'current_month': current_month_abbr,
-        'current_month_revenue': current_month_revenue,
-        'current_month_expenses': current_month_expenses,
-        'current_month_net': current_month_net,
+        ss_monthly = monthly_series(
+            ClientSubService.objects.annotate(amt=Coalesce('overridden_price', F('sub_service__price'))),
+            'added_on', 'amt', current_year
+        )
+        ge_monthly = monthly_series(Expense, 'date', 'amount', current_year)
+        context['expense_monthly'] = [ss_monthly[i] + ge_monthly[i] for i in range(12)]
+        context['net_monthly'] = [
+            context['revenue_monthly'][i] - context['expense_monthly'][i] for i in range(12)
+        ]
 
-        # Chart data - convert to JSON strings for use in JavaScript
-        'clients_data': json.dumps(clients_data_list),
-        'title_deeds_data': json.dumps(title_deeds_data_list),
-        'collected_data': json.dumps(collected_data_list),
-        'expenses_data': json.dumps(expenses_data_list),
-        'net_revenue_data': json.dumps(net_revenue_data_list),
-        'month_labels': json.dumps(month_labels_list),
+        # ── Today’s unhandled bookings ─────────────────────────────────
+        context['today_bookings'] = Booking.objects.filter(
+            scheduled_date__date=today,
+            handled=False
+        )
 
-        # Weekly title deeds data
-        'weekly_titles_data': json.dumps([entry['count'] for entry in weekly_titles]),
-        'weekly_labels': json.dumps(weekly_labels)
-    }
+        # ── Recent payments (for detail list) ─────────────────────────
+        context['recent_payments'] = get_all_payment_history()[:10]
+
+        return context
 
 
+class HomeView(DashboardView):
+    template_name = 'Home/admin.html'
 
-
-def home(request):
-    dashboard_data = get_dashboard_data()
-    recent_payments = get_all_payment_history()[:10]
-    context = {
-        'recent_payments': recent_payments,
-        'dashboard': dashboard_data,
-    }
-
-    return render(request, 'Home/admin.html', context)
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['recent_payments'] = get_all_payment_history()[:10]
+        return ctx
 
 
 class ClientDetailView(PermissionRequiredMixin, DetailView):
@@ -411,7 +435,6 @@ class ClientDetailView(PermissionRequiredMixin, DetailView):
         return context
 
 
-
 def client_list(request):
     services = Service.objects.all()
     add_form = ClientForm()
@@ -497,7 +520,6 @@ def edit_client(request, client_id):
     if referer:
         return redirect(referer)
     return redirect(reverse('client_details', kwargs={'client_id': client_id}))
-
 
 
 class ClientServiceCreateView(CreateView):

@@ -1,3 +1,5 @@
+from email.utils import parseaddr, formataddr
+
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
@@ -13,8 +15,18 @@ from django.views.decorators.http import require_POST
 
 from apps.EasyDocs.forms import DocTypeForm, ClientDocumentForm, DocumentForm
 from apps.EasyDocs.models import ClientDoc, Client, SiteSettings, DocType, Document
+import mimetypes
+import logging
+
+from django.conf import settings
+from django.contrib import messages
+from django.core.mail import EmailMessage
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 
 
+
+logger = logging.getLogger(__name__)
 
 def add_document(request):
     if request.method == "POST":
@@ -49,7 +61,6 @@ def document_list(request):
         'doc_types': doc_types,
         'query': query,
     })
-
 
 
 def add_doctype(request):
@@ -150,37 +161,72 @@ def delete_document(request, client_id, doc_id):
 
 
 
+
+
 def send_doc_email_to_client(request, client_id, doc_id):
-    client = get_object_or_404(Client, id=client_id)
+    client   = get_object_or_404(Client, id=client_id)
     document = get_object_or_404(ClientDoc, id=doc_id)
     site_settings = SiteSettings.objects.first()
 
+    # Redirect setup
+    referer  = request.META.get('HTTP_REFERER')
+    fallback = reverse('client_details', kwargs={'client_id': client_id})
+    redirect_to = referer or fallback
+
     if not client.email:
         messages.error(request, "This client does not have an email address.")
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+        return redirect(redirect_to)
 
-    from_email = f"ValueTech Admin <{settings.DEFAULT_FROM_EMAIL}>"
-    subject = f"Document from {site_settings.company_name if site_settings else 'Our Company'}"
-    tagline = site_settings.tagline if site_settings and site_settings.tagline else "Thank you for letting us serve you!"
+    # --- Build a valid From: header ---
+    raw_from = settings.DEFAULT_FROM_EMAIL or ""
+    env_name, env_addr = parseaddr(raw_from)
+    company_name = site_settings.company_name if site_settings else ""
+    # Prefer your site’s company name over the env’s display name:
+    display_name = company_name or env_name or ""
+    address      = env_addr or env_name  # if env had only one part, treat that as address
 
-    message = f"""
-    Hello {client.first_name},
+    from_email = formataddr((display_name, address))
 
-    Please find your document attached.
+    # --- Subject & Body ---
+    subject = f"Your Document from {company_name or 'Our Company'}"
+    tagline = site_settings.tagline or ""
+    lines = [
+        f"Hello {client.first_name},",
+        "",
+        "Please find your document attached.",
+        tagline,
+        "",
+        "Best regards,",
+        company_name,
+    ]
+    body = "\n".join([ln for ln in lines if ln.strip()])
 
-    {tagline}
-    """
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=from_email,
+        to=[client.email],
+    )
 
-    email = EmailMessage(subject, message, from_email, [client.email])
-
-    # Attach file
+    # --- Attach the file ---
     if document.doc_file:
-        email.attach(document.doc_file.name, document.doc_file.read(), document.doc_file.mime_type)
+        try:
+            mime_type = document.mime_type or mimetypes.guess_type(document.doc_file.name)[0] or 'application/octet-stream'
+            content   = document.doc_file.read()
+            email.attach(document.doc_name, content, mime_type)
+        except Exception:
+            logger.exception("Attach failed for doc %s to client %s", doc_id, client_id)
+            messages.error(request, "Could not attach the document file.")
+            return redirect(redirect_to)
 
+    # --- Send ---
     try:
-        email.send()
-        messages.success(request, f"Email with attachment successfully sent to {client.email}")
-    except Exception as e:
-        messages.error(request, f"Failed to send email: {str(e)}")
+        email.send(fail_silently=False)
+        messages.success(request, f"Document emailed successfully to {client.email}.")
+    except Exception as exc:
+        logger.exception("Email send error for client %s doc %s", client_id, doc_id)
+        messages.error(request, f"Failed to send email: {exc}")
 
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    return redirect(redirect_to)
+
+

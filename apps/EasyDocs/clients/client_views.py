@@ -267,10 +267,19 @@ def get_client_service_summary(client):
     qs = ClientService.objects.filter(client=client)
 
     active_count = qs.filter(status='active').count()
-    completed_count = qs.filter(status='completed').count()
+    completed_count = qs.filter(status__in=['completed', 'collected']).count()
 
-    # Safely sum the total_balance from each instance
-    total_balance = sum((cs.total_balance for cs in qs), Decimal('0.00'))
+    # Sum of all service totals
+    total_charged = qs.aggregate(
+        total=Coalesce(Sum('full_total_price'), Value(0), output_field=DecimalField())
+    )['total'] or Decimal('0.00')
+
+    # Sum of all payments related to the client's services
+    total_paid = qs.aggregate(
+        total=Coalesce(Sum('payments__amount'), Value(0), output_field=DecimalField())
+    )['total'] or Decimal('0.00')
+
+    total_balance = total_charged - total_paid
 
     return {
         'active_services': active_count,

@@ -35,7 +35,7 @@
                                 <h5 class="m-b-10">Home</h5>
                             </div>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                                 <li class="breadcrumb-item"><a href="javascript: void(0)">Dashboard</a></li>
                                 <li class="breadcrumb-item" aria-current="page">Home</li>
                             </ul>
@@ -53,218 +53,155 @@
             <div class="row">
                 <!-- [ sample-page ] start -->
                 <!-- Total Processed Title Deeds -->
-<div class="container-fluid mt-4">
-  <div class="row">
-    <!-- Clients Card -->
-    <div class="col-lg-4 col-md-6 mb-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="d-flex align-items-center">
-                <span class="badge bg-light text-dark rounded-pill me-2">
-                  <i class="fas fa-users text-primary"></i>
-                </span>
-                <h5 class="card-title mb-0">{{ dashboard.total_clients }}</h5>
-              </div>
-              <small class="text-muted">Total Clients</small>
-            </div>
-            <div class="text-end">
-              <span class="badge {% if dashboard.extra_clients > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                {% if dashboard.extra_clients > 0 %}+{{ dashboard.extra_clients }}{% else %}{{ dashboard.extra_clients }}{% endif %}%
-              </span>
-              <div>
-                <small class="text-muted">This month</small>
-                <i class="fas fa-arrow-circle-right ms-1 small"></i>
-              </div>
-            </div>
-          </div>
+                <div class="container-fluid mt-3">
+                    <div class="row g-2">
 
-          <!-- Sparkline Chart -->
-          <div id="sparkline-clients" class="mt-2"></div>
+                        {% comment %}—— CLIENTS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-users text-primary"></i> Clients
+            </span>
+                                        <span class="badge rounded-pill {% if clients_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ clients_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-0 fw-bold">{{ clients_cur }}</h4>
 
-          <!-- Insight Text -->
-          <div class="mt-3">
-            <small class="text-muted">
-              <i class="fas fa-circle {% if dashboard.clients_data|last > dashboard.clients_data|first %}text-success{% else %}text-danger{% endif %} me-1" style="font-size: 8px;"></i>
-              {% with last_month=dashboard.clients_data|last|floatformat:0 %}
-              You added <span class="{% if dashboard.clients_data|last > dashboard.clients_data|first %}text-success{% else %}text-danger{% endif %} fw-bold">{{ last_month }}</span> new clients this month
-              {% endwith %}
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
+                                    <p class="text-muted small mb-0">
+                                        {% if clients_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ clients_diff_abs }} more
+                                            than last year
+                                        {% elif clients_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ clients_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
-    <!-- Revenue Card -->
-    <div class="col-lg-4 col-md-6 mb-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="d-flex align-items-center">
-                <span class="badge bg-light text-dark rounded-pill me-2">
-                  <i class="fas fa-money-bill-wave text-success"></i>
-                </span>
-                <h5 class="card-title mb-0">KES {{ dashboard.current_year_revenue|intcomma }}</h5>
-              </div>
-              <small class="text-muted">Total Revenue</small>
-            </div>
-            <div class="text-end">
-              {% with revenue_percent=dashboard.current_year_revenue|default:1|floatformat:0|add:0 %}
-              <span class="badge {% if revenue_percent > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                {{ revenue_percent }}%
-              </span>
-              <div>
-                <small class="text-muted">This year</small>
-                <i class="fas fa-arrow-circle-right ms-1 small"></i>
-              </div>
-              {% endwith %}
-            </div>
-          </div>
+                        {% comment %}—— REVENUE ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-money-bill-wave text-success"></i> Revenue
+            </span>
+                                        <span class="badge rounded-pill {% if rev_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ rev_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-0 fw-bold">KES {{ rev_cur|intcomma }}</h4>
 
-          <!-- Sparkline Chart -->
-          <div id="sparkline-revenue" class="mt-2"></div>
+                                    <p class="text-muted small mb-0">
+                                        {% if rev_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> KES {{ rev_diff_abs|intcomma }}
+                                            more than last year
+                                        {% elif rev_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> KES
+                                            {{ rev_diff_abs|intcomma }} less than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
-          <!-- Highlight Point -->
-          <div class="mt-3">
-            <small class="text-muted">
-              <i class="fas fa-circle text-primary me-1" style="font-size: 8px;"></i>
-              {% with latest_value=dashboard.collected_data|last|floatformat:0|intcomma %}
-              You collected <span class="text-primary fw-bold">KES {{ latest_value }}</span> this month
-              {% endwith %}
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
+                        {% comment %}—— EXPENSES ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-file-invoice text-danger"></i> Expenses
+            </span>
+                                        <span class="badge rounded-pill {% if exp_growth_pct <= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ exp_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-0 fw-bold">KES {{ exp_cur|intcomma }}</h4>
 
-    <!-- Expenses Card -->
-    <div class="col-lg-4 col-md-6 mb-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="d-flex align-items-center">
-                <span class="badge bg-light text-dark rounded-pill me-2">
-                  <i class="fas fa-file-invoice text-danger"></i>
-                </span>
-                <h5 class="card-title mb-0">KES {{ dashboard.total_expenses|intcomma }}</h5>
-              </div>
-              <small class="text-muted">Total Expenses</small>
-            </div>
-            <div class="text-end">
-              <span class="badge bg-danger rounded-pill">
-                -2%
-              </span>
-              <div>
-                <small class="text-muted">This year</small>
-                <i class="fas fa-arrow-circle-right ms-1 small"></i>
-              </div>
-            </div>
-          </div>
+                                    <p class="text-muted small mb-0">
+                                        {% if exp_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-danger"></i> KES {{ exp_diff_abs|intcomma }}
+                                            more than last year
+                                        {% elif exp_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-success"></i> KES
+                                            {{ exp_diff_abs|intcomma }} less than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
-          <!-- Sparkline Chart -->
-          <div id="sparkline-expenses" class="mt-2"></div>
+                        {% comment %}—— NET REVENUE ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-chart-line text-info"></i> Net Rev
+            </span>
+                                        <span class="badge rounded-pill {% if net_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ net_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-0 fw-bold">KES {{ net_cur|intcomma }}</h4>
 
-          <!-- Highlight Point -->
-          <div class="mt-3">
-            <small class="text-muted">
-              <i class="fas fa-circle text-danger me-1" style="font-size: 8px;"></i>
-              {% with expense_value=dashboard.expenses_data|last|floatformat:0|intcomma %}
-              Expenses of <span class="text-danger fw-bold">KES {{ expense_value }}</span> this month
-              {% endwith %}
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
+                                    <p class="text-muted small mb-0">
+                                        {% if net_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> KES {{ net_diff_abs|intcomma }}
+                                            more than last year
+                                        {% elif net_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> KES
+                                            {{ net_diff_abs|intcomma }} less than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
-    <!-- Net Revenue Card -->
-    <div class="col-lg-4 col-md-6 mb-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="d-flex align-items-center">
-                <span class="badge bg-light text-dark rounded-pill me-2">
-                  <i class="fas fa-chart-line text-warning"></i>
-                </span>
-                <h5 class="card-title mb-0">KES {{ dashboard.net_revenue|intcomma }}</h5>
-              </div>
-              <small class="text-muted">Net Revenue</small>
-            </div>
-            <div class="text-end">
-              {% with net_percent=8 %}
-              <span class="badge {% if net_percent > 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                +{{ net_percent }}%
-              </span>
-              <div>
-                <small class="text-muted">This year</small>
-                <i class="fas fa-arrow-circle-right ms-1 small"></i>
-              </div>
-              {% endwith %}
-            </div>
-          </div>
+                        {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-file-contract text-warning"></i> Deeds
+            </span>
+                                        <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ titles_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-0 fw-bold">{{ titles_cur }}</h4>
 
-          <!-- Sparkline Chart -->
-          <div id="sparkline-net-revenue" class="mt-2"></div>
-
-          <!-- Insight Text -->
-          <div class="mt-3">
-            <small class="text-muted">
-              <i class="fas fa-circle text-warning me-1" style="font-size: 8px;"></i>
-              {% with net_value=dashboard.net_revenue_data|last|floatformat:0|intcomma %}
-              Net income of <span class="text-warning fw-bold">KES {{ net_value }}</span> this month
-              {% endwith %}
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Title Deeds Card -->
-    <div class="col-lg-4 col-md-6 mb-4">
-      <div class="card shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="d-flex align-items-center">
-                <span class="badge bg-light text-dark rounded-pill me-2">
-                  <i class="fas fa-file-contract text-info"></i>
-                </span>
-                <h5 class="card-title mb-0">{{ dashboard.total_processed_title_deeds }}</h5>
-              </div>
-              <small class="text-muted">Title Deeds Processed</small>
-            </div>
-            <div class="text-end">
-              <span class="badge bg-success rounded-pill">
-                +4.93%
-              </span>
-              <div>
-                <small class="text-muted">This week</small>
-                <i class="fas fa-arrow-circle-right ms-1 small"></i>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sparkline Chart -->
-          <div id="sparkline-title-deeds" class="mt-2"></div>
-
-          <!-- Insight Text -->
-          <div class="mt-3">
-            <small class="text-muted">
-              <i class="fas fa-circle text-info me-1" style="font-size: 8px;"></i>
-              {% with title_value=dashboard.title_deeds_data|last|floatformat:0 %}
-              You processed <span class="text-info fw-bold">{{ title_value }}</span> title deeds this month
-              {% endwith %}
-            </small>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+                                    <p class="text-muted small mb-0">
+                                        {% if titles_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff_abs }} more than
+                                            last year
+                                        {% elif titles_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
 
                 <div class="row g-4">
@@ -449,62 +386,41 @@
 
 
                 <div class="col-md-12 col-xl-4">
-                    <h5 class="mb-3">Transaction History</h5>
-                    <div class="card">
+
+                    <div class="card shadow-lg">
+                        <div class="card-header">
+                            <h5 class="mb-3">Today's Bookings</h5>
+                        </div>
                         <div class="list-group list-group-flush">
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <div class="avtar avtar-s rounded-circle text-success bg-light-success">
-                                            <i class="ti ti-gift f-18"></i>
+                            {% for booking in today_bookings %}
+                                <a href="{% url 'client_details' booking.client_service.client.pk %}"
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex align-items-center">
+                                        <div>
+                                            <div class="avtar avtar-s rounded-circle text-success bg-light-success">
+                                                <i class="ti ti-calendar-event f-18"></i>
+                                            </div>
+                                        </div>
+                                        <div class="ms-3 flex-grow-1">
+                                            <p class="mb-0 text-muted">
+                                                Service:<strong>{{ booking.client_service.service.name }}</strong>
+                                                &nbsp;for&nbsp;{{ booking.client_service.client.first_name }}&nbsp;{{ booking.client_service.client.last_name }}
+                                            </p>
+                                        </div>
+                                        <div class="text-end">
+                                            <h6 class="mb-1">{{ booking.scheduled_date|date:"M j, Y" }}</h6>
+                                            <p class="mb-0 text-muted">{{ booking.scheduled_date|time:"P" }}</p>
                                         </div>
                                     </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-1">Order #002434</h6>
-                                        <p class="mb-0 text-muted">Today, 2:00 AM</P>
-                                    </div>
-                                    <div class="flex-shrink-0 text-end">
-                                        <h6 class="mb-1">+ $1,430</h6>
-                                        <p class="mb-0 text-muted">78%</P>
-                                    </div>
+                                </a>
+                            {% empty %}
+                                <div class="list-group-item text-center text-muted">
+                                    No bookings scheduled for today
                                 </div>
-                            </a>
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <div class="avtar avtar-s rounded-circle text-primary bg-light-primary">
-                                            <i class="ti ti-message-circle f-18"></i>
-                                        </div>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-1">Order #984947</h6>
-                                        <p class="mb-0 text-muted">5 August, 1:45 PM</P>
-                                    </div>
-                                    <div class="flex-shrink-0 text-end">
-                                        <h6 class="mb-1">- $302</h6>
-                                        <p class="mb-0 text-muted">8%</P>
-                                    </div>
-                                </div>
-                            </a>
-                            <a href="#" class="list-group-item list-group-item-action">
-                                <div class="d-flex">
-                                    <div class="flex-shrink-0">
-                                        <div class="avtar avtar-s rounded-circle text-danger bg-light-danger">
-                                            <i class="ti ti-settings f-18"></i>
-                                        </div>
-                                    </div>
-                                    <div class="flex-grow-1 ms-3">
-                                        <h6 class="mb-1">Order #988784</h6>
-                                        <p class="mb-0 text-muted">7 hours ago</P>
-                                    </div>
-                                    <div class="flex-shrink-0 text-end">
-                                        <h6 class="mb-1">- $682</h6>
-                                        <p class="mb-0 text-muted">16%</P>
-                                    </div>
-                                </div>
-                            </a>
+                            {% endfor %}
                         </div>
                     </div>
+
                 </div>
 
                 <div class="row">
@@ -532,148 +448,12 @@
 
 {% block scripts %}
 
-    <!-- Required includes (place in <head> or before script) -->
-<script>
-  // Expose real JS arrays to your chart script
-  window.DASHBOARD_DATA = {
-    monthLabels:     {{ dashboard.month_labels|safe }},
-    clientsData:     {{ dashboard.clients_data|safe }},
-    titleDeedsData:  {{ dashboard.title_deeds_data|safe }},
-    revenueData:     {{ dashboard.collected_data|safe }},
-    expensesData:    {{ dashboard.expenses_data|safe }},
-    netRevenueData:  {{ dashboard.net_revenue_data|safe }}
-  };
-</script>
-
-<script>
-/* global ApexCharts */
-document.addEventListener('DOMContentLoaded', () => {
-  // 1️⃣ Pull in your preloaded data
-  const {
-    monthLabels,
-    clientsData,
-    titleDeedsData,
-    revenueData,
-    expensesData,
-    netRevenueData
-  } = window.DASHBOARD_DATA || {};
-
-  if (!monthLabels) {
-    console.error('DASHBOARD_DATA is missing or incomplete:', window.DASHBOARD_DATA);
-    return;
-  }
-
-  // 2️⃣ Build a shared “createChartConfig” factory
-  function createChartConfig(data, color, name, categories) {
-    const lastValue = data[data.length - 1];
-    const values = data.filter(v => v != null);
-    const minValue = values.length ? Math.min(...values) * 0.9 : 0;
-    const maxValue = values.length ? Math.max(...values) * 1.1 : 10;
-
-    // Discrete markers for each point, larger on the last one
-    const discreteMarkers = data.map((_, i) => ({
-      seriesIndex: 0,
-      dataPointIndex: i,
-      fillColor: '#fff',
-      strokeColor: color,
-      size: i === data.length - 1 ? 8 : 4
-    }));
-
-    return {
-      chart: {
-        type: 'line',
-        height: 150,
-        sparkline: { enabled: false },
-        toolbar: { show: false },
-        animations: { enabled: true, speed: 800, easing: 'easeinout' },
-        zoom: { enabled: false }
-      },
-      series: [{ name, data }],
-      stroke: { curve: 'smooth', width: 3 },
-      grid: {
-        show: true,
-        borderColor: '#eee',
-        padding: { top: 20, right: 20, bottom: 0, left: 0 }
-      },
-      xaxis: {
-        categories,
-        axisBorder: { show: true, color: '#ccc' },
-        axisTicks:  { show: true, color: '#ccc' },
-        labels:    { show: true, style: { colors: '#666', fontSize: '12px' } }
-      },
-      yaxis: {
-        min: minValue,
-        max: maxValue,
-        labels: { show: true, style: { colors: '#666', fontSize: '12px' } }
-      },
-      markers: {
-        size: 4,
-        colors: [color],
-        strokeColors: '#fff',
-        strokeWidth: 2,
-        hover: { sizeOffset: 2 },
-        discrete: discreteMarkers
-      },
-      annotations: {
-        xaxis: [{
-          x: categories[categories.length - 1],
-          strokeDashArray: 4,
-          borderColor: '#888',
-          label: {
-            borderColor: '#888',
-            style: { color: '#fff', background: '#888' },
-            text: 'Now'
-          }
-        }]
-      },
-      tooltip: {
-        enabled: true,
-        theme: 'dark',
-        x: { show: true, format: 'dd MMM' },
-        y: {
-          formatter: val => {
-            if (/revenue|expense/i.test(name)) {
-              return 'KES ' + val.toLocaleString();
-            }
-            return val.toLocaleString();
-          }
-        }
-      },
-      colors: [color]
-    };
-  }
-
-  // 3️⃣ Define your five chart targets
-  const chartConfigs = [
-    { selector: '#sparkline-clients',    data: clientsData,    color: '#198754', name: 'Clients' },
-    { selector: '#sparkline-title-deeds', data: titleDeedsData, color: '#0dcaf0', name: 'Title Deeds' },
-    { selector: '#sparkline-revenue',     data: revenueData,    color: '#007bff', name: 'Revenue' },
-    { selector: '#sparkline-expenses',    data: expensesData,   color: '#dc3545', name: 'Expenses' },
-    { selector: '#sparkline-net-revenue', data: netRevenueData, color: '#ffc107', name: 'Net Revenue' }
-  ];
-
-  // 4️⃣ Render each chart
-  chartConfigs.forEach(cfg => {
-    const el = document.querySelector(cfg.selector);
-    if (!el) {
-      console.warn(`Missing container for ${cfg.selector}`);
-      return;
-    }
-    const options = createChartConfig(cfg.data, cfg.color, cfg.name, monthLabels);
-    new ApexCharts(el, options).render();
-  });
-});
-
-</script>
-
 
     <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
     <script src="{% static 'assets/js/modals/dashCardAnalytics.js' %}"></script>
 
 
-    <script>
-  console.log('ApexCharts loaded:', typeof ApexCharts !== 'undefined');
-</script>
+
 
 
 
