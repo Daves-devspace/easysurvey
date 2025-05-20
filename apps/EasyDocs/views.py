@@ -3,10 +3,10 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
-from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
 from django.db.models import Q, Prefetch, Sum, DecimalField, F, QuerySet
-from django.db.models.functions import Coalesce, TruncWeek
+
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
@@ -29,9 +29,12 @@ from .clients.client_views import get_client_service_summary
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 
+from apps.Employee.utils.mixins import RolePermissionRequiredMixin
+
 import logging
 
 from .utils import MobileSasaAPI
+from ..Employee.models import EmployeeProfile
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +48,10 @@ def chart_data(request):
     return JsonResponse(data)
 
 
-def stacked_service_data(request):
-    year = int(request.GET.get("year", timezone.now().year))
-    chart_data = get_monthly_service_data(year)
-    return JsonResponse(chart_data)
+# def stacked_service_data(request):
+#     year = int(request.GET.get("year", timezone.now().year))
+#     chart_data = get_monthly_service_data(year)
+#     return JsonResponse(chart_data)
 
 
 def get_years(request):
@@ -56,16 +59,7 @@ def get_years(request):
     return JsonResponse({'years': years})
 
 
-from django.db.models import Count
-from django.db.models.functions import Coalesce
-from decimal import Decimal
-from datetime import date
 
-from django.db.models.functions import TruncMonth
-from collections import OrderedDict
-import calendar
-from decimal import Decimal
-from django.db.models import Count
 
 import calendar
 from collections import OrderedDict
@@ -302,22 +296,52 @@ class DashboardView(TemplateView):
         return context
 
 
-class HomeView(DashboardView):
+class HomeView(LoginRequiredMixin, DashboardView):
     template_name = 'Home/admin.html'
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['recent_payments'] = get_all_payment_history()[:10]
-        return ctx
+    def dispatch(self, request, *args, **kwargs):
+        # 1) not logged in? → login
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        # 2) is superuser or role=Admin? → render
+        try:
+            if request.user.is_superuser or request.user.employeeprofile.role == EmployeeProfile.RoleChoices.ADMIN:
+                return super().dispatch(request, *args, **kwargs)
+        except ObjectDoesNotExist:
+            pass
+
+        # 3) otherwise → staff
+        return redirect('staff-dashboard')
 
 
-class ClientDetailView(PermissionRequiredMixin, DetailView):
+class StaffDashboardView(LoginRequiredMixin, DashboardView):
+    template_name = 'Home/staff_dashboard.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # 1) not logged in? → login
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        # 2) is superuser or Admin? → admin
+        try:
+            if request.user.is_superuser or request.user.employeeprofile.role == EmployeeProfile.RoleChoices.ADMIN:
+                return redirect('home')
+        except ObjectDoesNotExist:
+            return redirect('login')
+
+        # 3) else → render staff dashboard
+        return super().dispatch(request, *args, **kwargs)
+
+
+class ClientDetailView(RolePermissionRequiredMixin, DetailView):
     """
     Displays the details for a single client, including services, subservices,
     payment histories, documents, and forms for actions.
     """
     model = Client
     template_name = 'Client/client_details.html'
+    action = 'view'
     context_object_name = 'client'
     pk_url_kwarg = 'client_id'
     permission_required = 'easydocs.view_client'
@@ -581,61 +605,7 @@ class ClientServiceCreateView(CreateView):
         }, status=400)
 
 
-# def add_client_service(request):
-#     if request.method == 'POST':
-#         form = ClientServiceForm(request.POST)
-#
-#         if form.is_valid():
-#             try:
-#                 client = form.cleaned_data['client']
-#                 service = form.cleaned_data['service']
-#                 land_description = form.cleaned_data['land_description']
-#
-#                 # Check if this service is already assigned to this client
-#                 if ClientService.objects.filter(client=client, service=service,
-#                                                 land_description=land_description).exists():
-#                     messages.warning(request,
-#                                      '⚠️ This service is already assigned to this client for the specified land.')
-#                     return redirect('clients')
-#
-#                 # Save client service record
-#                 client_service = form.save()
-#
-#                 # Handle custom process costs
-#                 process_ids = request.POST.getlist('process_id[]')
-#                 process_costs = request.POST.getlist('process_cost[]')
-#
-#                 if process_ids and process_costs:
-#                     for pid, cost_str in zip(process_ids, process_costs):
-#                         try:
-#                             cost = Decimal(cost_str)
-#                             csp = client_service.service_processes.get(process_id=pid)
-#                             csp.overridden_cost = cost
-#                             csp.save(update_fields=['overridden_cost'])
-#                         except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-#                             continue  # Silently skip invalid or missing data
-#
-#                 else:
-#                     override_total_price = request.POST.get('override_total_price')
-#                     if override_total_price:
-#                         try:
-#                             total_price = Decimal(override_total_price)
-#                             client_service.overridden_total_price = total_price
-#                             client_service.save(update_fields=['overridden_total_price'])
-#                         except InvalidOperation:
-#                             messages.warning(request, "⚠️ Total price override value is invalid. It was ignored.")
-#
-#                 messages.success(request, '✅ Service assigned successfully with custom pricing.')
-#
-#             except Exception as e:
-#                 # Catch-all for unexpected errors
-#                 messages.error(request, f'❌ An unexpected error occurred: {str(e)}')
-#                 return redirect('clients')
-#
-#         else:
-#             messages.error(request, '❌ Form is invalid. Please check the inputs.')
-#
-#     return redirect('clients')
+
 
 
 def edit_client_service(request, client_id):

@@ -49,12 +49,12 @@
           <div class="card error-card">
             <div class="card-body">
               <div class="error-image-block">
-                <img class="img-fluid" src="{% static 'assets/images/pages/403.jpg' %}" alt="img">
+                <img class="img-fluid" src="{% static 'assets/images/pages/403.jpg' %}" alt="403">
                 <img class="img-fluid img-twocone" src="{% static 'assets/images/pages/TwoCone.png' %}" alt="img">
               </div>
               <div class="text-center">
-                <h1 class="mt-5"><b>Page Not Found</b></h1>
-                <p class="mt-2 mb-4 text-muted">The page you are looking was moved, removed,<br>  renamed, or might never exist!</p>
+                <h1 class="mt-5"><b>403 Forbidden</b></h1>
+                <p class="mt-2 mb-4 text-muted">{{ exception }}<br> !</p>
 
                   <a href="{% url 'home' %}" class="btn btn-sm">Go to home</a>
               </div>

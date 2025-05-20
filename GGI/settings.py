@@ -272,9 +272,19 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # settings.py
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/login/'
+# settings.py
+
+# 1) After login, send users to the admin dashboard by default:
+LOGIN_REDIRECT_URL = '/admin-dashboard/'
+
+# 2) After logout, you can send them to the landing page or login again:
+LOGOUT_REDIRECT_URL = '/'              # to LandingPageView
+# or
+# LOGOUT_REDIRECT_URL = '/login/'     # up to you
+
+# 3) Where @login_required() sends anonymous users:
 LOGIN_URL = '/login/'
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

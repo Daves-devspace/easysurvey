@@ -1,0 +1,438 @@
+{% extends 'Home/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block body %}
+    <style>
+        .nav-tabs .nav-link.active {
+            background-color: #198754; /* Bootstrap green */
+            color: white;
+            box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link {
+            transition: all 0.3s ease;
+            border-radius: 0.5rem;
+        }
+
+        .nav-tabs {
+            border-bottom: none;
+        }
+    </style>
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <div class="page-header-title">
+                                <h5 class="m-b-10">Home</h5>
+                            </div>
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Dashboard</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Home</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="csv-alert" class="alert alert-success alert-dismissible fade d-none" role="alert">
+                CSV exported successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <!-- Total Processed Title Deeds -->
+                <div class="container-fluid mt-3">
+                    <div class="row g-2">
+
+                        {% comment %}—— CLIENTS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-users text-primary"></i> Clients
+            </span>
+                                        <span class="badge rounded-pill {% if clients_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ clients_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-1 fw-bold">{{ clients_cur }}</h4>
+
+                                    <p class="text-muted small mb-0">
+                                        {% if clients_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ clients_diff_abs }} more
+                                            than last year
+                                        {% elif clients_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ clients_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-file-contract text-warning"></i> Deeds
+            </span>
+                                        <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ titles_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-1 fw-bold">{{ titles_cur }}</h4>
+
+                                    <p class="text-muted small mb-0">
+                                        {% if titles_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff_abs }} more than
+                                            last year
+                                        {% elif titles_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                     {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-file-contract text-warning"></i> Deeds
+            </span>
+                                        <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ titles_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-1 fw-bold">{{ titles_cur }}</h4>
+
+                                    <p class="text-muted small mb-0">
+                                        {% if titles_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff_abs }} more than
+                                            last year
+                                        {% elif titles_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                     {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card border-0 shadow-sm rounded-2">
+                                <div class="card-body p-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-secondary">
+              <i class="fas fa-file-contract text-warning"></i> Deeds
+            </span>
+                                        <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+              {{ titles_growth_pct|floatformat:1 }}%
+            </span>
+                                    </div>
+                                    <h4 class="mb-1 fw-bold">{{ titles_cur }}</h4>
+
+                                    <p class="text-muted small mb-0">
+                                        {% if titles_diff > 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff_abs }} more than
+                                            last year
+                                        {% elif titles_diff < 0 %}
+                                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs }} fewer
+                                            than last year
+                                        {% else %}
+                                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="row g-4">
+                    <!-- Tabs + Shared Chart Area -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="col-md-12 col-xl-8">
+
+                                <div class="card tbl-card shadow-lg mt-2">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">Recent Clients</h5>
+                                        <a href="{% url 'clients' %}  ">View All</a>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover table-borderless mb-0">
+
+                                                <thead class="table-success">
+                                                <tr>
+                                                    <th>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   id="select-all">
+                                                        </div>
+                                                    </th>
+                                                    <th>First name</th>
+                                                    <th>Last name</th>
+                                                    <th>Phone</th>
+                                                    <th>E-mail</th>
+                                                    <th>Requested at</th>
+                                                    <th>Service</th>
+                                                    <th>Process</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                    <th>Details</th>
+
+
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                {% for item in client_data %}
+                                                    {% with client=item.client client_service=item.client_service current_process=item.current_process %}
+                                                        <tr>
+                                                            <td>{{ forloop.counter }}</td>
+                                                            <td>{{ client.first_name }}</td>
+                                                            <td>{{ client.last_name }}</td>
+                                                            <td>{{ client.phone|default:"-" }}</td>
+                                                            <td>{{ client.email }}</td>
+                                                            <td>
+                                                                {% if client_service %}
+                                                                    {{ client_service.requested_at|date:"Y-m-d" }}
+                                                                {% else %}
+                                                                    <span class="text-muted">No service</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if client_service %}
+                                                                    {{ client_service.service.name }}
+                                                                {% else %}
+                                                                    <span class="text-muted">No service</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if current_process %}
+                                                                    {{ current_process.process.name }}
+                                                                {% else %}
+                                                                    <span class="text-muted">N/A</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if current_process %}
+                                                                    <span class="badge
+              {% if current_process.status == 'in_progress' %}bg-info
+              {% elif current_process.status == 'pending' %}bg-secondary
+              {% elif current_process.status == 'completed' %}bg-success
+              {% elif current_process.status == 'collected' %}bg-primary
+              {% else %}bg-light text-dark{% endif %}">
+              {{ current_process.get_status_display }}
+            </span>
+                                                                {% else %}
+                                                                    <span class="text-muted">N/A</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <button class="btn btn-sm btn-warning"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#editClientModal{{ client.id }}">
+                                                                    Edit
+                                                                </button>
+                                                            </td>
+                                                            <td>
+                                                                <a href="{% url 'client_details' client.id %}">
+                                                                    <i class="ti ti-eye-check"></i>
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+
+                                                        <!-- Edit Client Modal -->
+                                                        <div class="modal fade" id="editClientModal{{ client.id }}"
+                                                             tabindex="-1"
+                                                             aria-labelledby="editClientModalLabel{{ client.id }}"
+                                                             aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <div class="modal-content">
+                                                                    <form method="POST"
+                                                                          action="{% url 'edit_client' client.id %}">
+                                                                        {% csrf_token %}
+                                                                        <div class="modal-header bg-warning">
+                                                                            <h5 class="modal-title"
+                                                                                id="editClientModalLabel{{ client.id }}">
+                                                                                Edit Client
+                                                                            </h5>
+                                                                            <button type="button" class="btn-close"
+                                                                                    data-bs-dismiss="modal"
+                                                                                    aria-label="Close"></button>
+                                                                        </div>
+                                                                        <div class="modal-body">
+                                                                            {{ item.form.as_p }}
+                                                                        </div>
+                                                                        <div class="modal-footer">
+                                                                            <button type="submit"
+                                                                                    class="btn btn-primary">Save
+                                                                                Changes
+                                                                            </button>
+                                                                            <button type="button"
+                                                                                    class="btn btn-secondary"
+                                                                                    data-bs-dismiss="modal">Cancel
+                                                                            </button>
+                                                                        </div>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    {% endwith %}
+
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendar or Other Right-Side Content -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-green-100">
+                                <h5 class="mb-0">Calendar</h5>
+                                <label>
+                                    <input type="checkbox" id="toggle-handled" checked>
+                                    Show handled bookings
+                                </label>
+
+                            </div>
+                            <div class="card-body shadow-lg">
+                                <!-- Your calendar component here -->
+
+
+                                <div id="calendar" style="min-height: 400px; margin: 20px;"></div>
+
+
+                                <!-- Bootstrap Modal -->
+                                <div class="modal fade" id="bookingModal" tabindex="-1"
+                                     aria-labelledby="bookingModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="bookingModalLabel">Booking Details</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                        aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body" id="modalBody">
+                                                <!-- Details go here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="col-md-12 col-xl-4">
+
+                    <div class="card shadow-lg">
+                        <div class="card-header">
+                            <h5 class="mb-3">Today's Bookings</h5>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for booking in today_bookings %}
+                                <a href="{% url 'client_details' booking.client_service.client.pk %}"
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex align-items-center">
+                                        <div>
+                                            <div class="avtar avtar-s rounded-circle text-success bg-light-success">
+                                                <i class="ti ti-calendar-event f-18"></i>
+                                            </div>
+                                        </div>
+                                        <div class="ms-3 flex-grow-1">
+                                            <p class="mb-0 text-muted">
+                                                Service:<strong>{{ booking.client_service.service.name }}</strong>
+                                                &nbsp;for&nbsp;{{ booking.client_service.client.first_name }}&nbsp;{{ booking.client_service.client.last_name }}
+                                            </p>
+                                        </div>
+                                        <div class="text-end">
+                                            <h6 class="mb-1">{{ booking.scheduled_date|date:"M j, Y" }}</h6>
+                                            <p class="mb-0 text-muted">{{ booking.scheduled_date|time:"P" }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            {% empty %}
+                                <div class="list-group-item text-center text-muted">
+                                    No bookings scheduled for today
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <!-- [ sample-page ] start -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body position-relative">
+                                <div id="calendar" class="calendar"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- [ sample-page ] end -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+{% endblock %}
+<!-- Just before </body>: FullCalendar bundle + your init -->
+
+
+{% block scripts %}
+
+
+    <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
+
+
+
+
+
+
+
+{% endblock %}
+
+<!-- v5 CSS & JS -->
+
+
