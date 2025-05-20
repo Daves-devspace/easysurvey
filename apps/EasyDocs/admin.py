@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .forms import ClientServiceForm
 from .models import (Client, Service, Process, ClientService, ClientServiceProcess, Payment, Document, DocType,
-                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings)
+                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask)
 
 
 
@@ -191,3 +191,11 @@ def relink_missing_subservices(modeladmin, request, queryset):
 class LegalOfficePayoutAdmin(admin.ModelAdmin):
     list_display = ("month", "total_amount")
     actions = [relink_missing_subservices]
+
+
+
+@admin.register(ScheduledTask)
+class ScheduledTaskAdmin(admin.ModelAdmin):
+    list_display = ("task_name", "scheduled_time", "status", "created_at")
+    readonly_fields = ("task_id", "task_name", "scheduled_time", "created_at")
+    list_filter = ("status",)

@@ -8,9 +8,9 @@ from django.utils import timezone
 from django.views.generic import ListView
 from django.views.generic.edit import FormMixin
 from django_celery_beat.models import IntervalSchedule, PeriodicTask
-
+from .tasks import schedule_bulk_broadcast
 from .forms import BulkSmsForm
-from .models import MessageLog, Client, RecurringBroadcast
+from .models import MessageLog, Client, ScheduledTask
 from .utils import MobileSasaAPI, broadcast_sms, personalize
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,9 @@ def send_and_log_sms(client_service, client, phone, message, reason):
 
 
 
-class CommunicationView(LoginRequiredMixin, FormMixin, ListView):
+
+
+class CommunicationView(FormMixin, ListView):
     model = MessageLog
     template_name = 'Management/comunication.html'
     context_object_name = 'logs'
@@ -84,87 +86,74 @@ class CommunicationView(LoginRequiredMixin, FormMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['form'] = self.get_form()
-        ctx['recurring_broadcasts'] = RecurringBroadcast.objects.all()
-        if hasattr(self, 'previews'):
-            ctx['previews'] = self.previews
+
+        # History of all sent/logged messages
+        ctx['logs'] = MessageLog.objects.all().order_by('-timestamp')
+
+        # Pending scheduled Celery tasks
+        ctx['scheduled_tasks'] = ScheduledTask.objects.filter(
+            status='pending',
+            scheduled_time__gt=timezone.now()
+        ).order_by('scheduled_time')
+
+        # Previews from handle_preview (empty by default)
+        ctx['previews'] = getattr(self, 'previews', [])
+
         return ctx
 
     def post(self, request, *args, **kwargs):
-        # 1) Edit broadcast
-        if 'edit_broadcast' in request.POST:
-            return self.handle_edit_broadcast(request)
+        # Cancel a pending broadcast
+        if 'cancel' in request.POST:
+            task_id = request.POST.get('log_id')
+            task = ScheduledTask.objects.filter(task_id=task_id).first()
+            if task and task.is_cancelable():
+                from celery import current_app
+                current_app.control.revoke(task.task_id, terminate=True)
+                task.status = 'cancelled'
+                task.save()
+                messages.success(request, "🗑️ Broadcast cancelled.")
+            return redirect(self.success_url)
 
-        # 2) Delete broadcast
-        if 'delete_broadcast' in request.POST:
-            return self.handle_delete_broadcast(request)
-
-        # 3) Preview / Send
         form = self.get_form()
         if not form.is_valid():
             messages.error(request, "❌ Please fix the errors before proceeding.")
             return self.get(request)
 
-        # Preview: stay on page
         if 'preview' in request.POST:
             self.handle_preview(form)
             return self.get(request)
 
-        # Send: queue & redirect → clears the form
         if 'send' in request.POST:
-            self.handle_send(form)
-            return redirect(self.success_url)
+            return self.handle_send(form)
 
-        # Fallback (shouldn’t happen)
         return self.get(request)
 
     def handle_preview(self, form):
         tpl = form.cleaned_data['message']
-        st = form.cleaned_data.get('scheduled_time')
-        clients = Client.objects.all()[:3]
+        dt = form.cleaned_data.get('scheduled_date')
+        clients = Client.objects.all()[:5]
 
-        self.previews = [
-            {
-                'client': f"{c.first_name} {c.last_name}",
-                'message': personalize(tpl, c),
-                'send_at': st.strftime("%Y-%m-%d %H:%M") if st else 'Now'
-            }
-            for c in clients
-        ]
+        self.previews = []
+        for client in clients:
+            send_at = dt.strftime("%Y-%m-%d %H:%M") if dt else 'Now'
+            message = tpl.replace('{client_first_name}', client.first_name)
+            message = message.replace('{client_last_name}', client.last_name)
+            self.previews.append({
+                'client': f"{client.first_name} {client.last_name}",
+                'message': message,
+                'send_at': send_at
+            })
 
     def handle_send(self, form):
         tpl = form.cleaned_data['message']
-        st = form.cleaned_data.get('scheduled_time')
-        recurring = form.cleaned_data.get('recurring')
+        dt = form.cleaned_data.get('scheduled_date')
+        iso = dt.isoformat() if dt else None
 
         try:
-            broadcast_sms(tpl, scheduled_time=st, recurring=recurring)
-            messages.success(self.request, "✅ Messages successfully queued for sending.")
-
-            if recurring:
-                RecurringBroadcast.objects.create(
-                    message_template=tpl,
-                    scheduled_day=(st or timezone.now()).day,
-                    scheduled_time=(st or timezone.now()).time(),
-                    is_active=True,
-                )
-                messages.success(self.request, "🔁 Recurring broadcast created.")
+            schedule_bulk_broadcast.delay(tpl, scheduled_iso=iso)
+            messages.success(self.request, "✅ Messages queued successfully.")
+            return redirect(self.success_url)
         except Exception as e:
-            messages.error(self.request, f"❌ An error occurred: {e}")
+            messages.error(self.request, f"❌ Error: {e}")
+            return self.get(self.request)
 
-    def handle_edit_broadcast(self, request):
-        broadcast = get_object_or_404(RecurringBroadcast, pk=request.POST['broadcast_id'])
-        broadcast.message_template = request.POST['message']
-        scheduled_str = request.POST.get('scheduled_time')
-        if scheduled_str:
-            dt = datetime.strptime(scheduled_str, "%Y-%m-%dT%H:%M")
-            broadcast.scheduled_day = dt.day
-            broadcast.scheduled_time = dt.time()
-        broadcast.save()
-        messages.success(request, "✅ Recurring broadcast updated.")
-        return redirect(self.success_url)
-
-    def handle_delete_broadcast(self, request):
-        broadcast = get_object_or_404(RecurringBroadcast, pk=request.POST['broadcast_id'])
-        broadcast.delete()
-        messages.success(request, "🗑️ Recurring broadcast deleted.")
-        return redirect(self.success_url)

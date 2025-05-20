@@ -1405,7 +1405,7 @@
                                                         <tr>
                                                             <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
                                                             <td>{{ log.phone }}</td>
-                                                            <td>{{ log.message }}</td>
+                                                            <td>{{ log.message|truncatechars:60  }}</td>
                                                             <td>
                         <span class="badge bg-{{ log.send_status|yesno:'success,danger' }}">
                             {{ log.send_status|title }}

@@ -21,6 +21,36 @@ from ..Employee.models import EmployeeProfile
 
 logger = logging.getLogger(__name__)
 
+# forms.py
+from django import forms
+from django.contrib.auth.forms import AuthenticationForm
+
+class CustomAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(
+        max_length=254,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your username',
+            'required': 'required',
+            'autofocus': 'autofocus',
+        })
+    )
+    password = forms.CharField(
+        label="Password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your password',
+            'required': 'required',
+        }),
+    )
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if username:
+            username = username.strip()
+        return username
+
 
 class CustomSetPasswordForm(SetPasswordForm):
     new_password1 = forms.CharField(
@@ -671,34 +701,31 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.timezone import get_current_timezone
 
-PLACEHOLDERS = [
-    ('{client_first_name}', 'Client First Name'),
-    # ('{client_last_name}', 'Client Last Name'),  # add if desired
-]
+
 
 class BulkSmsForm(forms.Form):
-    message = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control'}), label="Message Template")
-    scheduled_time = forms.DateTimeField(
-        required=False,
-        widget=forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
-        label="Send At (optional)"
+    message = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Type your message here...'
+        }),
+        label="Message Template",
+        max_length=500
     )
-    recurring = forms.BooleanField(required=False, label="Repeat Monthly", widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}))
-
-    def clean_message(self):
-        msg = self.cleaned_data['message']
-        if '{client_first_name}' not in msg:
-            raise forms.ValidationError("Your message must include the {client_first_name} placeholder.")
-        return msg
+    scheduled_date = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(
+            attrs={'type': 'datetime-local', 'class': 'form-control'}
+        ),
+        label="Schedule for"
+    )
 
     def clean(self):
         cleaned = super().clean()
-        scheduled_time = cleaned.get('scheduled_time')
-        recurring = cleaned.get('recurring')
+        scheduled_date = cleaned.get('scheduled_date')
 
-        if scheduled_time and scheduled_time <= timezone.now():
-            self.add_error('scheduled_time', "Scheduled time must be in the future.")
 
-        if recurring and not scheduled_time:
-            self.add_error('recurring', "You must select a send time for a recurring broadcast.")
+        if scheduled_date and scheduled_date <= timezone.now():
+            self.add_error('scheduled_date', "Scheduled time must be in the future.")
 

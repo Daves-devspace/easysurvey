@@ -675,67 +675,33 @@ class SmsProviderToken(models.Model):
 
 from django.db import models
 from django.utils import timezone
-import calendar
-from datetime import datetime
+import uuid
 from django.db import models
 from django.utils import timezone
 
-class RecurringBroadcast(models.Model):
-    message_template = models.TextField()
-    scheduled_time    = models.TimeField(
-        help_text="Time of day to send the message (e.g. 10:00 AM)"
+class ScheduledTask(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("sent", "Sent"),
+        ("cancelled", "Cancelled"),
+        ("failed", "Failed"),
     )
-    scheduled_day     = models.PositiveSmallIntegerField(
-        help_text="Day of the month to send (1–31)"
-    )
-    is_active         = models.BooleanField(
-        default=True,
-        help_text="Whether this broadcast is currently active"
-    )
-    created_at        = models.DateTimeField(auto_now_add=True)
-    updated_at        = models.DateTimeField(auto_now=True)
 
-    @property
-    def next_run_datetime(self) -> datetime:
-        """
-        Compute the next datetime this broadcast should run,
-        clamping scheduled_day to each month’s length, and
-        rolling over to next month if today’s run time has passed.
-        """
-        tz      = timezone.get_current_timezone()
-        now     = timezone.localtime(timezone.now(), tz)
-        year    = now.year
-        month   = now.month
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_id = models.CharField(max_length=255, unique=True)
+    task_name = models.CharField(max_length=255)  # e.g., 'apps.EasyDocs.tasks._send_chunk'
+    scheduled_time = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    message_preview = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 
-        def make_target(yr, mo):
-            last_day = calendar.monthrange(yr, mo)[1]
-            day      = min(self.scheduled_day, last_day)
-            return datetime(
-                yr, mo, day,
-                self.scheduled_time.hour,
-                self.scheduled_time.minute,
-                tzinfo=tz
-            )
-
-        # First try this month
-        target = make_target(year, month)
-        if target <= now:
-            # roll forward one month
-            if month == 12:
-                year += 1
-                month = 1
-            else:
-                month += 1
-            target = make_target(year, month)
-
-        return target
+    def is_cancelable(self):
+        return self.status == "pending" and self.scheduled_time > timezone.now()
 
     def __str__(self):
-        return (
-            f"Every {self.scheduled_day} @ {self.scheduled_time.strftime('%H:%M')} "
-            f"— Next run: {self.next_run_datetime.strftime('%Y-%m-%d %H:%M')} "
-            f"[{'Active' if self.is_active else 'Inactive'}]"
-        )
+        return f"{self.task_name} scheduled at {self.scheduled_time}"
+
+
 
 
 class MessageLog(models.Model):

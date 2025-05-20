@@ -1,12 +1,12 @@
 # core/tasks.py
 from datetime import datetime
 
-from celery import shared_task
+from celery import shared_task, group
 from django.db import transaction
 from django.utils import timezone
 
-from apps.EasyDocs.models import Client, MessageLog, Booking
-from apps.EasyDocs.utils import update_pending_sms_logs_and_balance, personalize
+from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask
+from apps.EasyDocs.utils import update_pending_sms_logs_and_balance,MobileSasaAPI, personalize
 
 
 
@@ -22,27 +22,60 @@ def update_sms_delivery_and_balance():
 
 # tasks.py
 
-@shared_task
-def schedule_bulk_personalized_sms(template, scheduled_iso=None):
-    clients = list(Client.objects.all())
-    logger.debug(f"Scheduling for {len(clients)} clients; iso={scheduled_iso}")
-    for i in range(0, len(clients), 50):
-        chunk = clients[i:i+50]
-        for client in chunk:
-            text = personalize(template, client)
-            if scheduled_iso:
-                eta = datetime.fromisoformat(scheduled_iso)
-                # Schedule each single‐send task for that ETA
-                send_single_sms.apply_async(
-                    args=[client.id, text],
-                    eta=eta
-                )
-            else:
-                logger.debug(f"→ queue send_single_sms.delay for client {client.id}")
-                # Fire off now
-                send_single_sms.delay(client.id, text)
-    return {'sent_to': len(clients)}
 
+
+BATCH_SIZE = 50
+
+
+@shared_task
+def _send_chunk(template, client_ids):
+    api = MobileSasaAPI()
+    pairs = []
+    for cid in client_ids:
+        c = Client.objects.get(pk=cid)
+        pairs.append({'phone': c.phone, 'message': personalize(template, c)})
+    return api.send_personalized_sms(pairs)
+
+
+
+@shared_task
+def schedule_bulk_broadcast(template, scheduled_iso=None):
+    """
+    Chunk client IDs, schedule each _send_chunk as its own Celery task,
+    track each in ScheduledTask, and return their task IDs.
+    """
+    client_ids = list(Client.objects.values_list('id', flat=True))
+    chunks = [client_ids[i : i + BATCH_SIZE] for i in range(0, len(client_ids), BATCH_SIZE)]
+
+    scheduled_ids = []
+
+    for chunk in chunks:
+        if scheduled_iso:
+            eta = datetime.fromisoformat(scheduled_iso)
+            if timezone.is_naive(eta):
+                eta = timezone.make_aware(eta, timezone.get_current_timezone())
+            # schedule for future
+            result = _send_chunk.apply_async(args=[template, chunk], eta=eta)
+            status = 'pending'
+            scheduled_time = eta
+        else:
+            # send immediately
+            result = _send_chunk.apply_async(args=[template, chunk])
+            status = 'sent'
+            scheduled_time = timezone.now()
+
+        # record in ScheduledTask
+        ScheduledTask.objects.create(
+            task_id=result.id,
+            task_name='_send_chunk',
+            scheduled_time=scheduled_time,
+            message_preview=template[:100],
+            status=status
+        )
+
+        scheduled_ids.append(result.id)
+
+    return {'task_ids': scheduled_ids, 'chunks': len(chunks)}
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)

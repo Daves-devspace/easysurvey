@@ -8,35 +8,37 @@ from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
-from .auth_views import CustomPasswordResetConfirmView
+from .auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.services import BookingUpdateView
-from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView
+from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
-    path('password_reset/', auth_views.CustomPasswordResetView.as_view(), name='password_reset'),
+    path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path(
-        'reset-password/done/',
+        'password-reset/done/',
         PasswordResetDoneView.as_view(template_name='application/password_reset_done.html'),
         name='password_reset_done'
     ),
     path(
-        'reset/<uidb64>/<token>/',
+        'password-reset-confirm/<uidb64>/<token>/',
         CustomPasswordResetConfirmView.as_view(),
         name='password_reset_confirm'
     ),
     path(
-        'reset-password/complete/',
+        'password-reset/complete/',
         PasswordResetCompleteView.as_view(template_name='application/password_reset_complete.html'),
         name='password_reset_complete'
     ),
 
-    path('login/', auth_views.custom_login, name='login'),
-    path('test_404/', auth_views.test_404, name='test_404'),
+    path('', LandingPageView.as_view(), name='landing'),
+    path('login/', CustomLoginView.as_view(), name='login'),
+
     path('logout/', auth_views.logout_view, name='logout'),
-    path('', HomeView.as_view(), name='home'),
+    path('admin-dashboard/', HomeView.as_view(), name='home'),
+    path('staff-dashboard/', StaffDashboardView.as_view(), name='staff-dashboard'),
 
     path('clients', views.client_list, name='clients'),
     path('clients/add/', views.add_client, name='add_client'),
@@ -114,7 +116,7 @@ urlpatterns = [
 
     path('api/chart-data/', views.chart_data, name='chart-data'),
 
-    path('api/stacked-chart/', views.stacked_service_data, name='stacked_chart_data'),
+    # path('api/stacked-chart/', views.stacked_service_data, name='stacked_chart_data'),
     path('api/analysis/monthly-services/', analytics.monthly_service_analysis, name='monthly-service-analysis'),
 
     path('api/available-years/', views.get_years, name='available-years'),
