@@ -53,67 +53,88 @@
             <div class="row">
                 <!-- [ sample-page ] start -->
                 <!-- Total Processed Title Deeds -->
-                <div class="container-fluid mt-3">
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card shadow-sm border-0">
-                                <div class="card-body">
-                                    <h5 class="card-title mb-4">Dashboard Summary</h5>
-                                    <div class="row text-center">
+                <div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="card-content">
+                    <h2 class="dashboard-title">Dashboard Summary</h2>
 
-                                        <div class="col-6 col-md-3 mb-3">
-                                            <div class="p-3 border rounded">
-                                                <div class="mb-2">
-                                                    <i class="ti ti-users fs-2 text-primary"></i>
-                                                </div>
-                                                <h6>Total Clients</h6>
-                                                <span class="badge bg-primary fs-6">{{ total_clients }}</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-6 col-md-3 mb-3">
-                                            <div class="p-3 border rounded">
-                                                <div class="mb-2">
-                                                    <i class="ti ti-clock fs-2 text-warning"></i>
-                                                </div>
-                                                <h6>Pending Services</h6>
-                                                <span class="badge bg-warning text-dark fs-6">{{ pending_services }}</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-6 col-md-3 mb-3">
-                                            <div class="p-3 border rounded">
-                                                <div class="mb-2">
-                                                    <i class="ti ti-settings fs-2 text-info"></i>
-                                                </div>
-                                                <h6>In-Progress</h6>
-                                                <span class="badge bg-info fs-6">{{ in_progress }}</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-6 col-md-3 mb-3">
-                                            <div class="p-3 border rounded">
-                                                <div class="mb-2">
-                                                    <i class="ti ti-check fs-2 text-success"></i>
-                                                </div>
-                                                <h6>Completed Today</h6>
-                                                <span class="badge bg-success fs-6">{{ completed_today }}</span>
-                                            </div>
-                                        </div>
-
-                                    </div>
-                                    <hr>
-                                    <p class="mb-0 text-center fst-italic small">
-                                        Logged in as: <strong>{{ request.user.get_full_name }}</strong>
-                                        ({{ request.user.employeeprofile.get_role_display }})
-                                    </p>
+                    <div class="row g-4">
+                        <!-- Total Clients -->
+                        <div class="col-6 col-lg-3">
+                            <div class="stat-card primary-theme">
+                                <div class="stat-icon">
+                                    <i class="ti ti-users"></i>
                                 </div>
+                                <div class="stat-number">{{ total_clients }}</div>
+                                <p class="stat-label">Total Clients</p>
+                            </div>
+                        </div>
+
+                        <!-- Pending Services -->
+                        <div class="col-6 col-lg-3">
+                            <div class="stat-card warning-theme">
+                                <div class="stat-icon pulse-animation">
+                                    <i class="ti ti-clock"></i>
+                                </div>
+                                <div class="stat-number">{{ pending_services }}</div>
+                                <p class="stat-label">Pending Services</p>
+                            </div>
+                        </div>
+
+                        <!-- In Progress -->
+                        <div class="col-6 col-lg-3">
+                            <div class="stat-card info-theme">
+                                <div class="stat-icon">
+                                    <i class="ti ti-settings"></i>
+                                </div>
+                                <div class="stat-number">{{ in_progress }}</div>
+                                <p class="stat-label">In Progress</p>
+                            </div>
+                        </div>
+
+                        <!-- Completed Today -->
+                        <div class="col-6 col-lg-3">
+                            <div class="stat-card success-theme">
+                                <div class="stat-icon">
+                                    <i class="ti ti-check"></i>
+                                </div>
+                                <div class="stat-number">{{ completed_today }}</div>
+                                <p class="stat-label">Completed Today</p>
                             </div>
                         </div>
                     </div>
 
-
+                    <!-- User Info Section -->
+                    <div class="user-info">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem;">
+                                            {{ request.user.get_full_name|first }}{{ request.user.get_full_name|last }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-bold">{{ request.user.get_full_name }}</h6>
+                                        <small class="text-muted">{{ request.user.employeeprofile.get_role_display }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                                <small class="text-muted">
+                                    <i class="ti ti-clock me-1"></i>
+                                    Last updated: <span class="fw-medium">Just now</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 
                 <div class="row g-4">
