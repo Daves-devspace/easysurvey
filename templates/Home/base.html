@@ -1,4 +1,5 @@
 {% load static %}
+{% load user_extras %}
 <!DOCTYPE html>
 <html lang="en">
 <!-- [Head] start -->
@@ -50,7 +51,7 @@
     {#    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.17/index.global.min.js"></script>#}
 
     <script src="{% static 'assets/js/plugins/apexcharts.min.js' %}"></script>
-{#    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>#}
+    {#    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>#}
 
     <!-- [plugin for searching] start -->
     <!-- Select2 CSS -->
@@ -134,12 +135,14 @@
                         <span class="pc-mtext">Documents</span>
                     </a>
                 </li>
+            {% if perms.easydocs.view_messagelog %}
                 <li class="pc-item">
                     <a href="{% url 'communication_bulk' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-message-plus"></i></span>
                         <span class="pc-mtext">Communication</span>
                     </a>
                 </li>
+            {% endif %}
                 <li class="pc-item pc-caption">
                     <label>Account</label>
                     <i class="ti ti-report-money"></i>
@@ -148,18 +151,27 @@
                     <a href="#!" class="pc-link"><span class="pc-micon"><i class="ti ti-report-money"></i></span><span
                             class="pc-mtext">Accounts</span><span class="pc-arrow"><i data-feather="chevron-right"></i></span></a>
                     <ul class="pc-submenu">
-                        <li class="pc-item"><a class="pc-link" href="{% url 'accounts_dashboard' %}">Payments</a></li>
-                        <li class="pc-item"><a class="pc-link" href="{% url 'subservices_status' %}">Legal Services</a>
-                        </li>
+                        {% if perms.easydocs.view_payment %}
+                            <li class="pc-item"><a class="pc-link" href="{% url 'accounts_dashboard' %}">Payments</a>
+                            </li>
+                        {% endif %}
+                        {% if perms.easydocs.view_clientsubservice %}
+                            <li class="pc-item"><a class="pc-link" href="{% url 'subservices_status' %}">Legal
+                                Services</a>
+                            </li>
+                        {% endif %}
+
 
                     </ul>
                 </li>
+            {% if perms.easydocs.view_employeeprofile %}
                 <li class="pc-item">
                     <a href="{% url 'employee_list' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-users"></i></span>
                         <span class="pc-mtext">Employees</span>
                     </a>
                 </li>
+            {% endif %}
                 <li class="pc-item">
                     <a href="{% url 'management' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-settings-automation"></i></span>
@@ -169,27 +181,38 @@
 
 
                 <li class="pc-item pc-caption">
-                    <label>Pages</label>
-                    <i class="ti ti-news"></i>
+                    <label>User</label>
+                    <i class="ti ti-user-alt"></i>
+
                 </li>
-                <li class="pc-item">
-                    <a href="{% url 'logout' %}" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-lock"></i></span>
-                        <span class="pc-mtext">Logout</span>
-                    </a>
-                </li>
-                <li class="pc-item">
-                    <a href="{% url 'employee-dashboard' %}" class="pc-link">
-                        <span class="pc-micon"><i class="ti ti-user"></i></span>
-                        <span class="pc-mtext">My Profile</span>
-                    </a>
+                <li class="pc-item pc-hasmenu">
+                    <a href="#!" class="pc-link"><span class="pc-micon"><i class="ti ti-user-check"></i></span><span
+                            class="pc-mtext">Authentication</span><span class="pc-arrow"><i
+                            data-feather="chevron-right"></i></span></a>
+                    <ul class="pc-submenu">
+
+                        <li class="pc-item"><a class="pc-link" href="{% url 'employee-dashboard' %}">Profile</a>
+                        </li>
+
+                        <li class="pc-item"><a class="pc-link" href="{% url 'logout' %}">Logout
+                        </a>
+                        </li>
+                      {% if request.user.is_superuser %}
+                        <li class="pc-item"><a class="pc-link" href="{% url 'users-update' %}">All Users
+                        </a>
+                        </li>
+                        {% endif %}
+
+
+                    </ul>
                 </li>
 
 
             </ul>
             <div class="card text-center">
                 <div class="card-body">
-                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;" alt="images"
+                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;"
+                         alt="images"
                          class="img-fluid mb-2">
                     <h5>🤔 Not sure what to do next? </h5>
                     <a href="" target="_blank"
@@ -339,7 +362,7 @@
                             aria-expanded="false"
                     >
                         <img src="{% static 'assets/images/user/avatar-2.jpg' %}" alt="user-image" class="user-avtar">
-                        <span>Stebin Ben</span>
+                        <span>{% display_user_role request.user %}</span>
                     </a>
                     <div class="dropdown-menu dropdown-user-profile dropdown-menu-end pc-h-dropdown">
                         <div class="dropdown-header">
@@ -349,7 +372,7 @@
                                          class="user-avtar wid-35">
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h6 class="mb-1">Stebin Ben</h6>
+                                    <h6 class="mb-1">{{ request.user.get_full_name }}</h6>
                                     <span>UI/UX Designer</span>
                                 </div>
                                 <a href="#!" class="pc-head-link bg-transparent"><i class="ti ti-power text-danger"></i></a>

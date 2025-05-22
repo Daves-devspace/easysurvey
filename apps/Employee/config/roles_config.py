@@ -36,15 +36,16 @@ ROLE_PERMISSIONS = {
             SmsProviderToken: ['change', 'view'],  # typically one row, so no 'add' or 'delete'
             SiteSettings: ['change', 'view'],  # typically one row, so no 'add' or 'delete'
 
-
         }
     },
 
     EmployeeProfile.RoleChoices.SURVEYOR: {
         'permissions': {
             ClientService: ['view'],  # can add/view only
+            Client: ['view'],
             TitleDeedCollection: ['view'],  # no delete
-            ClientDoc: ['add', 'change', 'view','delete'],  # no delete
+            ClientDoc: ['add', 'change', 'view', 'delete'],  # no delete
+            MessageLog: ['view'],
             Document: ['add', 'view'],  # ❌ can't delete/change office documents
         }
     },
@@ -52,7 +53,11 @@ ROLE_PERMISSIONS = {
     EmployeeProfile.RoleChoices.FRONTOFFICE: {
         'permissions': {
             Client: ['add', 'view', 'change'],
-            ClientService: ['add', 'view','change'],
+            ClientService: ['add', 'view', 'change'],
+            ClientSubService: ['add', 'change', 'view'],
+Expense: ['add', 'change','view'],
+            TitleDeedCollection: ['add', 'view'],
+            MessageLog: ['add', 'change', 'view'],
             ClientDoc: ['add', 'view'],
             Payment: ['add', 'view'],
             Document: ['add', 'view'],  # e.g., receptionist uploads scans

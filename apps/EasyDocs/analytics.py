@@ -50,6 +50,15 @@ def get_yearly_revenue_data(year=None):
                 Coalesce('overridden_price', F('sub_service__price'))
             )
         )
+    # ✅ Payroll expenses
+    payrolls = Payroll.objects.filter(is_paid=True, month__year=year) \
+        .annotate(month=TruncMonth('month')) \
+        .values('month') \
+        .annotate(total=Sum('net_salary'))
+
+    for item in payrolls:
+        month_num = item['month'].month
+        months[month_num]['expenses'] += float(item['total'])
 
     for item in sub_expenses:
         month_num = item['month'].month

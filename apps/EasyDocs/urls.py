@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, auth_views, documents, accounts, reciepts, analytics
+from . import views, documents, accounts, reciepts, analytics, auth_views
 from .accounts.legal_payout import BulkPayToLegalView
 from .clients.client_views import SendClientSMSView, \
     DeleteClientServiceView, AddClientSubserviceView, EditClientSubserviceView, DeleteClientSubserviceView, \
@@ -8,7 +8,9 @@ from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
-from .auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
+from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
+
+
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.services import BookingUpdateView

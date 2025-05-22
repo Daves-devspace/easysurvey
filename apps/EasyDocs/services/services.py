@@ -35,6 +35,7 @@ def default_scheduled_date():
     return timezone.now().replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
 
+
 @transaction.atomic
 def handle_ground_booking(cs, scheduled_date=None, dispatch_message=''):
     if cs.service.category != ServiceCategory.GROUND:
@@ -43,27 +44,55 @@ def handle_ground_booking(cs, scheduled_date=None, dispatch_message=''):
     scheduled_date = scheduled_date or default_scheduled_date()
     dispatch_message = dispatch_message.strip()
 
-    booking = getattr(cs, 'ground_booking', None)
     try:
+        booking = getattr(cs, 'ground_booking', None)
+
         if booking:
             booking.scheduled_date = scheduled_date
             if dispatch_message:
                 booking.dispatch_message = dispatch_message
+            booking.save()  # Only one save — model handles default message and signal
         else:
             booking = Booking.objects.create(
                 client_service=cs,
                 scheduled_date=scheduled_date,
-                dispatch_message=dispatch_message or ''
+                dispatch_message=dispatch_message
             )
 
-        if not booking.dispatch_message:
-            booking.dispatch_message = booking.generate_default_message()
-
-        booking.save(update_fields=['scheduled_date', 'dispatch_message'])
         return booking
     except Exception as e:
-        # Optionally log here
         raise BookingError(f"Failed to create or update booking: {str(e)}")
+
+
+# @transaction.atomic
+# def handle_ground_booking(cs, scheduled_date=None, dispatch_message=''):
+#     if cs.service.category != ServiceCategory.GROUND:
+#         return None
+#
+#     scheduled_date = scheduled_date or default_scheduled_date()
+#     dispatch_message = dispatch_message.strip()
+#
+#     booking = getattr(cs, 'ground_booking', None)
+#     try:
+#         if booking:
+#             booking.scheduled_date = scheduled_date
+#             if dispatch_message:
+#                 booking.dispatch_message = dispatch_message
+#         else:
+#             booking = Booking.objects.create(
+#                 client_service=cs,
+#                 scheduled_date=scheduled_date,
+#                 dispatch_message=dispatch_message or ''
+#             )
+#
+#         if not booking.dispatch_message:
+#             booking.dispatch_message = booking.generate_default_message()
+#
+#         # booking.save(update_fields=['scheduled_date', 'dispatch_message'])
+#         return booking
+#     except Exception as e:
+#         # Optionally log here
+#         raise BookingError(f"Failed to create or update booking: {str(e)}")
 
 def update_client_service_overrides(cs, data) -> None:
     pids = data.getlist('process_id[]')

@@ -51,76 +51,83 @@
                     <div class="card">
                         <div class="card-header pb-0">
                             <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                                <li class="nav-item">
-                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-zoom-money me-2"></i>Payments
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-file-text me-2"></i>Expenses
-                                    </a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-id me-2"></i>Analytics
-                                    </a>
-                                </li>
+                                {% if perms.easydocs.view_payment %}
+                                    <li class="nav-item">
+                                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                                           href="#profile-1"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-zoom-money me-2"></i>Payments
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                {% if perms.easydocs.view_expense %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-file-text me-2"></i>Expenses
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                {% if request.user.is_superuser %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                                           role="tab"
+                                           aria-selected="true">
+                                            <i class="ti ti-id me-2"></i>Analytics
+                                        </a>
+                                    </li>
+                                {% endif %}
 
 
                             </ul>
                         </div>
                         <div class="card-body">
                             <div class="tab-content">
-                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
-                                     aria-labelledby="profile-tab-1">
-                                    <div class="row">
+                                {% if perms.easydocs.view_payment %}
+                                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                         aria-labelledby="profile-tab-1">
+                                        <div class="row">
 
-                                        <div class="col-lg-12 col-xxl-12">
-                                            <div class="card">
-                                                <div class="card-header pb-0">
-                                                    <p>payments</p>
-                                                </div>
+                                            <div class="col-lg-12 col-xxl-12">
+                                                <div class="card">
+                                                    <div class="card-header pb-0">
+                                                        <p>payments</p>
+                                                    </div>
 
-                                                <div class="card-body">
-                                                    <div class="tab-content" id="serviceTabsContent">
+                                                    <div class="card-body">
+                                                        <div class="tab-content" id="serviceTabsContent">
 
-                                                        <div class="card-body p-0">
-                                                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                                <thead class="table-success">
-                                                                <tr>
-                                                                    <th>When</th>
-                                                                    <th>Client</th>
-                                                                    <th>Service</th>
-                                                                    <th>Amount</th>
-                                                                    <th>Method</th>
-                                                                    <th>Txn ID</th>
-
-                                                                    <th>Payment Status</th>
-                                                                    <th>View Details</th>
-                                                                </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                {% for payment in client_payments %}
+                                                            <div class="card-body p-0">
+                                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                    <thead class="table-success">
                                                                     <tr>
-                                                                        <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
-                                                                        <td>{{ payment.client_service.client }}</td>
-                                                                        <td>{{ payment.client_service }}</td>
-                                                                        <td>{{ payment.amount }}</td>
-                                                                        <td>{{ payment.payment_method }}</td>
-                                                                        <td>{{ payment.transaction_id }}</td>
+                                                                        <th>When</th>
+                                                                        <th>Client</th>
+                                                                        <th>Service</th>
+                                                                        <th>Amount</th>
+                                                                        <th>Method</th>
+                                                                        <th>Txn ID</th>
+
+                                                                        <th>Payment Status</th>
+                                                                        <th>View Details</th>
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    {% for payment in client_payments %}
+                                                                        <tr>
+                                                                            <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                                                            <td>{{ payment.client_service.client }}</td>
+                                                                            <td>{{ payment.client_service }}</td>
+                                                                            <td>{{ payment.amount }}</td>
+                                                                            <td>{{ payment.payment_method }}</td>
+                                                                            <td>{{ payment.transaction_id }}</td>
 
 
-                                                                        {# Service payment status from ClientService #}
+                                                                            {# Service payment status from ClientService #}
 
-                                                                        <td>
+                                                                            <td>
                                                                                                   <span class="d-flex align-items-center gap-2">
                                                                                                     {% if payment.client_service.payment_status == 'Fully Paid' %}
                                                                                                         <i class="fas fa-circle text-success f-10"></i>
@@ -133,211 +140,231 @@
                                                                                                         Not Paid
                                                                                                     {% endif %}
                                                                                                   </span>
-                                                                        </td>
+                                                                            </td>
 
 
-                                                                        {# Link to client-service detail view #}
-                                                                        <td>
-                                                                            <a href="{% url 'client_details' payment.client_service.client.id %}"
-                                                                               class="btn btn-sm btn-primary">
-                                                                                View Details
-                                                                            </a>
-                                                                        </td>
+                                                                            {# Link to client-service detail view #}
+                                                                            <td>
+                                                                                <a href="{% url 'client_details' payment.client_service.client.id %}"
+                                                                                   class="btn btn-sm btn-primary">
+                                                                                    View Details
+                                                                                </a>
+                                                                            </td>
 
-                                                                    </tr>
+                                                                        </tr>
 
-                                                                {% endfor %}
-                                                                </tbody>
-                                                            </table>
+                                                                    {% endfor %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+
+
                                                         </div>
-
-
                                                     </div>
                                                 </div>
                                             </div>
+
+
                                         </div>
-
-
                                     </div>
-                                </div>
-                                <!--expenses-->
-                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
-                                    <div class="row">
-                                        <div class="col-lg-12">
+                                {% endif %}
+                                {% if perms.easydocs.view_expense %}
+                                    <!--expenses-->
+                                    <div class="tab-pane" id="profile-2" role="tabpanel"
+                                         aria-labelledby="profile-tab-2">
+                                        <div class="row">
+                                            <div class="col-lg-12">
 
-                                            <div class="card">
-                                                <div class="card-header d-flex justify-content-between">
+                                                <div class="card">
+                                                    <div class="card-header d-flex justify-content-between">
 
-                                                    <h5>EXPENSES</h5>
-                                                    <!-- Button to open modal -->
-                                                    <!-- Button -->
-                                                    <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
-                                                            data-bs-target="#expenseModal" id="add-expense-btn">
-                                                        <i class="fas fa-plus"></i> Add Expense
-                                                    </button>
+                                                        <h5>EXPENSES</h5>
+                                                        <!-- Button to open modal -->
+                                                        <!-- Button -->
+                                                        {% if perms.easydocs.add_expense %}
+                                                            <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
+                                                                    data-bs-target="#expenseModal" id="add-expense-btn">
+                                                                <i class="fas fa-plus"></i> Add Expense
+                                                            </button>
+                                                        {% endif %}
 
 
-                                                    <!-- Modal -->
-                                                    <div class="modal fade" id="expenseModal" tabindex="-1"
-                                                         aria-labelledby="expenseModalLabel" aria-hidden="true">
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <form method="POST" action="{% url 'submit_expense' %}"
-                                                                      id="expenseForm">
-                                                                    {% csrf_token %}
-                                                                    <div class="modal-header">
-                                                                        <h5 class="modal-title" id="expenseModalLabel">
-                                                                            Add/Edit Expense</h5>
-                                                                        <button type="button" class="btn-close"
-                                                                                data-bs-dismiss="modal"
-                                                                                aria-label="Close"></button>
-                                                                    </div>
+                                                        <!-- Modal -->
+                                                        <div class="modal fade" id="expenseModal" tabindex="-1"
+                                                             aria-labelledby="expenseModalLabel" aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <div class="modal-content">
+                                                                    <form method="POST"
+                                                                          action="{% url 'submit_expense' %}"
+                                                                          id="expenseForm">
+                                                                        {% csrf_token %}
+                                                                        <div class="modal-header">
+                                                                            <h5 class="modal-title"
+                                                                                id="expenseModalLabel">
+                                                                                Add/Edit Expense</h5>
+                                                                            <button type="button" class="btn-close"
+                                                                                    data-bs-dismiss="modal"
+                                                                                    aria-label="Close"></button>
+                                                                        </div>
 
-                                                                    <div class="modal-body">
-                                                                        <input type="hidden" name="expense_id"
-                                                                               id="expense_id">
-                                                                        {{ form.as_p }}
-                                                                    </div>
+                                                                        <div class="modal-body">
+                                                                            <input type="hidden" name="expense_id"
+                                                                                   id="expense_id">
+                                                                            {{ form.as_p }}
+                                                                        </div>
 
-                                                                    <div class="modal-footer">
-                                                                        <button type="button" class="btn btn-secondary"
-                                                                                data-bs-dismiss="modal">Cancel
-                                                                        </button>
-                                                                        <button type="submit" class="btn btn-success">
-                                                                            Save
-                                                                        </button>
-                                                                    </div>
-                                                                </form>
+                                                                        <div class="modal-footer">
+                                                                            <button type="button"
+                                                                                    class="btn btn-secondary"
+                                                                                    data-bs-dismiss="modal">Cancel
+                                                                            </button>
+                                                                            <button type="submit"
+                                                                                    class="btn btn-success">
+                                                                                Save
+                                                                            </button>
+                                                                        </div>
+                                                                    </form>
+                                                                </div>
                                                             </div>
                                                         </div>
+
+
+                                                    </div>
+
+
+                                                    <div class="card-body p-0">
+                                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                            <thead class="table-success">
+                                                            <tr>
+                                                                <th>Date</th>
+
+                                                                <th>Amount</th>
+                                                                <th>Mode</th>
+                                                                <th>Handled By</th>
+                                                                <th>Approved By</th>
+                                                                {% if perms.easydocs.change_expense %}
+                                                                    <th>Edit</th>
+                                                                {% endif %}
+                                                                {% if perms.easydocs.delete_expense %}
+                                                                    <th>Delete</th>
+                                                                {% endif %}
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for exp in expenses %}
+                                                                <tr>
+                                                                    <td>{{ exp.date }}</td>
+                                                                    <td>{{ exp.amount }}</td>
+                                                                    <td>{{ exp.get_payment_mode_display }}</td>
+                                                                    <td>{{ exp.handled_by }}</td>
+                                                                    <td>{{ exp.approved_by }}</td>
+                                                                    {% if perms.easydocs.change_expense %}
+
+                                                                        <td>
+                                                                            <button type="button"
+                                                                                    class="btn btn-sm btn-warning edit-expense-btn"
+                                                                                    data-exp-id="{{ exp.id }}"
+                                                                                    data-amount="{{ exp.amount }}"
+                                                                                    data-payment_mode="{{ exp.payment_mode }}"
+                                                                                    data-handled_by="{{ exp.handled_by.id }}"
+                                                                                    data-approved_by="{{ exp.approved_by.id }}"
+                                                                                    data-description="{{ exp.description }}"
+                                                                                    data-receipt_no="{{ exp.receipt_no }}">
+                                                                                <i class="fas fa-edit"></i> Edit
+                                                                            </button>
+
+
+                                                                        </td>
+                                                                    {% endif %}
+                                                                    {% if perms.easydocs.delete_expense %}
+                                                                        <td>
+                                                                            <button class=" btn bg-green-200"><i
+                                                                                    class="ti ti-trash"></i>
+                                                                            </button>
+                                                                        </td>
+                                                                    {% endif %}
+                                                                </tr>
+
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
 
 
                                                 </div>
+                                            </div>
 
 
-                                                <div class="card-body p-0">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                        <thead class="table-success">
-                                                        <tr>
-                                                            <th>Date</th>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                {% if request.user.is_superuser %}
+                                    <!--/analytics-->
+                                    <div class="tab-pane" id="profile-4" role="tabpanel"
+                                         aria-labelledby="profile-tab-4">
+                                        <div class="row">
 
-                                                            <th>Amount</th>
-                                                            <th>Mode</th>
-                                                            <th>Handled By</th>
-                                                            <th>Approved By</th>
-                                                            <th>Edit</th>
-                                                            <th>Delete</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                        {% for exp in expenses %}
-                                                            <tr>
-                                                                <td>{{ exp.date }}</td>
-                                                                <td>{{ exp.amount }}</td>
-                                                                <td>{{ exp.get_payment_mode_display }}</td>
-                                                                <td>{{ exp.handled_by }}</td>
-                                                                <td>{{ exp.approved_by }}</td>
-
-                                                                <td>
-                                                                    <button type="button"
-                                                                            class="btn btn-sm btn-warning edit-expense-btn"
-                                                                            data-exp-id="{{ exp.id }}"
-                                                                            data-amount="{{ exp.amount }}"
-                                                                            data-payment_mode="{{ exp.payment_mode }}"
-                                                                            data-handled_by="{{ exp.handled_by.id }}"
-                                                                            data-approved_by="{{ exp.approved_by.id }}"
-                                                                            data-description="{{ exp.description }}"
-                                                                            data-receipt_no="{{ exp.receipt_no }}">
-                                                                        <i class="fas fa-edit"></i> Edit
-                                                                    </button>
+                                            <div class="col-lg-6">
 
 
-                                                                </td>
-                                                                <td>
-                                                                    <button class=" btn bg-green-200"><i
-                                                                            class="ti ti-trash"></i>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
+                                                <div class="card">
 
-                                                        {% endfor %}
-                                                        </tbody>
-                                                    </table>
+                                                    <div class="card-body">
+                                                        <div class="card-header bg-green-100">
+                                                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                                                <h5 class="mb-0">Services Overview</h5>
+                                                                <div class="d-flex gap-2">
+                                                                    <select id="service-year-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 120px;"></select>
+                                                                    <select id="service-selector"
+                                                                            class="form-select form-select-sm"
+                                                                            style="min-width: 150px;"></select>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="card-body shadow-lg">
+                                                            <div id="chart-summary" class="mb-3">
+                                                                <h6 id="summary-year" class="fw-bold"></h6>
+                                                                <p id="summary-services" class="mb-1"></p>
+                                                                <p id="summary-revenue"></p>
+                                                            </div>
+                                                            <div id="chart" style="min-height: 300px;"></div>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
-
                                             </div>
-                                        </div>
+                                            <div class="col-lg-6">
+                                                <div class="card">
+                                                    <div class="card-body">
 
 
-                                    </div>
-                                </div>
-
-                                <!--/analytics-->
-                                <div class="tab-pane" id="profile-4" role="tabpanel" aria-labelledby="profile-tab-4">
-                                    <div class="row">
-
-                                        <div class="col-lg-6">
-
-
-                                            <div class="card">
-
-                                                <div class="card-body">
-                                                    <div class="card-header bg-green-100">
-                                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                                            <h5 class="mb-0">Services Overview</h5>
+                                                        <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                            <h5 class="mb-0">Revenue Analytics</h5>
                                                             <div class="d-flex gap-2">
-                                                                <select id="service-year-selector"
+                                                                <select id="year-selector"
                                                                         class="form-select form-select-sm"
                                                                         style="min-width: 120px;"></select>
-                                                                <select id="service-selector"
-                                                                        class="form-select form-select-sm"
-                                                                        style="min-width: 150px;"></select>
+                                                                <button id="export-csv-btn"
+                                                                        class="btn btn-outline-primary btn-sm"
+                                                                        style="min-width: 120px;">Export CSV
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                    <div class="card-body shadow-lg">
-                                                        <div id="chart-summary" class="mb-3">
-                                                            <h6 id="summary-year" class="fw-bold"></h6>
-                                                            <p id="summary-services" class="mb-1"></p>
-                                                            <p id="summary-revenue"></p>
+                                                        <div class="card-body shadow-lg">
+                                                            <div id="survey-sales-report-chart"
+                                                                 style="min-height: 300px;"></div>
                                                         </div>
-                                                        <div id="chart" style="min-height: 300px;"></div>
                                                     </div>
+
+
                                                 </div>
                                             </div>
 
                                         </div>
-                                        <div class="col-lg-6">
-                                            <div class="card">
-                                                <div class="card-body">
-
-
-                                                    <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                        <h5 class="mb-0">Revenue Analytics</h5>
-                                                        <div class="d-flex gap-2">
-                                                            <select id="year-selector"
-                                                                    class="form-select form-select-sm"
-                                                                    style="min-width: 120px;"></select>
-                                                            <button id="export-csv-btn"
-                                                                    class="btn btn-outline-primary btn-sm"
-                                                                    style="min-width: 120px;">Export CSV
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="card-body shadow-lg">
-                                                        <div id="survey-sales-report-chart"
-                                                             style="min-height: 300px;"></div>
-                                                    </div>
-                                                </div>
-
-
-                                            </div>
-                                        </div>
-
                                     </div>
-                                </div>
+                                {% endif %}
 
                             </div>
                         </div>

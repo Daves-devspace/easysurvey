@@ -3,7 +3,7 @@ from datetime import timedelta, date
 
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.contrib.auth.models import Group
 from django.utils.timezone import now
@@ -23,21 +23,35 @@ User = get_user_model()
 
 @receiver(post_save, sender=User)
 def create_admin_profile(sender, instance, created, **kwargs):
-    if created and instance.is_superuser:
-        EmployeeProfile.objects.get_or_create(
+    if instance.is_superuser:
+        profile, created = EmployeeProfile.objects.get_or_create(
             user=instance,
             defaults={'role': EmployeeProfile.RoleChoices.ADMIN}
         )
 
+        if not created and profile.role != EmployeeProfile.RoleChoices.ADMIN:
+            profile.Role = EmployeeProfile.RoleChoices.ADMIN
+            profile.save()
+
+
+
+@receiver(pre_save, sender=EmployeeProfile)
+def save_old_role(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            instance._old_role = sender.objects.get(pk=instance.pk).role
+        except sender.DoesNotExist:
+            instance._old_role = None
 
 @receiver(post_save, sender=EmployeeProfile)
-def assign_group_based_on_role(sender, instance, created, **kwargs):
-    if created:
-        role = instance.role
-        user = instance.user
-        if role:
-            group, _ = Group.objects.get_or_create(name=role)
-            user.groups.add(group)
+def assign_group_based_on_role(sender, instance, **kwargs):
+    new_role = instance.role
+    user = instance.user
+
+    if new_role and user:
+        group, _ = Group.objects.get_or_create(name=new_role)
+        user.groups.clear()
+        user.groups.add(group)
 
 
 

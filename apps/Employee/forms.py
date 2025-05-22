@@ -62,20 +62,27 @@ class ProfileUpdateForm(forms.ModelForm):
 # —————————————————————————————
 
 class EmployeeProfileUpdateForm(forms.ModelForm):
-    # Mirror user fields, all disabled/read‑only
-    username   = forms.CharField(disabled=True,
-                                 widget=forms.TextInput(attrs={'class':'form-control'}))
-    first_name = forms.CharField(disabled=True,
-                                 widget=forms.TextInput(attrs={'class':'form-control'}))
-    last_name  = forms.CharField(disabled=True,
-                                 widget=forms.TextInput(attrs={'class':'form-control'}))
-    email      = forms.EmailField(disabled=True,
-                                  widget=forms.EmailInput(attrs={'class':'form-control'}))
+    # Mirror user fields
+    username   = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    first_name = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    last_name  = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    email      = forms.EmailField(
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
 
-    # Explicitly declare role & department so we can set disabled here too
-    role       = forms.ChoiceField(choices=EmployeeProfile.RoleChoices.choices,
-                                   widget=forms.Select(attrs={'class':'form-control'}))
-    department = forms.CharField(widget=forms.TextInput(attrs={'class':'form-control'}))
+    role = forms.ChoiceField(
+        choices=EmployeeProfile.RoleChoices.choices,
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    department = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
 
     class Meta:
         model = EmployeeProfile
@@ -91,16 +98,16 @@ class EmployeeProfileUpdateForm(forms.ModelForm):
             'department',
         ]
         widgets = {
-            'phone_number':    forms.TextInput(attrs={'class':'form-control'}),
-            'address':         forms.Textarea(attrs={'class':'form-control','rows':3}),
-            'profile_picture': forms.ClearableFileInput(attrs={'class':'form-control'}),
+            'phone_number':    forms.TextInput(attrs={'class': 'form-control'}),
+            'address':         forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'profile_picture': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user')
+        user = kwargs.pop('user')  # currently logged-in user
         super().__init__(*args, **kwargs)
 
-        # Populate the read‑only User fields
+        # Populate user fields from related User model
         if self.instance and hasattr(self.instance, 'user'):
             u = self.instance.user
             self.fields['username'].initial   = u.username
@@ -108,15 +115,53 @@ class EmployeeProfileUpdateForm(forms.ModelForm):
             self.fields['last_name'].initial  = u.last_name
             self.fields['email'].initial      = u.email
 
-        # By default, disable role & department
+        # Disable all user and employee fields by default
+        self.fields['username'].disabled   = True
+        self.fields['first_name'].disabled = True
+        self.fields['last_name'].disabled  = True
+        self.fields['email'].disabled      = True
         self.fields['role'].disabled       = True
         self.fields['department'].disabled = True
 
-        # But if the current user is a superuser, allow editing them
-        if user.is_superuser:
+        # Grant editing rights based on user's privileges and ownership
+        if user.is_superuser and user != self.instance.user:
+            # Superuser editing someone else — enable all fields
+            self.fields['username'].disabled   = False
+            self.fields['first_name'].disabled = False
+            self.fields['last_name'].disabled  = False
+            self.fields['email'].disabled      = False
             self.fields['role'].disabled       = False
             self.fields['department'].disabled = False
 
+        elif user.is_superuser and user == self.instance.user:
+            # Superuser editing their own profile — enable all except role
+            self.fields['username'].disabled   = False
+            self.fields['first_name'].disabled = False
+            self.fields['last_name'].disabled  = False
+            self.fields['email'].disabled      = False
+            self.fields['department'].disabled = False
+            self.fields['role'].disabled       = True
+
+        elif user == self.instance.user:
+            # Regular user editing their own profile — enable user fields only
+            self.fields['username'].disabled   = False
+            self.fields['first_name'].disabled = True
+            self.fields['last_name'].disabled  = True
+            self.fields['email'].disabled      = True
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+
+        # Save related user fields
+        user = profile.user
+        user.username = self.cleaned_data['username']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+            profile.save()
+        return profile
 
 
 
@@ -155,6 +200,10 @@ class EmployeeProfileForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Make required only for non-superuser creation
+        for field_name in ['phone_number']:
+            self.fields[field_name].required = True
 
         # If instance exists and has a user, populate user-related fields
         if self.instance and self.instance.pk and hasattr(self.instance, 'user'):

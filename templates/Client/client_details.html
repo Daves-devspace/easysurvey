@@ -159,35 +159,35 @@
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
 
-                                                            <form method="POST"
-                                                                  action="{% url 'edit_client' client.id %}"
-                                                                  class="edit-client-form">
-                                                                {% csrf_token %}
-                                                                <div class="modal-header bg-warning">
-                                                                    <h5 class="modal-title"
-                                                                        id="editClientModalLabel{{ client.id }}">
-                                                                        Edit Client
-                                                                    </h5>
-                                                                    <button type="button" class="btn-close"
-                                                                            data-bs-dismiss="modal"
-                                                                            aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
+                                                        <form method="POST"
+                                                              action="{% url 'edit_client' client.id %}"
+                                                              class="edit-client-form">
+                                                            {% csrf_token %}
+                                                            <div class="modal-header bg-warning">
+                                                                <h5 class="modal-title"
+                                                                    id="editClientModalLabel{{ client.id }}">
+                                                                    Edit Client
+                                                                </h5>
+                                                                <button type="button" class="btn-close"
+                                                                        data-bs-dismiss="modal"
+                                                                        aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
 
 
-                                                                    {% get_client_form client as form %}
-                                                                    {{ form.as_p }}
+                                                                {% get_client_form client as form %}
+                                                                {{ form.as_p }}
 
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="submit" class="btn btn-primary">Save
-                                                                        Changes
-                                                                    </button>
-                                                                    <button type="button" class="btn btn-secondary"
-                                                                            data-bs-dismiss="modal">Cancel
-                                                                    </button>
-                                                                </div>
-                                                            </form>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="submit" class="btn btn-primary">Save
+                                                                    Changes
+                                                                </button>
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-dismiss="modal">Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
 
                                                     </div>
                                                 </div>
@@ -209,7 +209,7 @@
                                         <h5 class="mb-0 text-capitalize">
                                             {{ client.first_name }} {{ client.last_name }}'s Services
                                         </h5>
-                                        {% if perms.EasyDocs.add_clientservice %}
+                                        {% if perms.easydocs.add_clientservice %}
                                             <button class="btn btn-sm btn-success d-flex align-items-center"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#addClientServiceModal">
@@ -259,7 +259,7 @@
                                                             </div>
                                                             <div class="col-12 col-md-6 text-md-end">
                                                                 <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
-                                                                    {% if perms.EasyDocs.add_clientsubservice %}
+                                                                    {% if perms.easydocs.add_clientsubservice %}
                                                                         <button
                                                                                 type="button"
                                                                                 class="btn btn-sm bg-green-200"
@@ -271,7 +271,7 @@
                                                                             <i class="ti ti-plus"></i> Add SubService
                                                                         </button>
                                                                     {% endif %}
-                                                                    {% if perms.EasyDocs.change_clientservice %}
+                                                                    {% if perms.easydocs.change_clientservice %}
                                                                         <button
                                                                                 class="btn btn-sm btn-primary edit-client-service-btn"
                                                                                 data-bs-toggle="modal"
@@ -292,8 +292,10 @@
 
                                                                                 data-ps-ids="
 
+
                                                                                         {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                                 data-ps-costs="
+
 
                                                                                         {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                         >
@@ -302,7 +304,7 @@
 
                                                                     {% endif %}
 
-                                                                    {% if perms.EasyDocs.delete_clientservice %}
+                                                                    {% if perms.easydocs.delete_clientservice %}
 
                                                                         <button
                                                                                 class="btn btn-sm btn-danger"
@@ -414,7 +416,7 @@
                                                                                                 {# Services requiring title‐deed flow #}
                                                                                                 {# {% if sp.status == 'completed' and not cs.title_deed_collection %}#}
                                                                                                 {% if sp.status == 'completed' and not cs.has_title_deed_collection %}
-                                                                                                    {% if perms.EasyDocs.add_titledeedcollection %}
+                                                                                                    {% if perms.easydocs.add_titledeedcollection %}
                                                                                                         <!-- Collect -->
                                                                                                         <button type="button"
                                                                                                                 class="btn btn-primary btn-sm"
@@ -425,7 +427,7 @@
                                                                                                         </button>
                                                                                                     {% endif %}
                                                                                                 {% elif cs.has_title_deed_collection %}
-                                                                                                    {% if perms.EasyDocs.view_titledeedcollection %}
+                                                                                                    {% if perms.easydocs.view_titledeedcollection %}
                                                                                                         <!-- Already collected: View -->
                                                                                                         <button type="button"
                                                                                                                 class="btn btn-secondary btn-sm"
@@ -436,7 +438,7 @@
                                                                                                         </button>
                                                                                                     {% endif %}
                                                                                                 {% else %}
-                                                                                                    {% if perms.EasyDocs.change_clientprocess %}
+                                                                                                    {% if perms.easydocs.change_clientprocess %}
                                                                                                         <!-- Final step not yet completed: Confirm -->
                                                                                                         <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                               method="POST"
@@ -453,7 +455,7 @@
                                                                                             {% else %}
                                                                                                 {# Non‑title services just get Complete/Done #}
                                                                                                 {% if sp.status != 'completed' %}
-                                                                                                    {% if perms.EasyDocs.change_clientprocess %}
+                                                                                                    {% if perms.easydocs.change_clientprocess %}
                                                                                                         <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                               method="POST"
                                                                                                               class="d-inline">
@@ -471,7 +473,7 @@
                                                                                             {% endif %}
                                                                                         {% elif sp.status == 'in_progress' %}
                                                                                             {# In‑progress non‑last steps always get Complete #}
-                                                                                            {% if perms.EasyDocs.change_clientprocess %}
+                                                                                            {% if perms.easydocs.change_clientprocess %}
                                                                                                 <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                       method="POST"
                                                                                                       class="d-inline">
@@ -529,10 +531,10 @@
                                                                         <th>Paid</th>
                                                                         <th>Pending</th>
                                                                         <th>paymentStatus</th>
-                                                                        {% if perms.EasyDocs.change_clientsubservice %}
+                                                                        {% if perms.easydocs.change_clientsubservice %}
                                                                             <th>edit</th>
                                                                         {% endif %}
-                                                                        {% if perms.EasyDocs.delete_clientsubservice %}
+                                                                        {% if perms.easydocs.delete_clientsubservice %}
                                                                             <th>delete</th>
                                                                         {% endif %}
                                                                     </tr>
@@ -556,7 +558,7 @@
                                                                                         <span class="badge bg-warning text-dark">Pending</span>
                                                                                     {% endif %}
                                                                                 </td>
-                                                                                {% if perms.EasyDocs.change_clientsubservice %}
+                                                                                {% if perms.easydocs.change_clientsubservice %}
                                                                                     <td>
                                                                                         <button class="btn btn-sm btn-outline-primary"
                                                                                                 data-bs-toggle="modal"
@@ -572,7 +574,7 @@
 
                                                                                     </td>
                                                                                 {% endif %}
-                                                                                {% if perms.EasyDocs.delete_clientsubservice %}
+                                                                                {% if perms.easydocs.delete_clientsubservice %}
                                                                                     <td>
                                                                                         <button class="btn btn-sm btn-outline-danger delete-subservice-btn"
                                                                                                 data-bs-toggle="modal"
@@ -740,35 +742,35 @@
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
 
-                                                            <form method="POST"
-                                                                  action="{% url 'edit_client' client.id %}"
-                                                                  class="edit-client-form">
-                                                                {% csrf_token %}
-                                                                <div class="modal-header bg-warning">
-                                                                    <h5 class="modal-title"
-                                                                        id="editClientModalLabel{{ client.id }}">
-                                                                        Edit Client
-                                                                    </h5>
-                                                                    <button type="button" class="btn-close"
-                                                                            data-bs-dismiss="modal"
-                                                                            aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
+                                                        <form method="POST"
+                                                              action="{% url 'edit_client' client.id %}"
+                                                              class="edit-client-form">
+                                                            {% csrf_token %}
+                                                            <div class="modal-header bg-warning">
+                                                                <h5 class="modal-title"
+                                                                    id="editClientModalLabel{{ client.id }}">
+                                                                    Edit Client
+                                                                </h5>
+                                                                <button type="button" class="btn-close"
+                                                                        data-bs-dismiss="modal"
+                                                                        aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
 
 
-                                                                    {% get_client_form client as form %}
-                                                                    {{ form.as_p }}
+                                                                {% get_client_form client as form %}
+                                                                {{ form.as_p }}
 
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="submit" class="btn btn-primary">Save
-                                                                        Changes
-                                                                    </button>
-                                                                    <button type="button" class="btn btn-secondary"
-                                                                            data-bs-dismiss="modal">Cancel
-                                                                    </button>
-                                                                </div>
-                                                            </form>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="submit" class="btn btn-primary">Save
+                                                                    Changes
+                                                                </button>
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-dismiss="modal">Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
 
                                                     </div>
                                                 </div>
@@ -899,7 +901,9 @@
                                                     <th>Type</th>
                                                     <th>Uploaded on</th>
                                                     <th class="text-end">Actions</th>
+                                                    {% if perms.easydocs.delete_clientdoc %}
                                                     <th class="text-end">Delete</th>
+                                                    {% endif %}
 
                                                 </tr>
                                                 </thead>
@@ -943,7 +947,7 @@
                                                                 <span class="text-muted">No email</span>
                                                             {% endif %}
                                                         </td>
-
+{% if perms.easydocs.delete_clientdoc %}
                                                         <td class="text-end">
                                                             <form action="{% url 'delete_document' client.id doc.id %}"
                                                                   method="post" style="display:inline;">
@@ -955,6 +959,7 @@
                                                                 </button>
                                                             </form>
                                                         </td>
+                                                    {% endif %}
                                                     </tr>
 
                                                 {% endfor %}
@@ -971,7 +976,7 @@
 
                         </div>
                     </div>
-
+{% if perms.easydocs.view_payment %}
                     <!--account-->
                     <div class="tab-pane" id="profile-3" role="tabpanel"
                          aria-labelledby="profile-tab-3">
@@ -1017,6 +1022,7 @@
                                         <div class="card">
                                             <div class="card-header d-flex justify-content-between align-items-center gap-2">
                                                 <h5>Services list</h5>
+                                                {% if perms.easydocs.add_payment %}
                                                 <button class="btn btn-sm bg-green-200"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#addPaymentModal">
@@ -1024,6 +1030,7 @@
                                                     Service
                                                     Payment
                                                 </button>
+                                                    {% endif %}
                                             </div>
                                             <div class="card-body">
                                                 <div class="table-responsive mt-3">
@@ -1130,6 +1137,7 @@
                                             <!-- Header -->
                                             <div class="card-header d-flex justify-content-between align-items-center">
                                                 <h5 class="mb-0">Filter & Payments</h5>
+                                                {% if perms.easydocs.add_payment %}
                                                 <button class="btn btn-sm btn-primary"
                                                         data-bs-toggle="modal"
                                                         data-bs-target="#addPaymentModal">
@@ -1137,47 +1145,9 @@
                                                     Service
                                                     Payment
                                                 </button>
+                                                    {% endif %}
                                             </div>
 
-                                            <!-- Filter Panel -->
-                                            {#                                            <div class="card-body p-3 collapse" id="filterPanel">#}
-                                            {#                                                <form id="filterForm" class="row g-3 align-items-end"#}
-                                            {#                                                      method="get">#}
-                                            {#                                                    <div class="col-md-5">#}
-                                            {#                                                        <label for="serviceFilter" class="form-label">Service</label>#}
-                                            {#                                                        <select name="service" id="serviceFilter"#}
-                                            {#                                                                class="form-select">#}
-                                            {#                                                            <option value="">All Services</option>#}
-                                            {#                                                            {% for cs in all_services %}#}
-                                            {#                                                                <option value="{{ cs.id }}"#}
-                                            {#                                                                        {% if request.GET.service == cs.id|stringformat:"s" %}selected{% endif %}>#}
-                                            {#                                                                    {{ cs.service.name }}#}
-                                            {#                                                                    – {{ cs.land_description }}#}
-                                            {#                                                                </option>#}
-                                            {#                                                            {% endfor %}#}
-                                            {#                                                        </select>#}
-                                            {#                                                    </div>#}
-                                            {#                                                    <div class="col-md-3">#}
-                                            {#                                                        <label for="startDateFilter" class="form-label">Start#}
-                                            {#                                                            Date</label>#}
-                                            {#                                                        <input type="date" name="start_date"#}
-                                            {#                                                               id="startDateFilter" class="form-control"#}
-                                            {#                                                               value="{{ request.GET.start_date }}">#}
-                                            {#                                                    </div>#}
-                                            {#                                                    <div class="col-md-3">#}
-                                            {#                                                        <label for="endDateFilter" class="form-label">End#}
-                                            {#                                                            Date</label>#}
-                                            {#                                                        <input type="date" name="end_date"#}
-                                            {#                                                               id="endDateFilter" class="form-control"#}
-                                            {#                                                               value="{{ request.GET.end_date }}">#}
-                                            {#                                                    </div>#}
-                                            {#                                                    <div class="col-md-1 text-end">#}
-                                            {#                                                        <button type="submit"#}
-                                            {#                                                                class="btn btn-primary w-100">Go#}
-                                            {#                                                        </button>#}
-                                            {#                                                    </div>#}
-                                            {#                                                </form>#}
-                                            {#                                            </div>#}
 
                                             <!-- Payment History Table -->
                                             <div class="card-body p-0"
@@ -1354,11 +1324,13 @@
 
 
                     </div>
-
+{% endif %}
                     <!--messages-->
+                {% if perms.easydocs.view_messagelog %}
                     <div class="tab-pane" id="profile-6" role="tabpanel"
                          aria-labelledby="profile-tab-6">
                         <div class="row">
+
                             <div class="col-md-4">
                                 <div class="card">
                                     <div class="card-header">
@@ -1405,7 +1377,7 @@
                                                         <tr>
                                                             <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
                                                             <td>{{ log.phone }}</td>
-                                                            <td>{{ log.message|truncatechars:60  }}</td>
+                                                            <td>{{ log.message|truncatechars:60 }}</td>
                                                             <td>
                         <span class="badge bg-{{ log.send_status|yesno:'success,danger' }}">
                             {{ log.send_status|title }}
@@ -1442,6 +1414,7 @@
 
                         </div>
                     </div>
+                {% endif %}
                 </div>
             </div>
         </div>
