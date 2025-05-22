@@ -97,6 +97,8 @@ def client_service_created_handler(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Booking)
 def booking_created_handler(sender, instance, created, **kwargs):
     # Only on creation (not on every save)
+    from django.db import connection
+    print(f"📦 Booking Signal Triggered: created={created} | id={instance.id}")
 
     cs      = instance.client_service
     service = cs.service

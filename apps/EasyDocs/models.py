@@ -161,6 +161,7 @@ class ClientService(models.Model):
     )
     land_description = models.CharField(max_length=255)
     requested_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     overridden_total_price = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
@@ -335,12 +336,18 @@ class Booking(models.Model):
     )
 
 
+
     def generate_default_message(self):
         return (
             f"Hi {self.client_service.client.first_name}, surveyors for "
             f"{self.client_service.service.name} have been scheduled for "
             f"{self.scheduled_date.strftime('%A, %d %B %Y at %I:%M %p')}."
         )
+
+    def save(self, *args, **kwargs):
+        if not self.dispatch_message:
+            self.dispatch_message = self.generate_default_message()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.client_service} - Scheduled: {self.scheduled_date.strftime('%Y-%m-%d %H:%M')}"

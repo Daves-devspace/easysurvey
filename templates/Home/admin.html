@@ -58,7 +58,7 @@
 
                         {% comment %}—— CLIENTS ——{% endcomment %}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-sm rounded-2">
+                            <div class="card border-0 shadow-lg rounded-2">
                                 <div class="card-body p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="text-secondary">
@@ -68,7 +68,7 @@
               {{ clients_growth_pct|floatformat:1 }}%
             </span>
                                     </div>
-                                    <h4 class="mb-1 fw-bold">{{ clients_cur }}</h4>
+                                    <h4 class="mb-2 fw-bold">{{ clients_cur }}</h4>
 
                                     <p class="text-muted small mb-0">
                                         {% if clients_diff > 0 %}
@@ -87,7 +87,7 @@
 
                         {% comment %}—— REVENUE ——{% endcomment %}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-sm rounded-2">
+                            <div class="card border-0 shadow-lg rounded-2">
                                 <div class="card-body p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="text-secondary">
@@ -97,7 +97,7 @@
               {{ rev_growth_pct|floatformat:1 }}%
             </span>
                                     </div>
-                                    <h4 class="mb-1 fw-bold">KES {{ rev_cur|intcomma }}</h4>
+                                    <h4 class="mb-2 fw-bold">KES {{ rev_cur|intcomma }}</h4>
 
                                     <p class="text-muted small mb-0">
                                         {% if rev_diff > 0 %}
@@ -116,7 +116,7 @@
 
                         {% comment %}—— EXPENSES ——{% endcomment %}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-sm rounded-2">
+                            <div class="card border-0 shadow-lg rounded-2">
                                 <div class="card-body p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="text-secondary">
@@ -126,7 +126,7 @@
               {{ exp_growth_pct|floatformat:1 }}%
             </span>
                                     </div>
-                                    <h4 class="mb-1 fw-bold">KES {{ exp_cur|intcomma }}</h4>
+                                    <h4 class="mb-2 fw-bold">KES {{ exp_cur|intcomma }}</h4>
 
                                     <p class="text-muted small mb-0">
                                         {% if exp_diff > 0 %}
@@ -145,7 +145,7 @@
 
                         {% comment %}—— NET REVENUE ——{% endcomment %}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-sm rounded-2">
+                            <div class="card border-0 shadow-lg rounded-2">
                                 <div class="card-body p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="text-secondary">
@@ -155,7 +155,7 @@
               {{ net_growth_pct|floatformat:1 }}%
             </span>
                                     </div>
-                                    <h4 class="mb-1 fw-bold">KES {{ net_cur|intcomma }}</h4>
+                                    <h4 class="mb-2 fw-bold">KES {{ net_cur|intcomma }}</h4>
 
                                     <p class="text-muted small mb-0">
                                         {% if net_diff > 0 %}
@@ -174,7 +174,7 @@
 
                         {% comment %}—— TITLE DEEDS ——{% endcomment %}
                         <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-sm rounded-2">
+                            <div class="card border-0 shadow-lg rounded-2">
                                 <div class="card-body p-2">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
             <span class="text-secondary">
@@ -184,7 +184,7 @@
               {{ titles_growth_pct|floatformat:1 }}%
             </span>
                                     </div>
-                                    <h4 class="mb-1 fw-bold">{{ titles_cur }}</h4>
+                                    <h4 class="mb-2 fw-bold">{{ titles_cur }}</h4>
 
                                     <p class="text-muted small mb-0">
                                         {% if titles_diff > 0 %}

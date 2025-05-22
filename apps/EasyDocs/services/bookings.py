@@ -71,6 +71,7 @@ class BookingCalendarJSON(View):
         summary = request.GET.get('summary', '1') == '1'
         start_iso = request.GET.get('start')
         end_iso = request.GET.get('end')
+        from django.utils.timezone import localtime
 
         qs = Booking.objects.all()
         if not include_handled:

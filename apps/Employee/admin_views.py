@@ -27,7 +27,7 @@ class EmployeeProfileDashboardView(LoginRequiredMixin, UpdateView):
     model = EmployeeProfile
     form_class = EmployeeProfileUpdateForm
     template_name = 'Employees/profile.html'
-    success_url = '/dashboard/'
+    success_url = reverse_lazy('employee-dashboard')
 
     def dispatch(self, request, *args, **kwargs):
         # if no EmployeeProfile, redirect to user-profile-update
@@ -95,4 +95,34 @@ class AdminManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView)
             return redirect(request.path)
 
         # fallback
+        return super().get(request, *args, **kwargs)
+
+
+
+
+class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    template_name = 'Home/user_management.html'  # your separate users template
+
+    def test_func(self):
+        # Only superusers can access
+        return self.request.user.is_superuser
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['users'] = User.objects.all().order_by('username')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        user_id = request.POST.get('toggle_user')
+        if user_id:
+            user = get_object_or_404(User, id=user_id)
+            if user != request.user:  # prevent self-deactivation
+                user.is_active = not user.is_active
+                user.save()
+                status = "activated" if user.is_active else "deactivated"
+                messages.success(request, f"User '{user.username}' has been {status}.")
+            else:
+                messages.error(request, "You cannot deactivate yourself.")
+            return redirect(request.path)
+
         return super().get(request, *args, **kwargs)

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 import logging
 
@@ -90,20 +91,40 @@ class CustomPasswordResetForm(PasswordResetForm):
         })
     )
 
+    # Override this method in the form to make sure it's using your custom logic
+    def save(self, domain_override=None,
+             subject_template_name=None,
+             email_template_name=None,
+             use_https=False, token_generator=default_token_generator,
+             from_email=None, request=None, html_email_template_name=None,
+             extra_email_context=None):
+        """
+        Override the save method to ensure our custom send_mail gets called
+        """
+        print("CustomPasswordResetForm.save called")
+        logger.debug("CustomPasswordResetForm.save called with email: %s", self.cleaned_data.get('email', 'unknown'))
+
+        # Call the parent's save method which will eventually call send_mail
+        return super().save(domain_override, subject_template_name,
+                            email_template_name, use_https, token_generator,
+                            from_email, request, html_email_template_name,
+                            extra_email_context)
+
     def send_mail(
-        self,
-        subject_template_name,
-        email_template_name,
-        context,
-        from_email,
-        to_email,
-        html_email_template_name=None,
+            self,
+            subject_template_name,
+            email_template_name,
+            context,
+            from_email,
+            to_email,
+            html_email_template_name=None,
     ):
         print("CustomPasswordResetForm.send_mail called")
         try:
             # Log backend and connection settings
             logger.debug("Email backend: %s", settings.EMAIL_BACKEND)
-            logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", settings.EMAIL_HOST, settings.EMAIL_PORT, settings.EMAIL_USE_TLS, settings.EMAIL_USE_SSL)
+            logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", settings.EMAIL_HOST, settings.EMAIL_PORT,
+                         settings.EMAIL_USE_TLS, settings.EMAIL_USE_SSL)
             logger.debug("From: %s, To: %s", from_email, to_email)
 
             # Render subject & body

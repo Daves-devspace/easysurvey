@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.timezone import now
 from django.views.decorators.http import require_http_methods
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
@@ -34,7 +35,7 @@ from apps.Employee.utils.mixins import RolePermissionRequiredMixin
 import logging
 
 from .utils import MobileSasaAPI
-from ..Employee.models import EmployeeProfile
+from ..Employee.models import EmployeeProfile, Payroll
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +174,24 @@ class DashboardView(TemplateView):
         })
 
         # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
+        # Payroll expenses
+        payroll_cur = (
+                Payroll.objects
+                .filter(date__year=current_year, paid=True)
+                .aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
+        )
+
+        payroll_prev = (
+                Payroll.objects
+                .filter(
+                    date__year=prev_year,
+                    date__month__lte=today.month,
+                    date__day__lte=today.day,
+                    paid=True
+                )
+                .aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
+        )
+
         # Sub‑services
         ss_cur = (
                 ClientSubService.objects
@@ -205,8 +224,8 @@ class DashboardView(TemplateView):
                 )
                 .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         )
-        exp_cur = ss_cur + ge_cur
-        exp_prev = ss_prev + ge_prev
+        exp_cur = ss_cur + ge_cur + payroll_cur
+        exp_prev = ss_prev + ge_prev + payroll_prev
         exp_growth = pct_growth(exp_cur, exp_prev)
         exp_diff = exp_cur - exp_prev
 
@@ -278,8 +297,15 @@ class DashboardView(TemplateView):
             ClientSubService.objects.annotate(amt=Coalesce('overridden_price', F('sub_service__price'))),
             'added_on', 'amt', current_year
         )
+        payroll_monthly = monthly_series(
+            Payroll.objects.filter(paid=True), 'date', 'net_salary', current_year
+        )
+
         ge_monthly = monthly_series(Expense, 'date', 'amount', current_year)
-        context['expense_monthly'] = [ss_monthly[i] + ge_monthly[i] for i in range(12)]
+        context['expense_monthly'] = [
+            ss_monthly[i] + ge_monthly[i] + payroll_monthly[i] for i in range(12)
+        ]
+
         context['net_monthly'] = [
             context['revenue_monthly'][i] - context['expense_monthly'][i] for i in range(12)
         ]
@@ -315,23 +341,77 @@ class HomeView(LoginRequiredMixin, DashboardView):
         return redirect('staff-dashboard')
 
 
-class StaffDashboardView(LoginRequiredMixin, DashboardView):
+
+
+class StaffDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Home/staff_dashboard.html'
 
-    def dispatch(self, request, *args, **kwargs):
-        # 1) not logged in? → login
-        if not request.user.is_authenticated:
-            return redirect('login')
 
-        # 2) is superuser or Admin? → admin
+    def dispatch(self, request, *args, **kwargs):
         try:
-            if request.user.is_superuser or request.user.employeeprofile.role == EmployeeProfile.RoleChoices.ADMIN:
+            employee_profile = request.user.employeeprofile
+            if request.user.is_superuser or employee_profile.role == EmployeeProfile.RoleChoices.ADMIN:
+                messages.warning(request, "Admins should access the admin dashboard.")
                 return redirect('home')
         except ObjectDoesNotExist:
-            return redirect('login')
+            messages.error(request, "Employee profile not found. Please contact the administrator.")
+            raise PermissionDenied("Missing employee profile.")
 
-        # 3) else → render staff dashboard
         return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+
+
+        context = super().get_context_data(**kwargs)
+        context['total_clients'] = Client.objects.count()
+        context['pending_services'] = ClientService.objects.filter(status='pending').count()
+        context['in_progress'] = ClientServiceProcess.objects.filter(status='in_progress').count()
+        context['completed_today'] = ClientService.objects.filter(
+            status='completed',
+            updated_at__date=now().date()
+        ).count()
+
+
+        try:
+            recent_clients = Client.objects.prefetch_related(
+                Prefetch(
+                    'client_services',
+                    queryset=ClientService.objects.order_by('-requested_at'),
+                    to_attr='latest_services'
+                )
+            ).order_by('-created_at')[:10]
+
+            client_data = []
+            for client in recent_clients:
+                form = ClientForm(instance=client)
+                client_service = client.latest_services[0] if hasattr(client, 'latest_services') and client.latest_services else None
+                current_process = None
+
+                if client_service:
+                    processes = client_service.service_processes.select_related('process') \
+                        .order_by('-completed_at', '-id')
+
+                    current_process = (
+                        processes.filter(status='in_progress').first()
+                        or processes.filter(status='collected').first()
+                        or processes.filter(status='completed').first()
+                    )
+
+                client_data.append({
+                    'client': client,
+                    'form': form,
+                    'client_service': client_service,
+                    'current_process': current_process,
+                })
+
+            context['client_data'] = client_data
+
+        except Exception as e:
+            messages.error(self.request, "An error occurred while loading dashboard data.")
+            context['client_data'] = []
+
+        return context
+
 
 
 class ClientDetailView(RolePermissionRequiredMixin, DetailView):

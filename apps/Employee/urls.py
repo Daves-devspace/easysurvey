@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views
-from .admin_views import  EmployeeProfileDashboardView, \
-    AdminManagementView
+from .admin_views import EmployeeProfileDashboardView, \
+    AdminManagementView, UserManagementView
 from .salary.salary import EmployeeSalaryCreateView, EmployeeSalaryDeleteView, EmployeeSalaryUpdateView, \
     AllowanceCreateView, AllowanceUpdateView, AllowanceDeleteView, DeductionCreateView, DeductionUpdateView, \
     DeductionDeleteView, EmployeePayrollGenerateView, PayrollMarkPaidView, BulkPayrollMarkPaidView
@@ -58,6 +58,6 @@ urlpatterns = [
     ),
     path('dashboard/', EmployeeProfileDashboardView.as_view(), name='employee-dashboard'),
     path('profile/user/', AdminManagementView.as_view(), name='user-profile-update'),
-
+    path('manage/user/', UserManagementView.as_view(), name='users-update'),
 
 ]

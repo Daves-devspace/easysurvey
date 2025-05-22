@@ -100,14 +100,18 @@ def logout_view(request):
 
 
 class CustomPasswordResetView(SuccessMessageMixin, PasswordResetView):
-    form_class             = CustomPasswordResetForm
-    template_name          = 'application/password-reset.html'
-    email_template_name    = 'application/password_reset_email.html'
-    subject_template_name  = 'application/password_reset_subject.txt'
-    success_url            = reverse_lazy('password_reset_done')
-    success_message        = "We’ve emailed you instructions for setting your password. …"
+
+    form_class = CustomPasswordResetForm
+    template_name = 'application/password-reset.html'
+    email_template_name = 'application/password_reset_email.html'
+    subject_template_name = 'application/password_reset_subject.txt'
+    success_url = reverse_lazy('password_reset_done')
+    success_message = "We've emailed you instructions for setting your password. …"
+
+
 
     def dispatch(self, request, *args, **kwargs):
+        print("CustomPasswordResetView dispatch called")
         logger.debug("PRV.dispatch ➞ %s %s", request.method, request.path)
         return super().dispatch(request, *args, **kwargs)
 
@@ -126,6 +130,9 @@ class CustomPasswordResetView(SuccessMessageMixin, PasswordResetView):
     def form_invalid(self, form):
         logger.warning("PRV.form_invalid ➞ errors=%s", form.errors.as_json())
         return super().form_invalid(form)
+
+
+
 
 
 
