@@ -60,8 +60,6 @@ def get_years(request):
     return JsonResponse({'years': years})
 
 
-
-
 import calendar
 from collections import OrderedDict
 from datetime import date
@@ -107,36 +105,34 @@ def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[f
       * A Model class (e.g. Payment)
       * A pre‑filtered/annotated QuerySet
     """
-    # 1️⃣ Accept Model or QuerySet
     if isinstance(source, QuerySet):
         qs = source
     else:
-        # assume `source` is a Django Model class
         qs = source.objects.all()
 
-    # 2️⃣ Restrict to the given year and annotate by month
-    qs = (qs
-          .filter(**{f"{date_field}__year": year})
-          .annotate(month=TruncMonth(date_field))
-          )
+    # Rename annotation to avoid conflict with existing 'month' field
+    qs = (
+        qs
+        .filter(**{f"{date_field}__year": year})
+        .annotate(month_trunc=TruncMonth(date_field))
+    )
 
-    # 3️⃣ Aggregate in one shot, grouping by month
     aggregate_expr = Count('id') if agg_field == 'id' else Sum(agg_field)
     month_vals = (
         qs
-        .values('month')
+        .values('month_trunc')
         .annotate(val=aggregate_expr)
-        .order_by('month')
+        .order_by('month_trunc')
     )
 
-    # 4️⃣ Build the default 12‑month dict, fill in returned months
     data = OrderedDict((calendar.month_abbr[m], 0.0) for m in range(1, 13))
     for entry in month_vals:
-        mon = entry['month'].month
+        mon = entry['month_trunc'].month
         key = calendar.month_abbr[mon]
         data[key] = float(entry['val'] or 0)
 
     return list(data.values())
+
 
 
 class DashboardView(TemplateView):
@@ -176,18 +172,16 @@ class DashboardView(TemplateView):
         # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
         # Payroll expenses
         payroll_cur = (
-                Payroll.objects
-                .filter(date__year=current_year, paid=True)
-                .aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
+                Payroll.objects.filter(month__year=current_year, is_paid=True).aggregate(total=Sum('net_salary'))[
+                    'total'] or Decimal('0.00')
         )
 
         payroll_prev = (
-                Payroll.objects
-                .filter(
-                    date__year=prev_year,
-                    date__month__lte=today.month,
-                    date__day__lte=today.day,
-                    paid=True
+                Payroll.objects.filter(
+                    month__year=prev_year,
+                    month__month__lte=today.month,
+                    month__day__lte=today.day,
+                    is_paid=True
                 )
                 .aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
         )
@@ -298,7 +292,7 @@ class DashboardView(TemplateView):
             'added_on', 'amt', current_year
         )
         payroll_monthly = monthly_series(
-            Payroll.objects.filter(paid=True), 'date', 'net_salary', current_year
+            Payroll.objects.filter(is_paid=True), 'month', 'net_salary', current_year
         )
 
         ge_monthly = monthly_series(Expense, 'date', 'amount', current_year)
@@ -341,11 +335,8 @@ class HomeView(LoginRequiredMixin, DashboardView):
         return redirect('staff-dashboard')
 
 
-
-
 class StaffDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Home/staff_dashboard.html'
-
 
     def dispatch(self, request, *args, **kwargs):
         try:
@@ -361,7 +352,6 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
 
-
         context = super().get_context_data(**kwargs)
         context['total_clients'] = Client.objects.count()
         context['pending_services'] = ClientService.objects.filter(status='pending').count()
@@ -370,7 +360,6 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             status='completed',
             updated_at__date=now().date()
         ).count()
-
 
         try:
             recent_clients = Client.objects.prefetch_related(
@@ -384,7 +373,8 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             client_data = []
             for client in recent_clients:
                 form = ClientForm(instance=client)
-                client_service = client.latest_services[0] if hasattr(client, 'latest_services') and client.latest_services else None
+                client_service = client.latest_services[0] if hasattr(client,
+                                                                      'latest_services') and client.latest_services else None
                 current_process = None
 
                 if client_service:
@@ -392,9 +382,9 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
                         .order_by('-completed_at', '-id')
 
                     current_process = (
-                        processes.filter(status='in_progress').first()
-                        or processes.filter(status='collected').first()
-                        or processes.filter(status='completed').first()
+                            processes.filter(status='in_progress').first()
+                            or processes.filter(status='collected').first()
+                            or processes.filter(status='completed').first()
                     )
 
                 client_data.append({
@@ -411,7 +401,6 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             context['client_data'] = []
 
         return context
-
 
 
 class ClientDetailView(RolePermissionRequiredMixin, DetailView):
@@ -683,9 +672,6 @@ class ClientServiceCreateView(CreateView):
             'success': False,
             'errors': form.errors,
         }, status=400)
-
-
-
 
 
 def edit_client_service(request, client_id):

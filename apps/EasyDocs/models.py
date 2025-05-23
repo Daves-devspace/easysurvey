@@ -108,7 +108,7 @@ class Service(models.Model):
 
     # NEW FIELDS
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=ServiceCategory.TITLE)
-    # dispatch_message = models.TextField(blank=True, null=True, help_text="Message to send for dispatch-based services.")
+
 
     requires_title_collection = models.BooleanField(
         default=False,

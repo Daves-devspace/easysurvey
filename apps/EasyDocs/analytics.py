@@ -12,6 +12,9 @@ from django.utils import timezone
 from .models import Payment, Client, Service  # adjust to your model
 from .models import Expense
 from.models import ClientSubService
+from ..Employee.models import Payroll
+
+
 
 
 def get_yearly_revenue_data(year=None):
@@ -21,50 +24,59 @@ def get_yearly_revenue_data(year=None):
     # Get all months initialized to 0
     months = OrderedDict((month, {'revenue': 0, 'expenses': 0, 'net_profit': 0}) for month in range(1, 13))
 
-    # Get all payments
-    payments = Payment.objects.filter(payment_date__year=year) \
-        .annotate(month=TruncMonth('payment_date')) \
-        .values('month') \
+    # Revenue from Payments
+    payments = (
+        Payment.objects.filter(payment_date__year=year)
+        .annotate(month_trunc=TruncMonth('payment_date'))
+        .values('month_trunc')
         .annotate(total=Sum('amount'))
+    )
 
     for item in payments:
-        month_num = item['month'].month
+        month_num = item['month_trunc'].month
         months[month_num]['revenue'] = float(item['total'])
 
-    # General expenses
-    gen_expenses = Expense.objects.filter(date__year=year) \
-        .annotate(month=TruncMonth('date')) \
-        .values('month') \
+    # General Expenses
+    gen_expenses = (
+        Expense.objects.filter(date__year=year)
+        .annotate(month_trunc=TruncMonth('date'))
+        .values('month_trunc')
         .annotate(total=Sum('amount'))
+    )
 
     for item in gen_expenses:
-        month_num = item['month'].month
+        month_num = item['month_trunc'].month
         months[month_num]['expenses'] += float(item['total'])
 
-    # Sub-service expenses
-    sub_expenses = ClientSubService.objects.filter(added_on__year=year) \
-        .annotate(month=TruncMonth('added_on')) \
-        .values('month') \
+    # Sub-service Expenses
+    sub_expenses = (
+        ClientSubService.objects.filter(added_on__year=year)
+        .annotate(month_trunc=TruncMonth('added_on'))
+        .values('month_trunc')
         .annotate(
             total=Sum(
                 Coalesce('overridden_price', F('sub_service__price'))
             )
         )
-    # ✅ Payroll expenses
-    payrolls = Payroll.objects.filter(is_paid=True, month__year=year) \
-        .annotate(month=TruncMonth('month')) \
-        .values('month') \
-        .annotate(total=Sum('net_salary'))
-
-    for item in payrolls:
-        month_num = item['month'].month
-        months[month_num]['expenses'] += float(item['total'])
+    )
 
     for item in sub_expenses:
-        month_num = item['month'].month
+        month_num = item['month_trunc'].month
         months[month_num]['expenses'] += float(item['total'])
 
-    # Compute Net Profit
+    # Payroll Expenses
+    payrolls = (
+        Payroll.objects.filter(is_paid=True, month__year=year)
+        .annotate(month_trunc=TruncMonth('month'))
+        .values('month_trunc')
+        .annotate(total=Sum('net_salary'))
+    )
+
+    for item in payrolls:
+        month_num = item['month_trunc'].month
+        months[month_num]['expenses'] += float(item['total'])
+
+    # Net Profit Calculation
     for m in months:
         months[m]['net_profit'] = months[m]['revenue'] - months[m]['expenses']
 
@@ -73,6 +85,7 @@ def get_yearly_revenue_data(year=None):
         'revenue': [months[m]['revenue'] for m in months],
         'net_profit': [months[m]['net_profit'] for m in months]
     }
+
 
 
 def get_available_years():
