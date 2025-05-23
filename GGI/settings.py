@@ -231,13 +231,7 @@ LOGGING = {
     }
 }
 
-# EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-# # DO NOT expose in form
-# EMAIL_USE_TLS = True  # usually fixed
-# EMAIL_USE_SSL = False  # optional
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
@@ -302,14 +296,14 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'static_files')  # for  deployment
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+  # for  deployment
 
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

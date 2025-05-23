@@ -79,7 +79,7 @@ services:
     volumes:
       - ./nginx:/etc/nginx/conf.d
       - ./static:/app/static
-      - ./staticfiles:/app/static_files
+      - ./staticfiles:/app/staticfiles
       - media_volume:/app/media
     depends_on:
       - web

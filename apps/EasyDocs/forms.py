@@ -473,6 +473,16 @@ class ServiceForm(forms.ModelForm):
 
         return cleaned
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        if instance.category != ServiceCategory.TITLE:
+            instance.requires_title_collection = False
+
+        if commit:
+            instance.save()
+
+        return instance
 
 
 class ProcessForm(forms.ModelForm):

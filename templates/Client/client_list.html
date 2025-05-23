@@ -15,7 +15,7 @@
                     <div class="row align-items-center">
                         <div class="col-md-12">
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                                 <li class="breadcrumb-item"><a href="javascript: void(0)">Clients</a></li>
                                 <li class="breadcrumb-item" aria-current="page">List</li>
                             </ul>
@@ -65,10 +65,10 @@
                                     <i class="ti ti-user-plus"></i> Add Client
                                 </button>
 
-                                <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
-                                        data-bs-target="#addClientServiceModal">
-                                    <i class="ti ti-circle-plus"></i> Add Client Service
-                                </button>
+{#                                <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"#}
+{#                                        data-bs-target="#addClientServiceModal">#}
+{#                                    <i class="ti ti-circle-plus"></i> Add Client Service#}
+{#                                </button>#}
 
 
                             </div>
@@ -149,7 +149,9 @@
                                                     </td>
                                                     <td>
                                                         <a href="{% url 'client_details' client.id %}">
-                                                            <i class="ti ti-eye-check">details</i>
+                                                            <button class="btn btn-sm">
+                                                            <i class="ti ti-eye-check"></i>Details
+                                                            </button>
                                                         </a>
                                                     </td>
                                                 </tr>
