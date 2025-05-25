@@ -497,13 +497,14 @@ class LegalOfficePayout(models.Model):
     month = models.DateField(unique=True)  # Represents the payout month
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_at = models.DateTimeField(auto_now_add=True)
-    subservices = models.ManyToManyField('ClientSubService',related_name='legalofficepayouts')  # Linking subservices paid for that month
+    subservices = models.ManyToManyField('ClientSubService', related_name='legalofficepayouts')  # Linking subservices paid for that month
 
     def __str__(self):
         return f"Payout for {self.month.strftime('%B %Y')} – KSH {self.total_amount}"
 
     def service_count(self):
         return self.subservices.count()
+
 
 
 

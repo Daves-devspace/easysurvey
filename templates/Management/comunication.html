@@ -129,45 +129,117 @@
                                                     </div>
                                                 </div>
                                             </div>
-
                                             <div class="col-lg-6 mb-4">
-                                                <div class="card shadow-sm">
-                                                    <div class="card-header bg-secondary text-white">
-                                                        <h5 class="mb-0">Scheduled Messages</h5>
+                                                <div class="accordion mb-4" id="smsAccordion">
+
+                                                    <!-- SMS Summary Accordion Item -->
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header" id="headingSummary">
+                                                            <button class="accordion-button" type="button"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#collapseSummary"
+                                                                    aria-expanded="true"
+                                                                    aria-controls="collapseSummary">
+                                                                📊 Bulk SMS Summary
+                                                            </button>
+                                                        </h2>
+                                                        <div id="collapseSummary"
+                                                             class="accordion-collapse collapse show"
+                                                             aria-labelledby="headingSummary"
+                                                             data-bs-parent="#smsAccordion">
+                                                            <div class="accordion-body">
+                                                                <p><strong>Total messages:</strong> {{ total_messages }}
+                                                                </p>
+                                                                <p><strong>Sent
+                                                                    successfully:</strong> {{ success_count }}</p>
+                                                                <p><strong>Failed to send:</strong> {{ failed_count }}
+                                                                </p>
+
+                                                                {% if failed_logs %}
+                                                                    <h5>❌ Failed Messages</h5>
+                                                                    <div class="table-responsive mt-3">
+                                                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                            <thead class="bg-green-300 ">
+                                                                            <tr>
+                                                                                <th>Client Name</th>
+                                                                                <th>Phone</th>
+                                                                                <th>Error</th>
+                                                                                <th>Retry</th>
+                                                                            </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                            {% for log in failed_logs %}
+                                                                                <tr>
+                                                                                    <td>{{ log.client.first_name }} {{ log.client.last_name }}</td>
+                                                                                    <td>{{ log.phone }}</td>
+                                                                                    <td>{{ log.error_details|default:"Unknown error" }}</td>
+                                                                                    <td>
+                                                                                        <form method="post"
+                                                                                              class="d-inline">
+                                                                                            {% csrf_token %}
+                                                                                            <input type="hidden"
+                                                                                                   name="retry_log_id"
+                                                                                                   value="{{ log.id }}">
+                                                                                            <button type="submit"
+                                                                                                    class="btn btn-sm btn-outline-primary">
+                                                                                                Retry
+                                                                                            </button>
+                                                                                        </form>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            {% endfor %}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="card-body">
-                                                        {% for task in scheduled_tasks %}
-                                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                                <div>
-                                                                    {{ task.task_name }}<br>
-                                                                    {{ task.message_preview|truncatechars:60 }}
-                                                                </div>
-                                                                <div class="text-end">
-                                                                    <small class="text-muted d-block">
-                                                                        Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}
-                                                                        &nbsp;Status: {{ task.status }}
-                                                                    </small>
-                                                                    <form method="post" class="d-inline">
-                                                                        {% csrf_token %}
-                                                                        <input type="hidden" name="log_id"
-                                                                               value="{{ task.task_id }}">
-                                                                        <button type="submit" name="cancel"
-                                                                                class="btn btn-sm btn-outline-danger">
-                                                                            Cancel
-                                                                        </button>
-                                                                    </form>
-                                                                </div>
-                                                            </li>
-                                                        {% empty %}
-                                                            <li class="list-group-item text-center text-muted">
-                                                                No scheduled broadcasts.
-                                                            </li>
-                                                        {% endfor %}
 
-
+                                                    <!-- Scheduled Messages Accordion Item -->
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header" id="headingScheduled">
+                                                            <button class="accordion-button collapsed" type="button"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#collapseScheduled"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="collapseScheduled">
+                                                                ⏰ Scheduled Messages
+                                                            </button>
+                                                        </h2>
+                                                        <div id="collapseScheduled" class="accordion-collapse collapse"
+                                                             aria-labelledby="headingScheduled"
+                                                             data-bs-parent="#smsAccordion">
+                                                            <div class="accordion-body">
+                                                                {% for task in scheduled_tasks %}
+                                                                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                                                                        <div>
+                                                                            {{ task.task_name }}<br>
+                                                                            {{ task.message_preview|truncatechars:60 }}
+                                                                        </div>
+                                                                        <div class="text-end">
+                                                                            <small class="text-muted d-block">
+                                                                                Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}<br>
+                                                                                Status: {{ task.status }}
+                                                                            </small>
+                                                                            <form method="post" class="d-inline">
+                                                                                {% csrf_token %}
+                                                                                <input type="hidden" name="log_id"
+                                                                                       value="{{ task.task_id }}">
+                                                                                <button type="submit" name="cancel"
+                                                                                        class="btn btn-sm btn-outline-danger mt-1">
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </li>
+                                                                {% endfor %}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
+
                                         </div>
                                     </div>
 

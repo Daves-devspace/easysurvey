@@ -26,12 +26,6 @@
                 <td>{{ ss.month|date:"F Y" }}</td>
                 <td>{{ ss.paid_at|date:"Y-m-d" }}</td>
             </tr>
-        {% empty %}
-            <tr>
-                <td colspan="5" class="text-center text-muted">
-                    No paid subservices found for {{ month_filter|default:"this month" }}.
-                </td>
-            </tr>
         {% endfor %}
         </tbody>
     </table>

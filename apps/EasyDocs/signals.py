@@ -97,6 +97,8 @@ def client_service_created_handler(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Booking)
 def booking_created_handler(sender, instance, created, **kwargs):
     # Only on creation (not on every save)
+    if not created:
+        return  # Do not proceed if this is just an update
     from django.db import connection
     print(f"📦 Booking Signal Triggered: created={created} | id={instance.id}")
 

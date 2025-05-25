@@ -9,6 +9,10 @@ from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask
 from apps.EasyDocs.utils import update_pending_sms_logs_and_balance,MobileSasaAPI, personalize
 
 
+from django.utils import timezone
+from datetime import datetime
+import time
+
 
 # at the top of apps/EasyDocs/tasks.py
 import logging
@@ -21,50 +25,130 @@ def update_sms_delivery_and_balance():
 
 
 # tasks.py
+@shared_task
+def test_timezone_task():
+    print("[CELERY] timezone.now():", timezone.now())  # Django-aware time
+    print("[CELERY] datetime.now():", datetime.now())  # Naive system time
+    print("[CELERY] datetime.utcnow():", datetime.utcnow())  # Naive UTC time
+    print("[CELERY] timezone.get_current_timezone():", timezone.get_current_timezone())  # Django timezone
+    print("[CELERY] System timezone:", time.tzname)  # OS-level timezone
 
 
 
 BATCH_SIZE = 50
 
 
+
+# tasks.py
 @shared_task
-def _send_chunk(template, client_ids):
-    api = MobileSasaAPI()
-    pairs = []
+def retry_failed_sms(log_id):
+    from .utils import send_single_sms
+
+    log = MessageLog.objects.get(id=log_id)
+    client = log.client
+
+    try:
+        status, response = send_single_sms(client, log.message)  # ✅ fix: pass full client
+        log.send_status = 'success' if status == 'sent' else 'failed'
+        log.message_id = response.get('message_id', '')
+        log.error_details = None if status == 'sent' else response.get('message')
+    except Exception as e:
+        log.send_status = 'failed'
+        log.error_details = str(e)
+
+    log.save()
+
+
+
+@shared_task(bind=True)
+def _send_chunk(self, template, client_ids):
+    message_pairs = []
+    logs_map = {}  # phone -> MessageLog object
+
     for cid in client_ids:
-        c = Client.objects.get(pk=cid)
-        pairs.append({'phone': c.phone, 'message': personalize(template, c)})
-    return api.send_personalized_sms(pairs)
+        try:
+            client = Client.objects.get(pk=cid)
+            message = personalize(template, client)
+
+            cleaned_phone = client.phone  # Or MobileSasaAPI.clean_phone_number(client.phone) if needed
+
+            message_pairs.append({'phone': cleaned_phone, 'message': message})
+
+            log_entry = MessageLog.objects.create(
+                client=client,
+                phone=cleaned_phone,
+                message=message,
+                reason='Bulk SMS broadcast',
+                send_status='pending',
+                delivery_status='pending',
+            )
+            logs_map[cleaned_phone] = log_entry
+
+        except Exception as e:
+            logger.error(f"Failed to create MessageLog for client {cid}: {e}")
+
+    if not message_pairs:
+        return {'status': 'no messages to send', 'processed_clients': 0}
+
+    try:
+        api = MobileSasaAPI()
+        result = api.send_personalized_sms(message_pairs)
+
+        # Update logs based on phone numbers in result
+        for phone, log in logs_map.items():
+            if phone in result.get('sent', []):
+                log.send_status = 'sent'
+                log.delivery_status = 'pending'
+            elif phone in result.get('failed', []):
+                log.send_status = 'failed'
+                log.delivery_status = 'failed'
+            else:
+                # If phone is missing from both lists, mark as unknown or failed
+                log.send_status = 'failed'
+                log.delivery_status = 'failed'
+            log.save()
+
+    except Exception as e:
+        logger.error(f"Failed to send personalized SMS: {e}")
+        # Mark all as failed in case of exception
+        for log in logs_map.values():
+            log.send_status = 'failed'
+            log.delivery_status = 'failed'
+            log.error_details = str(e)
+            log.save()
+
+    return {'status': 'completed', 'processed_clients': len(client_ids)}
 
 
 
-@shared_task
-def schedule_bulk_broadcast(template, scheduled_iso=None):
-    """
-    Chunk client IDs, schedule each _send_chunk as its own Celery task,
-    track each in ScheduledTask, and return their task IDs.
-    """
+
+@shared_task(bind=True)
+def schedule_bulk_broadcast(self, template, scheduled_iso=None):
+    logger.info(f"[SCHEDULER START] schedule_bulk_broadcast triggered. Task ID: {self.request.id}")
+
     client_ids = list(Client.objects.values_list('id', flat=True))
-    chunks = [client_ids[i : i + BATCH_SIZE] for i in range(0, len(client_ids), BATCH_SIZE)]
+    logger.info(f"[INFO] Found {len(client_ids)} clients to broadcast to.")
+
+    chunks = [client_ids[i: i + BATCH_SIZE] for i in range(0, len(client_ids), BATCH_SIZE)]
+    logger.info(f"[INFO] Split clients into {len(chunks)} chunks of max {BATCH_SIZE} clients each.")
 
     scheduled_ids = []
 
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
         if scheduled_iso:
             eta = datetime.fromisoformat(scheduled_iso)
             if timezone.is_naive(eta):
                 eta = timezone.make_aware(eta, timezone.get_current_timezone())
-            # schedule for future
             result = _send_chunk.apply_async(args=[template, chunk], eta=eta)
             status = 'pending'
             scheduled_time = eta
+            logger.info(f"[CHUNK {i + 1}] Scheduled to run at {eta} with task ID: {result.id}")
         else:
-            # send immediately
             result = _send_chunk.apply_async(args=[template, chunk])
             status = 'sent'
             scheduled_time = timezone.now()
+            logger.info(f"[CHUNK {i + 1}] Dispatched immediately with task ID: {result.id}")
 
-        # record in ScheduledTask
         ScheduledTask.objects.create(
             task_id=result.id,
             task_name='_send_chunk',
@@ -74,6 +158,8 @@ def schedule_bulk_broadcast(template, scheduled_iso=None):
         )
 
         scheduled_ids.append(result.id)
+
+    logger.info(f"[SCHEDULER END] Successfully queued {len(scheduled_ids)} tasks.")
 
     return {'task_ids': scheduled_ids, 'chunks': len(chunks)}
 
@@ -178,3 +264,7 @@ def send_today_ground_reminders(self):
                     error_details=str(exc)
                 )
                 raise self.retry(exc=exc)
+
+
+
+

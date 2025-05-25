@@ -31,12 +31,11 @@ class ClientActionView(PermissionRequiredMixin, View):
     Expects:
       - self.permission_required
       - self.client_lookup(request, **kwargs)
-      - a post(request, client) -> None that raises or sets messages
+      - a handle(request, client) -> None that raises or sets messages
     """
     raise_exception = True
 
     def dispatch(self, request, *args, **kwargs):
-        # Fetch the client once for all actions
         self.client = get_object_or_404(Client, pk=kwargs['client_id'])
         return super().dispatch(request, *args, **kwargs)
 
@@ -50,27 +49,15 @@ class ClientActionView(PermissionRequiredMixin, View):
         try:
             self.handle(request, self.client)
         except PermissionDenied:
-            # let PermissionRequiredMixin handle it
             raise
         except Exception as e:
-            # Log & surface a generic error
             logger.exception(f"{self.__class__.__name__} failed: {e}")
             messages.error(request, f"❌ Error: {e}")
         return redirect(self.get_success_url())
 
     def handle(self, request, client):
-        """
-        Subclasses implement this to do their work,
-        calling messages.success/error as needed.
-        """
         raise NotImplementedError
 
-
-
-
-
-#send client sms
-# views/actions.py (continued)
 
 class SendClientSMSView(ClientActionView):
     permission_required = 'easydocs.send_client_sms'
@@ -79,26 +66,27 @@ class SendClientSMSView(ClientActionView):
         form = ClientSmsForm(request.POST)
         if not form.is_valid():
             messages.error(request, "❌ Please enter a valid message.")
-            return
+            return  # Will trigger redirect with error message
 
         text = form.cleaned_data['message']
         resp = MobileSasaAPI().send_sms(client.phone, text)
         sent = bool(resp.get('status'))
 
-        # Log
         MessageLog.objects.create(
             client=client,
             phone=client.phone,
             message=text,
-            send_status=('sent' if sent else 'failed'),
-            delivery_status=('pending' if sent else 'failed'),
-            error_details=(resp.get('message') or '')
+            send_status='sent' if sent else 'failed',
+            delivery_status='pending' if sent else 'failed',
+            error_details=resp.get('message', '')
         )
 
         if sent:
             messages.success(request, "✅ SMS sent successfully.")
         else:
             messages.error(request, f"❌ SMS failed: {resp.get('message', 'Unknown')}")
+
+
 
 
 

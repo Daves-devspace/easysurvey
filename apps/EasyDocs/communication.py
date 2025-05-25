@@ -1,17 +1,17 @@
 from datetime import datetime
 import logging
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
+
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import ListView
 from django.views.generic.edit import FormMixin
-from django_celery_beat.models import IntervalSchedule, PeriodicTask
+
 from .tasks import schedule_bulk_broadcast
 from .forms import BulkSmsForm
 from .models import MessageLog, Client, ScheduledTask
-from .utils import MobileSasaAPI, broadcast_sms, personalize
+from .utils import MobileSasaAPI
 
 logger = logging.getLogger(__name__)
 # utils.py
@@ -88,7 +88,15 @@ class CommunicationView(FormMixin, ListView):
         ctx['form'] = self.get_form()
 
         # History of all sent/logged messages
-        ctx['logs'] = MessageLog.objects.all().order_by('-timestamp')
+        # History of all sent/logged messages
+        all_logs = MessageLog.objects.all().order_by('-timestamp')
+        ctx['logs'] = all_logs
+
+        # Delivery summary
+        ctx['total_messages'] = all_logs.count()
+        ctx['success_count'] = all_logs.filter(send_status='success').count()
+        ctx['failed_logs'] = all_logs.filter(send_status='failed')
+        ctx['failed_count'] = ctx['failed_logs'].count()
 
         # Pending scheduled Celery tasks
         ctx['scheduled_tasks'] = ScheduledTask.objects.filter(
@@ -112,6 +120,13 @@ class CommunicationView(FormMixin, ListView):
                 task.status = 'cancelled'
                 task.save()
                 messages.success(request, "🗑️ Broadcast cancelled.")
+            return redirect(self.success_url)
+
+        if 'retry_log_id' in request.POST:
+            log_id = request.POST.get('retry_log_id')
+            from .tasks import retry_failed_sms
+            retry_failed_sms.delay(log_id)
+            messages.success(request, "🔁 Retry initiated.")
             return redirect(self.success_url)
 
         form = self.get_form()
