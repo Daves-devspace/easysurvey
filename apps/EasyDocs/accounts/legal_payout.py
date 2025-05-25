@@ -44,7 +44,7 @@ class BulkPayToLegalView(View):
         if not ids:
             return JsonResponse({'status': 'error', 'message': '❌ No subservices selected.'}, status=400)
 
-        # Fetch unpaid subservices
+        # Step 1: Fetch unpaid subservices
         subs_qs = ClientSubService.objects.filter(
             id__in=ids,
             is_paid_to_legal_office=False
@@ -57,33 +57,45 @@ class BulkPayToLegalView(View):
                 'message': '❌ No valid unpaid legal subservices found in your selection.'
             }, status=400)
 
-        # Calculate total amount to be paid
+        # Step 2: Calculate total
         total = subs_qs.aggregate(total=Sum('paid_amount'))['total'] or Decimal('0.00')
 
-        # Mark as paid
+        # Step 3: Mark as paid
         subs_qs.update(is_paid_to_legal_office=True)
 
-        # Convert to list for M2M assignment
-        subservices_to_add = list(subs_qs)
+        # Step 4: Re-fetch the fresh queryset
+        subservices_to_add = list(ClientSubService.objects.filter(id__in=ids))
 
-        # Create or update monthly payout
+        # Step 5: Create or update monthly payout
         month_start = timezone.now().date().replace(day=1)
         payout, created = LegalOfficePayout.objects.get_or_create(
             month=month_start,
             defaults={'total_amount': total}
         )
+
         if not created:
             payout.total_amount = F('total_amount') + total
             payout.save()
+            payout.refresh_from_db()  # ✅ Important after F()
 
-        # Link subservices to payout
+        # Step 6: Link subservices
+        before_count = payout.subservices.count()
+        print("Before linking:", before_count)
+
         payout.subservices.add(*subservices_to_add)
+
+        after_count = payout.subservices.count()
+        print("After linking:", after_count)
+        print("Linked Subservices:", list(payout.subservices.values_list('id', flat=True)))
 
         return JsonResponse({
             'status': 'success',
             'updated_count': count,
-            'total_paid': f"{total:.2f}"
+            'total_paid': f"{total:.2f}",
+            'linked_before': before_count,
+            'linked_after': after_count
         })
+
 
 
 

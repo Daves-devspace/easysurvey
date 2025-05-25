@@ -65,13 +65,13 @@ class BookingCalendarJSON(View):
       - summary  : '1' (default) for aggregates, '0' for detail
       - start,end: ISO datetimes for calendar range (optional in detail mode)
     """
-
+    from django.utils.timezone import localtime
     def get(self, request):
         include_handled = request.GET.get('handled', '1') == '1'
         summary = request.GET.get('summary', '1') == '1'
         start_iso = request.GET.get('start')
         end_iso = request.GET.get('end')
-        from django.utils.timezone import localtime
+
 
         qs = Booking.objects.all()
         if not include_handled:

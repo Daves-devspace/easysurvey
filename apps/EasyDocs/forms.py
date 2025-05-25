@@ -523,23 +523,21 @@ class TitleDeedCollectionForm(forms.ModelForm):
         model = TitleDeedCollection
         fields = ['collected_by', 'id_number', 'phone_number', 'message']
         widgets = {
-            'collected_by': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter name', 'oninput': 'updateMessage()'}),
-            'id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter ID number', 'oninput': 'updateMessage()'}),
+            'collected_by': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter name'}),
+            'id_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter ID number'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter phone number'}),
             'message': forms.Textarea(attrs={
                 'class': 'form-control',
                 'placeholder': 'Title deed collection confirmation',
                 'rows': 3,
-                'id': 'message'
+                # No explicit 'id' here, Django will generate 'id_message'
             }),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
-            self.fields['message'].initial = (
-                "Your title deed has been collected by {collected_by} (ID: {id_number})."
-            )
+            self.fields['message'].initial = ""  # Keep empty, JS will update dynamically
 
 
 class ClientDocumentForm(forms.ModelForm):

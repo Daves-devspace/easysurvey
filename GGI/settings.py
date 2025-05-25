@@ -32,8 +32,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 #
-# ALLOWED_HOSTS = ['*']
-SITE_DOMAIN = "http://127.0.0.1:8000"  # or your production domain
+ALLOWED_HOSTS = ['https://management.greatguardianinvestment.co.ke',"https://www.management.greatguardianinvestment.co.ke","168.231.113.252"]
+SITE_DOMAIN = "https://management.greatguardianinvestment.co.ke"  # or your production domain
 
 # Application definition
 
@@ -103,12 +103,14 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Redis as broker
 # settings.py
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+
+# Optional: store results in Redis
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-# Optional: store results in Redis
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
 
 # Recommended: timezone settings
 CELERY_TIMEZONE = 'Africa/Nairobi'
@@ -144,10 +146,12 @@ CELERY_EMAIL_TASK_CONFIG = {
 }
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://management.greatguardianinvestment.co.ke",
+    "https://www.management.greatguardianinvestment.co.ke",
+
     "http://localhost:8080",
-    "http://127.0.0.1:8000",  # If needed
-    # "http://yourdomain.com",  # In production
 ]
+
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
 ENVIRONMENT = os.getenv("DJANGO_ENV", "development")

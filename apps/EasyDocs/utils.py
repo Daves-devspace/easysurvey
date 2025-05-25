@@ -42,6 +42,7 @@ class MobileSasaAPI:
     BASE_URL_PERSONALIZED = "https://api.mobilesasa.com/v1/send/bulk-personalized"
     BASE_URL_BALANCE = "https://api.mobilesasa.com/v1/get-balance"
     BASE_URL_STATUS = "https://api.mobilesasa.com/v1/check_status/{message_id}"
+    BASE_URL_DLR = "https://api.mobilesasa.com/v1/dlr"
 
     def __init__(self):
         token_data = get_sms_provider_token()
@@ -107,14 +108,9 @@ class MobileSasaAPI:
         return success_count, errors
 
     def send_personalized_sms(self, message_pairs):
-        """
-        message_pairs: list of dicts with 'phone' and 'message' keys.
-        """
-        # split into chunks of 50
         results = {'sent': [], 'failed': []}
         for i in range(0, len(message_pairs), 50):
-            chunk = message_pairs[i:i+50]
-            # clean each phone
+            chunk = message_pairs[i:i + 50]
             body = []
             for item in chunk:
                 phone = self.clean_phone_number(item.get('phone'))
@@ -129,51 +125,18 @@ class MobileSasaAPI:
                 resp.raise_for_status()
                 data = resp.json()
                 if data.get('status'):
-                    bulk_id = data.get('bulkId')
-                    for entry in body:
-                        client = Client.objects.filter(phone=entry['phone']).first()
-                        log = MessageLog.objects.create(
-                            client=client,
-                            phone=entry['phone'],
-                            message=entry['message'],
-                            reason="Personalized Bulk",
-                            message_id=bulk_id,
-                            send_status='sent',
-                            delivery_status='pending'
-                        )
-                        results['sent'].append(log.id)
+                    # Instead of creating logs here, return the phone numbers that succeeded
+                    results['sent'].extend([entry['phone'] for entry in body])
                 else:
-                    for entry in body:
-                        client = Client.objects.filter(phone=entry['phone']).first()
-                        log = MessageLog.objects.create(
-                            client=client,
-                            phone=entry['phone'],
-                            message=entry['message'],
-                            reason="Personalized Bulk",
-                            send_status='failed',
-                            error_details=data.get('message'),
-                            delivery_status='failed'
-                        )
-                        results['failed'].append(log.id)
+                    results['failed'].extend([entry['phone'] for entry in body])
             except Exception as e:
-                for entry in body:
-                    client = Client.objects.filter(phone=entry['phone']).first()
-                    log = MessageLog.objects.create(
-                        client=client,
-                        phone=entry['phone'],
-                        message=entry['message'],
-                        reason="Personalized Bulk",
-                        send_status='failed',
-                        error_details=str(e),
-                        delivery_status='failed'
-                    )
-                    results['failed'].append(log.id)
+                results['failed'].extend([entry['phone'] for entry in body])
         return results
 
     def check_delivery_status(self, message_id):
-        url = self.BASE_URL_STATUS.format(message_id=message_id)
-        r = requests.get(url, headers=self.headers)
-        return r.json()
+        payload = {"messageId": message_id}
+        response = requests.post(self.BASE_URL_DLR, headers=self.headers, json=payload)
+        return response.json()
 
     def get_balance(self):
         try:
@@ -190,15 +153,11 @@ class MobileSasaAPI:
 
 
 def personalize(template: str, client) -> str:
-    """
-    Replace placeholders in the template with client attributes.
-    """
     return (
         template
-        .replace("{first_name}", client.first_name or "")
-        .replace("{last_name}", client.last_name or "")
+        .replace("{client_first_name}", client.first_name or "")
+        .replace("{client_last_name}", client.last_name or "")
     )
-
 
 
 def send_single_sms(client, message, reason=""):
@@ -230,57 +189,11 @@ def send_single_sms(client, message, reason=""):
 import logging
 log = logging.getLogger(__name__)
 
-def broadcast_sms(template, scheduled_time=None, recurring=False):
-    """
-    Send or schedule a broadcast SMS to all clients.
-    - If recurring is True, setup a monthly scheduled task.
-    - If scheduled_time is in future, schedule once.
-    - If no scheduled_time, send immediately.
-    """
-    from .tasks import schedule_bulk_personalized_sms
-    from django_celery_beat.models import PeriodicTask, CrontabSchedule
-    import json
-
-    if recurring:
-        log.info("Registering recurring broadcast for %s", template)
-        if not scheduled_time:
-            raise ValueError("Scheduled time is required for recurring broadcasts.")
-
-        schedule, _ = CrontabSchedule.objects.get_or_create(
-            minute=scheduled_time.minute,
-            hour=scheduled_time.hour,
-            day_of_month=scheduled_time.day,
-            month_of_year='*',  # Every month
-            day_of_week='*'
-        )
-
-        PeriodicTask.objects.create(
-            crontab=schedule,
-            name=f"Monthly BulkSMS {scheduled_time.strftime('%d-%H:%M')}",
-            task='apps.EasyDocs.tasks.schedule_bulk_personalized_sms',
-            args=json.dumps([template, None]),
-            enabled=True
-        )
-    else:
-        # Send once (immediate or scheduled)
-        if scheduled_time and scheduled_time > timezone.now():
-            log.info("Scheduling one-off broadcast at %s", scheduled_time)
-            schedule_bulk_personalized_sms.apply_async(
-                args=[template, scheduled_time.isoformat()],
-                eta=scheduled_time
-            )
-        else:
-            schedule_bulk_personalized_sms.delay(template, None)
-            log.info("Sending immediate broadcast for %s", template)
-
-
-
 
 
 
 
 def update_pending_sms_logs_and_balance():
-
     api = MobileSasaAPI()
 
     # 1️⃣ Update delivery status of pending messages
@@ -288,9 +201,12 @@ def update_pending_sms_logs_and_balance():
     for log in pending_logs:
         try:
             result = api.check_delivery_status(log.message_id)
-            if result:
-                log.delivery_status = result.get('status', 'unknown')
-                log.save(update_fields=['delivery_status'])
+            if result.get('status') and result.get('messages'):
+                delivery_status = result['messages'][0].get('deliveryStatus', {}).get('status', 'unknown')
+                log.delivery_status = delivery_status
+            else:
+                log.delivery_status = 'unknown'
+            log.save(update_fields=['delivery_status'])
         except Exception as e:
             log.error_details = f"Delivery check failed: {str(e)}"
             log.save(update_fields=['error_details'])
@@ -301,6 +217,7 @@ def update_pending_sms_logs_and_balance():
         print(f"📩 Current SMS Balance: {balance_info}")  # Debug output
     except Exception as e:
         print(f"⚠️ Could not fetch SMS balance: {e}")
+
 
 
 

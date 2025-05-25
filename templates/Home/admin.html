@@ -270,11 +270,14 @@
                     <div class="col-12 col-lg-6">
                         <div class="card h-100">
                             <div class="card-header bg-green-100">
-                                <h5 class="mb-0">Calendar</h5>
-                                <label>
-                                    <input type="checkbox" id="toggle-handled" checked>
-                                    Show handled bookings
-                                </label>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+    <label><input type="checkbox" id="toggle-handled" /> Show Handled</label>
+    <div id="viewSelector" class="d-none">
+      <button onclick="calendar.changeView('dayGridMonth')" class="btn btn-sm btn-light mb-1">Month</button>
+      <button onclick="calendar.changeView('timeGridWeek')" class="btn btn-sm btn-light mb-1">Week</button>
+      <button onclick="calendar.changeView('timeGridDay')" class="btn btn-sm btn-light">Day</button>
+    </div>
+  </div>
 
                             </div>
                             <div class="card-body shadow-lg">
@@ -285,21 +288,18 @@
 
 
                                 <!-- Bootstrap Modal -->
-                                <div class="modal fade" id="bookingModal" tabindex="-1"
-                                     aria-labelledby="bookingModalLabel" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title" id="bookingModalLabel">Booking Details</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                        aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body" id="modalBody">
-                                                <!-- Details go here -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <!-- Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Booking Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+</div>
 
 
                             </div>

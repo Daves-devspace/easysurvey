@@ -72,7 +72,7 @@ urlpatterns = [
 
     # Client detail page
 
-    path('clients/<int:client_id>/sms/', SendClientSMSView.as_view(), name='client-send-sms'),
+    path('clients/<int:client_id>/sms/', SendClientSMSView.as_view(), name='send_client_sms'),
     path('clients/<int:client_id>/services/', ClientServiceManageView.as_view(), name='client-service'),
     # path('clients/<int:client_id>/services/edit/', EditClientServiceView.as_view(), name='client-edit-service'),
     path('clients/<int:client_id>/services/delete/', DeleteClientServiceView.as_view(), name='client-delete-service'),

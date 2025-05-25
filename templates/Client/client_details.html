@@ -293,8 +293,12 @@
                                                                                 data-ps-ids="
 
 
+
+
                                                                                         {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                                 data-ps-costs="
+
+
 
 
                                                                                         {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
@@ -637,26 +641,39 @@
                                                                       action="{% url 'collect_title_deed' cs.id %}">
                                                                     {% csrf_token %}
                                                                     {{ title_deed_form.as_p }}
+
                                                                     <script>
                                                                         function updateMessage() {
-                                                                            const name = document.getElementById('id_collected_by').value || '{collected_by}';
-                                                                            const id = document.getElementById('id_id_number').value || '{id_number}';
+                                                                            const name = document.getElementById('id_collected_by')?.value.trim() || '[Name]';
+                                                                            const id = document.getElementById('id_id_number')?.value.trim() || '[ID Number]';
                                                                             const messageTemplate = `Your title deed has been collected by ${name} (ID: ${id}).`;
-                                                                            document.getElementById('message').value = messageTemplate;
+
+                                                                            const messageField = document.getElementById('id_message');  // matches default Django id
+                                                                            if (messageField) {
+                                                                                messageField.value = messageTemplate;
+                                                                            }
                                                                         }
+
+                                                                        document.addEventListener("DOMContentLoaded", function () {
+                                                                            const nameInput = document.getElementById('id_collected_by');
+                                                                            const idInput = document.getElementById('id_id_number');
+
+                                                                            if (nameInput) nameInput.addEventListener('input', updateMessage);
+                                                                            if (idInput) idInput.addEventListener('input', updateMessage);
+                                                                        });
                                                                     </script>
+
+
                                                                     <div class="modal-footer">
-                                                                        <button type="button"
-                                                                                class="btn btn-secondary"
-                                                                                data-bs-dismiss="modal">
-                                                                            Cancel
+                                                                        <button type="button" class="btn btn-secondary"
+                                                                                data-bs-dismiss="modal">Cancel
                                                                         </button>
-                                                                        <button type="submit"
-                                                                                class="btn btn-success">
+                                                                        <button type="submit" class="btn btn-success">
                                                                             Submit
                                                                         </button>
                                                                     </div>
                                                                 </form>
+
                                                             {% endif %}
                                                         </div>
                                                         {% if cs.has_title_deed_collection %}
@@ -902,7 +919,7 @@
                                                     <th>Uploaded on</th>
                                                     <th class="text-end">Actions</th>
                                                     {% if perms.easydocs.delete_clientdoc %}
-                                                    <th class="text-end">Delete</th>
+                                                        <th class="text-end">Delete</th>
                                                     {% endif %}
 
                                                 </tr>
@@ -947,19 +964,19 @@
                                                                 <span class="text-muted">No email</span>
                                                             {% endif %}
                                                         </td>
-{% if perms.easydocs.delete_clientdoc %}
-                                                        <td class="text-end">
-                                                            <form action="{% url 'delete_document' client.id doc.id %}"
-                                                                  method="post" style="display:inline;">
-                                                                {% csrf_token %}
-                                                                <button class="btn btn-sm btn-outline-danger"
-                                                                        type="submit"
-                                                                        onclick="return confirm('Are you sure you want to delete this document?')">
-                                                                    Delete
-                                                                </button>
-                                                            </form>
-                                                        </td>
-                                                    {% endif %}
+                                                        {% if perms.easydocs.delete_clientdoc %}
+                                                            <td class="text-end">
+                                                                <form action="{% url 'delete_document' client.id doc.id %}"
+                                                                      method="post" style="display:inline;">
+                                                                    {% csrf_token %}
+                                                                    <button class="btn btn-sm btn-outline-danger"
+                                                                            type="submit"
+                                                                            onclick="return confirm('Are you sure you want to delete this document?')">
+                                                                        Delete
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        {% endif %}
                                                     </tr>
 
                                                 {% endfor %}
@@ -976,445 +993,447 @@
 
                         </div>
                     </div>
-{% if perms.easydocs.view_payment %}
-                    <!--account-->
-                    <div class="tab-pane" id="profile-3" role="tabpanel"
-                         aria-labelledby="profile-tab-3">
+                    {% if perms.easydocs.view_payment %}
+                        <!--account-->
+                        <div class="tab-pane" id="profile-3" role="tabpanel"
+                             aria-labelledby="profile-tab-3">
 
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <!-- Tabs in Card Header -->
-                                    <ul class="nav nav-tabs card-header-tabs" id="paymentTabs"
-                                        role="tablist">
-                                        <li class="nav-item" role="presentation">
-                                            <a class="nav-link active" id="payments-tab"
-                                               data-bs-toggle="tab"
-                                               href="#payments" role="tab" aria-controls="payments"
-                                               aria-selected="true">
-                                                Reciepts
-                                            </a>
-                                        </li>
-                                        <li class="nav-item" role="presentation">
-                                            <a class="nav-link" id="receipts-tab" data-bs-toggle="tab"
-                                               href="#receipts" role="tab" aria-controls="receipts"
-                                               aria-selected="false">
-                                                Payments
-                                            </a>
-                                        </li>
-                                    </ul>
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <!-- Tabs in Card Header -->
+                                        <ul class="nav nav-tabs card-header-tabs" id="paymentTabs"
+                                            role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <a class="nav-link active" id="payments-tab"
+                                                   data-bs-toggle="tab"
+                                                   href="#payments" role="tab" aria-controls="payments"
+                                                   aria-selected="true">
+                                                    Reciepts
+                                                </a>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <a class="nav-link" id="receipts-tab" data-bs-toggle="tab"
+                                                   href="#receipts" role="tab" aria-controls="receipts"
+                                                   aria-selected="false">
+                                                    Payments
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Tab Content -->
-                        <div class="tab-content" id="paymentTabsContent">
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="paymentTabsContent">
 
-                            <!-- ================== PAYMENTS TAB ================== -->
-                            <div class="tab-pane fade show active" id="payments" role="tabpanel"
-                                 aria-labelledby="payments-tab">
+                                <!-- ================== PAYMENTS TAB ================== -->
+                                <div class="tab-pane fade show active" id="payments" role="tabpanel"
+                                     aria-labelledby="payments-tab">
 
 
-                                <div class="row">
-                                    <div class="col-lg-8">
+                                    <div class="row">
+                                        <div class="col-lg-8">
 
-                                        <!-- Services List Card -->
-                                        <div class="card">
-                                            <div class="card-header d-flex justify-content-between align-items-center gap-2">
-                                                <h5>Services list</h5>
-                                                {% if perms.easydocs.add_payment %}
-                                                <button class="btn btn-sm bg-green-200"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#addPaymentModal">
-                                                    <i class="ti ti-report-money"></i> Record
-                                                    Service
-                                                    Payment
-                                                </button>
+                                            <!-- Services List Card -->
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                                                    <h5>Services list</h5>
+                                                    {% if perms.easydocs.add_payment %}
+                                                        <button class="btn btn-sm bg-green-200"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addPaymentModal">
+                                                            <i class="ti ti-report-money"></i> Record
+                                                            Service
+                                                            Payment
+                                                        </button>
                                                     {% endif %}
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="table-responsive mt-3">
-                                                    <table id="serviceListTable"
-                                                           class="datatable table table-striped table-hover dt-responsive nowrap">
-                                                        <thead class="table-success">
-                                                        <tr>
-                                                            <th>
-                                                                <input type="checkbox" id="select-all">
-                                                            </th>
-                                                            <th>Land Description</th>
-                                                            <th>Service</th>
-                                                            <th>Requested At</th>
-                                                            <th>Total Paid</th>
-                                                            <th>Pending Balance</th>
-                                                            <th class="text-end">Receipt</th>
-                                                            <th class="text-end">Details</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                        {% for service in all_services %}
-                                                            <tr class="service-row"
-                                                                data-requested-at="{{ service.requested_at|date:'U' }}"
-                                                                data-detail="{{ service|get_service_detail_json }}"
-                                                                data-receipt-url="{% url 'download_receipt' service.id %}">
-                                                                <td>{{ forloop.counter }}</td>
-                                                                <td>{{ service.land_description }}</td>
-                                                                <td>{{ service.service.name }}</td>
-                                                                <td class="text-end">
-                                                                    <span class="badge bg-success">{{ service.requested_at|date:"M d, Y H:i" }}</span>
-                                                                </td>
-                                                                <td>KSH {{ service.total_paid }}</td>
-                                                                <td>KSH {{ service.total_balance }}</td>
-                                                                <td>
-                                                                    <button class="btn btn-outline-secondary btn-receipt">
-                                                                        <i class="fas fa-receipt"></i>
-                                                                        Receipt
-                                                                    </button>
-                                                                </td>
-                                                                <td>
-                                                                    <button class="btn btn-primary btn-view">
-                                                                        View
-                                                                    </button>
-                                                                </td>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive mt-3">
+                                                        <table id="serviceListTable"
+                                                               class="datatable table table-striped table-hover dt-responsive nowrap">
+                                                            <thead class="table-success">
+                                                            <tr>
+                                                                <th>
+                                                                    <input type="checkbox" id="select-all">
+                                                                </th>
+                                                                <th>Land Description</th>
+                                                                <th>Service</th>
+                                                                <th>Requested At</th>
+                                                                <th>Total Paid</th>
+                                                                <th>Pending Balance</th>
+                                                                <th class="text-end">Receipt</th>
+                                                                <th class="text-end">Details</th>
                                                             </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for service in all_services %}
+                                                                <tr class="service-row"
+                                                                    data-requested-at="{{ service.requested_at|date:'U' }}"
+                                                                    data-detail="{{ service|get_service_detail_json }}"
+                                                                    data-receipt-url="{% url 'download_receipt' service.id %}">
+                                                                    <td>{{ forloop.counter }}</td>
+                                                                    <td>{{ service.land_description }}</td>
+                                                                    <td>{{ service.service.name }}</td>
+                                                                    <td class="text-end">
+                                                                        <span class="badge bg-success">{{ service.requested_at|date:"M d, Y H:i" }}</span>
+                                                                    </td>
+                                                                    <td>KSH {{ service.total_paid }}</td>
+                                                                    <td>KSH {{ service.total_balance }}</td>
+                                                                    <td>
+                                                                        <button class="btn btn-outline-secondary btn-receipt">
+                                                                            <i class="fas fa-receipt"></i>
+                                                                            Receipt
+                                                                        </button>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-primary btn-view">
+                                                                            View
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
 
-                                                        {% endfor %}
-                                                        </tbody>
-                                                    </table>
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-4">
+                                            <!-- Service Detail Card -->
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                                                    <h5 class="mb-0">Service Detail for:</h5>
+                                                    <p class="mb-0 text-muted small flex-grow-1 text-center">
+                                                        💡 Tip: Click <strong>"View"</strong> in the service
+                                                        list
+                                                        to update or view full details.
+                                                    </p>
+                                                    <button id="detailReceiptBtn"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-receipt-url=""
+                                                            title="Preview & Print Receipt">
+                                                        <i class="fas fa-receipt"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Land Description:</strong> <span
+                                                            id="detail-land">Loading...</span></p>
+                                                    <p><strong>Service Name:</strong> <span
+                                                            id="detail-title">Loading...</span>
+                                                    </p>
+                                                    <p><strong>Requested At:</strong> <span
+                                                            id="detail-requested">Loading...</span></p>
+                                                    <p><strong>Total Paid:</strong> <span
+                                                            id="detail-paid">Loading...</span>
+                                                    </p>
+                                                    <p><strong>Pending Balance:</strong> <span
+                                                            id="detail-balance">Loading...</span></p>
+                                                    <h6>Processes</h6>
+                                                    <ul id="detail-processes"
+                                                        class="list-group list-group-flush"></ul>
+                                                    <h6 class="mt-4">Sub-Services</h6>
+                                                    <ul id="detail-subservices"
+                                                        class="list-group list-group-flush"></ul>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="col-lg-4">
-                                        <!-- Service Detail Card -->
-                                        <div class="card">
-                                            <div class="card-header d-flex justify-content-between align-items-center gap-2">
-                                                <h5 class="mb-0">Service Detail for:</h5>
-                                                <p class="mb-0 text-muted small flex-grow-1 text-center">
-                                                    💡 Tip: Click <strong>"View"</strong> in the service
-                                                    list
-                                                    to update or view full details.
-                                                </p>
-                                                <button id="detailReceiptBtn"
-                                                        class="btn btn-sm btn-outline-secondary"
-                                                        data-receipt-url=""
-                                                        title="Preview & Print Receipt">
-                                                    <i class="fas fa-receipt"></i>
-                                                </button>
-                                            </div>
-                                            <div class="card-body">
-                                                <p><strong>Land Description:</strong> <span
-                                                        id="detail-land">Loading...</span></p>
-                                                <p><strong>Service Name:</strong> <span
-                                                        id="detail-title">Loading...</span>
-                                                </p>
-                                                <p><strong>Requested At:</strong> <span
-                                                        id="detail-requested">Loading...</span></p>
-                                                <p><strong>Total Paid:</strong> <span id="detail-paid">Loading...</span>
-                                                </p>
-                                                <p><strong>Pending Balance:</strong> <span
-                                                        id="detail-balance">Loading...</span></p>
-                                                <h6>Processes</h6>
-                                                <ul id="detail-processes"
-                                                    class="list-group list-group-flush"></ul>
-                                                <h6 class="mt-4">Sub-Services</h6>
-                                                <ul id="detail-subservices"
-                                                    class="list-group list-group-flush"></ul>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
-                            </div>
 
-                            <!-- ================== RECEIPTS TAB ================== -->
-                            <div class="tab-pane fade" id="receipts" role="tabpanel"
-                                 aria-labelledby="receipts-tab">
-                                <div class="row">
-                                    <!-- Master (Summary + Filter) -->
-                                    <div class="col-lg-8">
-                                        <div class="card mb-3">
+                                <!-- ================== RECEIPTS TAB ================== -->
+                                <div class="tab-pane fade" id="receipts" role="tabpanel"
+                                     aria-labelledby="receipts-tab">
+                                    <div class="row">
+                                        <!-- Master (Summary + Filter) -->
+                                        <div class="col-lg-8">
+                                            <div class="card mb-3">
 
-                                            <!-- Header -->
-                                            <div class="card-header d-flex justify-content-between align-items-center">
-                                                <h5 class="mb-0">Filter & Payments</h5>
-                                                {% if perms.easydocs.add_payment %}
-                                                <button class="btn btn-sm btn-primary"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#addPaymentModal">
-                                                    <i class="fas fa-money-bill-wave"></i> Record
-                                                    Service
-                                                    Payment
-                                                </button>
+                                                <!-- Header -->
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h5 class="mb-0">Filter & Payments</h5>
+                                                    {% if perms.easydocs.add_payment %}
+                                                        <button class="btn btn-sm btn-primary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addPaymentModal">
+                                                            <i class="fas fa-money-bill-wave"></i> Record
+                                                            Service
+                                                            Payment
+                                                        </button>
                                                     {% endif %}
-                                            </div>
+                                                </div>
 
 
-                                            <!-- Payment History Table -->
-                                            <div class="card-body p-0"
-                                                 style="height: 600px; overflow-y: auto;">
-                                                <div class="accordion" id="paymentHistoryAccordion">
-                                                    {% for payment in flat_payment_history %}
-                                                        <!-- Add class 'service-row' and move data-receipt-url here -->
-                                                        <div class="accordion-item mb-3 service-row"
-                                                             data-receipt-url="{% url 'download_receipt' payment.service_id %}">
-                                                            <h2 class="accordion-header"
-                                                                id="heading{{ forloop.counter }}">
-                                                                <button class="accordion-button collapsed"
-                                                                        type="button"
-                                                                        data-bs-toggle="collapse"
-                                                                        data-bs-target="#collapse{{ forloop.counter }}"
-                                                                        aria-expanded="false"
-                                                                        aria-controls="collapse{{ forloop.counter }}">
-                                                                    <div class="d-flex w-100 justify-content-between">
-                                                                        <div>
-                                                                            <strong>{{ payment.service_label }}</strong>
-                                                                            <small class="text-muted">|
-                                                                                Total:
-                                                                                KES {{ payment.total_amount|floatformat:2 }}</small>
-                                                                        </div>
-                                                                        <div class="text-end">
+                                                <!-- Payment History Table -->
+                                                <div class="card-body p-0"
+                                                     style="height: 600px; overflow-y: auto;">
+                                                    <div class="accordion" id="paymentHistoryAccordion">
+                                                        {% for payment in flat_payment_history %}
+                                                            <!-- Add class 'service-row' and move data-receipt-url here -->
+                                                            <div class="accordion-item mb-3 service-row"
+                                                                 data-receipt-url="{% url 'download_receipt' payment.service_id %}">
+                                                                <h2 class="accordion-header"
+                                                                    id="heading{{ forloop.counter }}">
+                                                                    <button class="accordion-button collapsed"
+                                                                            type="button"
+                                                                            data-bs-toggle="collapse"
+                                                                            data-bs-target="#collapse{{ forloop.counter }}"
+                                                                            aria-expanded="false"
+                                                                            aria-controls="collapse{{ forloop.counter }}">
+                                                                        <div class="d-flex w-100 justify-content-between">
+                                                                            <div>
+                                                                                <strong>{{ payment.service_label }}</strong>
+                                                                                <small class="text-muted">|
+                                                                                    Total:
+                                                                                    KES {{ payment.total_amount|floatformat:2 }}</small>
+                                                                            </div>
+                                                                            <div class="text-end">
                                                                             <span class="me-3">Paid: <strong
                                                                                     class="text-success">KES {{ payment.total_paid|floatformat:2 }}</strong></span>
-                                                                            <span>Balance: <strong
-                                                                                    class="text-danger">KES {{ payment.pending_balance|floatformat:2 }}</strong></span>
-                                                                            <span class="badge
+                                                                                <span>Balance: <strong
+                                                                                        class="text-danger">KES {{ payment.pending_balance|floatformat:2 }}</strong></span>
+                                                                                <span class="badge
                                 {% if payment.payment_status == 'Fully Paid' %}bg-success
                                 {% else %}bg-warning text-dark{% endif %}
                                 ms-3">
                                 {{ payment.payment_status }}
                             </span>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                </button>
-                                                            </h2>
+                                                                    </button>
+                                                                </h2>
 
-                                                            <div id="collapse{{ forloop.counter }}"
-                                                                 class="accordion-collapse collapse"
-                                                                 aria-labelledby="heading{{ forloop.counter }}"
-                                                                 data-bs-parent="#paymentHistoryAccordion">
-                                                                <div class="accordion-body">
+                                                                <div id="collapse{{ forloop.counter }}"
+                                                                     class="accordion-collapse collapse"
+                                                                     aria-labelledby="heading{{ forloop.counter }}"
+                                                                     data-bs-parent="#paymentHistoryAccordion">
+                                                                    <div class="accordion-body">
 
-                                                                    <h6 class="mb-2">📅 Payment
-                                                                        Transactions</h6>
-                                                                    <div class="table-responsive mb-4">
-                                                                        <table class="table table-sm table-bordered mb-0">
-                                                                            <thead class="table-light">
-                                                                            <tr>
-                                                                                <th>Date</th>
-                                                                                <th>Amount Paid</th>
-                                                                                <th>Method</th>
-                                                                                <th>Txnid</th>
-                                                                                <th>Service Balance</th>
-                                                                            </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                            {% for pb in payment.payment_breakdown %}
+                                                                        <h6 class="mb-2">📅 Payment
+                                                                            Transactions</h6>
+                                                                        <div class="table-responsive mb-4">
+                                                                            <table class="table table-sm table-bordered mb-0">
+                                                                                <thead class="table-light">
                                                                                 <tr>
-                                                                                    <td>{{ pb.date }}</td>
-                                                                                    <td>
-                                                                                        KES {{ pb.amount|floatformat:2 }}</td>
-                                                                                    <td>{{ pb.method }}</td>
-                                                                                    <td>{{ pb.reference }}</td>
-                                                                                    <td>
-                                                                                        KES {{ pb.remaining_balance|floatformat:2 }}</td>
+                                                                                    <th>Date</th>
+                                                                                    <th>Amount Paid</th>
+                                                                                    <th>Method</th>
+                                                                                    <th>Txnid</th>
+                                                                                    <th>Service Balance</th>
                                                                                 </tr>
-                                                                            {% endfor %}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for pb in payment.payment_breakdown %}
+                                                                                    <tr>
+                                                                                        <td>{{ pb.date }}</td>
+                                                                                        <td>
+                                                                                            KES {{ pb.amount|floatformat:2 }}</td>
+                                                                                        <td>{{ pb.method }}</td>
+                                                                                        <td>{{ pb.reference }}</td>
+                                                                                        <td>
+                                                                                            KES {{ pb.remaining_balance|floatformat:2 }}</td>
+                                                                                    </tr>
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
 
-                                                                    <h6 class="mb-2">⚙️ Allocation
-                                                                        Details</h6>
-                                                                    <div class="table-responsive">
-                                                                        <table class="table table-sm table-bordered mb-0">
-                                                                            <thead class="table-light">
-                                                                            <tr>
-                                                                                <th>Process / Sub-Service
-                                                                                </th>
-                                                                                <th>Amount</th>
-                                                                                <th>Service Balance</th>
-                                                                                <th>Status</th>
-                                                                            </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                            {% for alloc in payment.allocations %}
+                                                                        <h6 class="mb-2">⚙️ Allocation
+                                                                            Details</h6>
+                                                                        <div class="table-responsive">
+                                                                            <table class="table table-sm table-bordered mb-0">
+                                                                                <thead class="table-light">
                                                                                 <tr>
-                                                                                    <td>{{ alloc.name }}</td>
-                                                                                    <td>
-                                                                                        KES {{ alloc.amount|floatformat:2 }}</td>
-                                                                                    <td>
-                                                                                        KES {{ alloc.remaining_balance|floatformat:2 }}</td>
-                                                                                    <td>
-                                                                                        {% if alloc.status %}
-                                                                                            <span class="badge
+                                                                                    <th>Process / Sub-Service
+                                                                                    </th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Service Balance</th>
+                                                                                    <th>Status</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for alloc in payment.allocations %}
+                                                                                    <tr>
+                                                                                        <td>{{ alloc.name }}</td>
+                                                                                        <td>
+                                                                                            KES {{ alloc.amount|floatformat:2 }}</td>
+                                                                                        <td>
+                                                                                            KES {{ alloc.remaining_balance|floatformat:2 }}</td>
+                                                                                        <td>
+                                                                                            {% if alloc.status %}
+                                                                                                <span class="badge
                                                 {% if alloc.status == 'Fully Paid' %}bg-success
                                                 {% else %}bg-warning text-dark{% endif %}">
                                                 {{ alloc.status }}
                                             </span>
-                                                                                        {% endif %}
-                                                                                    </td>
-                                                                                </tr>
-                                                                            {% endfor %}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
 
-                                                                    <!-- Receipt Button -->
-                                                                    <div class="d-flex justify-content-end mt-3">
-                                                                        <button class="btn btn-outline-secondary btn-receipt">
-                                                                            <i class="fas fa-receipt"></i>
-                                                                            Receipt
-                                                                        </button>
-                                                                    </div>
+                                                                        <!-- Receipt Button -->
+                                                                        <div class="d-flex justify-content-end mt-3">
+                                                                            <button class="btn btn-outline-secondary btn-receipt">
+                                                                                <i class="fas fa-receipt"></i>
+                                                                                Receipt
+                                                                            </button>
+                                                                        </div>
 
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    {% empty %}
-                                                        <p class="text-center text-muted">No payment history
-                                                            available.</p>
-                                                    {% endfor %}
+                                                        {% empty %}
+                                                            <p class="text-center text-muted">No payment history
+                                                                available.</p>
+                                                        {% endfor %}
+                                                    </div>
+
                                                 </div>
 
-                                            </div>
 
-
-                                        </div>
-                                    </div>
-
-                                    <!-- Detail Panel -->
-                                    <!-- Detail Panel -->
-                                    <div class="col-lg-4">
-                                        <div class="card" id="serviceDetailCard">
-                                            <div class="card-header bg-primary text-white">
-                                                <h5 class="mb-0" id="detailServiceName">Select a
-                                                    service</h5>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="mb-3">
-                                                    <strong>Total Paid:</strong>
-                                                    <span class="float-end text-success fw-bold"
-                                                          id="detailTotalPaid">—</span>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <strong>Pending Balance:</strong>
-                                                    <span class="float-end text-danger fw-bold"
-                                                          id="detailBalance">—</span>
-                                                </div>
-                                                <hr>
-                                                <h6 class="fw-bold mb-2">Installments</h6>
-                                                <ul class="list-group list-group-flush"
-                                                    id="detailPaymentsList">
-                                                    <li class="list-group-item text-muted">Click “View
-                                                        Installments” or a specific payment.
-                                                    </li>
-                                                </ul>
                                             </div>
                                         </div>
-                                    </div>
 
+                                        <!-- Detail Panel -->
+                                        <!-- Detail Panel -->
+                                        <div class="col-lg-4">
+                                            <div class="card" id="serviceDetailCard">
+                                                <div class="card-header bg-primary text-white">
+                                                    <h5 class="mb-0" id="detailServiceName">Select a
+                                                        service</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="mb-3">
+                                                        <strong>Total Paid:</strong>
+                                                        <span class="float-end text-success fw-bold"
+                                                              id="detailTotalPaid">—</span>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <strong>Pending Balance:</strong>
+                                                        <span class="float-end text-danger fw-bold"
+                                                              id="detailBalance">—</span>
+                                                    </div>
+                                                    <hr>
+                                                    <h6 class="fw-bold mb-2">Installments</h6>
+                                                    <ul class="list-group list-group-flush"
+                                                        id="detailPaymentsList">
+                                                        <li class="list-group-item text-muted">Click “View
+                                                            Installments” or a specific payment.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
                                 </div>
-                            </div>
 
-                            {#                            <!-- Embed initial grouped_payments as JSON -->#}
-                            {#                            {{ grouped_payments|json_script:"gpData" }}#}
+                                {#                            <!-- Embed initial grouped_payments as JSON -->#}
+                                {#                            {{ grouped_payments|json_script:"gpData" }}#}
+
+
+                            </div>
 
 
                         </div>
-
-
-                    </div>
-{% endif %}
+                    {% endif %}
                     <!--messages-->
-                {% if perms.easydocs.view_messagelog %}
-                    <div class="tab-pane" id="profile-6" role="tabpanel"
-                         aria-labelledby="profile-tab-6">
-                        <div class="row">
+                    {% if perms.easydocs.view_messagelog %}
+                        <div class="tab-pane" id="profile-6" role="tabpanel"
+                             aria-labelledby="profile-tab-6">
+                            <div class="row">
 
-                            <div class="col-md-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>SMS LOGS</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form method="post">
-                                            {% csrf_token %}
-                                            {{ client_sms_form.as_p }}
-                                            <button type="submit" name="send_sms" class="btn btn-primary">Send
-                                                SMS
-                                            </button>
-                                        </form>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>SMS LOGS</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <form method="post"
+                                                  action="{% url 'send_client_sms' client_id=client.id %}">
+                                                {% csrf_token %}
+                                                {{ client_sms_form.as_p }}
+                                                <button type="submit" name="send_sms" class="btn btn-primary">Send
+                                                    SMS
+                                                </button>
+                                            </form>
 
+
+                                        </div>
 
                                     </div>
 
                                 </div>
-
-                            </div>
-                            <div class="col-md-8">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>SMS LOGS</h5>
-                                    </div>
-                                    <div class="card-body">
+                                <div class="col-md-8">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>SMS LOGS</h5>
+                                        </div>
+                                        <div class="card-body">
 
 
-                                        {% if message_logs %}
-                                            <div class="table-responsive mt-3">
-                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                    <thead class="table-success">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Phone</th>
-                                                        <th>Message</th>
-                                                        <th>Send Status</th>
-                                                        <th>Delivery Status</th>
-                                                        <th>Error</th>
-                                                    </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                    {% for log in message_logs %}
+                                            {% if message_logs %}
+                                                <div class="table-responsive mt-3">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                        <thead class="table-success">
                                                         <tr>
-                                                            <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
-                                                            <td>{{ log.phone }}</td>
-                                                            <td>{{ log.message|truncatechars:60 }}</td>
-                                                            <td>
+                                                            <th>Date</th>
+                                                            <th>Phone</th>
+                                                            <th>Message</th>
+                                                            <th>Send Status</th>
+                                                            <th>Delivery Status</th>
+                                                            <th>Error</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        {% for log in message_logs %}
+                                                            <tr>
+                                                                <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
+                                                                <td>{{ log.phone }}</td>
+                                                                <td>{{ log.message|truncatechars:60 }}</td>
+                                                                <td>
                         <span class="badge bg-{{ log.send_status|yesno:'success,danger' }}">
                             {{ log.send_status|title }}
                         </span>
-                                                            </td>
-                                                            <td>
-                                                                {% if log.delivery_status %}
-                                                                    <span class="badge bg-secondary">{{ log.delivery_status|title }}</span>
-                                                                {% else %}
-                                                                    <span class="text-muted">N/A</span>
-                                                                {% endif %}
-                                                            </td>
-                                                            <td>
-                                                                {% if log.error_details %}
-                                                                    <span class="text-danger">{{ log.error_details }}</span>
-                                                                {% else %}
-                                                                    <span class="text-muted">None</span>
-                                                                {% endif %}
-                                                            </td>
-                                                        </tr>
-                                                    {% endfor %}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        {% else %}
-                                            <div class="alert alert-info mt-3">
-                                                No SMS logs found for this client.
-                                            </div>
-                                        {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if log.delivery_status %}
+                                                                        <span class="badge bg-secondary">{{ log.delivery_status|title }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">N/A</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if log.error_details %}
+                                                                        <span class="text-danger">{{ log.error_details }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">None</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            {% else %}
+                                                <div class="alert alert-info mt-3">
+                                                    No SMS logs found for this client.
+                                                </div>
+                                            {% endif %}
 
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
+                            </div>
                         </div>
-                    </div>
-                {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
