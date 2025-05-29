@@ -11,570 +11,576 @@
 
     <!-- [ Main Content ] start -->
     <div class="pc-container">
-        <div class="pc-content">
-            <!-- [ breadcrumb ] start -->
-            <div class="page-header">
-                <div class="page-block">
-                    <div class="row align-items-center">
-                        <div class="col-md-12">
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-                                <li class="breadcrumb-item"><a href="javascript: void(0)">Employee</a></li>
-                                <li class="breadcrumb-item" aria-current="page">Management</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-12">
-                            <div class="page-header-title">
-                                <h2 class="mb-0">Employee</h2>
-                            </div>
-                        </div>
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Employee</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Management</li>
+                    </ul>
+                </div>
+                <div class="col-md-12">
+                    <div class="page-header-title">
+                        <h2 class="mb-0">Employee</h2>
                     </div>
                 </div>
             </div>
-            <div class="container-fluid col-lg-12">
-                {% if messages %}
-                    {% for message in messages %}
-                        {% if message.tags == 'error' %}
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'success' %}
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'warning' %}
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'info' %}
-                            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        {% else %}
-                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
-                        {% endif %}
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    {% endfor %}
-                {% endif %}
-                </div>
-            <!-- [ breadcrumb ] end -->
-            <!-- [ Main Content ] start -->
-            <div class="row">
-                <!-- [ sample-page ] start -->
-                <div class="col-sm-12">
-                    <div class="card">
-                        <div class="card-header pb-0">
-                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                                <li class="nav-item">
-                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-zoom-money me-2"></i>Employees
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-file-text me-2"></i>Payroll Management
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
-                                       role="tab"
-                                       aria-selected="true">
-                                        <i class="ti ti-cash-banknote me-2"></i>Payroll payments
-                                    </a>
-                                </li>
+        </div>
+    </div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+<!-- [ breadcrumb ] end -->
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-zoom-money me-2"></i>Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-file-text me-2"></i>Payroll Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-cash-banknote me-2"></i>Payroll payments
+                        </a>
+                    </li>
 
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div class="tab-content">
-                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
-                                     aria-labelledby="profile-tab-1">
-                                    <div class="row">
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                         aria-labelledby="profile-tab-1">
+                        <div class="row">
 
-                                        <div class="col-lg-12 col-xxl-12">
-                                            <div class="card">
-                                                <div class="card-header d-flex justify-content-between pb-0">
-                                                    <p>Employees</p>
-                                                    <button class="btn btn-primary mb-3" data-bs-toggle="modal"
-                                                            data-bs-target="#addEmployeeModal">Add Employee
-                                                    </button>
-                                                </div>
+                            <div class="col-lg-12 col-xxl-12">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between pb-0">
+                                        <p>Employees</p>
+                                        <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                                data-bs-target="#addEmployeeModal">Add Employee
+                                        </button>
+                                    </div>
 
-                                                <div class="card-body p-0">
-                                                    <div class="tab-content" id="serviceTabsContent">
-
-
-                                                        <div class="table-responsive mt-3">
-                                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
-                                                                <thead class="bg-green-300 ">
-                                                                <tr>
-                                                                    <th>First Name</th>
-                                                                    <th>Last Name</th>
-                                                                    <th>Email</th>
-                                                                    <th>Department</th>
-                                                                    <th>Role</th>
-                                                                    <th>Phone</th>
-                                                                    <th>Action</th>
-
-                                                                </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                {% for employee in employees %}
-                                                                    <tr>
-                                                                        <td>{{ employee.user.first_name }} </td>
-                                                                        <td>{{ employee.user.last_name }} </td>
-                                                                        <td>{{ employee.user.email }} </td>
-                                                                        <td>{{ employee.department }}</td>
-                                                                        <td>{{ employee.get_role_display }}</td>
-                                                                        <td>{{ employee.phone_number }}</td>
-                                                                        <td>
-                                                                            <a href="{% url 'employee_list' %}?edit={{ employee.id }}"
-                                                                               class="btn btn-warning">
-                                                                                Edit
-                                                                            </a>
-                                                                        </td>
-
-                                                                    </tr>
-
-                                                                {% endfor %}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
+                                    <div class="card-body p-0">
+                                        <div class="tab-content" id="serviceTabsContent">
 
 
-                                                    </div>
-                                                </div>
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <thead class="bg-green-300 ">
+                                                    <tr>
+                                                        <th>First Name</th>
+                                                        <th>Last Name</th>
+                                                        <th>Email</th>
+                                                        <th>Department</th>
+                                                        <th>Role</th>
+                                                        <th>Phone</th>
+                                                        <th>Action</th>
+
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for employee in employees %}
+                                                        <tr>
+                                                            <td>{{ employee.user.first_name }} </td>
+                                                            <td>{{ employee.user.last_name }} </td>
+                                                            <td>{{ employee.user.email }} </td>
+                                                            <td>{{ employee.department }}</td>
+                                                            <td>{{ employee.get_role_display }}</td>
+                                                            <td>{{ employee.phone_number }}</td>
+                                                            <td>
+                                                                <a href="{% url 'employee_list' %}?edit={{ employee.id }}"
+                                                                   class="btn btn-warning">
+                                                                    Edit
+                                                                </a>
+                                                            </td>
+
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
                                             </div>
+
+
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                    <!-- Payroll Tab -->
+                    <!-- Payroll Tab -->
+                    <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mt-4">
+                                    <div class="card-header d-flex justify-content-between">
+
+                                        {% if all_last_payrolls_paid %}
+                                            <form method="post" action="{% url 'payroll_generate_all' %}"
+                                                  class="mb-3">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-primary">
+                                                    Generate All Payrolls
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <div class="alert alert-warning">All payrolls must be paid to
+                                                generate next month's payroll.
+                                            </div>
+                                        {% endif %}
+                                        <!-- Trigger button -->
+                                        <button class="btn btn-outline-success" data-bs-toggle="modal"
+                                                data-bs-target="#bulkMarkPaidModal">
+                                            Bulk pay
+                                        </button>
 
 
                                     </div>
-                                </div>
-                                <!-- Payroll Tab -->
-                                <!-- Payroll Tab -->
-                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <div class="card mt-4">
-                                                <div class="card-header d-flex justify-content-between">
 
-                                                    {% if all_last_payrolls_paid %}
-                                                        <form method="post" action="{% url 'payroll_generate_all' %}"
-                                                              class="mb-3">
-                                                            {% csrf_token %}
-                                                            <button type="submit" class="btn btn-primary">
-                                                                Generate All Payrolls
-                                                            </button>
-                                                        </form>
-                                                    {% else %}
-                                                        <div class="alert alert-warning">All payrolls must be paid to
-                                                            generate next month's payroll.
-                                                        </div>
-                                                    {% endif %}
-                                                    <!-- Trigger button -->
-                                                    <button class="btn btn-outline-success" data-bs-toggle="modal"
-                                                            data-bs-target="#bulkMarkPaidModal">
-                                                        Bulk pay
-                                                    </button>
+                                    <!-- Filter -->
 
 
+                                    <!-- Summary -->
+                                    <div class="row mb-4 px-3">
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-success">
+                                                    <strong>Total Net Payable:</strong>:<br>
+                                                    KES {{ total_payable|floatformat:2 }}
                                                 </div>
-
-                                                <!-- Filter -->
-
-
-                                                <!-- Summary -->
-                                                <div class="row mb-4 px-3">
-                                                    <div class="col-md-4">
-                                                        <div class="card shadow">
-                                                            <div class="card-body text-success">
-                                                                <strong>Total Net Payable:</strong>:<br>
-                                                                KES {{ total_payable|floatformat:2 }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <div class="card shadow">
-                                                            <div class="card-body text-primary">
-                                                                <strong>Total Allowances:</strong> :<br>
-                                                                KES {{ total_allowances|floatformat:2 }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <div class="card shadow">
-                                                            <div class="card-body text-danger">
-                                                                <strong>Total Deductions:</strong>:<br>
-                                                                KES {{ total_deductions|floatformat:2 }}
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-primary">
+                                                    <strong>Total Allowances:</strong> :<br>
+                                                    KES {{ total_allowances|floatformat:2 }}
                                                 </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-danger">
+                                                    <strong>Total Deductions:</strong>:<br>
+                                                    KES {{ total_deductions|floatformat:2 }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                                <div class="card" style="height: 600px; overflow-y: auto;">
-                                                    <div class="accordion" id="payrollAccordion">
-                                                        {% for employee in employees %}
-                                                            {% with payroll=employee.payrolls.first %}
-                                                                <div class="accordion-item">
-                                                                    <h2 class="accordion-header d-flex align-items-center justify-content-between px-3 py-2"
-                                                                        id="heading-{{ employee.id }}">
-                                                                        <button class="accordion-button collapsed flex-grow-1 text-start py-2"
-                                                                                type="button"
-                                                                                data-bs-toggle="collapse"
-                                                                                data-bs-target="#collapse-{{ employee.id }}"
-                                                                                aria-expanded="false"
-                                                                                aria-controls="collapse-{{ employee.id }}">
+                                    <div class="card" style="height: 600px; overflow-y: auto;">
+                                        <div class="accordion" id="payrollAccordion">
+                                            {% for employee in employees %}
+                                                {% with payroll=employee.payrolls.first %}
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header d-flex align-items-center justify-content-between px-3 py-2"
+                                                            id="heading-{{ employee.id }}">
+                                                            <button class="accordion-button collapsed flex-grow-1 text-start py-2"
+                                                                    type="button"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#collapse-{{ employee.id }}"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="collapse-{{ employee.id }}">
 
-                                                                            <div class="d-flex align-items-center flex-wrap gap-3">
-                                                                                <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name }}</span>
+                                                                <div class="d-flex align-items-center flex-wrap gap-3">
+                                                                    <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name }}</span>
 
-                                                                                <small class="text-muted mb-0">
-                                                                                    {{ employee.department }}
-                                                                                    — {{ employee.get_role_display }}
-                                                                                </small>
+                                                                    <small class="text-muted mb-0">
+                                                                        {{ employee.department }}
+                                                                        — {{ employee.get_role_display }}
+                                                                    </small>
 
-                                                                                {% with last_salary=employee.salaries.first %}
-                                                                                    {% if last_salary %}
-                                                                                        <small class="text-success mb-0 d-flex align-items-center">
-                                                                                            💰
-                                                                                            <span class="badge bg-light text-dark border ms-1">
+                                                                    {% with last_salary=employee.salaries.first %}
+                                                                        {% if last_salary %}
+                                                                            <small class="text-success mb-0 d-flex align-items-center">
+                                                                                💰
+                                                                                <span class="badge bg-light text-dark border ms-1">
                     {{ last_salary.amount }} KES
                 </span>
-                                                                                            <span class="text-muted ms-2">
+                                                                                <span class="text-muted ms-2">
                     (Effective {{ last_salary.effective_from }})
                 </span>
-                                                                                        </small>
-                                                                                    {% else %}
-                                                                                        <small class="text-danger mb-0">No
-                                                                                            salary set</small>
-                                                                                    {% endif %}
-                                                                                {% endwith %}
-                                                                            </div>
+                                                                            </small>
+                                                                        {% else %}
+                                                                            <small class="text-danger mb-0">No
+                                                                                salary set</small>
+                                                                        {% endif %}
+                                                                    {% endwith %}
+                                                                </div>
 
+                                                            </button>
+
+                                                            <div class="btn-group btn-group-sm ms-3">
+                                                                {% with last_salary=employee.salaries.first %}
+                                                                    {% if last_salary %}
+                                                                        <button class="btn btn-outline-secondary open-salary-modal"
+                                                                                data-url="{% url 'salary_update' last_salary.pk %}"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#salaryModal">
+                                                                            <i class="ti ti-edit-circle">Salary</i>
                                                                         </button>
+                                                                    {% else %}
+                                                                        <button class="btn btn-outline-success open-salary-modal"
+                                                                                data-url="{% url 'salary_create' employee.pk %}"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#salaryModal">
+                                                                            <i class="ti ti-circle-plus">Salary</i>
+                                                                        </button>
+                                                                    {% endif %}
+                                                                {% endwith %}
 
-                                                                        <div class="btn-group btn-group-sm ms-3">
-                                                                            {% with last_salary=employee.salaries.first %}
-                                                                                {% if last_salary %}
-                                                                                    <button class="btn btn-outline-secondary open-salary-modal"
-                                                                                            data-url="{% url 'salary_update' last_salary.pk %}"
-                                                                                            data-bs-toggle="modal"
-                                                                                            data-bs-target="#salaryModal">
-                                                                                        <i class="ti ti-edit-circle">Salary</i>
-                                                                                    </button>
+
+                                                            </div>
+                                                        </h2>
+
+                                                        <div id="collapse-{{ employee.id }}"
+                                                             class="accordion-collapse collapse"
+                                                             aria-labelledby="heading-{{ employee.id }}"
+                                                             data-bs-parent="#payrollAccordion">
+                                                            <div class="accordion-body">
+
+                                                                {% if payroll %}
+                                                                    <div class="d-flex justify-content-between mb-3">
+                                                                        <div>
+                                                                            <p><strong>Gross:</strong>
+                                                                                KES {{ payroll.gross_salary|floatformat:2 }}
+                                                                            </p>
+                                                                            <p><strong>Net:</strong>
+                                                                                KES {{ payroll.net_salary|floatformat:2 }}
+                                                                            </p>
+                                                                            <p>
+                                                                                <strong>Month:</strong> {{ payroll.month|date:"F Y" }}
+                                                                            </p>
+                                                                            <p>
+                                                                                <strong>Status:</strong>
+                                                                                {% if payroll.is_paid %}
+                                                                                    <span class="badge bg-success">Paid</span>
                                                                                 {% else %}
-                                                                                    <button class="btn btn-outline-success open-salary-modal"
-                                                                                            data-url="{% url 'salary_create' employee.pk %}"
-                                                                                            data-bs-toggle="modal"
-                                                                                            data-bs-target="#salaryModal">
-                                                                                        <i class="ti ti-circle-plus">Salary</i>
-                                                                                    </button>
+                                                                                    <span class="badge bg-warning text-dark">Pending</span>
                                                                                 {% endif %}
-                                                                            {% endwith %}
-
-
+                                                                            </p>
                                                                         </div>
-                                                                    </h2>
-
-                                                                    <div id="collapse-{{ employee.id }}"
-                                                                         class="accordion-collapse collapse"
-                                                                         aria-labelledby="heading-{{ employee.id }}"
-                                                                         data-bs-parent="#payrollAccordion">
-                                                                        <div class="accordion-body">
-
-                                                                            {% if payroll %}
-                                                                                <div class="d-flex justify-content-between mb-3">
-                                                                                    <div>
-                                                                                        <p><strong>Gross:</strong>
-                                                                                            KES {{ payroll.gross_salary|floatformat:2 }}
-                                                                                        </p>
-                                                                                        <p><strong>Net:</strong>
-                                                                                            KES {{ payroll.net_salary|floatformat:2 }}
-                                                                                        </p>
-                                                                                        <p>
-                                                                                            <strong>Month:</strong> {{ payroll.month|date:"F Y" }}
-                                                                                        </p>
-                                                                                        <p>
-                                                                                            <strong>Status:</strong>
-                                                                                            {% if payroll.is_paid %}
-                                                                                                <span class="badge bg-success">Paid</span>
-                                                                                            {% else %}
-                                                                                                <span class="badge bg-warning text-dark">Pending</span>
-                                                                                            {% endif %}
-                                                                                        </p>
-                                                                                    </div>
-                                                                                    <div class="text-end">
-                                                                                        {# {% if not payroll.is_paid %} #}
-                                                                                        <button class="btn btn-sm btn-success open-mark-paid-modal"
-                                                                                                data-url="{% url 'payroll_mark_paid' payroll.pk %}"
-                                                                                                data-bs-toggle="modal"
-                                                                                                data-bs-target="#markPaidModal">
-                                                                                            pay salary
-                                                                                        </button>
+                                                                        <div class="text-end">
+                                                                            {# {% if not payroll.is_paid %} #}
+                                                                            <button class="btn btn-sm btn-success open-mark-paid-modal"
+                                                                                    data-url="{% url 'payroll_mark_paid' payroll.pk %}"
+                                                                                    data-bs-toggle="modal"
+                                                                                    data-bs-target="#markPaidModal">
+                                                                                pay salary
+                                                                            </button>
 
 
-                                                                                        {# {% endif %} #}
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <div class="row">
-                                                                                    <div class="col-md-6">
-                                                                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                                                                            <h6>Allowances</h6>
-                                                                                            <button
-                                                                                                    class="btn btn-sm btn-outline-success open-allowance-modal"
-                                                                                                    data-url="{% url 'allowance_create' employee.id %}"
-                                                                                                    data-bs-toggle="modal"
-                                                                                                    data-bs-target="#allowanceModal">
-                                                                                                + Add
-                                                                                            </button>
-                                                                                        </div>
-                                                                                        <table class="table table-sm border-black">
-                                                                                            <thead>
-                                                                                            <tr>
-                                                                                                <th>Name</th>
-                                                                                                <th>Amount</th>
-                                                                                                <th>Recurring</th>
-                                                                                                <th>From</th>
-                                                                                                <th>To</th>
-                                                                                                <th>Action</th>
-                                                                                            </tr>
-                                                                                            </thead>
-                                                                                            <tbody>
-                                                                                            {% for snap in payroll.allowance_snapshots.all %}
-                                                                                                <tr>
-                                                                                                    <td>{{ snap.name }}</td>
-                                                                                                    <td>
-                                                                                                        KSH {{ snap.amount }}</td>
-                                                                                                    <td>{{ snap.recurring }}</td>
-                                                                                                    <td>{{ snap.template.start_date }}</td>
-                                                                                                    <td>{{ snap.template.end_date }}</td>
-                                                                                                    <td>
-                                                                                                        {% if snap.template %}
-                                                                                                            <button
-                                                                                                                    class="btn btn-sm btn-outline-primary open-allowance-modal"
-                                                                                                                    data-url="{% url 'allowance_edit' snap.template.pk %}"
-                                                                                                                    data-bs-toggle="modal"
-                                                                                                                    data-bs-target="#allowanceModal">
-                                                                                                                Edit
-                                                                                                            </button>
-
-                                                                                                            <button
-                                                                                                                    class="btn btn-sm btn-outline-danger open-allowance-delete-modal"
-                                                                                                                    data-url="{% url 'allowance_delete' snap.template.pk %}"
-                                                                                                                    data-bs-toggle="modal"
-                                                                                                                    data-bs-target="#allowanceDeleteModal">
-                                                                                                                Delete
-                                                                                                            </button>
-                                                                                                        {% else %}
-                                                                                                            <span class="text-muted"><em>(no template)</em></span>
-                                                                                                        {% endif %}
-                                                                                                    </td>
-                                                                                                </tr>
-
-                                                                                            {% endfor %}
-                                                                                            </tbody>
-                                                                                        </table>
-                                                                                    </div>
-
-                                                                                    <div class="col-md-6">
-                                                                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                                                                            <h6>Deductions</h6>
-                                                                                            <button
-                                                                                                    class="btn btn-sm btn-outline-success open-deduction-modal"
-                                                                                                    data-url="{% url 'deduction_create' employee.id %}"
-                                                                                                    data-bs-toggle="modal"
-                                                                                                    data-bs-target="#deductionModal">
-                                                                                                + Add
-                                                                                            </button>
-                                                                                        </div>
-                                                                                        <table class="table table-sm">
-                                                                                            <thead>
-                                                                                            <tr>
-                                                                                                <th>Name</th>
-                                                                                                <th>Amount</th>
-                                                                                                <th>Recurring</th>
-                                                                                                <th>From</th>
-                                                                                                <th>To</th>
-                                                                                                <th>Action</th>
-                                                                                            </tr>
-                                                                                            </thead>
-                                                                                            <tbody>
-                                                                                            {% for snap in payroll.deduction_snapshots.all %}
-                                                                                                <tr>
-                                                                                                    <td>{{ snap.name }}</td>
-                                                                                                    <td>
-                                                                                                        KES {{ snap.amount }}</td>
-                                                                                                    <td>{{ snap.recurring }}</td>
-                                                                                                    <td>{{ snap.template.start_date }}</td>
-                                                                                                    <td>{{ snap.template.end_date }}</td>
-                                                                                                    <td>
-                                                                                                        {% if snap.template %}
-                                                                                                            <button
-                                                                                                                    class="btn btn-sm btn-outline-primary open-deduction-modal"
-                                                                                                                    data-url="{% url 'deduction_edit' snap.template.pk %}"
-                                                                                                                    data-bs-toggle="modal"
-                                                                                                                    data-bs-target="#deductionModal">
-                                                                                                                Edit
-                                                                                                            </button>
-                                                                                                            <button
-                                                                                                                    class="btn btn-sm btn-outline-danger open-deduction-delete-modal"
-                                                                                                                    data-url="{% url 'deduction_delete' snap.template.pk %}"
-                                                                                                                    data-bs-toggle="modal"
-                                                                                                                    data-bs-target="#deductionDeleteModal">
-                                                                                                                Delete
-                                                                                                            </button>
-                                                                                                        {% else %}
-                                                                                                            <span class="text-muted"><em>(no template)</em></span>
-                                                                                                        {% endif %}
-                                                                                                    </td>
-                                                                                                </tr>
-
-                                                                                            {% endfor %}
-                                                                                            </tbody>
-                                                                                        </table>
-                                                                                    </div>
-                                                                                </div>
-                                                                            {% else %}
-                                                                                <p class="text-muted">No payroll
-                                                                                    generated
-                                                                                    yet.</p>
-                                                                            {% endif %}
+                                                                            {# {% endif %} #}
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                            {% endwith %}
-                                                        {% endfor %}
+
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                <h6>Allowances</h6>
+                                                                                <button
+                                                                                        class="btn btn-sm btn-outline-success open-allowance-modal"
+                                                                                        data-url="{% url 'allowance_create' employee.id %}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#allowanceModal">
+                                                                                    + Add
+                                                                                </button>
+                                                                            </div>
+                                                                            <table class="table table-sm border-black">
+                                                                                <thead>
+                                                                                <tr>
+                                                                                    <th>Name</th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Recurring</th>
+                                                                                    <th>From</th>
+                                                                                    <th>To</th>
+                                                                                    <th>Action</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for snap in payroll.allowance_snapshots.all %}
+                                                                                    <tr>
+                                                                                        <td>{{ snap.name }}</td>
+                                                                                        <td>
+                                                                                            KSH {{ snap.amount }}</td>
+                                                                                        <td>{{ snap.recurring }}</td>
+                                                                                        <td>{{ snap.template.start_date }}</td>
+                                                                                        <td>{{ snap.template.end_date }}</td>
+                                                                                        <td>
+                                                                                            {% if snap.template %}
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-primary open-allowance-modal"
+                                                                                                        data-url="{% url 'allowance_edit' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#allowanceModal">
+                                                                                                    Edit
+                                                                                                </button>
+
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-danger open-allowance-delete-modal"
+                                                                                                        data-url="{% url 'allowance_delete' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#allowanceDeleteModal">
+                                                                                                    Delete
+                                                                                                </button>
+                                                                                            {% else %}
+                                                                                                <span class="text-muted"><em>(no template)</em></span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <div class="col-md-6">
+                                                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                <h6>Deductions</h6>
+                                                                                <button
+                                                                                        class="btn btn-sm btn-outline-success open-deduction-modal"
+                                                                                        data-url="{% url 'deduction_create' employee.id %}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#deductionModal">
+                                                                                    + Add
+                                                                                </button>
+                                                                            </div>
+                                                                            <table class="table table-sm">
+                                                                                <thead>
+                                                                                <tr>
+                                                                                    <th>Name</th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Recurring</th>
+                                                                                    <th>From</th>
+                                                                                    <th>To</th>
+                                                                                    <th>Action</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for snap in payroll.deduction_snapshots.all %}
+                                                                                    <tr>
+                                                                                        <td>{{ snap.name }}</td>
+                                                                                        <td>
+                                                                                            KES {{ snap.amount }}</td>
+                                                                                        <td>{{ snap.recurring }}</td>
+                                                                                        <td>{{ snap.template.start_date }}</td>
+                                                                                        <td>{{ snap.template.end_date }}</td>
+                                                                                        <td>
+                                                                                            {% if snap.template %}
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-primary open-deduction-modal"
+                                                                                                        data-url="{% url 'deduction_edit' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#deductionModal">
+                                                                                                    Edit
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-danger open-deduction-delete-modal"
+                                                                                                        data-url="{% url 'deduction_delete' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#deductionDeleteModal">
+                                                                                                    Delete
+                                                                                                </button>
+                                                                                            {% else %}
+                                                                                                <span class="text-muted"><em>(no template)</em></span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                {% else %}
+                                                                    <p class="text-muted">No payroll
+                                                                        generated
+                                                                        yet.</p>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-
-
-                                            </div>
+                                                {% endwith %}
+                                            {% endfor %}
                                         </div>
                                     </div>
+
+
                                 </div>
+                            </div>
+                        </div>
+                    </div>
 
 
-                                <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
-                                    <div class="row">
+                    <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                        <div class="row">
 
-                                        <div class="col-lg-12">
-
-
-                                            <div class="card">
+                            <div class="col-lg-12">
 
 
-                                                <div class="card-header bg-green-100 p-3">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
-        <!-- Filter Button -->
-        <button id="toggleFilterBtn"
-                class="btn btn-sm btn-outline-success"
-                data-bs-toggle="collapse"
-                data-bs-target="#filterPanel"
-                aria-expanded="false" aria-controls="filterPanel">
-            <i class="fas fa-filter me-1"></i> Filter Dates
-        </button>
-
-        <!-- Filter Panel -->
-        <div id="filterPanel" class="collapse w-100 mt-2 mt-md-0">
-            <form id="filter-form" class="row gx-2 gy-2">
-                <div class="col-12 col-sm-6 col-md-auto">
-                    <label for="month" class="form-label mb-1">Month</label>
-                    <input type="month" id="month" name="month"
-                           class="form-control"
-                           hx-get="{% url 'filter_payrolls' %}"
-                           hx-include="#filter-form"
-                           hx-target="#payroll-table-body"
-                           hx-trigger="change delay:500ms">
-                </div>
-
-                <div class="col-12 col-sm-6 col-md-auto">
-                    <label for="is_paid" class="form-label mb-1">Status</label>
-                    <select id="is_paid" name="is_paid"
-                            class="form-select"
-                            hx-get="{% url 'filter_payrolls' %}"
-                            hx-include="#filter-form"
-                            hx-target="#payroll-table-body"
-                            hx-trigger="change">
-                        <option value="">All</option>
-                        <option value="true">Paid</option>
-                        <option value="false">Unpaid</option>
-                    </select>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-                                                <div class="card-body p-0">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
-                                                        <thead class="table-success">
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Dept</th>
-                                                            <th>Role</th>
-                                                            <th>Phone</th>
-                                                            <th class="text-end">Basic</th>
-                                                            <th class="text-end">Net</th>
-                                                            <th>Month</th>
-                                                            <th>Paid?</th>
-                                                            <th>Paid On</th>
-                                                            <th>Action</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody id="payroll-table-body">
-                                                        {% for employee in employees %}
-                                                            {% with payroll=employee.latest_payrolls|first %}
-                                                                <tr>
-                                                                    <td>{{ employee.user.get_full_name }}</td>
-                                                                    <td>{{ employee.department }}</td>
-                                                                    <td>{{ employee.get_role_display }}</td>
-                                                                    <td>{{ employee.phone_number }}</td>
-
-                                                                    {% if payroll %}
-                                                                        <td class="text-end">
-                                                                            KES {{ payroll.salary_snapshot.amount|floatformat:2 }}</td>
-                                                                        <td class="text-end">
-                                                                            KES {{ payroll.net_salary|floatformat:2 }}</td>
-                                                                        <td>{{ payroll.month|date:"F Y" }}</td>
-                                                                        <td>
-            <span class="badge {% if payroll.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
-              {{ payroll.is_paid|yesno:"Paid,Pending" }}
-            </span>
-                                                                        </td>
-                                                                        <td>{{ payroll.paid_on|default:"—" }}</td>
-                                                                        <td>{# your actions #}</td>
-                                                                    {% else %}
-                                                                        <td colspan="6"
-                                                                            class="text-center text-muted">No
-                                                                            payroll
-                                                                        </td>
-                                                                    {% endif %}
-                                                                </tr>
-                                                            {% endwith %}
-                                                        {% endfor %}
-                                                        </tbody>
+                                <div class="card">
 
 
-                                                    </table>
+                                    <div class="card-header bg-green-100 p-3">
+                                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                                            <!-- Filter Button -->
+                                            <button id="toggleFilterBtn"
+                                                    class="btn btn-sm btn-outline-success"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#filterPanel"
+                                                    aria-expanded="false" aria-controls="filterPanel">
+                                                <i class="fas fa-filter me-1"></i> Filter Dates
+                                            </button>
 
-                                                </div>
+                                            <!-- Filter Panel -->
+                                            <div id="filterPanel" class="collapse w-100 mt-2 mt-md-0">
+                                                <form id="filter-form" class="row gx-2 gy-2">
+                                                    <div class="col-12 col-sm-6 col-md-auto">
+                                                        <label for="month" class="form-label mb-1">Month</label>
+                                                        <input type="month" id="month" name="month"
+                                                               class="form-control"
+                                                               hx-get="{% url 'filter_payrolls' %}"
+                                                               hx-include="#filter-form"
+                                                               hx-target="#payroll-table-body"
+                                                               hx-trigger="change delay:500ms">
+                                                    </div>
 
+                                                    <div class="col-12 col-sm-6 col-md-auto">
+                                                        <label for="is_paid" class="form-label mb-1">Status</label>
+                                                        <select id="is_paid" name="is_paid"
+                                                                class="form-select"
+                                                                hx-get="{% url 'filter_payrolls' %}"
+                                                                hx-include="#filter-form"
+                                                                hx-target="#payroll-table-body"
+                                                                hx-trigger="change">
+                                                            <option value="">All</option>
+                                                            <option value="true">Paid</option>
+                                                            <option value="false">Unpaid</option>
+                                                        </select>
+                                                    </div>
+                                                </form>
                                             </div>
-
                                         </div>
-
-
                                     </div>
+
+                                    <div class="card-body p-0">
+                                        {% if employees_with_payroll %}
+                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                <thead class="table-success">
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Dept</th>
+                                                    <th>Role</th>
+                                                    <th>Phone</th>
+                                                    <th class="text-end">Basic</th>
+                                                    <th class="text-end">Net</th>
+                                                    <th>Month</th>
+                                                    <th>Paid?</th>
+                                                    <th>Paid On</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="payroll-table-body">
+                                                {% for employee in employees_with_payroll %}
+                                                    {% with payroll=employee.latest_payrolls.0 %}
+                                                        <tr>
+                                                            <td>{{ employee.user.get_full_name }}</td>
+                                                            <td>{{ employee.department }}</td>
+                                                            <td>{{ employee.get_role_display }}</td>
+                                                            <td>{{ employee.phone_number }}</td>
+
+                                                            {% if payroll %}
+                                                                <td class="text-end">
+                                                                    KES {{ payroll.salary_snapshot.amount|floatformat:2 }}</td>
+                                                                <td class="text-end">
+                                                                    KES {{ payroll.net_salary|floatformat:2 }}</td>
+                                                                <td>{{ payroll.month|date:"F Y" }}</td>
+                                                                <td>
+                                    <span class="badge {% if payroll.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                        {{ payroll.is_paid|yesno:"Paid,Pending" }}
+                                    </span>
+                                                                </td>
+                                                                <td>{{ payroll.paid_on|default:"—" }}</td>
+                                                                <td>
+                                                                    <button class="btn btn-sm btn-primary">Preview
+                                                                    </button>
+                                                                </td>
+                                                            {% else %}
+                                                                <td colspan="6" class="text-center text-muted">No
+                                                                    payroll record
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+                                                    {% endwith %}
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        {% else %}
+                                            <div class="p-4 text-center text-muted">
+                                                <h5>No payroll records found for any employee.</h5>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+
                                 </div>
 
                             </div>
+
+
                         </div>
-                        <!-- [ sample-page ] end -->
                     </div>
-                    <!-- [ Main Content ] end -->
+
                 </div>
             </div>
+            <!-- [ sample-page ] end -->
         </div>
+        <!-- [ Main Content ] end -->
     </div>
+</div>
+</div>
+</div>
     <!-- [ Main Content ] end -->
 
 

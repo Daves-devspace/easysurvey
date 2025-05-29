@@ -199,36 +199,38 @@
                                                     </div>
 
                                                 </div>
-                                                <div class="card-body p-0">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                        <thead class="table-success">
-                                                        <tr>
-                                                            <th><input type="checkbox" id="select-all"></th>
-                                                            <th>Client</th>
-                                                            <th>SubService</th>
-                                                            <th>Paid</th>
-                                                            <th>Price</th>
-                                                            <th>Date</th>
-                                                        </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                        {% for s in cleared_legal_subservices %}
+                                                <div class="card-body table-card">
+                                                    <div class="table-responsive mt-3">
+                                                        <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                            <thead class="table-success">
                                                             <tr>
-                                                                <td>
-                                                                    <input type="checkbox"
-                                                                           class="subservice-checkbox"
-                                                                           value="{{ s.id }}"
-                                                                           data-price="{{ s.annotated_price }}">
-                                                                </td>
-                                                                <td>{{ s.client_service.client }}</td>
-                                                                <td>{{ s.sub_service.name }}</td>
-                                                                <td>{{ s.paid_amount }}</td>
-                                                                <td>{{ s.annotated_price }}</td>
-                                                                <td>{{ s.added_on|date:"Y-m-d" }}</td>
+                                                                <th><input type="checkbox" id="select-all"></th>
+                                                                <th>Client</th>
+                                                                <th>SubService</th>
+                                                                <th>Paid</th>
+                                                                <th>Price</th>
+                                                                <th>Date</th>
                                                             </tr>
-                                                        {% endfor %}
-                                                        </tbody>
-                                                    </table>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for s in cleared_legal_subservices %}
+                                                                <tr>
+                                                                    <td>
+                                                                        <input type="checkbox"
+                                                                               class="subservice-checkbox"
+                                                                               value="{{ s.id }}"
+                                                                               data-price="{{ s.annotated_price }}">
+                                                                    </td>
+                                                                    <td>{{ s.client_service.client }}</td>
+                                                                    <td>{{ s.sub_service.name }}</td>
+                                                                    <td>{{ s.paid_amount }}</td>
+                                                                    <td>{{ s.annotated_price }}</td>
+                                                                    <td>{{ s.added_on|date:"Y-m-d" }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
                                                 </div>
 
                                                 <!-- trigger modal -->
@@ -334,73 +336,6 @@
                                                     </div>
                                                 </div>
 
-
-                                            </div>
-                                        </div>
-                                    {% endif %}
-                                    {% if request.user.is_superuser %}
-                                        <!--/analytics-->
-                                        <div class="tab-pane" id="profile-4" role="tabpanel"
-                                             aria-labelledby="profile-tab-4">
-                                            <div class="row">
-
-                                                <div class="col-lg-6">
-
-
-                                                    <div class="card">
-
-                                                        <div class="card-body">
-                                                            <div class="card-header bg-green-100">
-                                                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                                                    <h5 class="mb-0">Services Overview</h5>
-                                                                    <div class="d-flex gap-2">
-                                                                        <select id="service-year-selector"
-                                                                                class="form-select form-select-sm"
-                                                                                style="min-width: 120px;"></select>
-                                                                        <select id="service-selector"
-                                                                                class="form-select form-select-sm"
-                                                                                style="min-width: 150px;"></select>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="card-body shadow-lg">
-                                                                <div id="chart-summary" class="mb-3">
-                                                                    <h6 id="summary-year" class="fw-bold"></h6>
-                                                                    <p id="summary-services" class="mb-1"></p>
-                                                                    <p id="summary-revenue"></p>
-                                                                </div>
-                                                                <div id="chart" style="min-height: 300px;"></div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                </div>
-                                                <div class="col-lg-6">
-                                                    <div class="card">
-                                                        <div class="card-body">
-
-
-                                                            <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                                <h5 class="mb-0">Revenue Analytics</h5>
-                                                                <div class="d-flex gap-2">
-                                                                    <select id="year-selector"
-                                                                            class="form-select form-select-sm"
-                                                                            style="min-width: 120px;"></select>
-                                                                    <button id="export-csv-btn"
-                                                                            class="btn btn-outline-primary btn-sm"
-                                                                            style="min-width: 120px;">Export CSV
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                            <div class="card-body shadow-lg">
-                                                                <div id="survey-sales-report-chart"
-                                                                     style="min-height: 300px;"></div>
-                                                            </div>
-                                                        </div>
-
-
-                                                    </div>
-                                                </div>
 
                                             </div>
                                         </div>

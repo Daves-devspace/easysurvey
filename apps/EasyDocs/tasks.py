@@ -205,7 +205,6 @@ def send_single_sms(self, client_id, text):
         raise self.retry(exc=exc)
 
 
-
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_today_ground_reminders(self):
     from .utils import send_single_sms as _send_single
@@ -214,56 +213,71 @@ def send_today_ground_reminders(self):
 
     today = timezone.localdate()
     bookings = Booking.objects.filter(scheduled_date__date=today)
-    booking_ids = list(bookings.values_list("id", flat=True))
-    logger.info(f"📅 Found {len(booking_ids)} bookings for today: {booking_ids}")
 
-    if not bookings:
+    if not bookings.exists():
+        logger.info("📭 No bookings scheduled for today.")
         return
 
-    for booking in bookings:
-        client = booking.client_service.client
-        service = booking.client_service.service
+    logger.info(f"📅 Found {bookings.count()} bookings for today: {list(bookings.values_list('id', flat=True))}")
 
-        # derive time string from scheduled_date
+    for booking in bookings:
+        client_service = booking.client_service
+        client = client_service.client
+        service = client_service.service
+
+        # Skip if reminder already sent today
+        if MessageLog.objects.filter(
+                client=client,
+                client_service=client_service,
+                reason="Ground Service Reminder",
+                timestamp__date=today
+        ).exists():
+            logger.info(f"⏩ Skipping client {client.id}, reminder already sent.")
+            continue
+
+        # Format time string from scheduled_date
         dt = booking.scheduled_date
-        if timezone.is_naive(dt):
-            dt = timezone.make_aware(dt)
+        dt = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
         local_dt = timezone.localtime(dt)
         time_str = local_dt.strftime("%I:%M %p")
 
-        text = (
+        # Compose reminder message
+        message_text = (
             f"Reminder: Our surveyor will visit you today at {time_str} "
             f"for your '{service.name}' service."
         )
 
-        with transaction.atomic():
-            try:
-                status, raw = _send_single(client, text,
-                                           reason="Ground Service Reminder")
-                log = MessageLog.objects.create(
-                    client=client,
-                    phone=client.phone,
-                    message=text,
-                    reason="Ground Service Reminder",
-                    message_id=(raw or {}).get("message_id"),
-                    send_status="sent" if status else "failed",
-                    delivery_status="pending",
-                    error_details=None if status else "Unknown sending failure"
-                )
-                logger.info(f"✅ Reminder sent and log id={log.id} for client {client.id}")
+        try:
+            with transaction.atomic():
+                status, response = _send_single(client, message_text, reason="Ground Service Reminder")
 
-            except Exception as exc:
-                logger.exception(f"❌ Failed reminder for client {client.id}")
                 MessageLog.objects.create(
                     client=client,
+                    client_service=client_service,
                     phone=client.phone,
-                    message=text,
+                    message=message_text,
                     reason="Ground Service Reminder",
-                    send_status="failed",
-                    delivery_status="failed",
-                    error_details=str(exc)
+                    message_id=(response or {}).get("message_id"),
+                    send_status="sent" if status else "failed",
+                    delivery_status="pending" if status else "failed",
+                    error_details=None if status else "Unknown failure"
                 )
-                raise self.retry(exc=exc)
+
+                logger.info(f"✅ Reminder {'sent' if status else 'failed'} for client {client.id}")
+
+        except Exception as exc:
+            logger.exception(f"❌ Error sending reminder to client {client.id}")
+            MessageLog.objects.create(
+                client=client,
+                client_service=client_service,
+                phone=client.phone,
+                message=message_text,
+                reason="Ground Service Reminder",
+                send_status="failed",
+                delivery_status="failed",
+                error_details=str(exc)
+            )
+            raise self.retry(exc=exc)
 
 
 

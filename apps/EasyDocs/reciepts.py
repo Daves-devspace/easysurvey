@@ -43,7 +43,7 @@ def generate_service_receipt(client_service, printed_by_user):
 
     # ─── Header ────────────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 12)
-    c.drawCentredString(width/2, y, "GREAT GUARDIAN INVESTMENT LTD")
+    c.drawCentredString(width/2, y, "GREAT GUARDIAN INVESTMENT")
     y -= 6 * mm
     c.setFont("Helvetica", 10)
     c.drawCentredString(width/2, y, "SERVICE RECEIPT")
@@ -142,8 +142,8 @@ def generate_service_receipt(client_service, printed_by_user):
 
     # ─── Footer ────────────────────────────────────────────────────────────────
     c.setFont("Helvetica", 6)
-    ts = timezone.now().strftime("%Y-%m-%d %H:%M")
-    c.drawString(5 * mm, y, f"Printed by: {printed_by_user.get_full_name()}")
+    ts = timezone.localtime().strftime("%Y-%m-%d %H:%M")
+    c.drawString(5 * mm, y, f"Printed by: {printed_by_user.user.first_name}")
     y -= 4 * mm
     c.drawString(5 * mm, y, f"At: {ts}")
     y -= 6 * mm
@@ -156,6 +156,7 @@ def generate_service_receipt(client_service, printed_by_user):
     c.save()
     buffer.seek(0)
     return buffer
+
 
 
 

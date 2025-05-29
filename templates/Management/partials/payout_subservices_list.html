@@ -4,29 +4,30 @@
 </div>
 
 {# TABLE OF INDIVIDUAL SUBSERVICES #}
-<div class="card-body p-0">
-    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-
-        <thead class="table-success">
-        <tr>
-        <th>Client</th>
-        <th>Service</th>
-        <th>Paid Amount</th>
-        <th>Month</th>
-        <th>Date Paid</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for ss in payout_subservices %}
+<div class="card-body table-card">
+    <div class="table-responsive mt-3">
+        <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+            <thead class="table-success">
             <tr>
-                <td>{{ ss.client_service.client }}</td>
-                <td>{{ ss.sub_service }}</td>
-                <td>KES {{ ss.paid_amount|floatformat:2 }}</td>
-
-                <td>{{ ss.month|date:"F Y" }}</td>
-                <td>{{ ss.paid_at|date:"Y-m-d" }}</td>
+                <th>Client</th>
+                <th>Service</th>
+                <th>Paid Amount</th>
+                <th>Month</th>
+                <th>Date Paid</th>
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for ss in payout_subservices %}
+                <tr>
+                    <td>{{ ss.client_service.client }}</td>
+                    <td>{{ ss.sub_service }}</td>
+                    <td>KES {{ ss.paid_amount|floatformat:2 }}</td>
+
+                    <td>{{ ss.month|date:"F Y" }}</td>
+                    <td>{{ ss.paid_at|date:"Y-m-d" }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>

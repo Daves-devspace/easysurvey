@@ -50,9 +50,6 @@ urlpatterns = [
     path('clients/search/', views.search_clients, name='search_clients'),
     path('clients/details/<int:client_id>/', ClientDetailView.as_view(), name='client_details'),
 
-    # path('services/', services.service_list, name='service_list'),
-    # path('services/add/', services.add_service, name='add_service'),
-    # path('services/update/<int:pk>/', services.update_service, name='update_service'),
 
     path('management/', ManagementView.as_view(), name='management'),
 

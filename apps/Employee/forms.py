@@ -260,11 +260,13 @@ class EmployeeProfileForm(forms.ModelForm):
             subject = "Your Account Credentials"
             message = (
                 f"Hello {first_name},\n\n"
-                f"Your account has been created.\n"
-                f"Username: {email}\n"
-                f"Temporary Password: {password}\n\n"
-                f"Please reset your password: {full_reset}\n\n"
-                f"Regards,\n{site.company_name if site else 'Company'}"
+                f"Welcome to {site.company_name if site else 'our platform'}!\n\n"
+                f"To get started, please set your password by clicking the link below:\n"
+                f"{full_reset}\n\n"
+                f"If you did not expect this, please ignore this email.\n\n"
+                f"Best regards,\n"
+                f"{site.company_name if site else 'GGI'}\n"
+                f"https://greatguardianinvestment.co.ke"
             )
 
             try:
