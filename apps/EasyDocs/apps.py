@@ -13,19 +13,20 @@ class EasyDocsConfig(AppConfig):
         from django_celery_beat.models import PeriodicTask, CrontabSchedule
 
         def create_periodic_task(sender, **kwargs):
-            schedule, _ = CrontabSchedule.objects.get_or_create(
-                minute='0',
-                hour='7',
-                day_of_week='*',
-                day_of_month='*',
-                month_of_year='*',
-                timezone='Africa/Nairobi'
-            )
-            PeriodicTask.objects.get_or_create(
-                crontab=schedule,
-                name='Send Ground Reminders',
-                task='apps.EasyDocs.tasks.send_today_ground_reminders',
-            )
+            if not PeriodicTask.objects.filter(name='Send Ground Reminders').exists():
+                schedule, _ = CrontabSchedule.objects.get_or_create(
+                    minute='0',
+                    hour='7',
+                    day_of_week='*',
+                    day_of_month='*',
+                    month_of_year='*',
+                    timezone='Africa/Nairobi'
+                )
+                PeriodicTask.objects.create(
+                    name='Send Ground Reminders',
+                    crontab=schedule,
+                    task='apps.EasyDocs.tasks.send_today_ground_reminders',
+                )
 
         # Connect to post_migrate to run this after migrations have run
         post_migrate.connect(create_periodic_task, sender=self)

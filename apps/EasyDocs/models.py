@@ -89,14 +89,15 @@ class Document(models.Model):
 
 # Client Model
 class Client(models.Model):
-    first_name = models.CharField(max_length=100,db_index=True)
-    last_name = models.CharField(max_length=100,db_index=True)
-    email = models.EmailField(unique=True, blank=True, null=True,db_index=True)
-    phone = models.CharField(max_length=15,db_index=True)
+    first_name = models.CharField(max_length=100, db_index=True)
+    last_name = models.CharField(max_length=100, db_index=True)
+    email = models.EmailField(unique=True, blank=True, null=True, db_index=True)
+    phone = models.CharField(max_length=15, unique=True, db_index=True)  # <-- Add unique=True
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.first_name
+
 
 # Service Model
 class Service(models.Model):
@@ -338,10 +339,11 @@ class Booking(models.Model):
 
 
     def generate_default_message(self):
+        scheduled_local = timezone.localtime(self.scheduled_date)  # 👈 Use localtime here
         return (
             f"Hi {self.client_service.client.first_name}, surveyors for "
             f"{self.client_service.service.name} have been scheduled for "
-            f"{self.scheduled_date.strftime('%A, %d %B %Y at %I:%M %p')}."
+            f"{scheduled_local.strftime('%A, %d %B %Y at %I:%M %p')}."
         )
 
     def save(self, *args, **kwargs):
@@ -350,7 +352,7 @@ class Booking(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.client_service} - Scheduled: {self.scheduled_date.strftime('%Y-%m-%d %H:%M')}"
+        return f"{self.client_service} - Scheduled: {timezone.localtime(self.scheduled_date).strftime('%Y-%m-%d %H:%M')}"
 
 
 

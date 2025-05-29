@@ -167,9 +167,10 @@ class DocumentForm(forms.ModelForm):
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
-        fields = ['first_name','last_name', 'email', 'phone']
+        fields = ['first_name', 'last_name', 'email', 'phone']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter your name'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter first name'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter last name'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter your email'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter your phone'}),
         }
@@ -179,7 +180,14 @@ class ClientForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.update({'class': 'form-control'})
 
-
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        qs = Client.objects.filter(phone=phone)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A client with this phone number already exists.")
+        return phone
 
 
 # forms.py
@@ -692,16 +700,22 @@ class SiteSettingsForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['description','amount','payment_mode','handled_by','approved_by','receipt_no']
+        fields = ['description', 'amount', 'payment_mode', 'handled_by', 'approved_by', 'receipt_no']
         widgets = {
-            'description': forms.TextInput(attrs={'class':'form-control'}),
-            'amount': forms.NumberInput(attrs={'class':'form-control', 'step':'0.01'}),
-            'payment_mode': forms.Select(attrs={'class':'form-control'}),
-            'handled_by': forms.Select(attrs={'class':'form-control'}),
-            'approved_by': forms.Select(attrs={'class':'form-control'}),
-            'receipt_no': forms.TextInput(attrs={'class':'form-control'}),
+            'description': forms.TextInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'payment_mode': forms.Select(attrs={'class': 'form-control'}),
+            'handled_by': forms.Select(attrs={'class': 'form-control'}),
+            'approved_by': forms.Select(attrs={'class': 'form-control'}),
+            'receipt_no': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Restrict approved_by to users who are Admins
+        self.fields['approved_by'].queryset = User.objects.filter(
+            employeeprofile__role=EmployeeProfile.RoleChoices.ADMIN
+        )
 
 
 class SmsProviderTokenForm(forms.ModelForm):

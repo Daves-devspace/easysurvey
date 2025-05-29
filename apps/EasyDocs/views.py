@@ -586,8 +586,12 @@ def add_client(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Client added successfully.')
+            return redirect('clients')
         else:
             messages.error(request, 'Failed to add client. Please check the form.')
+    else:
+        form = ClientForm()
+
     return redirect('clients')
 
 

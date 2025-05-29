@@ -31,8 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
-#
-ALLOWED_HOSTS = ['https://management.greatguardianinvestment.co.ke',"https://www.management.greatguardianinvestment.co.ke","168.231.113.252"]
+
 SITE_DOMAIN = "https://management.greatguardianinvestment.co.ke"  # or your production domain
 
 # Application definition
@@ -103,7 +102,7 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 # Redis as broker
 # settings.py
 
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
 
 # Optional: store results in Redis
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
@@ -149,7 +148,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://management.greatguardianinvestment.co.ke",
     "https://www.management.greatguardianinvestment.co.ke",
 
-    "http://localhost:8080",
 ]
 
 

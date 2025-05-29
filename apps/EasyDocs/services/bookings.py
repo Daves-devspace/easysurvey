@@ -65,7 +65,7 @@ class BookingCalendarJSON(View):
       - summary  : '1' (default) for aggregates, '0' for detail
       - start,end: ISO datetimes for calendar range (optional in detail mode)
     """
-    from django.utils.timezone import localtime
+
     def get(self, request):
         include_handled = request.GET.get('handled', '1') == '1'
         summary = request.GET.get('summary', '1') == '1'
@@ -138,7 +138,7 @@ class BookingCalendarJSON(View):
                 events.append({
                     'id': b.id,
                     'title': f"{b.client_service.client.first_name} – {b.client_service.service.name}",
-                    'start': b.scheduled_date.isoformat(),
+                    'start': timezone.localtime(b.scheduled_date).isoformat(),
                     'color': '#28a745' if b.handled else '#dc3545',
                     'extendedProps': {
                         'dispatchMessage': b.dispatch_message or '',
@@ -146,7 +146,7 @@ class BookingCalendarJSON(View):
                         'client': b.client_service.client.first_name,
                         'service': b.client_service.service.name,
                         'handled': b.handled,
-                        'time': b.scheduled_date.time().strftime('%H:%M')
+                        'time': timezone.localtime(b.scheduled_date).strftime('%I:%M %p'),
                     }
                 })
             return JsonResponse(events, safe=False)
@@ -252,5 +252,10 @@ class MarkBookingHandledView(View):
         booking.handled_by  = request.user
         booking.save(update_fields=['handled','handled_at','handled_by'])
 
-        messages.success(request, "✅ Booking marked as handled.")
+        # ✅ Also mark the associated ClientService as completed
+        client_service = booking.client_service
+        client_service.status = 'completed'
+        client_service.save(update_fields=['status'])
+
+        messages.success(request, "✅ Booking marked as handled and service marked as completed.")
         return redirect('booking-management')

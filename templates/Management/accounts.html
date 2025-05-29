@@ -240,135 +240,76 @@
                                         </div>
 
 
-                                        <div class="card-body p-0">
-                                            <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                <thead class="table-success">
-                                                <tr>
-                                                    <th>Date</th>
-
-                                                    <th>Amount</th>
-                                                    <th>Mode</th>
-                                                    <th>Handled By</th>
-                                                    <th>Approved By</th>
-                                                    {% if perms.easydocs.change_expense %}
-                                                        <th>Edit</th>
-                                                    {% endif %}
-                                                    {% if perms.easydocs.delete_expense %}
-                                                        <th>Delete</th>
-                                                    {% endif %}
-                                                </tr>
-                                                </thead>
-                                                <tbody>
-                                                {% for exp in expenses %}
+                                        <div class="card-body table-card">
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <thead class="table-success">
                                                     <tr>
-                                                        <td>{{ exp.date }}</td>
-                                                        <td>{{ exp.amount }}</td>
-                                                        <td>{{ exp.get_payment_mode_display }}</td>
-                                                        <td>{{ exp.handled_by }}</td>
-                                                        <td>{{ exp.approved_by }}</td>
+                                                        <th>Date</th>
+
+                                                        <th>Amount</th>
+                                                        <th>Mode</th>
+                                                        <th>Handled By</th>
+                                                        <th>Approved By</th>
                                                         {% if perms.easydocs.change_expense %}
-
-                                                            <td>
-                                                                <button type="button"
-                                                                        class="btn btn-sm btn-warning edit-expense-btn"
-                                                                        data-exp-id="{{ exp.id }}"
-                                                                        data-amount="{{ exp.amount }}"
-                                                                        data-payment_mode="{{ exp.payment_mode }}"
-                                                                        data-handled_by="{{ exp.handled_by.id }}"
-                                                                        data-approved_by="{{ exp.approved_by.id }}"
-                                                                        data-description="{{ exp.description }}"
-                                                                        data-receipt_no="{{ exp.receipt_no }}">
-                                                                    <i class="fas fa-edit"></i> Edit
-                                                                </button>
-
-
-                                                            </td>
+                                                            <th>Edit</th>
                                                         {% endif %}
                                                         {% if perms.easydocs.delete_expense %}
-                                                            <td>
-                                                                <button class=" btn bg-green-200"><i
-                                                                        class="ti ti-trash"></i>
-                                                                </button>
-                                                            </td>
+                                                            <th>Delete</th>
                                                         {% endif %}
                                                     </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for exp in expenses %}
+                                                        <tr>
+                                                            <td>{{ exp.date }}</td>
+                                                            <td>{{ exp.amount }}</td>
+                                                            <td>{{ exp.get_payment_mode_display }}</td>
+                                                            <td>{{ exp.handled_by|default:"-" }}</td>
+                                                            <td>{{ exp.approved_by|default:"-" }}</td>
 
-                                                {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                            {% if perms.easydocs.change_expense %}
 
+                                                                <td>
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-warning edit-expense-btn"
+                                                                            data-exp-id="{{ exp.id }}"
+                                                                            data-amount="{{ exp.amount }}"
+                                                                            data-payment_mode="{{ exp.payment_mode }}"
+                                                                            data-handled_by="
 
-                                    </div>
-                                </div>
+                                                                                    {% if exp.handled_by %}{{ exp.handled_by.id }}{% endif %}"
+                                                                            data-approved_by="
 
+                                                                                    {% if exp.approved_by %}{{ exp.approved_by.id }}{% endif %}"
 
-                            </div>
-                        </div>
-                    {% endif %}
-                    {% if request.user.is_superuser %}
-                        <!--/analytics-->
-                        <div class="tab-pane" id="profile-4" role="tabpanel"
-                             aria-labelledby="profile-tab-4">
-                            <div class="row">
-
-                                <div class="col-lg-6">
-
-
-                                    <div class="card">
-
-                                        <div class="card-body">
-                                            <div class="card-header bg-green-100">
-                                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                                                    <h5 class="mb-0">Services Overview</h5>
-                                                    <div class="d-flex gap-2">
-                                                        <select id="service-year-selector"
-                                                                class="form-select form-select-sm"
-                                                                style="min-width: 120px;"></select>
-                                                        <select id="service-selector"
-                                                                class="form-select form-select-sm"
-                                                                style="min-width: 150px;"></select>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="card-body shadow-lg">
-                                                <div id="chart-summary" class="mb-3">
-                                                    <h6 id="summary-year" class="fw-bold"></h6>
-                                                    <p id="summary-services" class="mb-1"></p>
-                                                    <p id="summary-revenue"></p>
-                                                </div>
-                                                <div id="chart" style="min-height: 300px;"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                                <div class="col-lg-6">
-                                    <div class="card">
-                                        <div class="card-body">
+                                                                            data-description="{{ exp.description }}"
+                                                                            data-receipt_no="{{ exp.receipt_no }}">
+                                                                        <i class="fas fa-edit"></i> Edit
+                                                                    </button>
 
 
-                                            <div class="card-header bg-green-100 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <h5 class="mb-0">Revenue Analytics</h5>
-                                                <div class="d-flex gap-2">
-                                                    <select id="year-selector"
-                                                            class="form-select form-select-sm"
-                                                            style="min-width: 120px;"></select>
-                                                    <button id="export-csv-btn"
-                                                            class="btn btn-outline-primary btn-sm"
-                                                            style="min-width: 120px;">Export CSV
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="card-body shadow-lg">
-                                                <div id="survey-sales-report-chart"
-                                                     style="min-height: 300px;"></div>
+                                                                </td>
+                                                            {% endif %}
+                                                            {% if perms.easydocs.delete_expense %}
+                                                                <td>
+                                                                    <button class=" btn bg-green-200"><i
+                                                                            class="ti ti-trash"></i>
+                                                                    </button>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
                                             </div>
                                         </div>
 
 
                                     </div>
                                 </div>
+
 
                             </div>
                         </div>

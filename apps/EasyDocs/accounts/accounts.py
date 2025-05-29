@@ -2,6 +2,7 @@
 from decimal import ROUND_HALF_UP, InvalidOperation, Decimal
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -150,7 +151,7 @@ def add_payment_to_client_service(
         'pending_balance': client_service.total_balance(),
     }
 
-
+@login_required
 def add_payment_view(request, client_id):
     if request.method == 'POST':
         client_service_id = request.POST.get('client_service_id')
@@ -312,7 +313,7 @@ def get_client_payment_history(client_id):
     return history
 
 
-class ExpenseView(View):
+class ExpenseView(LoginRequiredMixin,View):
     def post(self, request, *args, **kwargs):
         pk = request.POST.get("expense_id")
         instance = Expense.objects.filter(pk=pk).first() if pk else None

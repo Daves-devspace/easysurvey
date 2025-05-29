@@ -41,8 +41,9 @@ ROLE_PERMISSIONS = {
 
     EmployeeProfile.RoleChoices.SURVEYOR: {
         'permissions': {
-            ClientService: ['view'],  # can add/view only
+            ClientService: ['view','change','add'],  # can add/view only
             Client: ['view'],
+            Payment: ['add', 'view'],
             TitleDeedCollection: ['view'],  # no delete
             ClientDoc: ['add', 'change', 'view', 'delete'],  # no delete
             MessageLog: ['view'],
@@ -55,7 +56,7 @@ ROLE_PERMISSIONS = {
             Client: ['add', 'view', 'change'],
             ClientService: ['add', 'view', 'change'],
             ClientSubService: ['add', 'change', 'view'],
-Expense: ['add', 'change','view'],
+            Expense: ['add', 'change','view'],
             TitleDeedCollection: ['add', 'view'],
             MessageLog: ['add', 'change', 'view'],
             ClientDoc: ['add', 'view'],

@@ -54,87 +54,100 @@
                 <!-- [ sample-page ] start -->
                 <!-- Total Processed Title Deeds -->
                 <div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="dashboard-card">
-                <div class="card-content">
-                    <h2 class="dashboard-title">Dashboard Summary</h2>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="dashboard-card">
+                                <div class="card-content py-4 px-3">
 
-                    <div class="row g-4">
-                        <!-- Total Clients -->
-                        <div class="col-6 col-lg-3">
-                            <div class="stat-card bg-info-100 shadow-lg">
-                                <div class="stat-icon">
-                                    <i class="ti ti-users"></i>
-                                </div>
-                                <div class="stat-number">{{ total_clients }}</div>
-                                <p class="stat-label">Total Clients</p>
-                            </div>
-                        </div>
+                                    <!-- Statistics Row -->
+                                    <div class="row g-4 mb-4">
 
-                        <!-- Pending Services -->
-                        <div class="col-6 col-lg-3">
-                            <div class="stat-card bg-warning shadow-lg">
-                                <div class="stat-icon pulse-animation">
-                                    <i class="ti ti-clock"></i>
-                                </div>
-                                <div class="stat-number">{{ pending_services }}</div>
-                                <p class="stat-label">Pending Services</p>
-                            </div>
-                        </div>
+                                        <!-- Total Clients -->
+                                        <div class="col-6 col-lg-3">
+                                            <div class="card text-white bg-info h-100 shadow-sm rounded-4 border-0">
+                                                <div class="card-body d-flex flex-column justify-content-between text-center">
+                                                    <div class="mb-2">
+                                                        <i class="ti ti-users fs-1 mb-2"></i>
+                                                        <h5 class="card-title fw-bold mb-1">{{ total_clients }}</h5>
+                                                        <p class="card-text small">Total Clients</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        <!-- In Progress -->
-                        <div class="col-6 col-lg-3 ">
-                            <div class="stat-card bg-info-200">
-                                <div class="stat-icon">
-                                    <i class="ti ti-settings"></i>
-                                </div>
-                                <div class="stat-number">{{ in_progress }}</div>
-                                <p class="stat-label">In Progress</p>
-                            </div>
-                        </div>
+                                        <!-- Pending Services -->
+                                        <div class="col-6 col-lg-3">
+                                            <div class="card text-white bg-warning h-100 shadow-sm rounded-4 border-0">
+                                                <div class="card-body d-flex flex-column justify-content-between text-center">
+                                                    <div class="mb-2">
+                                                        <i class="ti ti-clock fs-1 mb-2 pulse-animation"></i>
+                                                        <h5 class="card-title fw-bold mb-1">{{ pending_services }}</h5>
+                                                        <p class="card-text small">Pending Services</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        <!-- Completed Today -->
-                        <div class="col-6 col-lg-3">
-                            <div class="stat-card bg-success-100 shadow-lg">
-                                <div class="stat-icon">
-                                    <i class="ti ti-check"></i>
-                                </div>
-                                <div class="stat-number">{{ completed_today }}</div>
-                                <p class="stat-label">Completed Today</p>
-                            </div>
-                        </div>
-                    </div>
+                                        <!-- In Progress -->
+                                        <div class="col-6 col-lg-3">
+                                            <div class="card text-white bg-primary h-100 shadow-sm rounded-4 border-0">
+                                                <div class="card-body d-flex flex-column justify-content-between text-center">
+                                                    <div class="mb-2">
+                                                        <i class="ti ti-settings fs-1 mb-2"></i>
+                                                        <h5 class="card-title fw-bold mb-1">{{ in_progress }}</h5>
+                                                        <p class="card-text small">In Progress</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                    <!-- User Info Section -->
-                    <div class="user-info">
-                        <div class="row align-items-center">
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center">
-                                    <div class="me-3">
-                                        <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem;">
-                                            {{ request.user.get_full_name|first }}{{ request.user.get_full_name|last }}
+                                        <!-- Completed Today -->
+                                        <div class="col-6 col-lg-3">
+                                            <div class="card text-white bg-success h-100 shadow-sm rounded-4 border-0">
+                                                <div class="card-body d-flex flex-column justify-content-between text-center">
+                                                    <div class="mb-2">
+                                                        <i class="ti ti-check fs-1 mb-2"></i>
+                                                        <h5 class="card-title fw-bold mb-1">{{ completed_today }}</h5>
+                                                        <p class="card-text small">Completed Today</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <!-- User Info Section -->
+                                    <div class="user-info">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-6">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="me-3">
+                                                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-5"
+                                                             style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea, #764ba2);">
+                                                            {{ request.user.get_full_name|first }}{{ request.user.get_full_name|last }}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0 fw-bold">{{ request.user.get_full_name }}</h6>
+                                                        <small class="text-muted">{{ request.user.employeeprofile.get_role_display }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                                                <small class="text-muted">
+                                                    <i class="ti ti-clock me-1"></i>
+                                                    Last updated: <span class="fw-medium">Just now</span>
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0 fw-bold">{{ request.user.get_full_name }}</h6>
-                                        <small class="text-muted">{{ request.user.employeeprofile.get_role_display }}</small>
-                                    </div>
+
                                 </div>
-                            </div>
-                            <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                                <small class="text-muted">
-                                    <i class="ti ti-clock me-1"></i>
-                                    Last updated: <span class="fw-medium">Just now</span>
-                                </small>
                             </div>
                         </div>
                     </div>
+
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 
                 <div class="row g-4">
@@ -316,8 +329,6 @@
                         </div>
                     </div>
                 </div>
-
-
 
 
                 <div class="row">
