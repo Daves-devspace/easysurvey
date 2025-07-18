@@ -129,4 +129,7 @@ urlpatterns = [
     path('bookings/<int:pk>/assign/', AssignSurveyorsView.as_view(), name='assign-surveyors'),
     path('bookings/', BookingManagementView.as_view(), name='booking-management'),
     path('api/calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
+    
+    
+    path('projects/', views.projects_view, name='projects')
 ]

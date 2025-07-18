@@ -1,20 +1,22 @@
-#version: '3.9'
+version: '3.9'
 
 services:
   web:
     build: .
-    entrypoint: [ "/app/entrypoint.sh" ]
+    entrypoint: ["/app/entrypoint.sh"]
     command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
       - ./static:/app/static
       - ./staticfiles:/app/static_files
-      - media_volume:/app/media
+      - ./media:/app/media  # Bind mount media folder
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       RUN_MIGRATIONS: "true"
       WAIT_FOR_REDIS: "true"
@@ -28,24 +30,41 @@ services:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-easydocs}
+      POSTGRES_USER: ${POSTGRES_USER:-easydocsuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-easydocsuser} -d ${POSTGRES_DB:-easydocs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   celery-worker:
     build: .
     command: celery -A GGI worker --loglevel=info
     volumes:
       - .:/app
+      - ./media:/app/media  # Bind mount media folder
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
     environment:
       RUN_MIGRATIONS: "false"
       WAIT_FOR_REDIS: "true"
@@ -59,11 +78,16 @@ services:
     command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
+      - ./media:/app/media  # Bind mount media folder
     env_file:
       - .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
     environment:
       RUN_MIGRATIONS: "false"
       WAIT_FOR_REDIS: "true"
@@ -80,26 +104,20 @@ services:
       - ./nginx:/etc/nginx/conf.d
       - ./static:/app/static
       - ./staticfiles:/app/staticfiles
-      - media_volume:/app/media
+      - ./media:/app/media  # Bind mount media folder
     depends_on:
       - web
 
   flower:
     image: mher/flower
     command: >
-      python3 -m flower --broker=redis://redis:6379/0
-      --basic_auth=user:password
+      celery --broker=redis://redis:6379/0 flower
     ports:
       - "5555:5555"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   static_volume:
-  media_volume:
-    driver: local
-    driver_opts:
-      type: none
-      device: ${PWD}/media
-      o: bind

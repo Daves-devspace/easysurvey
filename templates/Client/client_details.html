@@ -442,7 +442,7 @@
                                                                                                         </button>
                                                                                                     {% endif %}
                                                                                                 {% else %}
-                                                                                                    {% if perms.easydocs.change_clientprocess %}
+                                                                                                    {% if perms.easydocs.change_clientserviceprocess %}
                                                                                                         <!-- Final step not yet completed: Confirm -->
                                                                                                         <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                               method="POST"
@@ -459,7 +459,7 @@
                                                                                             {% else %}
                                                                                                 {# Non‑title services just get Complete/Done #}
                                                                                                 {% if sp.status != 'completed' %}
-                                                                                                    {% if perms.easydocs.change_clientprocess %}
+                                                                                                    {% if perms.easydocs.change_clientserviceprocess %}
                                                                                                         <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                               method="POST"
                                                                                                               class="d-inline">
@@ -477,7 +477,7 @@
                                                                                             {% endif %}
                                                                                         {% elif sp.status == 'in_progress' %}
                                                                                             {# In‑progress non‑last steps always get Complete #}
-                                                                                            {% if perms.easydocs.change_clientprocess %}
+                                                                                            {% if perms.easydocs.change_clientserviceprocess %}
                                                                                                 <form action="{% url 'mark_process_completed' sp.id %}"
                                                                                                       method="POST"
                                                                                                       class="d-inline">

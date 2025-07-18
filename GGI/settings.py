@@ -145,10 +145,19 @@ CELERY_EMAIL_TASK_CONFIG = {
 }
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://management.greatguardianinvestment.co.ke",
-    "https://www.management.greatguardianinvestment.co.ke",
-
+    origin.strip()
+    for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
+
+
+# # ]
+# # CSRF_TRUSTED_ORIGINS = [
+# #     f"https://{origin.strip()}" for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()
+# # ]
+# CSRF_TRUSTED_ORIGINS += [
+#     f"http://{origin.strip()}" for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS_HTTP", "").split(",") if origin.strip()
+# ]
 
 
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -296,16 +305,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-  # for  deployment
+# Base URLs (e.g., served by Nginx)
+STATIC_URL = os.getenv("STATIC_URL", "/static/")
+MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+# Where collectstatic puts files (Django reads from here in production)
+STATIC_ROOT = os.getenv("STATIC_ROOT", os.path.join(BASE_DIR, "staticfiles"))
+MEDIA_ROOT = os.getenv("MEDIA_ROOT", os.path.join(BASE_DIR, "media"))
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
+# For development only — tells Django where to look for extra static files
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+]
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -56,6 +56,7 @@ ROLE_PERMISSIONS = {
             Client: ['add', 'view', 'change'],
             ClientService: ['add', 'view', 'change'],
             ClientSubService: ['add', 'change', 'view'],
+            ClientServiceProcess: ['add', 'change','view'],
             Expense: ['add', 'change','view'],
             TitleDeedCollection: ['add', 'view'],
             MessageLog: ['add', 'change', 'view'],
