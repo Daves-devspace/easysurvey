@@ -60,4 +60,6 @@ urlpatterns = [
     path('profile/user/', AdminManagementView.as_view(), name='user-profile-update'),
     path('manage/user/', UserManagementView.as_view(), name='users-update'),
 
+    
+
 ]

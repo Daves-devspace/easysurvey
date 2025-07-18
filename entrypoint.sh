@@ -1,42 +1,59 @@
 #!/bin/bash
 set -e
 
-echo "Starting container: $0 $@"
+log() {
+  echo "$(date +'%Y-%m-%d %H:%M:%S') - $1"
+}
 
-# Wait for PostgreSQL
-echo "Waiting for database at $DB_HOST:$DB_PORT..."
-dockerize -wait tcp://$DB_HOST:$DB_PORT -timeout 60s
-echo "Database is up."
+log "Waiting for the database at $DB_HOST:$DB_PORT..."
+while ! nc -z $DB_HOST $DB_PORT; do
+  sleep 1
+done
+log "Database is ready!"
 
-# Optionally wait for Redis
 if [ "$WAIT_FOR_REDIS" = "true" ]; then
-  echo "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
-  dockerize -wait tcp://$REDIS_HOST:$REDIS_PORT -timeout 30s
-  echo "Redis is up."
+  log "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
+  while ! nc -z $REDIS_HOST $REDIS_PORT; do
+    sleep 1
+  done
+  log "Redis is ready!"
 fi
 
-# Migrations and collectstatic only for web
+# Only run migrations in main web container
 if [ "$RUN_MIGRATIONS" = "true" ]; then
-  echo "Making migrations..."
-  python manage.py makemigrations --noinput
+  log "Checking for unapplied migrations..."
+  
+  # Test database connection first
+  if ! python manage.py check --database default; then
+    log "❌ Database connection check failed"
+    exit 1
+  fi
+  
+  PENDING=$(python manage.py showmigrations --plan | grep '\[ \]' || true)
+  if [ -n "$PENDING" ]; then
+    log "Applying pending migrations..."
+    if ! python manage.py migrate --noinput; then
+      log "❌ Migration failed — this is a critical error"
+      exit 1
+    fi
+    log "✅ Migrations applied successfully"
+  else
+    log "No unapplied migrations — skipping."
+  fi
 
-  echo "Running Django migrations..."
-  python manage.py migrate --noinput
+  log "Collecting static files..."
+  if ! python manage.py collectstatic --noinput; then
+    log "❌ Static file collection failed"
+    exit 1
+  fi
+  log "✅ Static files collected successfully"
 fi
 
+log "Starting service..."
+log "Executing: $@"
 
-if [ "$RUN_COLLECT_STATIC" = "true" ]; then
-  echo "Collecting static files..."
-  python manage.py collectstatic --noinput
+if [ $# -eq 0 ]; then
+  set -- gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
 fi
 
-# Fix media folder permissions if it exists
-if [ -d "/app/media" ]; then
-  echo "Setting write permission for media directory..."
-  chmod -R 775 /app/media
-  chown -R django:django /app/media
-fi
-
-
-# Start the service
 exec "$@"

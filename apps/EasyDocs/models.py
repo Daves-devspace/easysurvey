@@ -36,7 +36,7 @@ class SiteSettings(models.Model):
     # Enforce only one row
     singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
 
-    company_name    = models.CharField(max_length=200, default="GREAT GUARDIAN")
+    company_name    = models.CharField(max_length=200, default="SMARTSURVEYOR", help_text="Company name for the receipt header")
     logo            = models.ImageField(upload_to="company/", blank=True, null=True)
     # email           = models.EmailField(validators=[validate_email], default="info@example.com")
     phone           = models.CharField(max_length=20, blank=True, null=True)

@@ -39,15 +39,26 @@ from ..Employee.models import EmployeeProfile, Payroll
 
 logger = logging.getLogger(__name__)
 
+def projects_view(request):
+    return render(request, 'application/surveyor.html')
 
 # Create your views here.
 # utils.py (or wherever your function lives)
 
+# def chart_data(request):
+#     year = int(request.GET.get('year', date.today().year))
+#     data = get_yearly_revenue_data(year)
+#     return JsonResponse(data)
+
 def chart_data(request):
-    year = int(request.GET.get('year', date.today().year))
+    year_str = request.GET.get('year')
+    try:
+        year = int(year_str)
+    except (TypeError, ValueError):
+        year = date.today().year  # fallback to current year
+
     data = get_yearly_revenue_data(year)
     return JsonResponse(data)
-
 
 # def stacked_service_data(request):
 #     year = int(request.GET.get("year", timezone.now().year))
@@ -801,19 +812,25 @@ class ManagementView(TemplateView):
             'edit_subservice_form': SubServiceForm(),
         })
 
+        # Ensure `settings` key is always present
         try:
             site_settings = SiteSettings.objects.get(singleton_enforcer=True)
             context['settings'] = site_settings
             context['settings_form'] = SiteSettingsForm(instance=site_settings)
         except SiteSettings.DoesNotExist:
-            messages.warning(self.request, "Site settings not found. You can create new settings.")
+            site_settings = None  # fallback
+            context['settings'] = site_settings  # <-- always define this
             context['settings_form'] = SiteSettingsForm()
+            messages.warning(self.request, "Site settings not found. You can create new settings.")
 
+        # Ensure `sms_token` key is always present
         try:
             sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)
             context['sms_token'] = sms_token
             context['sms_token_form'] = SmsProviderTokenForm(instance=sms_token)
         except Exception as e:
+            context['sms_token'] = None  # fallback
+            context['sms_token_form'] = SmsProviderTokenForm()
             messages.error(self.request, f"SMS provider token error: {e}")
 
         # Editing forms based on GET params

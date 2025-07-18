@@ -1,6 +1,6 @@
 # utils/receipts.py
-
-
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
@@ -29,7 +29,7 @@ def safe_price(val):
     return Decimal(raw).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
-def generate_service_receipt(client_service, printed_by_user):
+def generate_service_receipt(client_service, printed_by_user: User):
     """
     Generate a POS-style receipt PDF for a ClientService,
     including processes or services with both price and paid columns.
@@ -42,8 +42,16 @@ def generate_service_receipt(client_service, printed_by_user):
     y = height - 10 * mm
 
     # ─── Header ────────────────────────────────────────────────────────────────
+    
+    try:
+        site_settings = SiteSettings.objects.first()
+        company_name = site_settings.company_name if site_settings and site_settings.company_name else "SMARTSURVEYOR"
+    except Exception:
+        company_name = "SMARTSURVEYOR"
+
     c.setFont("Helvetica-Bold", 12)
-    c.drawCentredString(width/2, y, "GREAT GUARDIAN INVESTMENT")
+    c.drawCentredString(width/2, y, company_name)
+
     y -= 6 * mm
     c.setFont("Helvetica", 10)
     c.drawCentredString(width/2, y, "SERVICE RECEIPT")
@@ -143,7 +151,7 @@ def generate_service_receipt(client_service, printed_by_user):
     # ─── Footer ────────────────────────────────────────────────────────────────
     c.setFont("Helvetica", 6)
     ts = timezone.localtime().strftime("%Y-%m-%d %H:%M")
-    c.drawString(5 * mm, y, f"Printed by: {printed_by_user.user.first_name}")
+    c.drawString(5 * mm, y, f"Printed by: {printed_by_user.first_name}")
     y -= 4 * mm
     c.drawString(5 * mm, y, f"At: {ts}")
     y -= 6 * mm
@@ -174,7 +182,7 @@ def generate_service_receipt(client_service, printed_by_user):
 # # views.py
 # from django.http import HttpResponse
 # from .utils.receipts import generate_service_receipt
-
+@login_required
 def download_receipt(request, cs_id):
     cs = get_object_or_404(ClientService, id=cs_id)
     buf = generate_service_receipt(cs, request.user)

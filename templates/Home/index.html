@@ -1,0 +1,255 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta name="description" content=""/>
+    <meta name="author" content=""/>
+    <title>{{ site_settings.company_name|default:"Survey" }}</title>
+    <link rel="icon" href="{% if site_settings.logo %}{{ site_settings.logo.url }}?v={{ logo_ts }}{% else %}{% static 'assets/images/pages/smrtlg.png' %}{% endif %}" type="image/x-icon">
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet"/>
+    <!-- Google fonts-->
+    <link rel="preconnect" href="https://fonts.gstatic.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,600&amp;display=swap"
+          rel="stylesheet"/>
+    <link
+            href="https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,300;0,500;0,600;0,700;1,300;1,500;1,600;1,700&amp;display=swap"
+            rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;1,400&amp;display=swap"
+          rel="stylesheet"/>
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="{% static 'landingPage/css/styles.css' %}" rel="stylesheet"/>
+</head>
+
+<body id="page-top">
+<!-- Navigation-->
+<nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
+    <div class="container px-5">
+        <a class="navbar-brand fw-bold" href="#page-top">{{ company_name }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive"
+                aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+            Menu
+            <i class="bi-list"></i>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+            <ul class="navbar-nav ms-auto me-4 my-3 my-lg-0">
+                <li class="nav-item"><a class="nav-link me-lg-3" href="#features">Why Us</a></li>
+                <li class="nav-item"><a class="nav-link me-lg-3" href="#about">About</a></li>
+            </ul>
+            <button class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0" data-bs-toggle="modal"
+                    data-bs-target="#feedbackModal">
+                   <span class="d-flex align-items-center text-white">
+  <i class="bi-box-arrow-in-right me-2"></i>
+  <a href="{% url 'logout' %}" class="small text-white text-decoration-none">Sign In</a>
+</span>
+
+            </button>
+        </div>
+    </div>
+</nav>
+<!-- Mashead header-->
+<header class="masthead">
+    <div class="container px-5">
+        <div class="row gx-5 align-items-center">
+            <div class="col-lg-6">
+                <!-- Mashead text and app badges-->
+                <div class="mb-5 mb-lg-0 text-center text-lg-start">
+                    <h1 class="display-1 lh-1 mb-3">Fast & Reliable Land Survey & Title Deed Service.</h1>
+                    <p class="lead fw-normal text-muted mb-5">We help individuals and businesses manage land
+                        surveys, process title deeds, and perform land searches with accuracy and efficiency.</p>
+                    <div class="d-flex flex-column flex-lg-row align-items-center">
+                        <button class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0" data-bs-toggle="modal"
+                                data-bs-target="#feedbackModal">
+                   <span class="d-flex align-items-center text-white">
+  <i class="bi-box-arrow-in-right me-2"></i>
+  <a href="{% url 'logout' %}" class="small text-white text-decoration-none">Sign In</a>
+</span>
+
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <!-- Masthead device mockup feature-->
+                <div class="masthead-device-mockup">
+                    <svg class="circle" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="circleGradient" gradientTransform="rotate(45)">
+                                <stop class="gradient-start-color" offset="0%"></stop>
+                                <stop class="gradient-end-color" offset="100%"></stop>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="50"></circle>
+                    </svg>
+                    <svg class="shape-1 d-none d-sm-block" viewBox="0 0 240.83 240.83"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <rect x="-32.54" y="78.39" width="305.92" height="84.05" rx="42.03"
+                              transform="translate(120.42 -49.88) rotate(45)"></rect>
+                        <rect x="-32.54" y="78.39" width="305.92" height="84.05" rx="42.03"
+                              transform="translate(-49.88 120.42) rotate(-45)"></rect>
+                    </svg>
+                    <svg class="shape-2 d-none d-sm-block" viewBox="0 0 100 100"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="50" r="50"></circle>
+                    </svg>
+                    <div class="device-wrapper">
+                        <div class="device" data-device="iPhoneX" data-orientation="portrait" data-color="black">
+                            <div class="screen bg-black d-flex align-items-center justify-content-center">
+                                <!-- Smart fit image -->
+                                <img src="{% static 'assets/images/pages/autonotification.png' %}"
+                                     alt="Notification from GGI INVESTMENTS"
+                                     style="max-width: 100%; max-height: 100%; object-fit: contain;"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- Quote/testimonial aside-->
+<aside class="text-center bg-gradient-primary-to-secondary">
+    <div class="container px-5">
+        <div class="row gx-5 justify-content-center">
+            <div class="col-xl-8">
+                <div class="h2 fs-1 text-white mb-4"> Licensed Experts • Fast Turnaround • Secure
+                    Processing <br> <strong class="text-muted">Why Our Platform Works for You</strong>
+                    <i class="bi-arrow-bar-down icon-feature text-gradient d-block mb-3"></i></div>
+
+
+            </div>
+        </div>
+    </div>
+</aside>
+<!-- App features section-->
+<section id="features">
+    <div class="container px-5">
+        <div class="row gx-5 align-items-center">
+            <div class="col-lg-8 order-lg-1 mb-5 mb-lg-0">
+                <div class="container-fluid px-5">
+                    <div class="row gx-5">
+                        <div class="col-md-6 mb-5">
+                            <!-- Feature item-->
+                            <div class="text-center">
+                                <i class="bi-clock-history icon-feature text-gradient d-block mb-3"></i>
+                                <h3 class="font-alt">Real-Time Title Deed Tracking</h3>
+                                <p class="text-muted mb-0">Track the progress of your title deed from submission to
+                                    approval and collection.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-5">
+                            <!-- Feature item-->
+                            <div class="text-center">
+                                <i class="bi-upload icon-feature text-gradient d-block mb-3"></i>
+                                <h3 class="font-alt">Secure Document Upload</h3>
+                                <p class="text-muted mb-0">Upload and store mutation forms, surveys, land documents,
+                                    and IDs securely.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-5 mb-md-0">
+                            <!-- Feature item-->
+                            <div class="text-center">
+                                <i class="bi-person-lines-fill icon-feature text-gradient d-block mb-3"></i>
+                                <h3 class="font-alt"> Client Profile Management</h3>
+                                <p class="text-muted mb-0">View and manage all client information, payments, and
+                                    documents in one place.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Feature item-->
+                            <div class="text-center">
+                                <i class="bi-bell-fill icon-feature text-gradient d-block mb-3"></i>
+                                <h3 class="font-alt">Automatic Notifications & Alerts</h3>
+                                <p class="text-muted mb-0">Get SMS or email updates on title status, survey
+                                    schedules, and document approvals.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 order-lg-0">
+                <!-- Features section device mockup-->
+                <div class="features-device-mockup">
+                    <svg class="circle" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="circleGradient" gradientTransform="rotate(45)">
+                                <stop class="gradient-start-color" offset="0%"></stop>
+                                <stop class="gradient-end-color" offset="100%"></stop>
+                            </linearGradient>
+                        </defs>
+                        <circle cx="50" cy="50" r="50"></circle>
+                    </svg>
+                    <svg class="shape-1 d-none d-sm-block" viewBox="0 0 240.83 240.83"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <rect x="-32.54" y="78.39" width="305.92" height="84.05" rx="42.03"
+                              transform="translate(120.42 -49.88) rotate(45)"></rect>
+                        <rect x="-32.54" y="78.39" width="305.92" height="84.05" rx="42.03"
+                              transform="translate(-49.88 120.42) rotate(-45)"></rect>
+                    </svg>
+                    <svg class="shape-2 d-none d-sm-block" viewBox="0 0 100 100"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="50" r="50"></circle>
+                    </svg>
+                    <div class="device-wrapper">
+                        <div class="device" data-device="iPhoneX" data-orientation="portrait" data-color="black">
+                            <div class="screen bg-black d-flex align-items-center justify-content-center">
+                                <!-- Smart fit image -->
+                                <img src="{% static 'assets/images/pages/autonotification.png' %}"
+                                     alt="Notification from GGI INVESTMENTS"
+                                     style="max-width: 100%; max-height: 100%; object-fit: contain;"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- Basic features section-->
+<section id="about" class="bg-light">
+    <div class="container px-5">
+        <div class="row gx-5 align-items-center justify-content-center justify-content-lg-between">
+            <div class="col-12 col-lg-5">
+                <h2 class="display-4 lh-1 mb-4">About</h2>
+                <p class="lead fw-normal text-muted mb-5 mb-lg-0">
+                    This platform is a comprehensive land management system designed to streamline surveying processes, monitor title deed progress, manage client records, and automate communication. Built with efficiency and transparency in mind, it empowers surveyors, administrators, and clients to track land-related services in real-time — from mutation uploads to title deed collection.
+                </p>
+            </div>
+
+            <div class="col-sm-8 col-md-6">
+                <div class="px-5 px-sm-0"><img class="img-fluid rounded-circle"
+                                               src="{% static 'assets/images/pages/7.png' %}" alt="..."/>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- Call to action section-->
+
+<!-- Footer-->
+<footer class="bg-black text-center py-5">
+    <div class="container px-5">
+        <div class="text-white-50 small">
+            <div class="mb-2">&copy; {{ company_name }}. All Rights Reserved.</div>
+            <a href="#!">Privacy</a>
+            <span class="mx-1">&middot;</span>
+            <a href="#!">Terms</a>
+            <span class="mx-1">&middot;</span>
+            <a href="#!">FAQ</a>
+        </div>
+    </div>
+</footer>
+
+<!-- Bootstrap core JS-->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Core theme JS-->
+<script src="../../static/landingPage/js/scripts.js"></script>
+
+</body>
+
+</html>

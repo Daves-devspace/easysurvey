@@ -1,0 +1,332 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Survey</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Projects</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="page-header-title">
+                                <h2 class="mb-0">FIELD</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-users me-2"></i>Recent Projects
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content">
+
+
+                                <div class="tab-pane show active" id="profile-5" role="tabpanel"
+                                     aria-labelledby="profile-tab-5">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Field Projects</h5>
+                                        </div>
+                                        <div class="card-body">
+
+                                            <hr class="my-3">
+<div class="row">
+  <!-- Left: Intro & Features -->
+  <div class="col-md-6">
+    <div class="card-body text-center">
+      <h1 class="display-5 fw-bold mb-3">🚧 Smart Land Subdivision Coming Soon</h1>
+      <p class="lead mb-4">
+        Automatically divide land, exclude real roads, and generate mutation PDFs—right from your dashboard.
+      </p>
+
+      <h5 class="mt-4 mb-2">Launching in:</h5>
+      <div id="countdown" class="fw-bold fs-4 text-primary mb-4">Loading...</div>
+
+      <form id="notifyForm" class="row justify-content-center mb-4">
+        <div class="col-md-4 mb-2">
+          <input type="text" class="form-control" placeholder="Your Name" required>
+        </div>
+        <div class="col-md-4 mb-2">
+          <input type="email" class="form-control" placeholder="Your Email" required>
+        </div>
+        <div class="col-md-2 mb-2">
+          <button type="submit" class="btn btn-success w-100">Notify Me</button>
+        </div>
+        <div id="formSuccess" class="text-success mt-2" style="display:none;">
+          ✅ Thank you! We'll keep you posted.
+        </div>
+      </form>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <div class="border rounded p-3 bg-light h-100">
+            <h5>📍 Coordinate Upload</h5>
+            <p class="small text-muted">Upload CSV and map your parcel.</p>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="border rounded p-3 bg-light h-100">
+            <h5>📐 Auto Subdivision</h5>
+            <p class="small text-muted">Split land into plots with real road masking.</p>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="border rounded p-3 bg-light h-100">
+            <h5>🧾 Instant Mutation PDF</h5>
+            <p class="small text-muted">Download your registry‑ready form.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Map with OSM road masking & subdivision -->
+  <div class="col-md-6">
+    <div class="col-md-12">
+  <div class="p-3">
+    <h5 class="mb-3">🧭 Plot Coordinates + Road-Aware Preview</h5>
+    <div class="card">
+      <div class="card-header bg-dark text-white">📍 Add New Plot</div>
+      <div class="card-body">
+        <form id="plotForm">
+          <div class="mb-3">
+            <label for="coords" class="form-label">Enter Coordinates (lat,lng) - one per line</label>
+            <textarea class="form-control" id="coords" rows="5" placeholder="-1.287,36.820&#10;-1.287,36.821&#10;-1.288,36.821&#10;-1.288,36.820"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Render Custom Plot</button>
+        </form>
+
+        <div class="mt-4">
+          <div id="map" style="height:450px; border:2px solid #ccc; border-radius:10px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dependencies -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+<script>
+  const map = L.map('map').setView([-1.2925, 36.8215], 17);
+
+  // Load OSM Tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  let userPolygon = null;
+
+  document.getElementById("plotForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const coordsText = document.getElementById("coords").value.trim();
+    const lines = coordsText.split("\n");
+    const latlngs = [];
+
+    // Parse input coordinates
+    for (let line of lines) {
+      const [latStr, lngStr] = line.trim().split(",");
+      const lat = parseFloat(latStr);
+      const lng = parseFloat(lngStr);
+      if (!isNaN(lat) && !isNaN(lng)) latlngs.push([lng, lat]); // Turf uses [lng, lat]
+    }
+
+    if (latlngs.length < 3) {
+      alert("Please enter at least 3 coordinates.");
+      return;
+    }
+
+    // Close the polygon by repeating the first point
+    const closedCoords = [...latlngs, latlngs[0]];
+    const polygon = turf.polygon([closedCoords]);
+
+    if (userPolygon) map.removeLayer(userPolygon);
+
+    // Display user polygon on map
+    userPolygon = L.geoJSON(polygon, {
+      style: { color: "#0d6efd", fillOpacity: 0.4 }
+    }).bindPopup("📍 Custom Parcel").addTo(map);
+
+    map.fitBounds(userPolygon.getBounds());
+
+    // Fetch nearby roads using Overpass API
+    const [minX, minY, maxX, maxY] = turf.bbox(polygon);
+    const query = `
+      [out:json][timeout:25];
+      (
+        way["highway"](${minY},${minX},${maxY},${maxX});
+      );
+      out geom;
+    `;
+
+    fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body: query
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        const roadFeatures = data.elements.filter(el => el.type === "way").map(way => ({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: way.geometry.map(p => [p.lon, p.lat])
+          }
+        }));
+
+        if (roadFeatures.length === 0) {
+          alert("No roads found near this area.");
+          return;
+        }
+
+        const roads = turf.featureCollection(roadFeatures);
+        const buffered = turf.buffer(roads, 0.005, { units: "kilometers" });
+
+        // Merge all buffered road areas into one
+        let union = buffered.features[0];
+        for (let i = 1; i < buffered.features.length; i++) {
+          union = turf.union(union, buffered.features[i]);
+        }
+
+        const cleanArea = turf.difference(polygon, union);
+
+        if (!cleanArea) {
+          alert("No buildable area remains after buffering roads.");
+          return;
+        }
+
+        // Display buildable (clean) area
+        L.geoJSON(cleanArea, { style: { color: '#198754', fillOpacity: 0.3 } }).addTo(map);
+
+        // Subdivide into 3 vertical plots using bbox slicing
+        const [minLng, minLat, maxLng, maxLat] = turf.bbox(cleanArea);
+        const step = (maxLng - minLng) / 3;
+        const colors = ['#0d6efd', '#ffc107', '#dc3545'];
+
+        for (let i = 0; i < 3; i++) {
+          const sliceBbox = [minLng + i * step, minLat, minLng + (i + 1) * step, maxLat];
+          const slice = turf.bboxPolygon(sliceBbox);
+          const plot = turf.intersect(slice, cleanArea);
+
+          if (!plot) continue;
+
+          // Add plot to map
+          L.geoJSON(plot, {
+            style: { color: colors[i], fillOpacity: 0.4 }
+          }).bindPopup(`
+            <div>
+              <strong>Plot ${i + 1}</strong><br>
+              Beacons:<br>
+              ${plot.geometry.coordinates[0].map(pt => `(${pt[1].toFixed(5)}, ${pt[0].toFixed(5)})`).join('<br>')}
+            </div>
+          `).addTo(map);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        alert("An error occurred while fetching roads or processing geometry.");
+      });
+  });
+</script>
+
+
+    </div>
+  </div>
+</div>
+
+<!-- Countdown & Notify JS -->
+<script>
+  // countdown
+  const tgt = new Date("2025-09-01T00:00:00").getTime(),
+        cdEl = document.getElementById("countdown");
+  setInterval(()=>{
+    const d = tgt - Date.now();
+    if(d<0) return cdEl.innerText="🚀 Live!";
+    const days = Math.floor(d/864e5),
+          hrs = Math.floor((d%864e5)/36e5),
+          mins= Math.floor((d%36e5)/6e4);
+    cdEl.innerText=`${days}d ${hrs}h ${mins}m`;
+  },1000);
+
+  // notify form
+  document.getElementById("notifyForm")
+    .addEventListener("submit",e=>{
+      e.preventDefault();
+      const msg=document.getElementById("formSuccess");
+      msg.style.display="block";
+      setTimeout(()=>{ msg.style.display="none"; e.target.reset(); },4000);
+    });
+</script>
+
+
+
+                                   
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [ sample-page ] end -->
+            </div>
+            <!-- [ Main Content ] end -->
+        </div>
+    </div>
+    <!-- [ Main Content ] end -->
+
+{% endblock %}
