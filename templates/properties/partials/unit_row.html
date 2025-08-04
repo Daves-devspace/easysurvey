@@ -1,0 +1,26 @@
+<tr id="unit-{{ unit.id }}">
+  <td>{{ unit.unit_number }}</td>
+  <td>{{ unit.rent_amount }}</td>
+  <td>{{ unit.meter_number }}</td>
+  <td>
+    {% if unit.is_occupied %}
+      {{ unit.lease.tenant.full_name }}
+    {% else %}
+      Vacant
+    {% endif %}
+  </td>
+  <td>
+    {% if not unit.is_occupied %}
+      <button 
+        hx-get="{% url 'tenant_lease_create' unit.id %}" 
+        hx-target="#tenantLeaseModal .modal-body"
+        hx-swap="innerHTML"
+        data-bs-toggle="modal"
+        data-bs-target="#tenantLeaseModal"
+        class="btn btn-sm btn-success"
+      >
+        Add Tenant & Lease
+      </button>
+    {% endif %}
+  </td>
+</tr>

@@ -1,0 +1,14 @@
+{# templates/properties/partials/property_row.html #}
+<tr id="propertyRow-{{ property.id }}">
+  <td>{{ forloop.counter }}</td>
+  <td>{{ property.name }}</td>
+  <td>{{ property.location }}</td>
+  <td>{{ property.units.count }}</td>
+  <td>
+    <a href="{% url 'property_detail' property.id %}" class="btn btn-sm btn-info">Manage</a>
+  </td>
+  <td>
+<button class="btn btn-sm btn-warning" onclick="openEditPropertyModal({{ property.id }})">Edit</button>
+<button class="btn btn-sm btn-danger" onclick="openDeletePropertyModal({{ property.id }})">Delete</button>
+  </td>
+</tr>

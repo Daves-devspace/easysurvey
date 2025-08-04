@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('apps.EasyDocs.urls')),
     path('employee/', include('apps.Employee.urls')),
+    path('tenant_management/', include('apps.tenant_management.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

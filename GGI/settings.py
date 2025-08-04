@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'djcelery_email',
     'apps.Employee',
     'apps.EasyDocs',
+    'apps.tenant_management',
     'widget_tweaks',
 ]
 

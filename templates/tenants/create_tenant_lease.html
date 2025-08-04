@@ -1,0 +1,23 @@
+<form method="post" action="#">
+                {% csrf_token %}
+                {{ combined_form.non_field_errors }}
+
+                <!-- Tenant Fields -->
+                {{ combined_form.full_name.label_tag }}{{ combined_form.full_name }}{{ combined_form.full_name.errors }}
+                {{ combined_form.phone_number.label_tag }}{{ combined_form.phone_number }}{{ combined_form.phone_number.errors }}
+                {{ combined_form.email.label_tag }}{{ combined_form.email }}{{ combined_form.email.errors }}
+                {{ combined_form.national_id.label_tag }}{{ combined_form.national_id }}{{ combined_form.national_id.errors }}
+
+                <!-- Lease Fields -->
+                {{ combined_form.start_date.label_tag }}{{ combined_form.start_date }}{{ combined_form.start_date.errors }}
+                {{ combined_form.deposit_amount.label_tag }}{{ combined_form.deposit_amount }}{{ combined_form.deposit_amount.errors }}
+
+                <!-- Hidden property/unit fields -->
+                <input type="hidden" name="property" value="{{ property.id }}">
+                <input type="hidden" name="unit" value="{{ unit.id }}">
+
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+              </form>

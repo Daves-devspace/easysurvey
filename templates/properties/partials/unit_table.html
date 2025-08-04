@@ -1,0 +1,18 @@
+<table class="datatable display table table-striped table-hover dt-responsive nowrap">
+    <thead>
+        <tr>
+            <th>Unit Number</th>
+            <th>RentAmount</th>
+            <th>Meter Number</th>
+            <th>Tenant</th>
+            <th>Status</th>
+            
+        </tr>
+    </thead>
+    <tbody id="unitTableBody">
+        {% for unit in units %}
+            {% include 'properties/partials/unit_row.html' %}
+        
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,4 +1,4 @@
-version: '3.9'
+#version: '3.9'
 
 services:
   web:
@@ -75,6 +75,7 @@ services:
 
   celery-beat:
     build: .
+    entrypoint: ["/app/entrypoint.sh"]
     command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
