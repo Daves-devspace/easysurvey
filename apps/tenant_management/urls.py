@@ -6,6 +6,7 @@ from .views import (
     UnitListView,
     UnitCreateView,
     UnitUpdateView,
+     UnitDeleteView,
     PropertyListView,
     PropertyCreateView,
     PropertyUpdateView,
@@ -24,6 +25,7 @@ urlpatterns = [
     path('properties/<int:pk>/units/', UnitListView.as_view(), name='unit_list'),
     path('properties/<int:pk>/units/add/', UnitCreateView.as_view(), name='unit_add'),
     path('properties/<int:pk>/units/<int:unit_pk>/edit/', UnitUpdateView.as_view(), name='unit_edit'),
+    path('properties/<int:pk>/units/<int:unit_pk>/delete/', UnitDeleteView.as_view(), name='unit_delete'),
     
     # Tenant management URLs
     path('tenants/',

@@ -267,3 +267,85 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch((err) => console.error("Error fetching chart data:", err));
   }
 });
+
+
+
+
+
+//#properties.js
+document.addEventListener("DOMContentLoaded", function () {
+  var options = {
+    series: [
+        {
+            name: "Occupied Revenue",
+            data: [1200, 900, 850, 700, 450]
+        },
+        {
+            name: "Vacant Potential",
+            data: [300, 100, 200, 150, 50]
+        }
+    ],
+    chart: {
+        type: 'bar',
+        height: 450,
+        stacked: true,
+        toolbar: { show: true }
+    },
+    plotOptions: {
+        bar: {
+            horizontal: true,
+            dataLabels: {
+                total: {
+                    enabled: true,
+                    formatter: function (val, opts) {
+                        const occupied = opts.globals.series[0][opts.dataPointIndex];
+                        const vacant = opts.globals.series[1][opts.dataPointIndex];
+                        return `Total: Ksh ${occupied + vacant}`;
+                    },
+                    style: { fontSize: '13px', fontWeight: 900 }
+                }
+            }
+        }
+    },
+    dataLabels: { enabled: false },
+    stroke: { width: 1, colors: ['#fff'] },
+    xaxis: {
+        title: { text: 'Revenue (Ksh)' },
+        labels: {
+            formatter: function (val) { return `Ksh ${val}`; }
+        },
+        max: 1600
+    },
+    yaxis: {
+        categories: ['Green Estate', 'Sunset Villas', 'Palm Heights', 'Hill View', 'Ocean Drive']
+    },
+    tooltip: {
+        shared: true,
+        intersect: false,
+        custom: function({ series, seriesIndex, dataPointIndex, w }) {
+            const occupied = series[0][dataPointIndex];
+            const vacant = series[1][dataPointIndex];
+            const total = occupied + vacant;
+            const label = w.config.yaxis.categories[dataPointIndex];
+            return `
+                <div style="padding:10px;">
+                    <strong>${label}</strong><br/>
+                    Occupied Revenue: Ksh ${occupied}<br/>
+                    Vacant Potential: Ksh ${vacant}<br/>
+                    Total: Ksh ${total}
+                </div>
+            `;
+        }
+    },
+    fill: { opacity: 1 },
+    colors: ['#1E90FF', '#d3d3d3'],
+    legend: {
+        position: 'top',
+        horizontalAlign: 'right',
+        offsetX: 40
+    }
+  };
+
+  var chart = new ApexCharts(document.querySelector("#propertyRevenueChart"), options);
+  chart.render();
+});

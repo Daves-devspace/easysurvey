@@ -9,18 +9,41 @@
       Vacant
     {% endif %}
   </td>
+
   <td>
     {% if not unit.is_occupied %}
-      <button 
-        hx-get="{% url 'tenant_lease_create' unit.id %}" 
-        hx-target="#tenantLeaseModal .modal-body"
-        hx-swap="innerHTML"
+      <button
+        class="btn btn-sm btn-success btn-add-tenant"
+        data-url="{% url 'tenant_lease_create' unit.id %}"
         data-bs-toggle="modal"
-        data-bs-target="#tenantLeaseModal"
-        class="btn btn-sm btn-success"
+        data-bs-target="#crudModal"
       >
         Add Tenant & Lease
       </button>
     {% endif %}
+
+    <!-- Edit unit -->
+ <button
+  class="btn btn-sm btn-primary btn-edit-unit"
+  data-url="{% url 'unit_edit' pk=unit.property.pk unit_pk=unit.id %}"
+  data-property-pk="{{ unit.property.pk }}"
+  data-bs-toggle="modal"
+  data-bs-target="#crudModal"
+  title="Edit Unit"
+>
+  Edit
+</button>
+
+<button
+  class="btn btn-sm btn-danger btn-delete-unit"
+  data-url="{% url 'unit_delete' pk=unit.property.pk unit_pk=unit.id %}"
+  data-property-pk="{{ unit.property.pk }}"
+  data-bs-toggle="modal"
+  data-bs-target="#crudModal"
+  title="Delete Unit"
+>
+  Delete
+</button>
+
   </td>
 </tr>

@@ -506,13 +506,11 @@
 {% block extra_js %}
     <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}"></script>
     <script type="module" src="{% static 'assets/js/clientdetails.js' %}"></script>
+   
 
     {#    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>#}
 {% endblock %}
-#{% block scripts %}
 
-
-{% endblock %}
 
 <footer class="pc-footer">
     <div class="footer-wrapper container-fluid">
@@ -538,6 +536,8 @@
 
 
 
+<!-- unit management -->
+ <script src="{% static 'assets/js/unitManagement.js' %}"></script>
 
 
 <!-- [Page Specific JS] start -->
