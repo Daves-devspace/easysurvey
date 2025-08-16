@@ -147,21 +147,28 @@
 
 
 
-<!-- Tenant Lease Modal -->
-<!-- Modal -->
-<div class="modal fade" id="tenantLeaseModal" tabindex="-1">
+
+
+<!-- Your modal (already provided by you) -->
+<div class="modal fade" id="tenantLeaseModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Assign Tenant & Lease</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <!-- HTMX will inject the form here -->
+
+      <div class="modal-body" id="tenantLeaseModalBody">
+        <!-- fetched form HTML will be injected here -->
       </div>
     </div>
   </div>
 </div>
+
+
+
+
+
 
 <!-- Generic modal used for create/edit/delete unit forms -->
 <div class="modal fade" id="crudModal" tabindex="-1" aria-hidden="true">
@@ -190,7 +197,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 
-<script>
+{% comment %} <script>
 document.addEventListener('DOMContentLoaded', function () {
   const modal = document.getElementById('tenantLeaseModal');
   modal.addEventListener('show.bs.modal', function (event) {
@@ -203,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
-</script>
+</script> {% endcomment %}
 
 
 

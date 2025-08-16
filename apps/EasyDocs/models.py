@@ -118,11 +118,33 @@ class Service(models.Model):
 
     def __str__(self):
         return f"{self.name}"
-
+    
+    
     def update_total_price(self):
-        agg = self.processes.aggregate(total=Sum('cost'))
-        self.total_price = agg['total'] or 0
-        self.save(update_fields=['total_price'])
+        """
+        Recalculate service total price from process costs,
+        except for TITLE services where we want to preserve
+        the manually-entered institution cost.
+        """
+        if self.category == ServiceCategory.TITLE:
+            # If institution cost is already set, skip auto-update
+            if self.total_price and self.total_price > 0:
+                return
+            # If no institution cost entered yet, fall back to process sum
+            agg = self.processes.aggregate(total=Sum('cost'))
+            self.total_price = agg['total'] or 0
+            self.save(update_fields=['total_price'])
+        else:
+            # Normal behaviour for GROUND or other categories
+            agg = self.processes.aggregate(total=Sum('cost'))
+            self.total_price = agg['total'] or 0
+            self.save(update_fields=['total_price'])
+
+
+    # def update_total_price(self):
+    #     agg = self.processes.aggregate(total=Sum('cost'))
+    #     self.total_price = agg['total'] or 0
+    #     self.save(update_fields=['total_price'])
 
 
 # Process Model

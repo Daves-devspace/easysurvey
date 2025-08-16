@@ -1,63 +1,58 @@
 {% if unit %}
-<form 
-    hx-post="{% url 'tenant_lease_create' unit_id=unit.id %}" 
-    hx-target="#tenantLeaseModal .modal-body" 
-    hx-swap="innerHTML"
-    method="post"
-    class="form"
->
+{# tenants/partials/tenant_lease_form.html #}
+<form method="post" action="{% url 'tenant_lease_create' unit_id=unit.id %}" class="form">
   {% csrf_token %}
 
-  {# Show any non-field errors #}
   {% if form.non_field_errors %}
     <div class="alert alert-danger">
-      {% for err in form.non_field_errors %}{{ err }}<br>{% endfor %}
+      {% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}
     </div>
   {% endif %}
 
-  {# Tenant Fields #}
   <div class="mb-3">
     {{ form.full_name.label_tag }} {{ form.full_name }}
-    {% for err in form.full_name.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.full_name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
+
   <div class="mb-3">
     {{ form.phone_number.label_tag }} {{ form.phone_number }}
-    {% for err in form.phone_number.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.phone_number.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
+
   <div class="mb-3">
     {{ form.email.label_tag }} {{ form.email }}
-    {% for err in form.email.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.email.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
+
   <div class="mb-3">
     {{ form.national_id.label_tag }} {{ form.national_id }}
-    {% for err in form.national_id.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.national_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
 
-  {# Hidden fields: pull property ID off unit #}
   <input type="hidden" name="property" value="{{ unit.property.id }}">
-  <input type="hidden" name="unit"     value="{{ unit.id }}">
+  <input type="hidden" name="unit" value="{{ unit.id }}">
 
-  {# Read-only Unit Display #}
   <div class="mb-3">
     <label class="form-label">Unit</label>
     <p class="form-control-plaintext">{{ unit.unit_number }}</p>
   </div>
 
-  {# Lease Fields #}
   <div class="mb-3">
     {{ form.start_date.label_tag }} {{ form.start_date }}
-    {% for err in form.start_date.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.start_date.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
+
   <div class="mb-3">
     {{ form.deposit_amount.label_tag }} {{ form.deposit_amount }}
-    {% for err in form.deposit_amount.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
+    {% for err in form.deposit_amount.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
   </div>
 
   <div class="d-flex justify-content-end mt-4">
     <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
-    <button type="submit" class="btn btn-primary">Save</button>
+    <button type="submit" class="btn btn-primary">Saves</button>
   </div>
 </form>
+
 {% else %}
   <div class="alert alert-warning">
     No unit selected. Please open this form from a unit’s “Assign Tenant” button.

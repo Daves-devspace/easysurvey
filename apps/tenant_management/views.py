@@ -11,6 +11,7 @@ from .models import Property, Unit
 from .forms import PropertyForm, UnitForm,LeaseForm, CombinedTenantLeaseForm
 import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
+from django.db.models import Count, Prefetch
 
 
 # mixin to pick HTMX template
@@ -80,19 +81,27 @@ class PropertyDetailView(DetailView):
     template_name = 'properties/property_detail.html'
     context_object_name = 'property_obj'
 
+    def get_queryset(self):
+        # Preload units with their lease & tenant, and annotate unit count
+        return (
+            Property.objects
+            .annotate(units_count=Count('units'))
+            .prefetch_related(
+                Prefetch(
+                    'units',
+                    queryset=Unit.objects.select_related('lease__tenant')
+                )
+            )
+        )
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        
-        # Get units queryset with related tenant and lease
-        units_qs = self.object.units.select_related('lease__tenant')
-        ctx['units'] = units_qs
-        
-        # Precompute unit count for efficiency
-        ctx['units_count'] = units_qs.count()
 
-        ctx['unit_id']       = self.kwargs.get('unit_id')
-        ctx['unit_form']     = UnitForm()
-        ctx['property_obj']  = self.object  # already available via context_object_name
+        # No extra queries — units & count are already fetched
+        ctx['units']        = self.object.units.all()
+        ctx['units_count']  = self.object.units_count
+        ctx['unit_id']      = self.kwargs.get('unit_id')
+        ctx['unit_form']    = UnitForm()
         
         ctx['combined_form'] = CombinedTenantLeaseForm(initial={
             'property': self.object.id
@@ -132,92 +141,61 @@ class UnitListView(ListView):
 class UnitCreateView(CreateView):
     model = Unit
     form_class = UnitForm
-    template_name = 'properties/partials/unit_form.html'  # modal partial
-    # success_url computed after creation to redirect to property detail
-
-    def dispatch(self, request, *args, **kwargs):
-        # ensure property exists and is available in this view
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **ctx):
-        ctx = super().get_context_data(**ctx)
-        ctx['property'] = self.property
-        return ctx
+    template_name = "properties/partials/unit_form.html"
 
     def form_valid(self, form):
-        form.instance.property = self.property
         unit = form.save()
-        messages.success(self.request, f"Unit «{unit.unit_number}» added.")
-        return redirect(self.get_success_url())
+        messages.success(self.request, "Unit created successfully.")
 
-    def get_success_url(self):
-        return reverse('property_detail', kwargs={'pk': self.property.pk})
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": "Unit created successfully.",
+                "redirect_url": reverse_lazy("unit-list")  # Adjust to your units list URL
+            })
+        return redirect("unit-list")
+
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            html = render(self.request, self.template_name, {"form": form}).content.decode("utf-8")
+            return JsonResponse({"success": False, "html": html})
+        return super().form_invalid(form)
 
 
 class UnitUpdateView(UpdateView):
     model = Unit
     form_class = UnitForm
-    template_name = 'properties/partials/unit_form.html'
-    pk_url_kwarg = 'unit_pk'
-
-    def dispatch(self, request, *args, **kwargs):
-        # load parent property and the unit
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        self.object = get_object_or_404(Unit, pk=kwargs['unit_pk'], property=self.property)
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_object(self, queryset=None):
-        # we've already resolved self.object in dispatch
-        return self.object
-
-    def get_context_data(self, **ctx):
-        ctx = super().get_context_data(**ctx)
-        ctx['property'] = self.property
-        return ctx
+    template_name = "properties/partials/unit_form.html"
 
     def form_valid(self, form):
         unit = form.save()
-        messages.success(self.request, f"Unit «{unit.unit_number}» updated.")
-        return redirect(self.get_success_url())
+        messages.success(self.request, "Unit updated successfully.")
 
-    def get_success_url(self):
-        return reverse('property_detail', kwargs={'pk': self.property.pk})
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": "Unit updated successfully.",
+                "redirect_url": reverse_lazy("unit-list")
+            })
+        return redirect("unit-list")
+
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            html = render(self.request, self.template_name, {"form": form}).content.decode("utf-8")
+            return JsonResponse({"success": False, "html": html})
+        return super().form_invalid(form)
 
 
 class UnitDeleteView(DeleteView):
     model = Unit
-    template_name = 'properties/partials/unit_confirm_delete.html'
-    pk_url_kwarg = 'unit_pk'
-
-    def dispatch(self, request, *args, **kwargs):
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        self.object = get_object_or_404(Unit, pk=kwargs['unit_pk'], property=self.property)
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_object(self, queryset=None):
-        return self.object
-
-    def get_context_data(self, **ctx):
-        ctx = super().get_context_data(**ctx)
-        ctx['property'] = self.property
-        return ctx
-
-    def get_success_url(self):
-        return reverse('property_detail', kwargs={'pk': self.property.pk})
+    template_name = "properties/partials/unit_confirm_delete.html"
+    success_url = reverse_lazy("unit-list")
 
     def delete(self, request, *args, **kwargs):
-        unit = self.get_object()
-        unit_id = unit.id
-        unit_number = unit.unit_number
-        unit.delete()
-        messages.success(request, f"Unit «{unit_number}» deleted.")
+        self.object = self.get_object()
+        self.object.delete()
+        messages.success(request, "Unit deleted successfully.")
 
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f"Unit «{unit_number}» deleted.",
-                'unit_id': unit_id,
-            })
-
-        return redirect(self.get_success_url())
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": True, "message": "Unit deleted successfully."})
+        return redirect(self.success_url)

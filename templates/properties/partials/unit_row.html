@@ -12,17 +12,23 @@
 
   <td>
     {% if not unit.is_occupied %}
-      <button
+     <button
         class="btn btn-sm btn-success btn-add-tenant"
         data-url="{% url 'tenant_lease_create' unit.id %}"
-        data-bs-toggle="modal"
-        data-bs-target="#crudModal"
+        data-unit-number="{{ unit.unit_number }}"
+        title="Add Tenant & Lease"
       >
         Add Tenant & Lease
       </button>
+
+    {% else %}
+      Occupied
+      
     {% endif %}
+  </td>
 
     <!-- Edit unit -->
+  <td>
  <button
   class="btn btn-sm btn-primary btn-edit-unit"
   data-url="{% url 'unit_edit' pk=unit.property.pk unit_pk=unit.id %}"

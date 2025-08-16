@@ -11,9 +11,55 @@ from django.utils import timezone
 
 from .models import Payment, Client, Service  # adjust to your model
 from .models import Expense
-from.models import ClientSubService
+from.models import ClientSubService, ServiceCategory, ClientService
 from ..Employee.models import Payroll
+from django.db.models import Case, When
+from django.db.models import DecimalField, ExpressionWrapper
+from django.db.models import Sum, F, DecimalField, ExpressionWrapper
 
+# Company revenue expression:
+# For TITLE services: overridden_total_price - institution cost (service.total_price)
+# For others: overridden_total_price (or payment amount)
+#Dashbord/stats
+def get_company_revenue_from_payments(year, up_to_date=None):
+    payments = Payment.objects.filter(payment_date__year=year)
+
+    if up_to_date:
+        payments = payments.filter(
+            payment_date__month__lte=up_to_date.month,
+            payment_date__day__lte=up_to_date.day
+        )
+
+    payments = payments.annotate(
+        overridden_total=Coalesce(F('client_service__overridden_total_price'), F('client_service__service__total_price')),
+        institution_cost=Coalesce(F('client_service__service__total_price'), 0),
+    )
+
+    # Calculate company share for TITLE services, full payment for others
+    payments = payments.annotate(
+        revenue=Case(
+            # If TITLE → subtract proportional institution cost
+            When(
+                client_service__service__category=ServiceCategory.TITLE,
+                then=ExpressionWrapper(
+                    F('amount') - (
+                        F('amount') * F('institution_cost') / 
+                        Case(
+                            When(overridden_total__gt=0, then=F('overridden_total')),
+                            default=1,  # prevent division by zero
+                            output_field=DecimalField()
+                        )
+                    ),
+                    output_field=DecimalField()
+                )
+            ),
+            # Otherwise → take full payment amount
+            default=F('amount'),
+            output_field=DecimalField()
+        )
+    )
+
+    return payments.aggregate(total=Sum('revenue'))['total'] or Decimal('0.00')
 
 
 

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal, InvalidOperation
-
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
@@ -36,6 +36,11 @@ import logging
 
 from .utils import MobileSasaAPI
 from ..Employee.models import EmployeeProfile, Payroll
+
+
+
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -635,50 +640,80 @@ class ClientServiceCreateView(CreateView):
     form_class = ClientServiceForm
 
     def form_valid(self, form):
+        """
+        Creates a ClientService record and applies any overrides (total price or per-process costs)
+        before it is saved, so post_save signals receive correct values.
+
+        The actual SMS sending is handled in the signal, not here.
+        """
         try:
-            # Save the ClientService object first
-            client_service = form.save(commit=False)
+            with transaction.atomic():
+                # Create object but delay DB write until we set top-level overrides
+                client_service = form.save(commit=False)
 
-            # Optional scheduled date and dispatch message
-            scheduled_date = self.request.POST.get('scheduled_date')
-            dispatch_message = self.request.POST.get('dispatch_message')
+                # Optional fields from POST
+                scheduled_date = self.request.POST.get('scheduled_date')
+                dispatch_message = self.request.POST.get('dispatch_message')
 
-            if scheduled_date:
-                client_service.scheduled_date = scheduled_date
-            if dispatch_message:
-                client_service.dispatch_message = dispatch_message
+                if scheduled_date:
+                    client_service.scheduled_date = scheduled_date
+                if dispatch_message:
+                    client_service.dispatch_message = dispatch_message
 
-            client_service.save()
-
-            # Handle custom process costs
-            process_ids = self.request.POST.getlist('process_id[]')
-            process_costs = self.request.POST.getlist('process_cost[]')
-
-            if process_ids and process_costs:
-                for pid, cost_str in zip(process_ids, process_costs):
-                    try:
-                        cost = Decimal(cost_str)
-                        csp = client_service.service_processes.get(process_id=pid)
-                        csp.overridden_cost = cost
-                        csp.save(update_fields=['overridden_cost'])
-                    except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-                        continue
-            else:
-                # Handle override total price if no processes exist
+                # Override total price before first save (so signal sees correct value)
                 override_total_price = self.request.POST.get('override_total_price')
                 if override_total_price:
                     try:
                         client_service.overridden_total_price = Decimal(override_total_price)
-                        client_service.save(update_fields=['overridden_total_price'])
                     except InvalidOperation:
+                        client_service.overridden_total_price = None
                         messages.warning(
                             self.request, "⚠️ Invalid total price override. Ignored."
                         )
 
+                # Save once now so related objects can be updated
+                client_service.save()
+
+                # Handle per-process cost overrides
+                process_ids = self.request.POST.getlist('process_id[]')
+                process_costs = self.request.POST.getlist('process_cost[]')
+
+                if process_ids and process_costs:
+                    for pid, cost_str in zip(process_ids, process_costs):
+                        try:
+                            cost = Decimal(cost_str)
+                        except InvalidOperation:
+                            logger.warning(
+                                "Invalid cost for process_id %s: %s", pid, cost_str
+                            )
+                            continue
+
+                        try:
+                            csp = client_service.service_processes.get(process_id=pid)
+                            csp.overridden_cost = cost
+                            csp.save(update_fields=['overridden_cost'])
+                        except ClientServiceProcess.DoesNotExist:
+                            logger.warning(
+                                "No ClientServiceProcess for pid %s on ClientService %s",
+                                pid,
+                                client_service.pk
+                            )
+                            continue
+
+                # Ensure totals are recalculated in case the model doesn't handle it automatically
+                try:
+                    client_service.recalculate_full_total_price()
+                    client_service.save(update_fields=['full_total_price', 'overridden_total_price'])
+                except AttributeError:
+                    # Fallback: let model signals handle recalculation
+                    client_service.save()
+
+            # Messages only after success
             messages.success(self.request, "✅ Service assigned successfully.")
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'client_service_id': client_service.pk})
 
         except Exception as e:
+            logger.exception("Error creating ClientService: %s", e)
             messages.error(self.request, f"❌ An unexpected error occurred: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
@@ -687,7 +722,11 @@ class ClientServiceCreateView(CreateView):
             'success': False,
             'errors': form.errors,
         }, status=400)
-
+        
+        
+        
+        
+        
 
 def edit_client_service(request, client_id):
     client = get_object_or_404(Client, id=client_id)

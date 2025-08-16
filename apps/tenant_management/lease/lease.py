@@ -23,6 +23,12 @@ from .services import TenantLeaseService
 from apps.tenant_management.models import Tenant, Lease, Unit, Property
 from django.template.loader import render_to_string
 from django.http import HttpResponse, HttpResponseBadRequest
+import logging
+from django.core.exceptions import ValidationError
+from django.views import View
+logger = logging.getLogger(__name__)
+
+
 
 
 class TenantCreateView(CreateView):
@@ -48,91 +54,71 @@ class TenantCreateView(CreateView):
 
 
 class TenantLeaseCreateView(FormView):
-    """
-    HTMX-enabled view for creating both Tenant and Lease in one step
-    (e.g., from a vacant unit row in PropertyDetailView).
-    """
-    form_class    = CombinedTenantLeaseForm
-    template_name = 'tenants/partials/tenant_lease_form.html'
-    # fallback if someone browses directly
-    success_url   = None  
+    form_class = CombinedTenantLeaseForm
+    template_name = "tenants/partials/tenant_lease_form.html"
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        unit_id = self.kwargs.get("unit_id")
-        ctx["unit"]       = get_object_or_404(Unit, pk=unit_id)
-        return ctx
+    def dispatch(self, request, *args, **kwargs):
+        self.unit = get_object_or_404(Unit, pk=kwargs.get("unit_id"))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_initial(self):
         initial = super().get_initial()
-        unit = get_object_or_404(Unit, pk=self.kwargs['unit_id'])
-        initial['unit']     = unit.id
-        initial['property'] = unit.property.id
+        initial.update({
+            "unit": self.unit.id,
+            "property": self.unit.property.id,
+        })
         return initial
 
-    def get_form_kwargs(self):
-        # Remove instance so plain Form doesn’t error
-        kwargs = super().get_form_kwargs()
-        kwargs.pop('instance', None)
-        return kwargs
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["unit"] = self.unit
+        return ctx
 
     def form_valid(self, form):
-        # Build data dicts
         tenant_data = {
-            'full_name':    form.cleaned_data['full_name'],
-            'phone_number': form.cleaned_data['phone_number'],
-            'email':        form.cleaned_data['email'],
-            'national_id':  form.cleaned_data['national_id'],
+            "full_name": form.cleaned_data["full_name"],
+            "phone_number": form.cleaned_data["phone_number"],
+            "email": form.cleaned_data.get("email"),
+            "national_id": form.cleaned_data.get("national_id"),
         }
         lease_data = {
-            'unit_id':        form.cleaned_data['unit'].id,
-            'start_date':     form.cleaned_data['start_date'],
-            'deposit_amount': form.cleaned_data['deposit_amount'],
+            "unit_id": self.unit.id,
+            "start_date": form.cleaned_data["start_date"],
+            "deposit_amount": form.cleaned_data.get("deposit_amount", 0),
         }
 
-        # Call service
         try:
             result = TenantLeaseService.create_tenant_with_lease(tenant_data, lease_data)
-        except Exception as e:
-            # HTMX: return error fragment
-            if self.request.headers.get('HX-Request'):
-                return HttpResponseBadRequest(f"Error: {e}")
-            messages.error(self.request, f"Error: {e}")
+        except ValidationError as e:
+            form.add_error(None, getattr(e, "message", str(e)))
+            return self.form_invalid(form)
+        except Exception:
+            logger.exception("Error creating tenant+lease")
+            form.add_error(None, "An unexpected error occurred. Please try again.")
             return self.form_invalid(form)
 
-        # On success
-        unit = result['lease'].unit
+        # Add a contrib message
+        messages.success(self.request, result.get("message", "Tenant and lease created successfully."))
 
-        # HTMX swap: re-render just the unit row
-        if self.request.headers.get('HX-Request'):
-            html = render_to_string(
-                'units/partials/unit_row.html',
-                {'unit': unit},
-                request=self.request
-            )
-            return HttpResponse(html)
-
-        # Non-HTMX: redirect back to property_detail
-        messages.success(self.request, result['message'])
-        return redirect(self.get_success_url(unit))
-
-    def get_success_url(self, unit):
-        """
-        Returns the property_detail URL for the given unit's property.
-        """
-        return reverse('property_detail', kwargs={'pk': unit.property.pk})
+        return JsonResponse({
+            "success": True,
+            "redirect_url": self.get_success_url()
+        })
 
     def form_invalid(self, form):
-        # HTMX: re-render form with errors
-        if self.request.headers.get('HX-Request'):
-            print("FORM ERRORS:", form.errors)  # For debugging
-            ctx = self.get_context_data(form=form)
-            html = render_to_string(self.template_name, ctx, request=self.request)
-            return HttpResponse(html, status=400)
+        # Return the HTML of the form with errors so JS can update the modal body
+        html = self.render_to_string(self.template_name, self.get_context_data(form=form))
+        return JsonResponse({
+            "success": False,
+            "html": html
+        }, status=400)
 
-        # Non-HTMX fallback
-        messages.error(self.request, 'Please correct the errors below.')
-        return self.render_to_response(self.get_context_data(form=form))
+    def get_success_url(self):
+        return reverse("property_detail", kwargs={"pk": self.unit.property.pk})
+
+    def render_to_string(self, template_name, context):
+        from django.template.loader import render_to_string
+        return render_to_string(template_name, context, request=self.request)
 
 
     

@@ -37,11 +37,13 @@ urlpatterns = [
          name='tenant_create'),  # Form to add a new tenant
 
     # Combined Tenant + Lease creation
-    path(
-        'tenants/create-with-lease/<int:unit_id>/',
-        TenantLeaseCreateView.as_view(),
-        name='tenant_lease_create'
-    ), # Single workflow to create tenant and lease
+#     path(
+#         'tenants/create-with-lease/<int:unit_id>/',
+#         TenantLeaseCreateView.as_view(),
+#         name='tenant_lease_create'
+#     ), # Single workflow to create tenant and lease
+    
+    path('units/<int:unit_id>/tenant-lease/', TenantLeaseCreateView.as_view(), name='tenant_lease_create'),
 
     # Lease management URLs
     path('leases/',

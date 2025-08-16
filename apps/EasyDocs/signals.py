@@ -11,6 +11,8 @@ from apps.EasyDocs.models import (
     Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking
 )
 
+from django.db import transaction
+
 logger = logging.getLogger(__name__)
 
 import threading
@@ -63,16 +65,22 @@ def send_process_sms(client_service, client, phone, message, reason):
 
 # signals.py
 
+
 @receiver(post_save, sender=ClientService)
 def client_service_created_handler(sender, instance, created, **kwargs):
-    # if not created:
-    #     return
+    """
+    Handles automatic process creation and SMS sending for a new ClientService.
 
+    - Creates the default process steps for TITLE category services if they don't exist yet.
+    - Sends SMS for the first process, but only after the transaction commits.
+    - Ensures full price recalculation happens even if SMS fails.
+    """
     service, client = instance.service, instance.client
 
-    # TITLE‐category: create the process entries & send SMS for the first one
-    if service.category == ServiceCategory.TITLE and not instance.service_processes.exists():
+    # Only add default processes for TITLE category if none exist
+    if created and service.category == ServiceCategory.TITLE and not instance.service_processes.exists():
         processes = Process.objects.filter(service=service).order_by('step_order')
+
         for i, process in enumerate(processes):
             status = 'in_progress' if i == 0 else 'pending'
             ClientServiceProcess.objects.create(
@@ -80,15 +88,37 @@ def client_service_created_handler(sender, instance, created, **kwargs):
                 process=process,
                 status=status
             )
+
+            # Only send SMS for the first process
             if i == 0:
                 reason = f"{service.name} – process: {process.name}"
-                send_process_sms(
-                    instance,
-                    client,
-                    client.phone,
-                    process.message,
-                    reason
-                )
+
+                def _send_sms_after_commit():
+                    try:
+                        send_process_sms(
+                            instance,
+                            client,
+                            client.phone,
+                            process.message,
+                            reason
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send SMS for ClientService {instance.id}: {e}",
+                            exc_info=True
+                        )
+
+                # Register SMS sending for after the DB commit
+                transaction.on_commit(_send_sms_after_commit)
+
+    # Ensure totals are updated regardless of SMS success/failure
+    try:
+        update_full_total(instance)
+    except Exception as e:
+        logger.error(
+            f"Failed to update full total for ClientService {instance.id}: {e}",
+            exc_info=True
+        )
 
 
 
