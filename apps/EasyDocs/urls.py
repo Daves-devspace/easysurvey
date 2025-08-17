@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, documents, accounts, reciepts, analytics, auth_views
+from . import views, documents, accounts, reciepts, analytics, auth_views, bot
 from .accounts.legal_payout import BulkPayToLegalView
 from .clients.client_views import SendClientSMSView, \
     DeleteClientServiceView, AddClientSubserviceView, EditClientSubserviceView, DeleteClientSubserviceView, \
@@ -18,6 +18,9 @@ from .views import ManagementView, ClientDetailView, ClientServiceCreateView, Ho
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
 urlpatterns = [
+    
+    path('api/get-similarity/', bot.get_similarity, name='get_embedding'),
+    
     path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path(
         'password-reset/done/',

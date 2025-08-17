@@ -1,0 +1,512 @@
+[
+  {
+    "question": "hi",
+    "answer": "Hi! How can I help you today?"
+  },
+  {
+    "question": "hello",
+    "answer": "Hello! How can I assist you today?"
+  },
+  {
+    "question": "good morning",
+    "answer": "Good morning! How can I help you today?"
+  },
+  {
+    "question": "good afternoon",
+    "answer": "Good afternoon! How can I assist you?"
+  },
+  {
+    "question": "good evening",
+    "answer": "Good evening! How can I help you today?"
+  },
+  {
+    "question": "what is this system",
+    "answer": "This system is a comprehensive management platform for clients, services, payments, documents, staff, and communications. It automates workflows, tracks service progress, manages payments, centralizes documents, and includes HR/payroll tools."
+  },
+  {
+    "question": "what is the system overview",
+    "answer": "This system manages clients, services, payments, documents, staff, and communications. It tracks work from request through completion, automates scheduling and reminders, handles payments and legal payouts, centralizes documents and message logs, and includes HR/payroll tools."
+  },
+  {
+    "question": "what does the clients module do",
+    "answer": "Manage client records and everything tied to a client: services, service progress, payments, documents and messages. It includes creating clients (CRUD), viewing service status, and sending notifications."
+  },
+  {
+    "question": "how do i add a client",
+    "answer": "Go to the Clients module, click 'Add Client', fill in the required fields (name, contact, etc.), and save."
+  },
+  {
+    "question": "how do i view client details",
+    "answer": "Click the 'Details' button next to a client in the clients list. The client page has tabs: Profile, Documents, Accounts, and Messages."
+  },
+  {
+    "question": "how do i add a service to a client",
+    "answer": "Open the client's Profile tab, click 'Add Service'. Choose service category (Title Deed or Ground), select the specific service, allocate costs if needed, add land description, and save."
+  },
+  {
+    "question": "what is a title deed service workflow",
+    "answer": "Title deed services have multiple ordered processes. You allocate costs per process (optional). On save the system notifies the client that Process 1 started. Completing each process marks it complete, starts the next process, and sends an SMS notification."
+  },
+  {
+    "question": "what is a ground service workflow",
+    "answer": "Ground services (e.g., beacon reestablishment) are scheduled one-off services. Enter total price, land description, and scheduled date/time. A scheduling message is sent and a same-day reminder is sent by a background task."
+  },
+  {
+    "question": "how do i complete a process",
+    "answer": "In the service's processes table click the 'Complete' button for the current process. The system will mark it completed, set the next process to In progress, and send the client an SMS about the next process."
+  },
+  {
+    "question": "what is payment gating",
+    "answer": "Payment gating is a business rule that prevents the next process from starting until a required amount is paid for the current process."
+  },
+  {
+    "question": "how do allocations work",
+    "answer": "When recording a payment you can allocate amounts to specific processes and subservices. Allocation details show how the payment was split across the service's parts."
+  },
+  {
+    "question": "what is a subservice",
+    "answer": "A subservice is a smaller part or optional add-on of a main service. Subservices have their own cost, paid amount and payment status."
+  },
+  {
+    "question": "what is the clients documents tab",
+    "answer": "The Documents tab stores client-specific files. Click 'Add Document' to enter a name, choose or add a document type, upload the file, and then send via Email or WhatsApp if needed."
+  },
+  {
+    "question": "how do i send a document to a client",
+    "answer": "Open the client Documents tab, find the document and use the WhatsApp or Email button to share it securely with the client."
+  },
+  {
+    "question": "what is the accounts tab in client details",
+    "answer": "The Accounts tab shows receipts and payments for that client's services. It lets you record payments, view/print receipts, and inspect payment allocations to processes and subservices."
+  },
+  {
+    "question": "how do i record a service payment",
+    "answer": "In the client's Accounts → Receipts area click 'Record service payment', choose the service, enter the amount, method and transaction id, and allocate it to processes or subservices if needed."
+  },
+  {
+    "question": "how do i view or print a receipt",
+    "answer": "In Accounts → Receipts click 'View' or 'Receipt' on a service row. The service details appear on the left card where you can view and print the receipt."
+  },
+  {
+    "question": "what is the bookings module",
+    "answer": "Bookings manages scheduled ground services. Bookings are auto-created when ground services are added with a scheduled date/time. Staff can assign surveyors and mark bookings handled."
+  },
+  {
+    "question": "how do i assign a surveyor to a booking",
+    "answer": "Open Unhandled Bookings, find the booking, click 'Assign Surveyor' and select the surveyor to handle that booking."
+  },
+  {
+    "question": "how do i mark a booking handled",
+    "answer": "In Unhandled Bookings click 'Mark handled' for the booking after the surveyor completes the visit. The booking moves to Handled Bookings with handled-by and timestamp info."
+  },
+  {
+    "question": "what is the calendar view in bookings",
+    "answer": "The Calendar shows all bookings by day/week/month. Clicking a calendar event opens booking details and actions (assign, mark handled)."
+  },
+  {
+    "question": "what is the office documents module",
+    "answer": "Office Documents centralizes company documents (templates, receipts, policies). You can view, print, edit and delete office documents to reduce paper work."
+  },
+  {
+    "question": "how do I schedule broadcast messages",
+    "answer": "Open Communication module, compose your message, use placeholders like {FirstName} or {LastName} to personalize, set a date & time, select recipients, and schedule the send."
+  },
+  {
+    "question": "how do I check message logs",
+    "answer": "Go to Communication → Message logs to see all messages (broadcasts and process notifications) with send status, delivery status and error details if any."
+  },
+  {
+    "question": "what if messages fail to send",
+    "answer": "Failed messages are recorded in Message logs with an error. Use the Retry option in the Communication module to re-send failed messages once the issue (e.g., insufficient balance) is resolved."
+  },
+  {
+    "question": "what is the accounts module",
+    "answer": "Accounts manages client payments, expenses, analytics and legal payouts. It includes Payments, Expenses and Analytics tabs plus a Legal Payments mini-module for partner payouts."
+  },
+  {
+    "question": "how do I add an expense",
+    "answer": "In Accounts → Expenses click 'Add expense', enter description, amount, payment mode, handled by, approved by and receipt number, then save."
+  },
+  {
+    "question": "what analytics are available",
+    "answer": "Analytics show net revenue, gross revenue over time and a stacked chart showing each service's contribution to revenue for selected year/month."
+  },
+  {
+    "question": "what are legal payments",
+    "answer": "Legal payments track client subservices that require legal office work. The module ensures the agency only pays legal partners once the client subservice is fully paid."
+  },
+  {
+    "question": "how do I pay the legal office",
+    "answer": "In Accounts → Legal Payments → Payouts select subservices fully paid by clients and mark them as paid to the legal office to trigger the payout workflow and update records."
+  },
+  {
+    "question": "what is the employees module",
+    "answer": "Employees manages staff accounts, roles, salaries, allowances, deductions and payroll. You can add employees, assign roles, configure salary components and run payroll."
+  },
+  {
+    "question": "how do I add an employee",
+    "answer": "Go to Employees → Add Employee, fill in name, email, phone, role and other details. Assign a role to create a system user with that role and permissions."
+  },
+  {
+    "question": "how do I generate payroll",
+    "answer": "In Employees → Payroll add salaries, allowances and deductions per employee, then click 'Generate payroll'. Note: all payrolls must be paid to generate the next month's payroll."
+  },
+  {
+    "question": "how do I add allowances or deductions",
+    "answer": "Inside an employee's payroll accordion add an allowance or deduction with name, amount, recurring toggle, start and end date. These adjust gross/net calculations."
+  },
+  {
+    "question": "how do payroll payments work",
+    "answer": "Go to Payroll Payments, filter by month and status to see unpaid and paid salaries. Mark salaries as paid after disbursing funds to employees."
+  },
+  {
+    "question": "what is an example title deed flow",
+    "answer": "Add a title deed service for a client, allocate process costs and save. System sends 'Process 1 started' SMS. Complete Process 1 → click 'Complete' → system marks Process 2 in progress and notifies client. Repeat until done."
+  },
+  {
+    "question": "what is an example ground booking flow",
+    "answer": "Add ground service with scheduled date/time → booking auto-created → assign surveyor → on service day background task sends reminder → after survey, mark booking handled."
+  },
+  {
+    "question": "what is a background task",
+    "answer": "A background task is an automated job (e.g., send same-day reminders for ground services) that runs on schedule without manual action."
+  },
+  {
+    "question": "how does the system send notifications",
+    "answer": "The system sends SMS or messages when a title deed process starts or completes, when ground services are scheduled, and via scheduled broadcasts. Message logs track delivery and errors."
+  },
+  {
+    "question": "how do I update knowledge base for bot",
+    "answer": "Edit the 'knowledgeBase.json' file in static/assets/json, add new question/answer objects and save. If using precomputed embeddings, regenerate them or refresh the bot to cache new entries."
+  },
+  {
+    "question": "what should i do if i get insufficient balance errors",
+    "answer": "Check message logs for the error, top up the SMS/broadcast account as needed, then retry failed messages from the Communication module."
+  },
+  {
+    "question": "what is a booking",
+    "answer": "A booking is a scheduled ground visit created when a ground service is added; it includes client, service, scheduled date/time and assigned surveyor."
+  },
+  {
+    "question": "how do i resend a failed message",
+    "answer": "In Communication → Message logs find the failed message and click 'Retry' to re-send after addressing the underlying issue."
+  },
+  {
+    "question": "how do i view allocation details",
+    "answer": "In a client's Accounts → Payments mini-tab open a service accordion and check the 'Allocation details' table to see how payments were split across processes and subservices."
+  },
+  {
+    "question": "how to check if knowledge base json is valid",
+    "answer": "Open static/assets/json/knowledgeBase.json in a JSON linter or use an online validator. Ensure it is a valid JSON array of objects with 'question' and 'answer' keys."
+  },
+
+
+  {
+    "question": "how do i edit client details",
+    "answer": "Go to Clients module, find the client in the list, click 'Details', then look for an Edit button in the Profile tab to modify client information like name, contact details, etc."
+  },
+  {
+    "question": "how do i delete a client",
+    "answer": "In the Clients list, look for a Delete action button next to the client. Note: you may not be able to delete clients who have active services or payments."
+  },
+  {
+    "question": "what client information is shown in the list",
+    "answer": "The clients list shows: client name and contact, most recent service (e.g. Land transfer), current process status (e.g. Process 1), and overall status (In progress, Title deed ready, Title deed collected)."
+  },
+  {
+    "question": "what are the four tabs in client details",
+    "answer": "The four tabs are: Profile (services and processes), Documents (client files), Accounts (payments and receipts), and Messages (communication logs and sending)."
+  },
+  {
+    "question": "how do i search for clients",
+    "answer": "Look for a search bar in the Clients module to find clients by name, phone number, or other details quickly."
+  },
+
+  
+  {
+    "question": "what's the difference between title deed and ground services",
+    "answer": "Title deed services have multiple ordered processes that progress step-by-step with SMS notifications. Ground services are one-off scheduled visits like beacon reestablishment with date/time scheduling."
+  },
+  {
+    "question": "can i edit a service after adding it",
+    "answer": "Yes, in the client's Profile tab, open the service accordion and look for edit options to modify service details, costs, or land descriptions."
+  },
+  {
+    "question": "how do i delete a service",
+    "answer": "In the client's Profile tab, open the service accordion and look for a Delete button. Be careful as this may affect payment records and process history."
+  },
+  {
+    "question": "what happens when i complete the last process",
+    "answer": "When you complete the final process of a title deed service, the overall status changes to 'Title deed ready' and the client receives a completion notification."
+  },
+  {
+    "question": "can i skip processes",
+    "answer": "No, processes must be completed in order. You cannot mark Process 3 complete if Process 2 is still pending."
+  },
+  {
+    "question": "what is service status progression",
+    "answer": "Services progress from 'In progress' → 'Title deed ready' → 'Title deed collected' for title deeds, or 'Scheduled' → 'Completed' for ground services."
+  },
+
+  
+  {
+    "question": "what payment methods are supported",
+    "answer": "Common payment methods include MPesa, bank transfer, cash, and cheque. The exact methods available depend on your system configuration."
+  },
+  {
+    "question": "can i edit a payment after recording it",
+    "answer": "Payment editing depends on your system settings. Generally, you may be able to modify recent payments but completed/reconciled payments might be locked."
+  },
+  {
+    "question": "what is partial payment",
+    "answer": "Partial payment means the client has paid some but not all of the service cost. The payment status shows 'Partially paid' and displays the remaining balance."
+  },
+  {
+    "question": "how do i handle overpayments",
+    "answer": "If a client pays more than required, the system will show a negative balance. You can apply the overpayment to other services or process a refund."
+  },
+  {
+    "question": "what is payment allocation",
+    "answer": "Payment allocation lets you specify which processes or subservices a payment covers. For example, allocating 5000 to Process 1 and 3000 to Process 2 from a 8000 payment."
+  },
+  {
+    "question": "how do i view payment history for a client",
+    "answer": "Go to the client's Accounts tab → Payments mini-tab to see all payment transactions with dates, amounts, methods, and allocation details."
+  },
+  {
+    "question": "can i delete a payment",
+    "answer": "Payment deletion depends on system permissions and business rules. Recent payments might be deletable but reconciled payments typically cannot be removed."
+  },
+
+
+  {
+    "question": "what document types are available",
+    "answer": "Common document types include ID copies, land certificates, survey reports, contracts, and receipts. You can add new document types using the + button."
+  },
+  {
+    "question": "how do i add a new document type",
+    "answer": "When adding a document, click the + icon next to the document type dropdown to create a new document type category."
+  },
+  {
+    "question": "what file formats can i upload",
+    "answer": "Typically PDF, JPG, PNG, and DOC files are supported. Check with your system administrator for the complete list of allowed file formats."
+  },
+  {
+    "question": "how do i replace an existing document",
+    "answer": "Find the document in the Documents tab, click Edit, then upload the new file to replace the existing one."
+  },
+  {
+    "question": "can clients access their documents",
+    "answer": "Clients can receive documents via WhatsApp or Email when you use the sharing buttons, but they don't have direct system access to browse documents."
+  },
+  {
+    "question": "how do i organize documents",
+    "answer": "Use document types to categorize files (e.g., 'Legal Documents', 'Survey Reports', 'Client ID'). This makes documents easier to find and manage."
+  },
+
+  {
+    "question": "what information does a booking contain",
+    "answer": "A booking includes: client name, service type, land plot details, scheduled date/time, assigned surveyor, and handling status."
+  },
+  {
+    "question": "how do i reschedule a booking",
+    "answer": "Find the booking in Calendar view or Unhandled bookings, click to open details, then look for reschedule options to change the date/time."
+  },
+  {
+    "question": "what happens if a surveyor doesn't show up",
+    "answer": "Keep the booking as 'Unhandled', reassign to a different surveyor, or reschedule. The system will track that the original appointment wasn't completed."
+  },
+  {
+    "question": "can i add notes to a booking",
+    "answer": "Yes, when viewing booking details there's typically a notes field where you can add special instructions, access directions, or other relevant information."
+  },
+  {
+    "question": "how do i see all bookings for a specific surveyor",
+    "answer": "Use the Calendar view and look for filtering options by assigned surveyor, or check if there's a surveyor-specific view in the system."
+  },
+  {
+    "question": "what's the difference between handled and unhandled bookings",
+    "answer": "Unhandled bookings need action (assignment or completion). Handled bookings are completed visits with timestamp and surveyor information recorded."
+  },
+
+ 
+  {
+    "question": "what message placeholders can i use",
+    "answer": "Available placeholders include {FirstName}, {LastName}, {ServiceName}, {ProcessName}, and others. These automatically fill with client-specific information."
+  },
+  {
+    "question": "how do i send a message to specific clients",
+    "answer": "In the Communication module, compose your message, then select target audience. You can choose 'all clients' or use filters for specific groups."
+  },
+  {
+    "question": "can i schedule messages for later",
+    "answer": "Yes, use the Date & time field in the message scheduler to set when the message should be sent automatically."
+  },
+  {
+    "question": "how do i know if a message was delivered",
+    "answer": "Check Message logs for delivery status. It shows 'Sent' for successful sends and 'Failed' with error details for unsuccessful attempts."
+  },
+  {
+    "question": "what causes message failures",
+    "answer": "Common causes: insufficient SMS balance, invalid phone numbers, network issues, or service provider problems. Check the error column in message logs."
+  },
+  {
+    "question": "how do i personalize broadcast messages",
+    "answer": "Use placeholders like {FirstName} in your message. When sent, each client receives a personalized version with their actual name."
+  },
+  {
+    "question": "can i see message history for a specific client",
+    "answer": "Yes, go to the client's Messages tab to see all messages sent to that client, including broadcasts and process notifications."
+  },
+
+  
+  {
+    "question": "how do i add office documents",
+    "answer": "In the Office Documents module, look for an 'Add Document' button to upload company templates, policies, or other office files."
+  },
+  {
+    "question": "what's the difference between office documents and client documents",
+    "answer": "Office documents are company-wide files (templates, policies) available to all staff. Client documents are specific to individual clients."
+  },
+  {
+    "question": "who can access office documents",
+    "answer": "All staff members can typically view office documents. Edit/delete permissions may be restricted to administrators or document owners."
+  },
+  {
+    "question": "how do i share office document templates",
+    "answer": "Office documents are automatically available to all staff. Use the View or Print options to access templates when needed."
+  },
+
+
+  {
+    "question": "how do i view revenue by time period",
+    "answer": "In Accounts → Analytics, use the time filters to view revenue charts by specific months, quarters, or years."
+  },
+  {
+    "question": "what's the difference between gross and net revenue",
+    "answer": "Gross revenue is total client payments received. Net revenue is gross revenue minus expenses, showing actual profit."
+  },
+  {
+    "question": "how do i track expenses by category",
+    "answer": "In Accounts → Expenses, add expenses with descriptive categories. You can then filter or group expenses by type for reporting."
+  },
+  {
+    "question": "can i export financial reports",
+    "answer": "Look for Export or Print buttons in the Analytics section to save financial reports as PDF or Excel files for external use."
+  },
+  {
+    "question": "how do i see which services are most profitable",
+    "answer": "Use the service contribution chart in Analytics to see which services generate the most revenue over time."
+  },
+  {
+    "question": "what is the payment status filter",
+    "answer": "In Accounts → Payments, filter shows 'Fully paid' (complete payment), 'Partially paid' (balance remaining), or other payment statuses."
+  },
+
+  {
+    "question": "why do we track legal payments separately",
+    "answer": "Legal payments ensure the agency only pays legal partners after clients have fully paid for legal subservices, protecting cash flow."
+  },
+  {
+    "question": "what happens when i mark a subservice as paid to legal office",
+    "answer": "The system records the payout, updates the legal payment status, and moves the subservice from 'pending payout' to 'paid' for reconciliation."
+  },
+  {
+    "question": "how do i reconcile monthly legal payments",
+    "answer": "Use the Legal payments (by month) tab to filter and review all legal payments and payouts for a specific month for accounting purposes."
+  },
+  {
+    "question": "can i bulk process legal payouts",
+    "answer": "Yes, in the Payouts section, select multiple fully-paid subservices and process them together to save time."
+  },
+  {
+    "question": "what if a client hasn't fully paid but legal work is done",
+    "answer": "The system prevents payout until the client pays fully. The subservice stays in 'All legal payments' until client payment is complete."
+  },
+
+
+  {
+    "question": "what employee roles are available",
+    "answer": "Common roles include Administrator, Staff, Surveyor, Accountant, and HR. Each role has different system permissions and access levels."
+  },
+  {
+    "question": "how do i deactivate an employee",
+    "answer": "In the Employees module, find the employee and look for a deactivate or status toggle option rather than deleting (to preserve payroll history)."
+  },
+  {
+    "question": "what's the difference between allowances and deductions",
+    "answer": "Allowances add to salary (house allowance, transport). Deductions subtract from salary (insurance, taxes). Both affect net pay calculation."
+  },
+  {
+    "question": "can allowances and deductions be recurring",
+    "answer": "Yes, toggle the 'recurring' option when adding allowances/deductions. Set start/end dates to control when they apply."
+  },
+  {
+    "question": "how do i handle employee salary changes",
+    "answer": "Edit the employee's payroll details to update base salary. Changes typically apply to the next payroll generation."
+  },
+  {
+    "question": "what happens if i don't pay all salaries",
+    "answer": "The system enforces that all current month salaries must be marked 'Paid' before you can generate next month's payroll."
+  },
+  {
+    "question": "how do i view payroll history",
+    "answer": "In Payroll Payments, filter by different months and 'Paid' status to see historical payroll records and payment dates."
+  },
+  {
+    "question": "can i add mid-month salary adjustments",
+    "answer": "Use allowances or deductions with specific start/end dates to handle mid-month adjustments like bonuses or penalties."
+  },
+
+ 
+  {
+    "question": "what do i do if the system is slow",
+    "answer": "Try refreshing the page, clearing browser cache, or contact your system administrator. Slow performance might indicate server issues."
+  },
+  {
+    "question": "how do i backup my data",
+    "answer": "Contact your system administrator about backup procedures. Regular backups should be automated, but verify backup schedules and recovery procedures."
+  },
+  {
+    "question": "who do i contact for technical support",
+    "answer": "Contact your system administrator or IT support team for technical issues, feature requests, or system configuration changes."
+  },
+  {
+    "question": "how do i change my password",
+    "answer": "Look for a profile or account settings option in the top menu to change your password and update personal details."
+  },
+  {
+    "question": "what browsers work best with the system",
+    "answer": "Modern browsers like Chrome, Firefox, Safari, and Edge work best. Ensure JavaScript is enabled and your browser is up to date."
+  },
+  {
+    "question": "can i access the system on mobile",
+    "answer": "The system should work on mobile browsers, though some features might be optimized for desktop use. Ask about mobile app availability."
+  },
+  {
+    "question": "how do i log out safely",
+    "answer": "Use the logout button in the top menu rather than just closing the browser to ensure your session ends properly."
+  },
+
+
+  {
+    "question": "what's the typical workflow for a new client",
+    "answer": "1) Add client details, 2) Add service with processes/scheduling, 3) System sends initial notifications, 4) Track progress and payments, 5) Complete processes and send final notifications."
+  },
+  {
+    "question": "how do i handle client complaints",
+    "answer": "Document complaints in the client Messages tab, address the issue, and update the client on resolution. Track all communication for future reference."
+  },
+  {
+    "question": "what if a client wants to cancel a service",
+    "answer": "Check your business policy for cancellations. You may need to process refunds, stop processes, and update service status accordingly."
+  },
+  {
+    "question": "how do i handle rush jobs",
+    "answer": "For urgent services, you can accelerate process completion, expedite surveyor assignment for ground services, and send priority notifications."
+  },
+  {
+    "question": "what reports can i generate",
+    "answer": "Common reports include: client service status, payment summaries, revenue analytics, employee payroll, message logs, and booking schedules."
+  }
+]

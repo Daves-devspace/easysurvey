@@ -11,6 +11,10 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.core.cache import cache
 from django.utils.functional import cached_property
+from django.db import models
+from django.contrib.postgres.fields import ArrayField  # optional, but JSONField is fine
+from django.db.models import JSONField
+
 
 
 # Gender choices
@@ -766,3 +770,23 @@ class MessageLog(models.Model):
 
     def __str__(self):
         return f"{self.client} | {self.reason} | {self.send_status}"
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+class KnowledgeEntry(models.Model):
+    question = models.TextField(unique=True)
+    answer = models.TextField()
+    embedding = JSONField(null=True, blank=True)  # store list[float]
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.question[:80]

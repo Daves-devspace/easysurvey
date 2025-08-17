@@ -244,6 +244,7 @@ LOGGING = {
 }
 
 
+HF_API_KEY = os.getenv("HF_API_KEY")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 

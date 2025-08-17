@@ -240,15 +240,15 @@ class UnitDeleteView(DeleteView):
         unit_id = unit.id
         unit.delete()
 
-        messages.success(request, f"Unit «{unit_number}» deleted.")
-
-        # Handle AJAX requests
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            # DON'T call messages.success for AJAX
             return JsonResponse({
                 "success": True,
                 "message": f"Unit «{unit_number}» deleted.",
                 "unit_id": unit_id,
-                "redirect_url": reverse_lazy("property_detail", kwargs={"pk": self.property.pk})
+                "redirect_url": reverse_lazy("property_detail", kwargs={"pk": self.property.pk}),
             })
 
+        # non-AJAX fallback uses contrib messages + redirect
+        messages.success(request, f"Unit «{unit_number}» deleted.")
         return redirect(self.get_success_url())
