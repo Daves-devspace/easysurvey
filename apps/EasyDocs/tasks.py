@@ -39,24 +39,37 @@ BATCH_SIZE = 50
 
 
 
-# tasks.py
 @shared_task
-def retry_failed_sms(log_id):
+def retry_failed_sms(log_id=None):
+    """
+    Safely retry a failed sms by log id.
+    If called without a log_id (e.g. scheduled call), this becomes a no-op.
+    """
+    if log_id is None:
+        logger.info("retry_failed_sms called without log_id — skipping.")
+        return
+
     from .utils import send_single_sms
 
-    log = MessageLog.objects.get(id=log_id)
+    try:
+        log = MessageLog.objects.get(id=log_id)
+    except MessageLog.DoesNotExist:
+        logger.warning("retry_failed_sms: MessageLog id=%s does not exist.", log_id)
+        return
+
     client = log.client
 
     try:
-        status, response = send_single_sms(client, log.message)  # ✅ fix: pass full client
+        status, response = send_single_sms(client, log.message)  # utils.send_single_sms(client, text)
         log.send_status = 'success' if status == 'sent' else 'failed'
-        log.message_id = response.get('message_id', '')
-        log.error_details = None if status == 'sent' else response.get('message')
+        log.message_id = response.get('message_id', '') if isinstance(response, dict) else ''
+        log.error_details = None if status == 'sent' else (response.get('message') if isinstance(response, dict) else str(response))
     except Exception as e:
         log.send_status = 'failed'
         log.error_details = str(e)
 
     log.save()
+
 
 
 
@@ -121,10 +134,17 @@ def _send_chunk(self, template, client_ids):
 
 
 
-
 @shared_task(bind=True)
-def schedule_bulk_broadcast(self, template, scheduled_iso=None):
-    logger.info(f"[SCHEDULER START] schedule_bulk_broadcast triggered. Task ID: {self.request.id}")
+def schedule_bulk_broadcast(self, template=None, scheduled_iso=None):
+    """
+    Safely schedule or dispatch bulk broadcast chunks.
+    If template is falsy (None/empty), task will no-op to avoid scheduler errors.
+    """
+    logger.info(f"[SCHEDULER START] schedule_bulk_broadcast triggered. Task ID: {getattr(self.request, 'id', None)}")
+
+    if not template:
+        logger.warning("[SCHEDULER] no template provided - nothing to do. Exiting.")
+        return {'task_ids': [], 'chunks': 0}
 
     client_ids = list(Client.objects.values_list('id', flat=True))
     logger.info(f"[INFO] Found {len(client_ids)} clients to broadcast to.")
@@ -136,32 +156,46 @@ def schedule_bulk_broadcast(self, template, scheduled_iso=None):
 
     for i, chunk in enumerate(chunks):
         if scheduled_iso:
-            eta = datetime.fromisoformat(scheduled_iso)
-            if timezone.is_naive(eta):
-                eta = timezone.make_aware(eta, timezone.get_current_timezone())
-            result = _send_chunk.apply_async(args=[template, chunk], eta=eta)
-            status = 'pending'
-            scheduled_time = eta
-            logger.info(f"[CHUNK {i + 1}] Scheduled to run at {eta} with task ID: {result.id}")
+            try:
+                eta = datetime.fromisoformat(scheduled_iso)
+                if timezone.is_naive(eta):
+                    eta = timezone.make_aware(eta, timezone.get_current_timezone())
+            except Exception as e:
+                logger.exception("Invalid scheduled_iso provided: %s", scheduled_iso)
+                # fallback: dispatch immediately
+                result = _send_chunk.apply_async(args=[template, chunk])
+                status = 'sent'
+                scheduled_time = timezone.now()
+                logger.info(f"[CHUNK {i + 1}] Dispatched immediately (invalid iso) with task ID: {result.id}")
+            else:
+                result = _send_chunk.apply_async(args=[template, chunk], eta=eta)
+                status = 'pending'
+                scheduled_time = eta
+                logger.info(f"[CHUNK {i + 1}] Scheduled to run at {eta} with task ID: {result.id}")
         else:
             result = _send_chunk.apply_async(args=[template, chunk])
             status = 'sent'
             scheduled_time = timezone.now()
             logger.info(f"[CHUNK {i + 1}] Dispatched immediately with task ID: {result.id}")
 
-        ScheduledTask.objects.create(
-            task_id=result.id,
-            task_name='_send_chunk',
-            scheduled_time=scheduled_time,
-            message_preview=template[:100],
-            status=status
-        )
+        try:
+            ScheduledTask.objects.create(
+                task_id=result.id,
+                task_name='_send_chunk',
+                scheduled_time=scheduled_time,
+                message_preview=(template[:100] if template else ''),
+                status=status
+            )
+        except Exception as e:
+            logger.exception("Failed to create ScheduledTask DB entry for task %s: %s", getattr(result, 'id', None), e)
 
         scheduled_ids.append(result.id)
 
     logger.info(f"[SCHEDULER END] Successfully queued {len(scheduled_ids)} tasks.")
 
     return {'task_ids': scheduled_ids, 'chunks': len(chunks)}
+
+
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)

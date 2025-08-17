@@ -1,5 +1,5 @@
 {# properties/partials/unit_confirm_delete.html #}
-<form method="post" action="{% url 'unit_delete' pk=property.pk unit_pk=object.pk %}">
+<form method="post" action="{% url 'unit_delete' pk=property.pk unit_pk=object.pk %}" data-ajax="true">
   {% csrf_token %}
   <div class="modal-header">
     <h5 class="modal-title">Delete Unit</h5>
@@ -10,6 +10,6 @@
   </div>
   <div class="modal-footer">
     <button type="submit" class="btn btn-danger">Delete</button>
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
   </div>
 </form>
+

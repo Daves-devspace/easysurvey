@@ -119,7 +119,7 @@ class UnitListView(ListView):
     List units for a property (non-HTMX). Paginate if you expect many units.
     """
     model = Unit
-    template_name = 'properties/partials/unit_table.html'   # full table (used by property detail)
+    template_name = 'properties/partials/unit_table.html'
     context_object_name = 'units'
     paginate_by = 25
 
@@ -138,26 +138,37 @@ class UnitListView(ListView):
         ctx['property'] = get_object_or_404(Property, pk=self.kwargs.get('pk'))
         return ctx
 
+
 class UnitCreateView(CreateView):
     model = Unit
     form_class = UnitForm
     template_name = "properties/partials/unit_form.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        self.property = get_object_or_404(Property, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["property"] = self.property
+        return ctx
+
     def form_valid(self, form):
+        form.instance.property = self.property
         unit = form.save()
-        messages.success(self.request, "Unit created successfully.")
+        messages.success(self.request, f"Unit «{unit.unit_number}» created.")
 
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
                 "success": True,
-                "message": "Unit created successfully.",
-                "redirect_url": reverse_lazy("unit-list")  # Adjust to your units list URL
+                "message": f"Unit «{unit.unit_number}» created.",
+                "redirect_url": reverse("property_detail", kwargs={"pk": self.property.pk}),
             })
-        return redirect("unit-list")
+        return redirect("property_detail", pk=self.property.pk)
 
     def form_invalid(self, form):
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            html = render(self.request, self.template_name, {"form": form}).content.decode("utf-8")
+            html = render(self.request, self.template_name, {"form": form, "property": self.property}).content.decode("utf-8")
             return JsonResponse({"success": False, "html": html})
         return super().form_invalid(form)
 
@@ -166,36 +177,78 @@ class UnitUpdateView(UpdateView):
     model = Unit
     form_class = UnitForm
     template_name = "properties/partials/unit_form.html"
+    pk_url_kwarg = "unit_pk"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.property = get_object_or_404(Property, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["property"] = self.property
+        return ctx
 
     def form_valid(self, form):
         unit = form.save()
-        messages.success(self.request, "Unit updated successfully.")
+        messages.success(self.request, f"Unit «{unit.unit_number}» updated.")
 
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
                 "success": True,
-                "message": "Unit updated successfully.",
-                "redirect_url": reverse_lazy("unit-list")
+                "message": f"Unit «{unit.unit_number}» updated.",
+                "redirect_url": reverse("property_detail", kwargs={"pk": self.property.pk}),
             })
-        return redirect("unit-list")
+        return redirect("property_detail", pk=self.property.pk)
 
     def form_invalid(self, form):
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            html = render(self.request, self.template_name, {"form": form}).content.decode("utf-8")
+            html = render(self.request, self.template_name, {"form": form, "property": self.property}).content.decode("utf-8")
             return JsonResponse({"success": False, "html": html})
         return super().form_invalid(form)
+
+
+
 
 
 class UnitDeleteView(DeleteView):
     model = Unit
     template_name = "properties/partials/unit_confirm_delete.html"
-    success_url = reverse_lazy("unit-list")
+    pk_url_kwarg = "unit_pk"
+    success_url = reverse_lazy("property-list")  # fallback
+
+    def dispatch(self, request, *args, **kwargs):
+        # Store property for redirect
+        self.property = get_object_or_404(Property, pk=kwargs['pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        # Only allow deletion of units belonging to the property
+        return get_object_or_404(Unit, pk=self.kwargs['unit_pk'], property=self.property)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["property"] = self.property
+        return ctx
+
+    def get_success_url(self):
+        # Always redirect to property detail after delete
+        return reverse_lazy("property_detail", kwargs={"pk": self.property.pk})
 
     def delete(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        self.object.delete()
-        messages.success(request, "Unit deleted successfully.")
+        unit = self.get_object()
+        unit_number = unit.unit_number
+        unit_id = unit.id
+        unit.delete()
 
+        messages.success(request, f"Unit «{unit_number}» deleted.")
+
+        # Handle AJAX requests
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({"success": True, "message": "Unit deleted successfully."})
-        return redirect(self.success_url)
+            return JsonResponse({
+                "success": True,
+                "message": f"Unit «{unit_number}» deleted.",
+                "unit_id": unit_id,
+                "redirect_url": reverse_lazy("property_detail", kwargs={"pk": self.property.pk})
+            })
+
+        return redirect(self.get_success_url())
