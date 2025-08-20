@@ -6,14 +6,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatInput = document.getElementById("chatInput");
   const chatSend = document.getElementById("chatSend");
 
-  let knowledgeBase = [];
-
-  // 🔹 If Django template provides username (or null if anonymous)
   const username = (window.currentUser || "").trim();
 
-  //const username = "{{ request.user.username|default:'' }}".trim();
-
-  // Toggle sidebar
+  // Sidebar toggle
   chatButton.addEventListener("click", () => {
     chatSidebar.style.right = "0";
     chatInput.focus();
@@ -26,103 +21,79 @@ document.addEventListener("DOMContentLoaded", () => {
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
-  // Load knowledge base
-  async function loadKnowledgeBase() {
+  // ---------------------
+  // Typing indicator
+  let typingTimeout;
+  chatInput.addEventListener("input", () => {
+    clearTimeout(typingTimeout);
+    showTypingIndicator("user");
+    typingTimeout = setTimeout(() => hideTypingIndicator("user"), 500); // hides after 0.5s of inactivity
+  });
+
+  function showTypingIndicator(who) {
+    let elem = document.getElementById(`${who}-typing`);
+    if (!elem) {
+      elem = document.createElement("div");
+      elem.id = `${who}-typing`;
+      elem.className = `${who}-message typing`;
+      elem.innerText = who === "bot" ? "Bot is typing..." : "You are typing...";
+      chatMessages.appendChild(elem);
+      scrollToBottom();
+    }
+  }
+
+  function hideTypingIndicator(who) {
+    const elem = document.getElementById(`${who}-typing`);
+    if (elem) elem.remove();
+  }
+
+  // ---------------------
+  async function findBestAnswer(userText) {
+    showTypingIndicator("bot"); // show bot typing
     try {
-      const res = await fetch("/static/assets/json/knowledgeBase.json");
-      knowledgeBase = await res.json();
-      console.log("Knowledge base loaded:", knowledgeBase.length, "entries");
+      const res = await fetch("/api/get-similarity/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: userText, username }),
+      });
+
+      if (!res.ok) return "I'm sorry, I couldn’t process that request right now.";
+
+      const data = await res.json();
+      return data.answer || "I’m not sure how to help with that yet.";
     } catch (err) {
-      console.error("Failed to load knowledge base:", err);
+      console.error(err);
+      return "Sorry, something went wrong. Please try again.";
+    } finally {
+      hideTypingIndicator("bot"); // hide after response
     }
   }
-  loadKnowledgeBase();
 
-  // Find best answer using HF API
-// helper: detect greeting-like answers and return personalized version
-function personalizeGreeting(answer, username) {
-  if (!answer || typeof answer !== "string") return answer;
-
-  // Matches greetings at the start and captures the rest of the answer
-  // Groups: 1 = full greeting prefix, 2 = remainder after greeting
-  const greetingRegex = /^\s*(?:hi|hello|hey|greetings|good (?:morning|afternoon|evening))[\s,!.:-]*(.*)$/i;
-  const m = answer.match(greetingRegex);
-
-  if (!m) {
-    // Not a greeting phrase at the start
-    return answer;
-  }
-
-  const remainder = (m[1] || "").trim();
-
-  if (username) {
-    // If KB answer is only greeting (no remainder), supply a friendly default tail
-    if (!remainder) {
-      return `Hi ${username}! How can I help you today?`;
-    }
-    // Otherwise replace generic start with personalized greeting + remainder
-    return `Hi ${username}, ${remainder}`;
-  } else {
-    // No username available — return KB answer as-is
-    return answer;
-  }
-}
-
-async function findBestAnswer(userText) {
-  if (!knowledgeBase.length) return "Knowledge base not loaded yet.";
-
-  try {
-    const res = await fetch("/api/get-similarity/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source_sentence: userText }),
-    });
-
-    if (!res.ok) {
-      console.error("Similarity API error", res.status);
-      const errData = await res.json().catch(() => null);
-      console.error(errData);
-      return "I'm sorry, I couldn't process that request right now.";
-    }
-
-    const data = await res.json();
-    const answer = data.answer;
-    const score = data.score;
-
-    // If no strong match, polite fallback (no username)
-    if (!answer || score == null || score < 0.3) {
-      return "I didn’t find a strong match. You might try asking about Clients, Services, Bookings, Documents, Accounts, or Employees.";
-    }
-
-    // If answer looks like a greeting, personalize it, otherwise return answer unchanged
-    return personalizeGreeting(answer, username);
-
-  } catch (err) {
-    console.error(err);
-    return "Sorry, something went wrong. Please try again.";
-  }
-}
-
-  // Send message
+  // ---------------------
   async function sendMessage() {
     const userText = chatInput.value.trim();
     if (!userText) return;
 
+    // Remove previous user typing indicator
+    hideTypingIndicator("user");
+
+    // Add user message
     const userMsgDiv = document.createElement("div");
     userMsgDiv.classList.add("user-message");
     userMsgDiv.innerText = userText;
     chatMessages.appendChild(userMsgDiv);
     scrollToBottom();
 
+    chatInput.value = "";
+    chatInput.focus();
+
+    // Get bot reply
     const botReply = await findBestAnswer(userText);
     const botMsgDiv = document.createElement("div");
     botMsgDiv.classList.add("bot-message");
     botMsgDiv.innerText = botReply;
     chatMessages.appendChild(botMsgDiv);
     scrollToBottom();
-
-    chatInput.value = "";
-    chatInput.focus();
   }
 
   chatSend.addEventListener("click", sendMessage);

@@ -246,6 +246,19 @@ LOGGING = {
 
 HF_API_KEY = os.getenv("HF_API_KEY")
 
+
+# Models (defaults are sensible, you can override)
+HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"   # similarity pipeline (source_sentence+sentences)
+HF_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"                  # zero-shot classifier (optional)
+HF_PARAPHRASE_MODEL = "tuner007/pegasus_paraphrase"  # e.g. "Vamsi/T5_Paraphrase_Paws" or an instruction-tuned model; leave empty to disable paraphrase
+
+# Tunables
+HF_CHUNK_SIZE = 40
+SIMILARITY_MIN_SCORE = 0.28   # retrieval threshold
+INTENT_CONF_THRESH = 0.60
+CACHE_TTL = 60 * 60
+
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
