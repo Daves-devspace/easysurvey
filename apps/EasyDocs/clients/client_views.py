@@ -18,7 +18,7 @@ from apps.EasyDocs.services.services import create_client_service_with_overrides
     update_client_service_overrides, handle_ground_booking, default_scheduled_date
 from apps.EasyDocs.utils import MobileSasaAPI
 
-
+from django.contrib.auth.decorators import login_required, permission_required     
 import logging
 
 
@@ -248,6 +248,50 @@ class DeleteClientSubserviceView(ClientActionView):
             messages.success(request, "🗑️ SubService deleted.")
         except ClientSubService.DoesNotExist:
             messages.error(request, "⚠️ SubService not found.")
+            
+            
+     
+            
+
+@login_required
+@permission_required('yourapp.change_clientsubservice', raise_exception=True)
+def soft_delete_client_subservice(request, pk):
+    """
+    Soft-delete a ClientSubService instance.
+    """
+    cs = get_object_or_404(ClientSubService.objects.select_related('client_service'), pk=pk)
+    try:
+        cs.soft_delete(clear_price=True, force=False)
+        messages.success(request, "Client subservice soft-deleted.")
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
+
+@login_required
+@permission_required('yourapp.change_clientsubservice', raise_exception=True)
+def restore_client_subservice(request, pk):
+    """
+    Restore a previously soft-deleted ClientSubService.
+    Uses all_objects manager so inactive rows can be found.
+    """
+    cs = get_object_or_404(ClientSubService.all_objects.select_related('client_service'), pk=pk)
+    if cs.is_active:
+        messages.info(request, "Client subservice is already active.")
+        return redirect(request.META.get('HTTP_REFERER', 'management'))
+    cs.restore()
+    messages.success(request, "Client subservice restored.")
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
+
+@login_required
+@permission_required('yourapp.delete_clientsubservice', raise_exception=True)
+def hard_delete_client_subservice(request, pk):
+    """
+    Permanently delete a ClientSubService from DB. Use with care.
+    """
+    cs = get_object_or_404(ClientSubService.all_objects.select_related('client_service'), pk=pk)
+    cs.hard_delete()
+    messages.success(request, "Client subservice permanently deleted.")
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
 

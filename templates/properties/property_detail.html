@@ -140,48 +140,119 @@
 
                             </div>
                         </div>
+                       
+                    {% endif %}
                          <!-- Unit Modal -->
+
+
+                         <div class="tab-pane show active" id="profile-2" role="tabpanel"
+                             aria-labelledby="profile-tab-2">
+                            <div class="row">
+
+                                <div class="col-lg-12 col-xxl-12">
+                                    <div class="card">
+                                        <div class="card-header pb-0">
+                                            <!-- Add Unit Button -->
+                                               <div class="d-flex justify-content-between my-3">
+                                                    <div>
+                                                        <span class="badge bg-success">Total tenants: {{ units_count }}</span>
+                                                    </div>
+                                                    <button class="btn btn-primary mb-3"
+                                                            data-url="{% url 'unit_add' pk=property_obj.pk %}">
+                                                    <i class="fas fa-plus"></i> Add Tenant
+                                                    </button>
+
+                                                   
+                                                </div>
+                                           <!-- Filters -->
+                                                <div class="btn-group mb-3" role="group" hx-get="{% url 'unit_list' property_obj.pk  %}?status=all" hx-target="#units-table" hx-swap="innerHTML">
+                                                    <button class="btn btn-outline-primary">All</button>
+                                                    <button class="btn btn-outline-primary" hx-get="?status=occupied">New</button>
+                                                    <button class="btn btn-outline-primary" hx-get="?status=vacant">Vacant</button>
+                                                </div>
+                                        </div>
+
+
+                                            <div class="card-body table-card">
+                                                <div class="table-responsive mt-3">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                        <thead class="table-success">
+                                                    
+                                                        <tr>
+                                                        <th>Tenant</th>
+                                                        <th>Unit</th>
+                                                        <th>Rent</th>
+                                                        <th>Balance</th>
+                                                        <th>Current Meter</th>
+                                                        <th>Lease Period</th>
+                                                        <th>Details</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for t in tenants_data %}
+                                                        <tr>
+                                                            <td>{{ t.tenant.full_name }}</td>
+                                                            <td>{{ t.unit.unit_number }}</td>
+                                                            <td>{{ t.rent_amount }}</td>
+                                                            <td>{{ t.balance }}</td>
+                                                            <td>{{ t.current_meter }}</td>
+                                                            <td>{{ t.lease_start }} - {{ t.lease_end }}</td>
+                                                            <td>
+                                                                <a href="{% url 'tenant_detail' tenant_id=t.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                </div>
+                            </div>
+                        </div>
+                </div>
+
                         
   
-</div>
+            </div>
 
 
 
 
 
-<!-- Your modal (already provided by you) -->
-<div class="modal fade" id="tenantLeaseModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Assign Tenant & Lease</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+            <!-- Your modal (already provided by you) -->
+            <div class="modal fade" id="tenantLeaseModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Assign Tenant & Lease</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
 
-      <div class="modal-body" id="tenantLeaseModalBody">
-        <!-- fetched form HTML will be injected here -->
-      </div>
-    </div>
-  </div>
-</div>
-
-
+                <div class="modal-body" id="tenantLeaseModalBody">
+                    <!-- fetched form HTML will be injected here -->
+                </div>
+                </div>
+            </div>
+            </div>
 
 
 
 
-<!-- Generic modal used for create/edit/delete unit forms -->
-<div class="modal fade" id="crudModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content" id="crudModalContent">
-      <!-- JS will inject the form partial (modal header/body/footer) here -->
-    </div>
-  </div>
-</div>
+
+
+            <!-- Generic modal used for create/edit/delete unit forms -->
+            <div class="modal fade" id="crudModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content" id="crudModalContent">
+                <!-- JS will inject the form partial (modal header/body/footer) here -->
+                </div>
+            </div>
+            </div>
 
 
                         
-                    {% endif %}
+                   
                    
 
                 </div>

@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum, F, Value, Q, DecimalField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -462,6 +462,18 @@ class ClientServiceProcess(models.Model):
         )
 
 
+
+
+
+class ActiveSubServiceQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(is_active=True)
+
+    # allow .delete() to soft-delete many
+    def delete(self):
+        for obj in self:
+            obj.soft_delete()
+
 class ClientSubService(models.Model):
     client_service = models.ForeignKey(
         'ClientService', related_name='sub_services', on_delete=models.CASCADE
@@ -480,10 +492,23 @@ class ClientSubService(models.Model):
         help_text="Leave blank to use default sub-service price"
     )
 
-    # New Fields for Payout Tracking
+    # Payout tracking
     is_paid_to_legal_office = models.BooleanField(default=False)
-    paid_month = models.DateField(blank=True, null=True)  # e.g., 2025-05-01
+    paid_month = models.DateField(blank=True, null=True)
     paid_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    # Soft-delete flag
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    # Managers:
+    objects = ActiveSubServiceQuerySet.as_manager()   # default -> active only
+    all_objects = models.Manager()                    # all rows (active+inactive)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['added_on']),
+        ]
 
     def __str__(self):
         return f"{self.client_service} → {self.sub_service.name}"
@@ -495,6 +520,52 @@ class ClientSubService(models.Model):
     @property
     def balance(self):
         return max(Decimal('0.00'), self.price - self.paid_amount)
+
+    @transaction.atomic
+    def soft_delete(self, clear_price=True, force=False):
+        """
+        Soft-delete this ClientSubService:
+         - mark is_active=False
+         - optionally clear overridden_price so it no longer contributes to aggregates
+         - call client_service.update_full_total() to refresh denormalized totals
+        """
+        # Prevent accidental removal of already-paid subservices unless forced
+        if self.is_paid_to_legal_office and not force:
+            raise ValueError("Cannot delete subservice that is already paid to legal office without force=True.")
+
+        if clear_price:
+            self.overridden_price = None
+
+        self.is_active = False
+        self.save(update_fields=['is_active', 'overridden_price'])
+
+        # refresh denormalized totals on parent client_service
+        try:
+            self.client_service.update_full_total()
+        except Exception:
+            # log if you have logging - don't raise here
+            pass
+
+    @transaction.atomic
+    def restore(self):
+        """
+        Restore a soft-deleted subservice:
+         - mark is_active=True
+         - keep overridden_price as-is (if it was cleared on delete it remains None; adjust policy if you want to restore price)
+         - recompute client_service totals
+        """
+        # Optionally: prevent restoring if the parent client_service is inactive/closed — add checks here if needed
+        self.is_active = True
+        self.save(update_fields=['is_active'])
+        try:
+            self.client_service.update_full_total()
+        except Exception:
+            pass
+
+    @transaction.atomic
+    def hard_delete(self):
+        """Permanently remove the row from DB. Use with care; bypasses soft-delete."""
+        super().delete()
 
 
 class SubService(models.Model):
@@ -637,6 +708,25 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+        
+    @property
+    def company_revenue(self) -> Decimal:
+        cs = self.client_service
+        amt = Decimal(self.amount or 0)
+        service = cs.service
+        inst = Decimal(service.total_price or 0)
+        total = Decimal(cs.full_total_price or 0)
+        if service.category == ServiceCategory.TITLE:
+            if total > 0:
+                inst_share = (inst / total) * amt
+                rev = amt - inst_share
+            else:
+                # fallback (admin should avoid this if possible)
+                rev = amt - inst
+        else:
+            rev = amt
+        # never return negative revenue for the payment (optional)
+        return max(Decimal('0.00'), rev.quantize(Decimal('0.01')))
 
 
 

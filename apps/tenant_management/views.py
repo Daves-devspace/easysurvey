@@ -7,11 +7,11 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
-from .models import Property, Unit
+from .models import Property, Unit, Lease, Tenant, Payment, Invoice
 from .forms import PropertyForm, UnitForm,LeaseForm, CombinedTenantLeaseForm
 import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Sum
 
 
 # mixin to pick HTMX template
@@ -82,7 +82,6 @@ class PropertyDetailView(DetailView):
     context_object_name = 'property_obj'
 
     def get_queryset(self):
-        # Preload units with their lease & tenant, and annotate unit count
         return (
             Property.objects
             .annotate(units_count=Count('units'))
@@ -97,17 +96,42 @@ class PropertyDetailView(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
 
-        # No extra queries — units & count are already fetched
-        ctx['units']        = self.object.units.all()
-        ctx['units_count']  = self.object.units_count
-        ctx['unit_id']      = self.kwargs.get('unit_id')
-        ctx['unit_form']    = UnitForm()
-        
-        ctx['combined_form'] = CombinedTenantLeaseForm(initial={
-            'property': self.object.id
-        })
+        property_obj = self.object
+        ctx['units']       = property_obj.units.all()
+        ctx['units_count'] = property_obj.units_count
+        ctx['unit_id']     = self.kwargs.get('unit_id')
+        ctx['unit_form']   = UnitForm()
 
+        ctx['combined_form'] = CombinedTenantLeaseForm(initial={'property': property_obj.id})
+
+        # --- Aggregate tenants with rent, balance, meter reading ---
+        tenants_data = []
+        for unit in ctx['units']:
+            try:
+                lease = unit.lease  # one-to-one relationship
+            except Lease.DoesNotExist:
+                lease = None
+
+            if lease and lease.tenant:
+                tenant = lease.tenant
+                invoices = Invoice.objects.filter(lease=lease)
+                total_paid = Payment.objects.filter(invoice__in=invoices, tenant=tenant).aggregate(total=Sum('amount'))['total'] or 0
+                balance = lease.unit.rent_amount - total_paid  # or compute from invoices
+                tenants_data.append({
+                    'tenant': tenant,
+                    'unit': unit,
+                    'rent_amount': lease.unit.rent_amount,
+                    'balance': balance,
+                    'current_meter': unit.meter_number,
+                    'lease_start': lease.start_date,
+                    'lease_end': getattr(lease, 'end_date', None)
+                })
+
+
+        ctx['tenants_data'] = tenants_data
         return ctx
+
+
 
 
 

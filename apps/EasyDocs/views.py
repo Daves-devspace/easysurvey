@@ -25,7 +25,7 @@ from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
 
 from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
-from .analytics import get_yearly_revenue_data, get_available_years
+from .analytics import get_yearly_revenue_data, get_available_years, monthly_company_revenue,get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
@@ -112,21 +112,18 @@ def aggregate_ytd(model_or_qs, date_field: str, amount_field: str, start_date, e
     return qs.aggregate(total=Sum(amount_field))['total'] or Decimal('0.00')
 
 
-def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[float]:
+def monthly_series(source, date_field: str, agg_field: str, year: int):
     """
-    Build a 12‑element list (Jan→Dec) of aggregated values:
-      - If agg_field == 'id', performs COUNT('id')
-      - Otherwise performs SUM(agg_field)
-    `source` may be either:
-      * A Model class (e.g. Payment)
-      * A pre‑filtered/annotated QuerySet
+    Build a 12-element list (Jan→Dec).
+    - If agg_field == 'id' -> returns integers (counts).
+    - Otherwise -> returns Decimals (sum), quantized to 2 decimals.
+    Accepts either a Model class or a QuerySet.
     """
     if isinstance(source, QuerySet):
         qs = source
     else:
         qs = source.objects.all()
 
-    # Rename annotation to avoid conflict with existing 'month' field
     qs = (
         qs
         .filter(**{f"{date_field}__year": year})
@@ -141,11 +138,23 @@ def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[f
         .order_by('month_trunc')
     )
 
-    data = OrderedDict((calendar.month_abbr[m], 0.0) for m in range(1, 13))
+    # Initialize months structure: ints for counts, Decimals for sums
+    if agg_field == 'id':
+        data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    else:
+        data = OrderedDict((calendar.month_abbr[m], Decimal('0.00')) for m in range(1, 13))
+
     for entry in month_vals:
-        mon = entry['month_trunc'].month
+        mon = entry['month_trunc'].month if entry.get('month_trunc') else None
+        if not mon:
+            continue
         key = calendar.month_abbr[mon]
-        data[key] = float(entry['val'] or 0)
+        val = entry['val'] or 0
+        if agg_field == 'id':
+            data[key] = int(val)
+        else:
+            # Ensure Decimal and quantize to 2 dp for consistent math/formatting
+            data[key] = Decimal(val).quantize(Decimal('0.01'))
 
     return list(data.values())
 
@@ -159,31 +168,24 @@ class DashboardView(TemplateView):
         current_year = today.year
         prev_year = current_year - 1
 
-        # ── REVENUE YTD vs Last Year YTD ───────────────────────────────
-        rev_cur = (
-                Payment.objects
-                .filter(payment_date__year=current_year)
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
-        rev_prev = (
-                Payment.objects
-                .filter(
-                    payment_date__year=prev_year,
-                    payment_date__month__lte=today.month,
-                    payment_date__day__lte=today.day
-                )
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
-        rev_growth = pct_growth(rev_cur, rev_prev)
-        rev_diff = rev_cur - rev_prev
+        rev_cur_gross, rev_cur_net, rev_cur_inst = get_revenue_from_payments(current_year, up_to_date=today)
+        rev_prev_gross, rev_prev_net, rev_prev_inst = get_revenue_from_payments(prev_year, up_to_date=today)
+        
+        
 
+        # Keep both gross and net in context
         context.update({
-            'rev_cur': rev_cur,
-            'rev_prev': rev_prev,
-            'rev_growth_pct': rev_growth,
-            'rev_diff': rev_diff,
-            'rev_diff_abs': abs(rev_diff),
+            'rev_cur_gross': rev_cur_gross,
+            'rev_prev_gross': rev_prev_gross,
+            'rev_cur_net': rev_cur_net,        # company profit before general expenses
+            'rev_prev_net': rev_prev_net,
+            'rev_cur_inst_paid': rev_cur_inst, # money passed to institutions
+            'rev_prev_inst_paid': rev_prev_inst,
         })
+
+        # Growth metrics (choose whether to compare gross or net)
+        context['rev_growth_pct'] = pct_growth(rev_cur_net, rev_prev_net)
+        context['rev_diff'] = rev_cur_net - rev_prev_net
 
         # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
         # Payroll expenses
@@ -234,8 +236,9 @@ class DashboardView(TemplateView):
                 )
                 .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         )
-        exp_cur = ss_cur + ge_cur + payroll_cur
-        exp_prev = ss_prev + ge_prev + payroll_prev
+        exp_cur = ge_cur + payroll_cur
+        exp_prev = ge_prev + payroll_prev
+
         exp_growth = pct_growth(exp_cur, exp_prev)
         exp_diff = exp_cur - exp_prev
 
@@ -248,10 +251,18 @@ class DashboardView(TemplateView):
         })
 
         # ── NET REVENUE YTD vs Last Year YTD ───────────────────────────
-        net_cur = rev_cur - exp_cur
-        net_prev = rev_prev - exp_prev
+        net_cur = rev_cur_net - exp_cur
+        net_prev = rev_prev_net - exp_prev
         net_growth = pct_growth(net_cur, net_prev)
         net_diff = net_cur - net_prev
+        
+        # ── INSTITUTION COSTS (external payments) ───────────────────────────
+        inst_growth = pct_growth(rev_cur_inst, rev_prev_inst)
+        inst_diff = rev_cur_inst - rev_prev_inst
+        
+        # ── CLIENT PAYMENTS YTD vs Last Year YTD ─────────────────────────────
+        client_payments_growth = pct_growth(rev_cur_gross, rev_prev_gross)
+        client_payments_diff = rev_cur_gross - rev_prev_gross
 
         context.update({
             'net_cur': net_cur,
@@ -259,6 +270,14 @@ class DashboardView(TemplateView):
             'net_growth_pct': net_growth,
             'net_diff': net_diff,
             'net_diff_abs': abs(net_diff),
+            'inst_growth_pct': inst_growth,
+            'inst_diff': inst_diff,
+            'inst_diff_abs': abs(inst_diff),
+            'client_payments_cur': rev_cur_gross,
+            'client_payments_prev': rev_prev_gross,
+            'client_payments_growth_pct': client_payments_growth,
+            'client_payments_diff': client_payments_diff,
+            'client_payments_diff_abs': abs(client_payments_diff),
         })
 
         # ── CLIENTS YTD vs Last Year YTD ──────────────────────────────
@@ -301,7 +320,8 @@ class DashboardView(TemplateView):
         context['month_labels'] = list(OrderedDict((calendar.month_abbr[m], None) for m in range(1, 13)))
         context['clients_monthly'] = monthly_series(Client, 'created_at', 'id', current_year)
         context['titles_monthly'] = monthly_series(TitleDeedCollection, 'collected_at', 'id', current_year)
-        context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
+        #context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
+        context['revenue_monthly'] = monthly_company_revenue(current_year)
 
         ss_monthly = monthly_series(
             ClientSubService.objects.annotate(amt=Coalesce('overridden_price', F('sub_service__price'))),

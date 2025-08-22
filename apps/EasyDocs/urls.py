@@ -3,7 +3,8 @@ from . import views, documents, accounts, reciepts, analytics, auth_views, bot
 from .accounts.legal_payout import BulkPayToLegalView
 from .clients.client_views import SendClientSMSView, \
     DeleteClientServiceView, AddClientSubserviceView, EditClientSubserviceView, DeleteClientSubserviceView, \
-    ClientServiceManageView
+    ClientServiceManageView, soft_delete_client_subservice,restore_client_subservice, hard_delete_client_subservice
+
 from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
@@ -81,6 +82,11 @@ urlpatterns = [
          name='client-edit-subservice'),
     path('clients/<int:client_id>/subservices/delete/', DeleteClientSubserviceView.as_view(),
          name='client-delete-subservice'),
+    
+    
+    path('client-subservice/<int:pk>/soft-delete/', soft_delete_client_subservice, name='soft_delete_client_subservice'),
+    path('client-subservice/<int:pk>/restore/', restore_client_subservice, name='restore_client_subservice'),
+    path('client-subservice/<int:pk>/hard-delete/', hard_delete_client_subservice, name='hard_delete_client_subservice'),
 
     path('clients/<int:client_id>/add-payment/', accounts.accounts.add_payment_view, name='add_payment'),
 

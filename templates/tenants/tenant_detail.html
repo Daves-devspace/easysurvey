@@ -1,0 +1,394 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+{% load custom_filters %}
+{% load service_extras %}
+{% load client_extras %}
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Property</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Tenant</li>
+                    </ul>
+                </div>
+                <div class="col-md-12">
+                    <div class="page-header-title">
+                        <h2 class="mb-0"> Tenant Profile</h2>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <!-- [ breadcrumb ] end -->
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                           href="#profile-1"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-user me-2"></i>Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-file-text me-2"></i>Lease
+                        </a>
+                    </li>
+                    
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!--profile-->
+                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                         aria-labelledby="profile-tab-1">
+                        <div class="row">
+                            <div class="col-lg-4 col-xxl-3">
+                                <div class="card">
+                                    <div class="card-body position-relative">
+                                        <div class="position-absolute end-0 top-0 p-3">
+                                            <span class="badge bg-primary">
+                                                 <a href="#" class="btn btn-primary btn-sm">Edit Details</a>
+                                                 <a href="#" class="btn btn-success btn-sm">Add Payment</a>
+                                                    </span>
+                                        </div>
+                                        <div class="text-center mt-3">
+                                            <div class="chat-avtar d-inline-flex mx-auto">
+                                                <img class="rounded-circle img-fluid wid-70"
+                                                     src="{% static 'assets/images/user/avatar-5.jpg' %}"
+                                                     alt="User image">
+                                            </div>
+                                            <h5 class="mb-0">{{ tenant.full_name }}</h5>
+                                            <p class="text-muted text-sm">tenant</p>
+                                            <hr class="my-3">
+                                            <div class="row g-3">
+                                                <div class="col-4">
+                                                    <h5 class="mb-0">{{ total_units }}</h5>
+                                                    <small class="text-muted">Units</small>
+                                                </div>
+                                                <div class="col-4 border border-top-0 border-bottom-0">
+                                                    <h5 class="mb-0">{{ client_service_summary.completed_services }}</h5>
+                                                    <small class="text-muted">Completed Services</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <h5 class="mb-0">{{ total_balance }}</h5>
+                                                    <small class="text-muted">Total Balance</small>
+                                                </div>
+                                            </div>
+                                            <hr class="my-3">
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-mail"></i>
+                                                <p class="mb-0">{{ tenant.phone_number }}</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-phone"></i>
+                                                <p class="mb-0">{{ client.email }}</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
+                                                <i class="ti ti-map-pin"></i>
+                                                <p class="mb-0">{{ tenant.national_id }}</p>
+                                            </div>
+                                            <div class="d-inline-flex align-items-center justify-content-between w-100">
+                                                <i class="ti ti-link"></i>
+                                                <a href="#" class="link-primary">
+                                                    <p class="mb-0">Active</p>
+                                                </a>
+                                            </div>
+
+                                            
+
+
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="col-lg-8 col-xxl-9">
+
+
+                                <div class="card" style="height: 600px; overflow-y: auto;">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0 text-capitalize">
+                                            {{ client.first_name }} {{ client.last_name }}'s Services
+                                        </h5>
+                                        {% if perms.easydocs.add_clientservice %}
+                                            <button class="btn btn-sm btn-success d-flex align-items-center"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addClientServiceModal">
+                                                <i class="ti ti-circle-plus me-1"></i> Add Service
+                                            </button>
+                                        {% endif %}
+                                    </div>
+
+                                    
+                                            
+
+
+                                                        <div class="row g-3 mt-3">
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-200 text-orange-600 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                                            Units</h6>
+                                                                        <p class="card-text fs-6 fw-semibold">
+                                                                            {{ total_units }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-200 text-orange-600 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                                           Total Paid</h6>
+                                                                        <p class="card-text fs-6 fw-semibold">
+                                                                           Ksh {{ total_paid }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-200 text-orange-600 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                                            Balance</h6>
+                                                                        <p class="card-text fs-6 fw-semibold">
+                                                                            KSH {{ total_balance }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-200 text-orange-600 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                                            Deposit</h6>
+                                                                        <p class="card-text fs-6 fw-semibold">
+                                                                           Ksh {{ total_deposit }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+
+                                                        <div class="card shadow p-3 mb-5 bg-white rounded">
+                                                            
+                                                                <h6 class="mt-4">Active Lease:</h6>
+                                                                <div class="table-responsive">
+                                                                    <table class="table table-bordered table-sm align-middle">
+                                                                        <thead class="table-dark">
+                                                                        <tr>
+                                                                            <th>Unit</th>
+                                                                            <th>Property</th>
+                                                                            <th>Rent Amount</th>
+                                                                            <th>Deposit</th>
+                                                                            <th>Status</th>
+                                                                            <th>Previous Meter</th>
+                                                                            <th>Current Meter</th>
+                                                                            <th>Balance</th>
+                                                                            <th>Actions</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                        {% for ld in leases_data %}
+                                                                        <tr>
+                                                                            <td>{{ ld.unit.unit_number }}</td>
+                                                                            <td>{{ ld.property.name }}</td>
+                                                                            <td>Ksh {{ ld.rent_amount }}</td>
+                                                                            <td>Ksh {{ ld.deposit }}</td>
+                                                                            <td>{{ ld.status }}</td>
+                                                                            <td>{{ ld.previous_meter|default:'-' }}</td>
+                                                                            <td>{{ ld.current_meter|default:'-' }}</td>
+                                                                            <td>Ksh {{ ld.balance }}</td>
+                                                                            <td>
+                                                                            <a href="#" class="btn btn-sm btn-info">Invoice</a>
+                                                                            <a href="#" class="btn btn-sm btn-danger">Terminate</a>
+                                                                            </td>
+                                                                        </tr>
+                                                                        {% empty %}
+                                                                        <tr><td colspan="9" class="text-center">No active leases</td></tr>
+                                                                        {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                          
+                                                           
+
+
+                                                        </div>
+
+                                               
+
+                                          
+                                    
+
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <!--documents-->
+                    <div class="tab-pane" id="profile-2" role="tabpanel"
+                         aria-labelledby="profile-tab-2">
+                        <div class="row">
+                            <div class="col-lg-6 col-xxl-6">
+                                <div class="card mb-4 shadow-sm">
+                                    <div class="card-body position-relative">
+                                          <!-- PENDING / OVERDUE INVOICES -->
+                                        
+                                            <div class="card-header">
+                                            <h5>Pending / Overdue Invoices</h5>
+                                            </div>
+                                            <div class="card-body table-responsive">
+                                            <table class="table table-bordered table-sm align-middle">
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>Invoice #</th>
+                                                    <th>Total</th>
+                                                    <th>Paid</th>
+                                                    <th>Balance</th>
+                                                    <th>Due Date</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                {% for ld in leases_data %}
+                                                    {% for invoice in ld.lease.invoices.all %}
+                                                    {% if not invoice.is_paid %}
+                                                    <tr>
+                                                        <td>#{{ invoice.id }}</td>
+                                                        <td>Ksh {{ invoice.total_amount }}</td>
+                                                        <td>Ksh {{ invoice.total_paid}}</td>
+                                                        <td>Ksh {{ invoice.balance }}</td>
+                                                        <td>{{ invoice.due_date }}</td>
+                                                        <td class="text-danger">Pending</td>
+                                                    </tr>
+                                                    {% endif %}
+                                                    {% endfor %}
+                                               
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                            </div>
+                                       
+
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="col-lg-6">
+                                
+
+
+                                <div class="card">
+                                    <div class="card-header">
+                                         <h5>Payments History</h5>
+
+                                        
+                                    </div>
+                                    <div class="card-body table-card">
+                                        <div class="table-responsive mt-3">
+                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                <thead class="table-dark">
+                                                <tr>
+                                                    <th>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input"
+                                                                   type="checkbox"
+                                                                   id="select-all">
+                                                        </div>
+                                                    </th>
+                                                    
+          
+                                                    <th>Date</th>
+                                                    <th>Amount</th>
+                                                    <th>Method</th>
+                                                    <th>Invoice</th>
+                                                    <th>Balance After</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                {% for p in payments %}
+                                                <tr>
+                                                    <td>{{ p.payment_date|date:"d M Y H:i" }}</td>
+                                                    <td>Ksh {{ p.amount }}</td>
+                                                    <td>{{ p.method }}</td>
+                                                    <td><a href="{% url 'invoice_detail' p.invoice.id %}">#{{ p.invoice.id }}</a></td>
+                                                    <td>Ksh {{ p.balance_after }}</td>
+                                                </tr>
+                                                
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                 
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- [ sample-page ] end -->
+</div>
+<!-- [ Main Content ] end -->
+</div>
+</div>
+
+
+
+
+
+
+{% endblock %}
+

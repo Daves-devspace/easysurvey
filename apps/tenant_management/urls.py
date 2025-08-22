@@ -13,7 +13,8 @@ from .views import (
     PropertyDeleteView,
     
 )
-from apps.tenant_management.lease.lease import TenantCreateView, TenantLeaseCreateView,LeaseListView, LeaseDetailView, TenantListView, end_lease_view,get_units_by_property
+from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property
+from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView
 
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
@@ -27,7 +28,13 @@ urlpatterns = [
     path('properties/<int:pk>/units/<int:unit_pk>/edit/', UnitUpdateView.as_view(), name='unit_edit'),
     path('properties/<int:pk>/units/<int:unit_pk>/delete/', UnitDeleteView.as_view(), name='unit_delete'),
     
+    
+    
     # Tenant management URLs
+     path('tenants/<int:tenant_id>/',
+           TenantDetailView.as_view(),
+           name='tenant_detail'),  # Detailed view of a single tenant
+    
     path('tenants/',
          TenantListView.as_view(),
          name='tenant_list'),  # List all tenants

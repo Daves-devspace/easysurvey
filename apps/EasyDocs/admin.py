@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .forms import ClientServiceForm
 from .models import (Client, Service, Process, ClientService, ClientServiceProcess, Payment, Document, DocType,
-                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask)
+                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask,ClientSubService)
 
 
 
@@ -10,6 +10,35 @@ from .models import (Client, Service, Process, ClientService, ClientServiceProce
 from django.contrib import admin
 from .models import SiteSettings
 
+
+
+
+@admin.action(description="Soft-delete selected client subservices")
+def admin_soft_delete(modeladmin, request, queryset):
+    for obj in queryset:
+        try:
+            obj.soft_delete()
+        except Exception:
+            pass
+    modeladmin.message_user(request, "Selected items were soft-deleted.")
+
+@admin.action(description="Restore selected client subservices")
+def admin_restore(modeladmin, request, queryset):
+    for obj in queryset:
+        try:
+            obj.restore()
+        except Exception:
+            pass
+    modeladmin.message_user(request, "Selected items were restored.")
+
+@admin.register(ClientSubService)
+class ClientSubServiceAdmin(admin.ModelAdmin):
+    list_display = ('client_service', 'sub_service', 'added_on', 'is_active', 'is_paid_to_legal_office')
+    actions = [admin_soft_delete, admin_restore]
+    # If you want admin to show inactive rows too:
+    def get_queryset(self, request):
+        # show all rows (active+inactive) in admin
+        return ClientSubService.all_objects.select_related('client_service', 'sub_service')
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):

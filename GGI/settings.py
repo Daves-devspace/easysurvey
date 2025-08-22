@@ -250,7 +250,7 @@ HF_API_KEY = os.getenv("HF_API_KEY")
 # Models (defaults are sensible, you can override)
 HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"   # similarity pipeline (source_sentence+sentences)
 HF_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"                  # zero-shot classifier (optional)
-HF_PARAPHRASE_MODEL = "tuner007/pegasus_paraphrase"  # e.g. "Vamsi/T5_Paraphrase_Paws" or an instruction-tuned model; leave empty to disable paraphrase
+#HF_PARAPHRASE_MODEL = "tuner007/pegasus_paraphrase"  # e.g. "Vamsi/T5_Paraphrase_Paws" or an instruction-tuned model; leave empty to disable paraphrase
 
 # Tunables
 HF_CHUNK_SIZE = 40

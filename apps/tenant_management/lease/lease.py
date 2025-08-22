@@ -31,25 +31,6 @@ logger = logging.getLogger(__name__)
 
 
 
-class TenantCreateView(CreateView):
-    """
-    Standalone form to create a Tenant.
-    """
-    model = Tenant
-    form_class = TenantCreationForm
-    template_name = 'tenants/create_tenant.html'
-    success_url = reverse_lazy('tenant_list')
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, f'Tenant "{self.object.full_name}" created successfully!')
-        return response
-
-    def form_invalid(self, form):
-        messages.error(self.request, 'Please correct the errors below.')
-        return super().form_invalid(form)
-
-
 
 
 
@@ -125,33 +106,6 @@ class TenantLeaseCreateView(FormView):
     
 
 
-class TenantListView(ListView):
-    """
-    Paginated list of tenants with optional search.
-    """
-    model = Tenant
-    template_name = 'tenants/tenant_list.html'
-    context_object_name = 'tenants'
-    paginate_by = 20
-
-    def get_queryset(self):
-        qs = Tenant.objects.prefetch_related(
-            Prefetch('leases', queryset=Lease.objects.select_related('unit__property'))
-        ).order_by('-created_at')
-        search = self.request.GET.get('search')
-        if search:
-            qs = qs.filter(
-                Q(full_name__icontains=search) |
-                Q(phone_number__icontains=search) |
-                Q(national_id__icontains=search) |
-                Q(email__icontains=search)
-            )
-        return qs
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['search_query'] = self.request.GET.get('search', '')
-        return ctx
 
 
 class LeaseListView(ListView):
