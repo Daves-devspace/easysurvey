@@ -2,7 +2,7 @@
 {% load static %}
 
 {% load custom_filters %}
-
+{% load unit_extras %}
 
 
 
@@ -20,18 +20,14 @@
                     <ul class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                         <li class="breadcrumb-item"><a href="javascript: void(0)">Property</a></li>
-                        <li class="breadcrumb-item" aria-current="page">Management</li>
+                        <li class="breadcrumb-item" aria-current="page">{{ property_obj.name }}</li>
                     </ul>
                 </div>
-                <div class="col-md-12">
-                    <div class="page-header-title">
-                        <h2 class="mb-0">  {{ property_obj.name }} — Units Dashboard</h2>
-                    </div>
-                </div>
+                
             </div>
         </div>
     </div>
-    <div class="container-fluid col-lg-12">
+    <div class="container-fluid col-lg-12"  id="messageContainer">
     {% if messages %}
         {% for message in messages %}
             {% if message.tags == 'error' %}
@@ -57,40 +53,55 @@
     <!-- [ sample-page ] start -->
     <div class="col-sm-12">
         <div class="card">
-            <div class="card-header pb-0">
-                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                    {% if perms.easydocs.view_payment %}
-                        <li class="nav-item">
-                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
-                               href="#profile-1"
-                               role="tab"
-                               aria-selected="true">
-                                <i class="ti ti-zoom-money me-2"></i>Payments
-                            </a>
-                        </li>
-                    {% endif %}
-                    {% if perms.easydocs.view_expense %}
-                        <li class="nav-item">
-                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                               role="tab"
-                               aria-selected="true">
-                                <i class="ti ti-file-text me-2"></i>Expenses
-                            </a>
-                        </li>
-                    {% endif %}
-                    {% if request.user.is_superuser %}
-                        <li class="nav-item">
-                            <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
-                               role="tab"
-                               aria-selected="true">
-                                <i class="ti ti-id me-2"></i>Analytics
-                            </a>
-                        </li>
-                    {% endif %}
-
-
-                </ul>
+           <div class="card-header pb-0">
+                <div class="overflow-auto">
+                    <ul class="nav nav-tabs profile-tabs flex-nowrap" id="myTab" role="tablist">
+                        {% if perms.easydocs.view_payment %}
+                            <li class="nav-item">
+                                <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                                href="#profile-1"
+                                role="tab"
+                                aria-selected="true">
+                                    <i class="ti ti-zoom-money me-2"></i>Units
+                                </a>
+                            </li>
+                        {% endif %}
+                        {% if perms.easydocs.view_expense %}
+                            <li class="nav-item">
+                                <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                role="tab"
+                                aria-selected="false">
+                                    <i class="ti ti-file-text me-2"></i>Lease & Billing
+                                </a>
+                            </li>
+                        {% endif %}
+                        {% if request.user.is_superuser %}
+                            <li class="nav-item">
+                                <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                                role="tab"
+                                aria-selected="false">
+                                    <i class="ti ti-id me-2"></i>All Tenants
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                                role="tab"
+                                aria-selected="false">
+                                    <i class="ti ti-id me-2"></i>All Payments
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5"
+                                role="tab"
+                                aria-selected="false">
+                                    <i class="ti ti-id me-2"></i>Meter Readings
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
+
             <div class="card-body">
                 <div class="tab-content">
                     {% if perms.easydocs.view_payment %}
@@ -99,42 +110,69 @@
                             <div class="row">
 
                                 <div class="col-lg-12 col-xxl-12">
-                                    <div class="card">
-                                        <div class="card-header pb-0">
-                                            <!-- Add Unit Button -->
-                                               <div class="d-flex justify-content-between my-3">
-                                                    <div>
-                                                        <span class="badge bg-success">Total Units: {{ units_count }}</span>
-                                                    </div>
-                                                    <button class="btn btn-primary mb-3"
-                                                            data-url="{% url 'unit_add' pk=property_obj.pk %}">
-                                                    <i class="fas fa-plus"></i> Add Unit
-                                                    </button>
+                                {# property_detail.html - filters + unit table #}
+                                <div class="card">
+                                <div class="card-header pb-0">
+                                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center my-3 gap-2">
+                                    <div><span class="badge bg-success">Total Units: {{ units_count }}</span></div>
 
-                                                   
-                                                </div>
-                                           <!-- Filters -->
-                                                <div class="btn-group mb-3" role="group" hx-get="{% url 'unit_list' property_obj.pk  %}?status=all" hx-target="#units-table" hx-swap="innerHTML">
-                                                    <button class="btn btn-outline-primary">All</button>
-                                                    <button class="btn btn-outline-primary" hx-get="?status=occupied">Occupied</button>
-                                                    <button class="btn btn-outline-primary" hx-get="?status=vacant">Vacant</button>
-                                                </div>
-                                        </div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <button class="btn btn-sm btn-primary d-flex align-items-center "
+                                                data-title="Add Unit"
+                                                data-crud-action="create"
+                                                data-crud-url="{% url 'unit_add' property_obj.id %}">
+                                        <i class="fas fa-plus me-1"></i> Unit
+                                        </button>
 
-                                        <div class="card-body">
-                                            <div class="tab-content" id="serviceTabsContent">
+                                        <button class="btn btn-sm btn-success d-flex align-items-center"
+                                                data-title="Add Tenant"
+                                                data-crud-action="create"
+                                                data-crud-url="{% url 'tenant_create' property_obj.id %}">
+                                        <i class="fas fa-user-plus me-1"></i>Tenant
+                                        </button>
+                                    </div>
+                                    </div>
 
-                                                <div class="card-body p-0">
-                                                    <div id="unitTable">
-                                                        {% include 'properties/partials/unit_table.html' %}
-                                                    </div>
-                                                    
-                                                </div>
+                                    {# --- FILTERS: NO hx-get on this parent --- #}
+                                    <div class="btn-group mb-3" role="group" aria-label="Unit filters">
+                                    <button type="button"
+                                            class="btn btn-outline-primary"
+                                            hx-get="{% url 'unit_list' property_obj.pk %}?status=all"
+                                            hx-target="#unitTable"
+                                            hx-swap="innerHTML">
+                                        All
+                                    </button>
 
+                                    <button type="button"
+                                            class="btn btn-outline-primary"
+                                            hx-get="{% url 'unit_list' property_obj.pk %}?status=occupied"
+                                            hx-target="#unitTable"
+                                            hx-swap="innerHTML">
+                                        Occupied
+                                    </button>
 
-                                            </div>
+                                    <button type="button"
+                                            class="btn btn-outline-primary"
+                                            hx-get="{% url 'unit_list' property_obj.pk %}?status=vacant"
+                                            hx-target="#unitTable"
+                                            hx-swap="innerHTML">
+                                        Vacant
+                                    </button>
+                                    </div>
+                                </div>
+
+                                <div class="card-body">
+                                    <div class="tab-content" id="serviceTabsContent">
+                                    <div class="card-body p-0">
+                                        {# This is the element HTMX will replace — keep filters OUTSIDE this div #}
+                                        <div id="unitTable">
+                                        {% include 'units/partials/unit_table.html' with property_obj=property_obj units=units %}
                                         </div>
                                     </div>
+                                    </div>
+                                </div>
+                                </div>
+
                                 </div>
 
 
@@ -145,71 +183,86 @@
                          <!-- Unit Modal -->
 
 
-                         <div class="tab-pane show active" id="profile-2" role="tabpanel"
-                             aria-labelledby="profile-tab-2">
-                            <div class="row">
-
-                                <div class="col-lg-12 col-xxl-12">
-                                    <div class="card">
-                                        <div class="card-header pb-0">
-                                            <!-- Add Unit Button -->
-                                               <div class="d-flex justify-content-between my-3">
-                                                    <div>
-                                                        <span class="badge bg-success">Total tenants: {{ units_count }}</span>
-                                                    </div>
-                                                    <button class="btn btn-primary mb-3"
-                                                            data-url="{% url 'unit_add' pk=property_obj.pk %}">
-                                                    <i class="fas fa-plus"></i> Add Tenant
-                                                    </button>
-
-                                                   
-                                                </div>
-                                           <!-- Filters -->
-                                                <div class="btn-group mb-3" role="group" hx-get="{% url 'unit_list' property_obj.pk  %}?status=all" hx-target="#units-table" hx-swap="innerHTML">
-                                                    <button class="btn btn-outline-primary">All</button>
-                                                    <button class="btn btn-outline-primary" hx-get="?status=occupied">New</button>
-                                                    <button class="btn btn-outline-primary" hx-get="?status=vacant">Vacant</button>
-                                                </div>
-                                        </div>
-
-
-                                            <div class="card-body table-card">
-                                                <div class="table-responsive mt-3">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
-                                                        <thead class="table-success">
-                                                    
-                                                        <tr>
-                                                        <th>Tenant</th>
-                                                        <th>Unit</th>
-                                                        <th>Rent</th>
-                                                        <th>Balance</th>
-                                                        <th>Current Meter</th>
-                                                        <th>Lease Period</th>
-                                                        <th>Details</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {% for t in tenants_data %}
-                                                        <tr>
-                                                            <td>{{ t.tenant.full_name }}</td>
-                                                            <td>{{ t.unit.unit_number }}</td>
-                                                            <td>{{ t.rent_amount }}</td>
-                                                            <td>{{ t.balance }}</td>
-                                                            <td>{{ t.current_meter }}</td>
-                                                            <td>{{ t.lease_start }} - {{ t.lease_end }}</td>
-                                                            <td>
-                                                                <a href="{% url 'tenant_detail' tenant_id=t.tenant.id %}" class="btn btn-sm btn-info">Details</a>
-                                                            </td>
-                                                        </tr>
-                                                        {% endfor %}
-                                                    </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-
-                                </div>
-                            </div>
+                         <!-- Leases tab -->
+                    <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                      <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                          <span class="badge bg-success">Active Leases: {{ active_leases_count }}</span>
+                          <!-- action area specific to leases -->
                         </div>
+
+                        <div class="card-body">
+                          <div class="table-responsive">
+                            <table class="datatable table table-striped table-hover nowrap w-100" id="leases-table" data-table-type="leases">
+                              <thead class="table-success">
+                                 <tr>
+                                  <th>Tenant</th>
+                                  <th>Unit</th>
+                                  <th>Rent</th>
+                                  <th>Balance</th>
+                                  <th>Current Meter</th>
+                                  <th>Lease Period</th>
+                                  <th>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for row in leases_data %}
+                                  {% if not row.unleased %}
+                                    {% include "leases/partials/lease_row.html" with row=row property_obj=property_obj %}
+                                  {% endif %}
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+
+                          <!-- Tenants tab -->
+                    <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                      <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                          <span class="badge bg-info">Total Active tenants: {{ active_tenants_count }}</span>
+                          <div>
+                                                  <button class="btn btn-sm btn-success"
+                                                            data-crud-url="{% url 'tenant_create' property.id %}"
+                                                            data-title="Add Tenant"
+                                                             data-crud-action="create">
+                                                            
+                                                      <i class="fas fa-plus"></i> Add Tenant
+                                                    </button> 
+                          </div>
+                        </div>
+
+                        <div class="card-body">
+                          <div class="table-responsive">
+                            <table class="datatable table table-striped table-hover nowrap w-100"  id="tenants-table"  data-table-type="tenants">
+                              <thead class="table-success">
+                                   <tr>
+                                <th>Tenant</th>
+                                <th>Unit</th>
+                                <th>Rent</th>
+                                <th>Balance</th>
+                                <th>Current Meter</th>
+                                <th>Lease Period</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for row in tenants_data %}
+                              
+                              {% include "tenants/partials/tenant_row.html" with row=row property_obj=property_obj %}
+   
+                               
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                 </div>
 
                         
@@ -219,36 +272,67 @@
 
 
 
-
-            <!-- Your modal (already provided by you) -->
-            <div class="modal fade" id="tenantLeaseModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Assign Tenant & Lease</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body" id="tenantLeaseModalBody">
-                    <!-- fetched form HTML will be injected here -->
-                </div>
-                </div>
+<!-- Modal -->
+<!-- Main CRUD Modal -->
+<div class="modal fade" id="crudModal" tabindex="-1" aria-labelledby="crudModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="crudModalLabel">CRUD Operation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <div class="modal-body" id="crudModalContent">
+                <!-- Content will be loaded via AJAX -->
             </div>
+        </div>
+    </div>
+</div>
 
-
-
-
-
-
-            <!-- Generic modal used for create/edit/delete unit forms -->
-            <div class="modal fade" id="crudModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content" id="crudModalContent">
-                <!-- JS will inject the form partial (modal header/body/footer) here -->
-                </div>
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <div class="modal-body" id="deleteModalContent">
+                <!-- Content will be loaded via AJAX -->
             </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Combined Tenant + Lease Modal -->
+
+<!-- combined modal shell — only once on the page -->
+<div class="modal fade" id="combinedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Tenant & Lease</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="text-center py-3">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <div class="mt-2">Loading…</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
 
 
                         
@@ -287,3 +371,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {% endblock %}
 
+{% block extra_js %}
+<script src="{% static 'tenants/js/tenant_management.js' %}"></script>
+{% endblock %}

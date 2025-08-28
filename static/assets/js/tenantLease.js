@@ -1,78 +1,164 @@
-// tenant_management/static/tenant_management/js/modals.js
+// tenantLease.js
+document.addEventListener("DOMContentLoaded", function () {
+  const MODAL_SELECTOR = "#combinedModal";
+  const MODAL_BODY = `${MODAL_SELECTOR} .modal-body`;
+  const MODAL_TITLE = `${MODAL_SELECTOR} .modal-title`;
+  const ADD_BTN_SELECTOR = ".btn-add-tenant";
 
-// Handle click on "Add Tenant" button
-document.addEventListener("click", async function (e) {
-  const btn = e.target.closest(".btn-add-tenant");
-  if (!btn) return;
+  async function bindButtons(force = false) {
+    document.querySelectorAll(ADD_BTN_SELECTOR).forEach(btn => {
+      if (!force && btn._boundTenant) return;
+      btn._boundTenant = true;
 
-  e.preventDefault();
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const url = btn.dataset.url;
+        const unitId = btn.dataset.unitId;
+        const unitNumber = btn.dataset.unitNumber;
+        if (!url) {
+          console.warn("Add Tenant: data-url missing");
+          return;
+        }
 
-  try {
-    const url = btn.dataset.url;
-    if (!url) throw new Error("No data-url attribute found on button.");
+        try {
+          const res = await fetch(url, { credentials: "same-origin" });
+          if (!res.ok) throw new Error(`Load failed: ${res.status}`);
+          const payload = await res.json(); // expects { html: '...' }
 
-    const res = await fetch(url, { credentials: "same-origin" });
-    if (!res.ok) throw new Error(`Failed to load: ${res.statusText}`);
+          const modalBodyEl = document.querySelector(MODAL_BODY);
+          if (!modalBodyEl) throw new Error("Modal body not found in DOM");
 
-    const html = await res.text();
-    const modalEl = document.getElementById("tenantLeaseModal");
-    const bodyEl = document.getElementById("tenantLeaseModalBody");
-    const titleEl = modalEl.querySelector(".modal-title");
+          modalBodyEl.innerHTML = payload.html;
 
-    bodyEl.innerHTML = html;
-    if (btn.dataset.unitNumber) {
-      titleEl.textContent = `Assign Tenant — Unit ${btn.dataset.unitNumber}`;
-    }
+          // If server didn't return a form (e.g. rendering error), log it
+          const form = modalBodyEl.querySelector("form#combinedForm") || modalBodyEl.querySelector("form");
+          if (!form) {
+            console.error("tenantLease: server returned no form. payload.html:", payload.html);
+            showToast("Server returned unexpected HTML. Check console.", "danger");
+            return;
+          }
 
-    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          // Defensive: set hidden inputs and displayed unit
+          const unitInput = modalBodyEl.querySelector("#combined-unit-input");
+          if (unitInput) unitInput.value = unitId;
 
-    // Autofocus first input field
-    const firstInput = modalEl.querySelector("input, textarea, select");
-    if (firstInput) firstInput.focus();
-  } catch (err) {
-    console.error("Failed to load tenant lease form", err);
-    alert("Unable to load form. Please try again later.");
-  }
-});
+          const propInput = modalBodyEl.querySelector("#combined-property-input");
+          if (propInput && !propInput.value && btn.dataset.propertyId) {
+            propInput.value = btn.dataset.propertyId;
+          }
 
-// Handle form submission inside modal
-document.addEventListener("submit", async function (e) {
-  const form = e.target.form || e.target.closest("form");
-  const modalEl = document.getElementById("tenantLeaseModal");
-  if (!form || !modalEl.contains(form)) return;
+          const unitDisplay = modalBodyEl.querySelector("#combined-unit-display");
+          if (unitDisplay) unitDisplay.textContent = `Unit ${unitNumber || unitId}`;
 
-  e.preventDefault();
+          // set form action to POST to the same URL
+          form.setAttribute("action", url);
 
-  const formData = new FormData(form);
+          // Remove any older handler reference and add the new one
+          form.removeEventListener("submit", handleSubmit);
+          form.addEventListener("submit", handleSubmit);
 
-  try {
-    const res = await fetch(form.action, {
-      method: "POST",
-      body: formData,
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-      credentials: "same-origin",
+          // update modal title and show
+          const header = document.querySelector(MODAL_TITLE);
+          if (header) header.textContent = `Add Tenant & Lease — Unit ${unitNumber || unitId}`;
+
+          const modalEl = document.querySelector(MODAL_SELECTOR);
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+          // autofocus first input
+          const first = modalBodyEl.querySelector("input, textarea, select");
+          if (first) first.focus();
+        } catch (err) {
+          console.error("tenantLease open error:", err);
+          showToast("Failed to load form. See console.", "danger");
+        }
+      });
     });
-
-    const data = await res.json();
-
-    if (data.success) {
-      bootstrap.Modal.getInstance(modalEl).hide();
-      if (data.message) alert(data.message);
-      if (data.redirect_url) {
-        window.location.href = data.redirect_url;
-      } else {
-        window.location.reload();
-      }
-    } else {
-      // Replace modal body with updated form HTML (contains errors)
-      document.getElementById("tenantLeaseModalBody").innerHTML = data.html;
-
-      // Re-run autofocus for first input after error re-render
-      const firstInput = modalEl.querySelector("input, textarea, select");
-      if (firstInput) firstInput.focus();
-    }
-  } catch (err) {
-    console.error("Form submission failed", err);
-    alert("An unexpected error occurred. Please try again.");
   }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const modalEl = document.querySelector(MODAL_SELECTOR);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const origText = submitBtn ? submitBtn.innerHTML : null;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = "Saving…";
+    }
+
+    try {
+      const url = form.getAttribute("action") || window.location.href;
+      const formData = new FormData(form);
+      const res = await fetch(url, {
+        method: form.method || "POST",
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Hide modal first
+        const bs = bootstrap.Modal.getInstance(modalEl);
+        if (bs) bs.hide();
+
+        // Handle redirect
+        if (data.redirect) {
+          // Show success message briefly before redirect
+          if (data.message) {
+            showToast(data.message, "success");
+          }
+          
+          // Redirect after a short delay to show the toast
+          setTimeout(() => {
+            window.location.href = data.redirect;
+          }, 1000);
+        } else {
+          // Fallback: reload current page
+          showToast(data.message || "Saved successfully", "success");
+          setTimeout(() => {
+            location.reload();
+          }, 1000);
+        }
+      } else {
+        // inject returned form-with-errors
+        if (data.html) {
+          const modalBodyEl = modalEl.querySelector(".modal-body");
+          modalBodyEl.innerHTML = data.html;
+          const newForm = modalBodyEl.querySelector("form#combinedForm") || modalBodyEl.querySelector("form");
+          if (newForm) newForm.addEventListener("submit", handleSubmit);
+        } else {
+          showToast("Validation failed. Fix the errors and try again.", "danger");
+        }
+      }
+    } catch (err) {
+      console.error("tenantLease submit error:", err);
+      showToast("Save failed. See console.", "danger");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (origText !== null) submitBtn.innerHTML = origText;
+      }
+    }
+  }
+
+  function showToast(message, type = "success") {
+    const t = document.createElement("div");
+    t.className = `toast align-items-center text-white bg-${type} border-0 show`;
+    t.style.position = "fixed";
+    t.style.top = "1rem";
+    t.style.right = "1rem";
+    t.style.zIndex = 9999;
+    t.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button></div>`;
+    document.body.appendChild(t);
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 4000);
+  }
+
+  // expose rebind for other code
+  window.TenantLease = { rebind: () => bindButtons(true) };
+
+  // init
+  bindButtons();
 });

@@ -1,4 +1,4 @@
-<table class="datatable display table table-striped table-hover dt-responsive nowrap">
+<table data-table-type="units" id="units-table" class="datatable display table table-striped table-hover dt-responsive nowrap">
     <thead>
         <tr>
             <th>Unit Number</th>
@@ -12,7 +12,7 @@
     </thead>
     <tbody id="unitTableBody">
         {% for unit in units %}
-            {% include 'properties/partials/unit_row.html' %}
+            {% include 'units/partials/unit_row.html' %}
         
         {% endfor %}
     </tbody>

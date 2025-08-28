@@ -1,0 +1,22 @@
+<form id="existingLeaseForm" method="post" action="{% url 'existing_tenant_lease_create' unit.id tenant.id %}">
+  {% csrf_token %}
+  <input type="hidden" name="unit" value="{{ unit.id }}">
+  <input type="hidden" name="tenant" value="{{ tenant.id }}">
+
+  <div class="mb-3">
+    <label>Tenant</label>
+    <p class="form-control-plaintext">{{ tenant.full_name }}</p>
+  </div>
+
+  <div class="mb-3">
+    <label>Unit</label>
+    <p class="form-control-plaintext">{{ unit.unit_number }}</p>
+  </div>
+
+  {{ form.start_date.label_tag }}{{ form.start_date }}
+  {{ form.deposit_amount.label_tag }}{{ form.deposit_amount }}
+
+  <div class="text-end mt-3">
+    <button type="submit" class="btn btn-primary">Create Lease</button>
+  </div>
+</form>

@@ -3,18 +3,15 @@
 from django.urls import path
 from .views import (
     PropertyDetailView,
-    UnitListView,
-    UnitCreateView,
-    UnitUpdateView,
-     UnitDeleteView,
     PropertyListView,
     PropertyCreateView,
     PropertyUpdateView,
     PropertyDeleteView,
     
 )
-from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property
-from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView
+from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
+from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
+from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView
 
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
@@ -38,10 +35,19 @@ urlpatterns = [
     path('tenants/',
          TenantListView.as_view(),
          name='tenant_list'),  # List all tenants
+    
+    path("properties/<int:property_id>/tenants/<int:pk>/edit/", 
+         TenantUpdateView.as_view(), name="tenant_edit"),
+    
+    path("properties/<int:property_id>/tenants/<int:pk>/delete/", 
+         TenantDeleteView.as_view(), name="tenant_delete"),
 
-    path('tenants/create/',
-         TenantCreateView.as_view(),
-         name='tenant_create'),  # Form to add a new tenant
+    path(
+     "properties/<int:property_id>/tenants/create/",
+     TenantCreateView.as_view(),
+     name="tenant_create",
+     ),
+     # Form to add a new tenant
 
     # Combined Tenant + Lease creation
 #     path(
@@ -50,7 +56,22 @@ urlpatterns = [
 #         name='tenant_lease_create'
 #     ), # Single workflow to create tenant and lease
     
-    path('units/<int:unit_id>/tenant-lease/', TenantLeaseCreateView.as_view(), name='tenant_lease_create'),
+      path(
+      'properties/<int:property_id>/units/<int:unit_id>/tenant-lease/',
+      TenantLeaseCreateView.as_view(),
+      name='tenant_lease_create'
+    ),
+     path(
+     'units/<int:unit_id>/tenant/<int:tenant_id>/existing-tenant-lease/',
+     LeaseCreateView.as_view(),
+     name='existing_tenant_lease_create'
+     ),
+     
+     path('units/lease/<int:pk>/edit/',
+          LeaseUpdateView.as_view(),
+          name='lease_edit'),
+     
+     
 
     # Lease management URLs
     path('leases/',

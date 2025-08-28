@@ -1,154 +1,251 @@
-// tenant_management/static/tenant_management/js/unitManagement.js
-document.addEventListener("DOMContentLoaded", function () {
-  const modalEl = document.getElementById("crudModal");
-  const modalContent = document.getElementById("crudModalContent");
+/**
+ * Unified CRUD Management System
+ * Handles modal operations for Tenants, Units, and Leases
+ */
+const CRUDManager = (() => {
+  const config = {
+    modalId: "crudModal",
+    modalContentId: "crudModalContent",
+    deleteModalId: "deleteModal",
+    deleteModalContentId: "deleteModalContent",
+    messageContainerId: "messageContainer",
+    csrfToken: document.querySelector("[name=csrfmiddlewaretoken]")?.value,
+  };
 
-  // Helper to get or create bootstrap instance
-  function getModalInstance() {
-    if (!modalEl) return null;
-    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  function init() {
+    bindGlobalEvents();
+    console.log("CRUD Manager initialized");
   }
 
-  // Open modal for create/edit/delete (generic)
-  document.body.addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-url]");
+  function bindGlobalEvents() {
+    document.removeEventListener("click", globalClickHandler);
+    document.removeEventListener("submit", globalSubmitHandler);
+
+    document.addEventListener("click", globalClickHandler);
+    document.addEventListener("submit", globalSubmitHandler);
+  }
+
+  function globalClickHandler(e) {
+    const btn = e.target.closest("[data-crud-action]");
     if (!btn) return;
 
-    const url = btn.dataset.url;
-    if (!url) return;
+    e.preventDefault();
+    const action = btn.dataset.crudAction;
+    const url = btn.dataset.crudUrl;
+    const title = btn.dataset.title || `${capitalize(action)} Item`;
 
-    fetch(url, { credentials: "same-origin" })
-      .then((r) => {
-        if (!r.ok) throw new Error("Network response was not ok");
-        return r.text();
-      })
-      .then((html) => {
-        if (!modalContent) throw new Error("#crudModalContent not found");
-        modalContent.innerHTML = html;
-        const instance = getModalInstance();
-        if (instance) instance.show();
+    if (action === "create" || action === "edit") {
+      openCrudModal(url, title);
+    } else if (action === "delete") {
+      openDeleteModal(url, title);
+    }
+  }
 
-        // autofocus first field in injected content
-        const first = modalContent.querySelector("input, textarea, select");
-        if (first) first.focus();
-      })
-      .catch((err) => {
-        console.error("Failed to load modal form:", err);
-        showToast("error", "Failed to load form.");
+  function globalSubmitHandler(e) {
+    const form = e.target.closest("form");
+    if (!form) return;
+
+    if (form.closest(`#${config.modalContentId}`)) {
+      e.preventDefault();
+      submitForm(form);
+    } else if (form.closest(`#${config.deleteModalContentId}`)) {
+      e.preventDefault();
+      submitDeleteForm(form);
+    }
+  }
+
+  async function openCrudModal(url, title) {
+    try {
+      const response = await fetch(url, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
       });
-  });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
 
-  // Handle form submissions inside modal (delegated)
-  modalContent && modalContent.addEventListener("submit", async function (e) {
-    // Find the closest form (works if e.target is a button/input)
-    const form = e.target.closest ? e.target.closest("form") : null;
-    if (!form || !modalContent.contains(form)) return; // ignore unrelated submits
+      const contentType = response.headers.get("content-type");
+      const htmlContent = contentType?.includes("application/json")
+        ? (await response.json()).html
+        : await response.text();
 
-    e.preventDefault(); // stop native submit
+      document.getElementById(config.modalContentId).innerHTML = htmlContent;
 
-    const action = form.getAttribute("action") || window.location.href;
-    const method = (form.getAttribute("method") || "post").toUpperCase();
+      const modal = new bootstrap.Modal(
+        document.getElementById(config.modalId)
+      );
+      modal.show();
+
+      const modalTitle = document.querySelector(
+        `#${config.modalId} .modal-title`
+      );
+      if (modalTitle) modalTitle.textContent = title;
+    } catch (error) {
+      console.error("Error opening CRUD modal:", error);
+      showMessage("Error loading form", "danger");
+    }
+  }
+
+  async function submitForm(form) {
     const formData = new FormData(form);
-
-    // Optional: disable submit buttons to prevent double submits
-    const submitButtons = Array.from(form.querySelectorAll('[type="submit"]'));
-    submitButtons.forEach(btn => btn.disabled = true);
+    const url = form.action;
+    const method = form.method;
 
     try {
-      const resp = await fetch(action, {
+      const response = await fetch(url, {
         method,
-        headers: { "X-Requested-With": "XMLHttpRequest" },
         body: formData,
-        credentials: "same-origin",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": config.csrfToken,
+        },
       });
 
-      const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+      if (response.redirected) return (window.location.href = response.url);
 
-      // Case A — JSON (expected AJAX flow)
-      if (contentType.includes("application/json")) {
-        const data = await resp.json();
-        if (data.success) {
-          const instance = getModalInstance();
-          if (instance) instance.hide();
-
-          showToast("success", data.message || "Saved");
-
-          // If backend gave a redirect url, follow it. Otherwise reload to sync.
-          if (data.redirect_url) {
-            window.location.href = data.redirect_url;
-          } else {
-            window.location.reload();
-          }
-          return;
-        } else {
-          // server returned validation errors as HTML inside JSON
-          modalContent.innerHTML = data.html || "<div class='alert alert-danger'>Validation failed</div>";
-          const first = modalContent.querySelector("input, textarea, select");
-          if (first) first.focus();
-          return;
-        }
-      }
-
-      // Case B — Not JSON (server might have redirected or returned full HTML)
-      const text = await resp.text();
-
-      // If fetch followed a redirect (302) or returned main page HTML, reload to sync UI.
-      if (resp.redirected || /<table.*unit|Total Units:|Units Dashboard/i.test(text)) {
-        // server did redirect or returned property page — just reload
-        window.location.reload();
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        const html = await response.text();
+        document.getElementById(config.modalContentId).innerHTML = html;
+        bindGlobalEvents();
         return;
       }
 
-      // Otherwise assume it's an HTML fragment (form with errors) — render in modal
-      modalContent.innerHTML = text;
-      const firstField = modalContent.querySelector("input, textarea, select");
-      if (firstField) firstField.focus();
-
-    } catch (err) {
-      console.error("AJAX form submit failed:", err);
-      showToast("error", "Request failed. See console for details.");
-    } finally {
-      // re-enable submit buttons
-      submitButtons.forEach(btn => btn.disabled = false);
+      if (data.success) {
+        bootstrap.Modal.getInstance(
+          document.getElementById(config.modalId)
+        )?.hide();
+        showMessage(data.message, "success");
+        data.row_id && data.html && updateUI(data.row_id, data.html);
+      } else {
+        data.html &&
+          (document.getElementById(config.modalContentId).innerHTML =
+            data.html);
+        bindGlobalEvents();
+        !data.html && showMessage(data.error || "Operation failed", "danger");
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      showMessage("An error occurred. Please try again.", "danger");
     }
-  });
-
-  // Toast helper (same as before, centralized)
-  function showToast(level = "info", message = "") {
-    let wrapper = document.getElementById("toastWrapper");
-    if (!wrapper) {
-      wrapper = document.createElement("div");
-      wrapper.id = "toastWrapper";
-      wrapper.style.position = "fixed";
-      wrapper.style.top = "1rem";
-      wrapper.style.right = "1rem";
-      wrapper.style.zIndex = 1100;
-      document.body.appendChild(wrapper);
-    }
-
-    const toastId = `toast-${Date.now()}`;
-    const bgClass =
-      level === "success"
-        ? "bg-success text-white"
-        : level === "error"
-        ? "bg-danger text-white"
-        : "bg-secondary text-white";
-
-    wrapper.insertAdjacentHTML(
-      "afterbegin",
-      `
-      <div id="${toastId}" class="toast ${bgClass}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3500">
-        <div class="d-flex">
-          <div class="toast-body">${message}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-      </div>
-    `
-    );
-
-    const toastEl = document.getElementById(toastId);
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
-    toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
   }
-});
+
+  async function openDeleteModal(url, title) {
+    try {
+      const response = await fetch(url, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+
+      const contentType = response.headers.get("content-type");
+      const htmlContent = contentType?.includes("application/json")
+        ? (await response.json()).html
+        : await response.text();
+
+      document.getElementById(config.deleteModalContentId).innerHTML =
+        htmlContent;
+      const modal = new bootstrap.Modal(
+        document.getElementById(config.deleteModalId)
+      );
+      modal.show();
+
+      const modalTitle = document.querySelector(
+        `#${config.deleteModalId} .modal-title`
+      );
+      if (modalTitle) modalTitle.textContent = title;
+    } catch (error) {
+      console.error("Error opening delete modal:", error);
+      showMessage("Error loading confirmation", "danger");
+    }
+  }
+
+  async function submitDeleteForm(form) {
+    const formData = new FormData(form);
+    const url = form.action;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRFToken": config.csrfToken,
+        },
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        return showMessage("Unexpected response. Refresh page.", "warning");
+      }
+
+      if (data.success) {
+        bootstrap.Modal.getInstance(
+          document.getElementById(config.deleteModalId)
+        )?.hide();
+        showMessage(data.message, "success");
+        data.row_id && removeFromUI(data.row_id);
+      } else showMessage(data.error || "Failed to delete item", "danger");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      showMessage("An error occurred. Please try again.", "danger");
+    }
+  }
+
+  function updateUI(rowId, html) {
+    const existingRow = document.getElementById(rowId);
+    if (existingRow) existingRow.outerHTML = html;
+    else {
+      const tableBody = document.querySelector(
+        `#${rowId.split("-")[0]}s-table tbody, [data-table-type="${
+          rowId.split("-")[0]
+        }s"] tbody`
+      );
+      if (tableBody) tableBody.insertAdjacentHTML("beforeend", html);
+      else showMessage("Could not update interface. Refresh page.", "warning");
+    }
+    bindGlobalEvents();
+  }
+
+  function removeFromUI(rowId) {
+    const el = document.getElementById(rowId);
+    el && el.remove();
+  }
+
+  function showMessage(message, type = "info") {
+    const container = document.getElementById(config.messageContainerId);
+    if (!container) return console.error("Message container not found");
+
+    container.innerHTML = "";
+    const alertTypeMap = {
+      success: "alert-success",
+      error: "alert-danger",
+      danger: "alert-danger",
+      warning: "alert-warning",
+      info: "alert-info",
+    };
+    const alertHtml = `
+      <div id="alert-${Date.now()}" class="alert ${
+      alertTypeMap[type] || "alert-secondary"
+    } alert-dismissible fade show" role="alert">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    `;
+    container.insertAdjacentHTML("beforeend", alertHtml);
+    setTimeout(() => {
+      const alertEl = container.querySelector(".alert");
+      alertEl && bootstrap.Alert.getOrCreateInstance(alertEl).close();
+    }, 5000);
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  return { init, showMessage, openCrudModal, openDeleteModal };
+})();
+
+document.addEventListener("DOMContentLoaded", CRUDManager.init);

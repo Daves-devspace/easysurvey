@@ -1,0 +1,19 @@
+<tr id="lease-row-{{ row.lease_obj.id }}">
+  <td>{{ row.tenant.full_name }}</td>
+  <td>{{ row.unit.unit_number }}</td>
+  <td>Ksh {{ row.rent_amount }}</td>
+  <td>Ksh {{ row.balance }}</td>
+  <td>{% if row.current_meter %}{{ row.current_meter }}{% else %}&mdash;{% endif %}</td>
+  <td>{{ row.lease_start }} - {{ row.lease_end|default:"ongoing" }}</td>
+  <td>
+    <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+
+
+    <button class="btn btn-sm btn-success"
+            data-crud-action="payment"
+            data-crud-url="#"
+            data-title="Make Payment">
+        Pay Rent
+    </button>
+  </td>
+</tr>

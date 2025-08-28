@@ -8,10 +8,17 @@ from django.template.loader import render_to_string
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from .models import Property, Unit, Lease, Tenant, Payment, Invoice
-from .forms import PropertyForm, UnitForm,LeaseForm, CombinedTenantLeaseForm
+from .forms import PropertyForm, UnitForm,LeaseForm, CombinedTenantLeaseForm, TenantCreationForm
 import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
-from django.db.models import Count, Prefetch, Sum
+from django.db.models import Count, Prefetch, Sum, Q,OuterRef,Subquery,DecimalField, Value
+from decimal import Decimal
+from .services import get_property_leases_data
+from django.db.models.functions import Coalesce
+from django.db import transaction, IntegrityError
+from apps.tenant_management.utils import filter_units_for_property
+
+
 
 
 # mixin to pick HTMX template
@@ -74,7 +81,11 @@ class PropertyDeleteView(DeleteView):
     
     
     
-    
+
+
+
+
+
 
 class PropertyDetailView(DetailView):
     model = Property
@@ -82,197 +93,55 @@ class PropertyDetailView(DetailView):
     context_object_name = 'property_obj'
 
     def get_queryset(self):
+        # keep your annotations as-is
         return (
             Property.objects
-            .annotate(units_count=Count('units'))
-            .prefetch_related(
-                Prefetch(
-                    'units',
-                    queryset=Unit.objects.select_related('lease__tenant')
+            .annotate(
+                units_count=Count('units', distinct=True),
+                active_leases_count=Count(
+                    'units__lease',
+                    filter=Q(units__lease__is_active=True),
+                    distinct=True
+                ),
+                active_tenants_count=Count(
+                    'units__lease__tenant',
+                    filter=Q(units__lease__is_active=True, units__lease__tenant__isnull=False),
+                    distinct=True
                 )
             )
+            .prefetch_related('units')
         )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-
         property_obj = self.object
-        ctx['units']       = property_obj.units.all()
-        ctx['units_count'] = property_obj.units_count
-        ctx['unit_id']     = self.kwargs.get('unit_id')
-        ctx['unit_form']   = UnitForm()
 
-        ctx['combined_form'] = CombinedTenantLeaseForm(initial={'property': property_obj.id})
+        ctx['property_obj'] = property_obj
+        ctx['property'] = property_obj
 
-        # --- Aggregate tenants with rent, balance, meter reading ---
-        tenants_data = []
-        for unit in ctx['units']:
-            try:
-                lease = unit.lease  # one-to-one relationship
-            except Lease.DoesNotExist:
-                lease = None
-
-            if lease and lease.tenant:
-                tenant = lease.tenant
-                invoices = Invoice.objects.filter(lease=lease)
-                total_paid = Payment.objects.filter(invoice__in=invoices, tenant=tenant).aggregate(total=Sum('amount'))['total'] or 0
-                balance = lease.unit.rent_amount - total_paid  # or compute from invoices
-                tenants_data.append({
-                    'tenant': tenant,
-                    'unit': unit,
-                    'rent_amount': lease.unit.rent_amount,
-                    'balance': balance,
-                    'current_meter': unit.meter_number,
-                    'lease_start': lease.start_date,
-                    'lease_end': getattr(lease, 'end_date', None)
-                })
-
-
-        ctx['tenants_data'] = tenants_data
-        return ctx
-
-
-
-
-
-
-
-
-class UnitListView(ListView):
-    """
-    List units for a property (non-HTMX). Paginate if you expect many units.
-    """
-    model = Unit
-    template_name = 'properties/partials/unit_table.html'
-    context_object_name = 'units'
-    paginate_by = 25
-
-    def get_queryset(self):
-        property_pk = self.kwargs.get('pk')
-        qs = Unit.objects.filter(property_id=property_pk).select_related('lease__tenant')
+        # Get status from request (if any). property detail may be loaded with ?status=occupied via HTMX
         status = self.request.GET.get('status')
-        if status == 'occupied':
-            qs = qs.filter(is_occupied=True)
-        elif status == 'vacant':
-            qs = qs.filter(is_occupied=False)
-        return qs
+        if status == 'all':
+            status = None
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['property'] = get_object_or_404(Property, pk=self.kwargs.get('pk'))
+        # Use the shared util - this will annotate units with has_active_lease
+        ctx['units'] = filter_units_for_property(property_obj, status=status)
+        ctx['units_count'] = getattr(property_obj, 'units_count', property_obj.units.count())
+        ctx['active_leases_count'] = getattr(property_obj, 'active_leases_count', 0)
+        ctx['active_tenants_count'] = getattr(property_obj, 'active_tenants_count', 0)
+
+        ctx['unit_form'] = UnitForm()
+        ctx['tenant_form'] = TenantCreationForm()
+        ctx['lease_form'] = LeaseForm(initial={'property': property_obj.id})
+
+        leases_data, aggregates = get_property_leases_data(property_obj)
+        ctx['leases_data'] = leases_data
+        ctx['tenants_data'] = leases_data  # legacy
+        ctx.update(aggregates)
+
+        # totals for template convenience
+        ctx['total_units'] = len(list(ctx['units']))
         return ctx
 
 
-class UnitCreateView(CreateView):
-    model = Unit
-    form_class = UnitForm
-    template_name = "properties/partials/unit_form.html"
 
-    def dispatch(self, request, *args, **kwargs):
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["property"] = self.property
-        return ctx
-
-    def form_valid(self, form):
-        form.instance.property = self.property
-        unit = form.save()
-        messages.success(self.request, f"Unit «{unit.unit_number}» created.")
-
-        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({
-                "success": True,
-                "message": f"Unit «{unit.unit_number}» created.",
-                "redirect_url": reverse("property_detail", kwargs={"pk": self.property.pk}),
-            })
-        return redirect("property_detail", pk=self.property.pk)
-
-    def form_invalid(self, form):
-        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            html = render(self.request, self.template_name, {"form": form, "property": self.property}).content.decode("utf-8")
-            return JsonResponse({"success": False, "html": html})
-        return super().form_invalid(form)
-
-
-class UnitUpdateView(UpdateView):
-    model = Unit
-    form_class = UnitForm
-    template_name = "properties/partials/unit_form.html"
-    pk_url_kwarg = "unit_pk"
-
-    def dispatch(self, request, *args, **kwargs):
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["property"] = self.property
-        return ctx
-
-    def form_valid(self, form):
-        unit = form.save()
-        messages.success(self.request, f"Unit «{unit.unit_number}» updated.")
-
-        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({
-                "success": True,
-                "message": f"Unit «{unit.unit_number}» updated.",
-                "redirect_url": reverse("property_detail", kwargs={"pk": self.property.pk}),
-            })
-        return redirect("property_detail", pk=self.property.pk)
-
-    def form_invalid(self, form):
-        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            html = render(self.request, self.template_name, {"form": form, "property": self.property}).content.decode("utf-8")
-            return JsonResponse({"success": False, "html": html})
-        return super().form_invalid(form)
-
-
-
-
-
-class UnitDeleteView(DeleteView):
-    model = Unit
-    template_name = "properties/partials/unit_confirm_delete.html"
-    pk_url_kwarg = "unit_pk"
-    success_url = reverse_lazy("property-list")  # fallback
-
-    def dispatch(self, request, *args, **kwargs):
-        # Store property for redirect
-        self.property = get_object_or_404(Property, pk=kwargs['pk'])
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_object(self, queryset=None):
-        # Only allow deletion of units belonging to the property
-        return get_object_or_404(Unit, pk=self.kwargs['unit_pk'], property=self.property)
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["property"] = self.property
-        return ctx
-
-    def get_success_url(self):
-        # Always redirect to property detail after delete
-        return reverse_lazy("property_detail", kwargs={"pk": self.property.pk})
-
-    def delete(self, request, *args, **kwargs):
-        unit = self.get_object()
-        unit_number = unit.unit_number
-        unit_id = unit.id
-        unit.delete()
-
-        if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            # DON'T call messages.success for AJAX
-            return JsonResponse({
-                "success": True,
-                "message": f"Unit «{unit_number}» deleted.",
-                "unit_id": unit_id,
-                "redirect_url": reverse_lazy("property_detail", kwargs={"pk": self.property.pk}),
-            })
-
-        # non-AJAX fallback uses contrib messages + redirect
-        messages.success(request, f"Unit «{unit_number}» deleted.")
-        return redirect(self.get_success_url())

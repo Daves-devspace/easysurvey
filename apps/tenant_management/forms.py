@@ -77,68 +77,40 @@ from .models import Tenant, Unit, Lease, Property
 
 
 class TenantCreationForm(forms.ModelForm):
-    """
-    Form for creating a new Tenant with normalization and validation.
-    """
     class Meta:
         model = Tenant
         fields = ['full_name', 'phone_number', 'email', 'national_id']
         widgets = {
-            # Style and placeholder for full_name field
-            'full_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter full name',
-                'required': True
-            }),
-            # Kenyan phone number format enforcement
-            'phone_number': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': '+254712345678',
-                'pattern': r'^\+?254[0-9]{9}$',
-                'title': 'Enter valid Kenyan phone number'
-            }),
-            # Optional email
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'tenant@example.com (optional)'
-            }),
-            # National ID: numeric only
-            'national_id': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter national ID number',
-                'maxlength': '20'
-            })
+            'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter full name', 'required': True}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254712345678', 'pattern': r'^\+?254[0-9]{9}$', 'title': 'Enter valid Kenyan phone number'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tenant@example.com (optional)'}),
+            'national_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter national ID number', 'maxlength': '20'}),
         }
 
-    def clean_phone_number(self):
-        """
-        Normalize and validate Kenyan phone formats:
-        - Remove spaces/hyphens
-        - Ensure +254 country code
-        - Total length must be 13 (+254 and 9 digits)
-        """
-        phone = self.cleaned_data.get('phone_number')
-        if phone:
-            phone = phone.replace(' ', '').replace('-', '')
-            # If starts with 0, convert to +254
-            if phone.startswith('0'):
-                phone = '+254' + phone[1:]
-            elif not phone.startswith('+254'):
-                # Prepend missing +254 if absent
-                phone = '+254' + phone.lstrip('+')
+    def __init__(self, *args, **kwargs):
+        self.property = kwargs.pop('property', None)
+        super().__init__(*args, **kwargs)
 
-            # Final format check
-            if not phone.startswith('+254') or len(phone) != 13:
-                raise ValidationError("Please enter a valid Kenyan phone number")
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number')
+        if not phone:
+            return phone
+
+        # Normalize phone number
+        phone = phone.replace(' ', '').replace('-', '')
+        if phone.startswith('0'):
+            phone = '+254' + phone[1:]
+        elif not phone.startswith('+254'):
+            phone = '+254' + phone.lstrip('+')
+
+        if not phone.startswith('+254') or len(phone) != 13:
+            raise ValidationError("Please enter a valid Kenyan phone number")
+
         return phone
 
     def clean_national_id(self):
-        """
-        Ensure national ID is 7-8 digits, strip non-numeric.
-        """
         nid = self.cleaned_data.get('national_id')
         if nid:
-            # Filter digits only
             nid = ''.join(filter(str.isdigit, nid))
             if not (7 <= len(nid) <= 8):
                 raise ValidationError("National ID must be 7-8 digits")
@@ -210,67 +182,71 @@ class LeaseCreationForm(forms.ModelForm):
         return deposit
 
 
-class CombinedTenantLeaseForm(forms.Form):
-    """
-    Single form to create a Tenant and Lease in one step.
-    Dynamically loads units via AJAX when property changes.
-    """
-    # Tenant fields
-    full_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class':'form-control','placeholder':'Full name'}))
-    phone_number = forms.CharField(max_length=15, widget=forms.TextInput(attrs={'class':'form-control','placeholder':'+2547XXXXXXXX'}))
-    email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={'class':'form-control','placeholder':'Email (optional)'}))
-    national_id = forms.CharField(max_length=20, widget=forms.TextInput(attrs={'class':'form-control','placeholder':'National ID'}))
 
-    # Lease-related fields
-    property = forms.ModelChoiceField(
-        queryset=Property.objects.all(),
-        widget=forms.Select(attrs={'class':'form-control','id':'property-select'}),
-        help_text="Choose a property to load its vacant units"
+from decimal import Decimal
+
+
+class CombinedTenantLeaseForm(forms.Form):
+    # Tenant fields
+    full_name = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full name'})
     )
-    unit = forms.ModelChoiceField(
-        queryset=Unit.objects.none(),
-        widget=forms.Select(attrs={'class':'form-control','id':'unit-select'})
+    phone_number = forms.CharField(
+        max_length=15,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+2547XXXXXXXX'})
     )
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'class':'form-control','type':'date','min':timezone.now().date().isoformat()}))
-    deposit_amount = forms.DecimalField(max_digits=10, decimal_places=2, widget=forms.NumberInput(attrs={'class':'form-control','step':'0.01'}))
+    email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (optional)'}))
+    national_id = forms.CharField(max_length=20, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'}))
+
+    # Hidden authoritative IDs (integers) - view sets initial; JS sets unit on click
+    property = forms.IntegerField(widget=forms.HiddenInput())
+    unit = forms.IntegerField(widget=forms.HiddenInput())
+
+    # Lease fields
+    start_date = forms.DateField(widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'min': timezone.now().date().isoformat()}))
+    deposit_amount = forms.DecimalField(max_digits=10, decimal_places=2, widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}), required=False, initial=Decimal('0.00'))
 
     def clean_phone_number(self):
-        """Normalize and prevent duplicates."""
         phone = self.cleaned_data.get('phone_number')
         if phone:
             phone = phone.replace(' ', '').replace('-', '')
             if phone.startswith('0'):
                 phone = '+254' + phone[1:]
+            from .models import Tenant
             if Tenant.objects.filter(phone_number=phone).exists():
-                raise ValidationError("Tenant with this phone already exists.")
+                raise ValidationError("A tenant with this phone already exists.")
         return phone
 
     def clean_national_id(self):
-        """Strip non-digits and prevent duplicates."""
         nid = self.cleaned_data.get('national_id')
         if nid:
             nid = ''.join(filter(str.isdigit, nid))
+            from .models import Tenant
             if Tenant.objects.filter(national_id=nid).exists():
-                raise ValidationError("Tenant with this national ID already exists.")
+                raise ValidationError("A tenant with this national ID already exists.")
         return nid
-    
-    def __init__(self, *args, **kwargs):
-        # Pop initial data first
-        initial = kwargs.get('initial', {})
-        super().__init__(*args, **kwargs)
 
-        # 1) If we have a property in initial, show all its vacant units
-        prop_id = initial.get('property')
-        if prop_id:
-            self.fields['unit'].queryset = Unit.objects.filter(
-                property_id=prop_id,
-                is_occupied=False
-            )
-        # 2) Else if we have a specific unit in initial, allow just that unit
-        elif 'unit' in initial:
-            self.fields['unit'].queryset = Unit.objects.filter(
-                pk=initial['unit']
-            )
-        # 3) Otherwise keep it empty
-        else:
-            self.fields['unit'].queryset = Unit.objects.none()
+    def clean(self):
+        cleaned = super().clean()
+        prop_id = cleaned.get('property')
+        unit_id = cleaned.get('unit')
+
+        from .models import Property, Unit
+        if prop_id is None or not Property.objects.filter(pk=prop_id).exists():
+            raise ValidationError("Invalid property selected.")
+
+        if unit_id is None:
+            raise ValidationError("Unit is required.")
+        try:
+            unit = Unit.objects.get(pk=unit_id)
+        except Unit.DoesNotExist:
+            raise ValidationError("Invalid unit selected.")
+
+        if unit.property_id != prop_id:
+            raise ValidationError("Selected unit does not belong to the chosen property.")
+
+        if unit.is_occupied:
+            raise ValidationError("Selected unit is already occupied.")
+
+        return cleaned

@@ -1,8 +1,8 @@
-{# properties/partials/unit_confirm_delete.html #}
-<form method="post" action="{% url 'unit_delete' property.id unit.id %}">
+<!-- tenants/_tenant_confirm_delete.html -->
+<form method="post" action="{% url 'unit_delete' pk=property.id unit_pk=unit.id %}">
   {% csrf_token %}
   <div class="modal-body">
-    <p>Are you sure you want to delete unit <strong>{{ unit.unit_number }}</strong>?</p>
+    <p>Are you sure you want to delete unit<strong>{{ unit.unit_number }}</strong>?</p>
     <p class="text-muted small">This action cannot be undone.</p>
   </div>
   <div class="modal-footer">

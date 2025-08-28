@@ -1,0 +1,11 @@
+<form method="post" action="{% url 'lease_delete' lease.id %}">
+  {% csrf_token %}
+  <div class="modal-body">
+    <p>Delete lease for <strong>{{ lease.tenant.full_name }}</strong> on unit <strong>{{ lease.unit.unit_number }}</strong>?</p>
+    <p class="text-muted small">This will mark the unit as vacant.</p>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-danger">Delete</button>
+  </div>
+</form>

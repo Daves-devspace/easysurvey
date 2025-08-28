@@ -3,6 +3,8 @@ from django.db import models
 from django.utils import timezone
 from django.db.models import F, Index, UniqueConstraint
 from datetime import timedelta
+from django.core.exceptions import ValidationError
+from django.db.models import Q, Prefetch
 
 
 class Property(models.Model):
@@ -109,16 +111,22 @@ class Unit(models.Model):
 class Tenant(models.Model):
     """
     Stores tenant personal details and contact information.
-    Each tenant can have one or more leases over time.
+    Each tenant belongs to a specific property and can have multiple leases
+    within that property over time.
     """
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name="tenants",
+        help_text="The property this tenant belongs to."
+    )
     full_name = models.CharField(
         max_length=100,
         help_text="Tenant's full legal name."
     )
     phone_number = models.CharField(
         max_length=15,
-        unique=True,
-        help_text="Tenant's primary contact phone number."
+        help_text="Tenant's primary contact phone number (unique per property)."
     )
     email = models.EmailField(
         blank=True,
@@ -127,23 +135,24 @@ class Tenant(models.Model):
     )
     national_id = models.CharField(
         max_length=20,
-        unique=True,
         help_text="Official government-issued identification number."
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when the tenant record was created."
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # ensures two different properties can each have a tenant with the same phone or ID
+        constraints = [
+            UniqueConstraint(fields=['property', 'phone_number'], name='unique_tenant_phone_per_property'),
+            UniqueConstraint(fields=['property', 'national_id'], name='unique_tenant_id_per_property'),
+        ]
         indexes = [
-            Index(fields=['phone_number']),
-            Index(fields=['national_id']),
+            Index(fields=['property', 'phone_number']),
+            Index(fields=['property', 'national_id']),
         ]
 
     def __str__(self):
-        """String representation of the Tenant."""
-        return self.full_name
+        return f"{self.full_name} ({self.property.name})"
+
 
 
 class Lease(models.Model):
@@ -199,6 +208,10 @@ class Lease(models.Model):
         Returns a queryset of all active leases.
         """
         return cls.objects.filter(is_active=True)
+    
+    def clean(self):
+        if self.tenant.property != self.unit.property:
+            raise ValidationError("Tenant and Unit must belong to the same property.")
 
 
 class MeterReading(models.Model):
@@ -329,12 +342,18 @@ class Invoice(models.Model):
         self.save()
 
     @property
+    def total_paid(self):
+        """
+        Sum of all payments made toward this invoice.
+        """
+        return sum(p.amount for p in self.payments.all())
+
+    @property
     def balance(self):
         """
         Calculates remaining due amount after payments.
         """
-        paid = sum(p.amount for p in self.payments.all())
-        return self.total_amount - paid
+        return self.total_amount - self.total_paid
 
 
 class Payment(models.Model):
