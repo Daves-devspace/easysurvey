@@ -7,8 +7,10 @@ from .views import (
     PropertyCreateView,
     PropertyUpdateView,
     PropertyDeleteView,
+    PropertyReadingsPartialView,
     
 )
+from apps.tenant_management.lease.meter_readings import MeterReadingListView, MeterReadingDeleteView, MeterReadingCreateView, MeterReadingUpdateView
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
 from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
 from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView
@@ -20,12 +22,20 @@ urlpatterns = [
     path('delete/<int:pk>/', PropertyDeleteView.as_view(), name='property-delete'),
     
     path('properties/<int:pk>/', PropertyDetailView.as_view(), name='property_detail'),
+    path("properties/<int:pk>/readings/", PropertyReadingsPartialView.as_view(), name="property_readings_partial"),
+    
     path('properties/<int:pk>/units/', UnitListView.as_view(), name='unit_list'),
     path('properties/<int:pk>/units/add/', UnitCreateView.as_view(), name='unit_add'),
     path('properties/<int:pk>/units/<int:unit_pk>/edit/', UnitUpdateView.as_view(), name='unit_edit'),
     path('properties/<int:pk>/units/<int:unit_pk>/delete/', UnitDeleteView.as_view(), name='unit_delete'),
     
     
+    path("<int:unit_id>/", MeterReadingListView.as_view(), name="list"),
+    path("<int:unit_id>/new/", MeterReadingCreateView.as_view(), name="meter_readings_add"),
+    path("<int:pk>/edit/", MeterReadingUpdateView.as_view(), name="meter_readings_update"),
+    path("<int:pk>/delete/", MeterReadingDeleteView.as_view(), name="delete"),
+    
+     
     
     # Tenant management URLs
      path('tenants/<int:tenant_id>/',

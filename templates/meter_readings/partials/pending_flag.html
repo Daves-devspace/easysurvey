@@ -1,0 +1,7 @@
+{% if pending_meter_readings_count > 0 %}
+  <span class="badge bg-danger">
+    Reminder: {{ pending_meter_readings_count }} units pending readings ({{ active_month }})
+  </span>
+{% else %}
+  <span class="badge bg-success">All readings filled ({{ active_month }})</span>
+{% endif %}

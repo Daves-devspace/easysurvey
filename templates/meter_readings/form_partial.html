@@ -1,0 +1,64 @@
+{% if unit %}
+
+{# if is_update True => show previous as readonly and current input; else show previous input only #}
+<div class="modal-header">
+  <h5 class="modal-title" id="meterModalTitle">
+    {% if is_update %} Update Reading - {{ unit.unit_number }} {% else %} Add Starting Reading - {{ unit.unit_number }} {% endif %}
+  </h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  <form method="post" action="{% if is_update %}{% url 'meter_readings_update' form.instance.pk %}{% else %}{% url 'meter_readings_add' unit.id %}{% endif %}">
+    {% csrf_token %}
+    <div class="mb-3">
+  <label for="id_billing_period" class="form-label">Billing Period</label>
+  {{ form.billing_period }}
+  {% if form.billing_period.errors %}
+    <div class="text-danger">{{ form.billing_period.errors }}</div>
+  {% endif %}
+  <div class="form-text">
+    Choose the billing month this reading applies to.
+  </div>
+</div>
+
+
+    {% if is_update %}
+
+      <div class="mb-3">
+        <label class="form-label">Previous reading</label>
+        <input type="number" step="0.01" class="form-control" value="{{ form.instance.previous_reading }}" readonly>
+        <div class="form-text">This value is fixed (baseline).</div>
+      </div>
+
+      <div class="mb-3">
+        {{ form.current_reading.label_tag }}
+        {{ form.current_reading }}
+        {% if form.current_reading.errors %}
+          <div class="text-danger">{{ form.current_reading.errors }}</div>
+        {% endif %}
+      </div>
+
+    {% else %}
+      <div class="mb-3">
+        {{ form.previous_reading.label_tag }}
+        {{ form.previous_reading }}
+        {% if form.previous_reading.errors %}
+          <div class="text-danger">{{ form.previous_reading.errors }}</div>
+        {% endif %}
+      </div>
+      <p class="form-text">Leave current reading to be entered at billing-period end.</p>
+    {% endif %}
+
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    </div>
+  </form>
+</div>
+
+
+
+{% else %}
+  <p class="text-danger">Unit context missing — contact admin.</p>
+{% endif %}

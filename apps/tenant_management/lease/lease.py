@@ -125,7 +125,7 @@ class TenantLeaseCreateView(FormView):
 
         try:
             with transaction.atomic():
-                result = TenantLeaseService.create_tenant_with_lease(tenant_data, lease_data)
+                result = TenantLeaseService.save_tenant_with_lease(tenant_data, lease_data)
         except ValidationError as e:
             form.add_error(None, getattr(e, "message", str(e)))
             if is_ajax:

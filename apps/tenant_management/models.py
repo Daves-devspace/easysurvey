@@ -1,498 +1,442 @@
-
-from django.db import models
+# apps/tenant_management/models.py
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
+from django.db import models, transaction
 from django.utils import timezone
-from django.db.models import F, Index, UniqueConstraint
-from datetime import timedelta
+from django.db.models import F, Index, UniqueConstraint, Q, Sum
 from django.core.exceptions import ValidationError
-from django.db.models import Q, Prefetch
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ---------- Utilities ----------
+CENTS = Decimal('0.01')
+def quantize(d: Decimal) -> Decimal:
+    """Uniform rounding to 2dp for storing money values."""
+    if d is None:
+        return Decimal('0.00')
+    if not isinstance(d, Decimal):
+        d = Decimal(str(d))
+    return d.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
-class Property(models.Model):
-    """
-    Represents a physical property or plot, with configurable water billing policy
-    and rate. Contains metadata like name and location.
-    """
-    SHARED = 'shared'
-    METER = 'meter'
-    PREPAID = 'prepaid'
-    WATER_POLICY_CHOICES = [
-        (SHARED, 'Shared'),
-        (METER, 'Per Meter'),
-        (PREPAID, 'Prepaid'),
-    ]
-
-    name = models.CharField(
-        max_length=100,
-        db_index=True,
-        help_text="The display name of the property."
-    )
-    location = models.CharField(
-        max_length=255,
-        help_text="Physical address or description of the property location."
-    )
-    water_policy = models.CharField(
-        max_length=50,
-        choices=WATER_POLICY_CHOICES,
-        default=SHARED,
-        db_index=True,
-        help_text="Defines how water billing is handled: shared, metered, or prepaid."
-    )
-    water_rate = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.0,
-        help_text="Cost per cubic meter of water for metered properties (Ksh)."
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when the property record was created."
-    )
-
-    class Meta:
-        indexes = [
-            Index(fields=['water_policy']),  # Speeds up queries filtering by policy
-        ]
+# ---------- Core models ----------
+class WaterCompany(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    contact_info = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        """String representation of the Property."""
         return self.name
 
 
-class Unit(models.Model):
-    """
-    Represents an individual rentable unit (e.g., apartment, room) within a property.
-    Includes rent amount and meter number if applicable.
-    """
-    property = models.ForeignKey(
-        Property,
-        on_delete=models.CASCADE,
-        related_name='units',
-        help_text="The parent property this unit belongs to."
-    )
-    unit_number = models.CharField(
-        max_length=50,
-        help_text="Identifier for the unit within the property (e.g., A1, B12)."
-    )
-    rent_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Monthly rent amount for this unit (Ksh)."
-    )
-    is_occupied = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Indicates whether the unit is currently occupied by a tenant."
-    )
-    meter_number = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        help_text="Identifier for the water meter, if this unit uses metered billing."
-    )
+class Property(models.Model):
+    SHARED = 'shared'
+    METER = 'meter'
+    PREPAID = 'prepaid'
+    WATER_POLICY_CHOICES = [(SHARED, 'Shared'), (METER, 'Per Meter'), (PREPAID, 'Prepaid')]
 
-    class Meta:
-        unique_together = ('property', 'unit_number')  # Prevent duplicate unit numbers
-        indexes = [
-            Index(fields=['property', 'unit_number']),
-        ]
-
-    def __str__(self):
-        """String representation combining property name and unit number."""
-        return f"{self.property.name} - {self.unit_number}"
-    
-    # @property
-    # def tenant_name(self):
-    #     if self.is_occupied:
-    #         # signals guarantee a lease exists
-    #         return self.lease.tenant.full_name
-    #     return "Vacant"
-
-
-class Tenant(models.Model):
-    """
-    Stores tenant personal details and contact information.
-    Each tenant belongs to a specific property and can have multiple leases
-    within that property over time.
-    """
-    property = models.ForeignKey(
-        Property,
-        on_delete=models.CASCADE,
-        related_name="tenants",
-        help_text="The property this tenant belongs to."
-    )
-    full_name = models.CharField(
-        max_length=100,
-        help_text="Tenant's full legal name."
-    )
-    phone_number = models.CharField(
-        max_length=15,
-        help_text="Tenant's primary contact phone number (unique per property)."
-    )
-    email = models.EmailField(
-        blank=True,
-        null=True,
-        help_text="Optional email for notifications and records."
-    )
-    national_id = models.CharField(
-        max_length=20,
-        help_text="Official government-issued identification number."
+    name = models.CharField(max_length=100, db_index=True)
+    location = models.CharField(max_length=255)
+    water_policy = models.CharField(max_length=50, choices=WATER_POLICY_CHOICES, default=SHARED, db_index=True)
+    water_company = models.ForeignKey(WaterCompany, on_delete=models.PROTECT, related_name="properties")
+    billing_day = models.PositiveSmallIntegerField(
+        default=1,
+        help_text="Day of the month when rent invoices are generated (e.g., 5 = 5th of each month)."
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        # ensures two different properties can each have a tenant with the same phone or ID
+        indexes = [Index(fields=['water_policy'])]
+
+    def __str__(self):
+        return self.name
+
+
+class WaterRate(models.Model):
+    water_company = models.ForeignKey(WaterCompany, on_delete=models.CASCADE, related_name='water_rates')
+    rate_per_cubic_meter = models.DecimalField(max_digits=10, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ['-effective_from']
+        indexes = [Index(fields=['water_company', 'is_active'])]
+        unique_together = ('water_company', 'effective_from')
+        constraints = [
+            UniqueConstraint(fields=['water_company'], condition=Q(is_active=True), name="unique_active_rate_per_company")
+        ]
+
+    def clean(self):
+        if self.is_active:
+            qs = WaterRate.objects.filter(water_company=self.water_company, is_active=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError("Only one active water rate allowed per company.")
+
+    def __str__(self):
+        return f"{self.water_company.name} - {self.rate_per_cubic_meter}/m³ (from {self.effective_from})"
+
+
+class Unit(models.Model):
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='units')
+    unit_number = models.CharField(max_length=50)
+    rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    is_occupied = models.BooleanField(default=False, db_index=True)
+    meter_number = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('property', 'unit_number')
+        indexes = [Index(fields=['property', 'unit_number'])]
+
+    def __str__(self):
+        return f"{self.property.name} - {self.unit_number}"
+
+
+class Tenant(models.Model):
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="tenants")
+    full_name = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=15)
+    email = models.EmailField(blank=True, null=True)
+    national_id = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
         constraints = [
             UniqueConstraint(fields=['property', 'phone_number'], name='unique_tenant_phone_per_property'),
             UniqueConstraint(fields=['property', 'national_id'], name='unique_tenant_id_per_property'),
         ]
-        indexes = [
-            Index(fields=['property', 'phone_number']),
-            Index(fields=['property', 'national_id']),
-        ]
+        indexes = [Index(fields=['property', 'phone_number']), Index(fields=['property', 'national_id'])]
 
     def __str__(self):
         return f"{self.full_name} ({self.property.name})"
 
 
-
 class Lease(models.Model):
-    """
-    Links a Tenant to a Unit for a rental period.
-    Handles deposit tracking and active/inactive status.
-    """
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        related_name='leases',
-        help_text="The tenant taking the lease."
-    )
-    unit = models.OneToOneField(
-        Unit,
-        on_delete=models.CASCADE,
-        help_text="The specific unit leased by the tenant."
-    )
-    start_date = models.DateField(
-        help_text="Lease commencement date."
-    )
-    deposit_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Security deposit held for the lease."
-    )
-    is_active = models.BooleanField(
-        default=True,
-        db_index=True,
-        help_text="Indicates whether the lease is currently active."
-    )
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='leases')
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="leases")
+    start_date = models.DateField()
+    deposit_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
-        indexes = [
-            Index(fields=['start_date']),
-            Index(fields=['is_active']),
-        ]
+        indexes = [Index(fields=['start_date']), Index(fields=['is_active'])]
+        constraints = [UniqueConstraint(fields=['unit'], condition=Q(is_active=True), name='unique_active_lease_per_unit')]
 
     def __str__(self):
-        """String representation combining tenant and unit info."""
         return f"Lease: {self.tenant.full_name} -> {self.unit}"
 
     def end_lease(self):
-        """
-        Marks the lease as inactive (e.g., tenant moved out).
-        """
         self.is_active = False
         self.save()
 
     @classmethod
     def get_active_leases(cls):
-        """
-        Returns a queryset of all active leases.
-        """
         return cls.objects.filter(is_active=True)
-    
+
     def clean(self):
         if self.tenant.property != self.unit.property:
             raise ValidationError("Tenant and Unit must belong to the same property.")
 
 
 class MeterReading(models.Model):
-    """
-    Records a water meter reading for a unit and calculates usage & cost.
-    Automatically computes 'usage' and 'amount' on save.
-    """
-    unit = models.ForeignKey(
-        Unit,
-        on_delete=models.CASCADE,
-        related_name='meter_readings',
-        help_text="Unit associated with this meter reading."
-    )
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='meter_readings')
     reading_date = models.DateField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="Date when the meter was read."
+        default=timezone.now,  # allows overriding when creating in tests or views
+        db_index=True
     )
-    previous_reading = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Last recorded meter value."
-    )
-    current_reading = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="New meter value entered by user."
-    )
-    usage = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        editable=False,
-        help_text="Calculated usage in cubic meters."
-    )
-    amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        editable=False,
-        help_text="Calculated cost for the usage at the unit's property rate."
-    )
+    previous_reading = models.DecimalField(max_digits=10, decimal_places=2)
+    current_reading = models.DecimalField(max_digits=10, decimal_places=2,null=True, blank=True)
+    usage = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
 
     class Meta:
         get_latest_by = 'reading_date'
-        indexes = [
-            Index(fields=['unit', 'reading_date']),
-        ]
-
-    def save(self, *args, **kwargs):
-        """
-        Compute 'usage' and 'amount' before saving the reading.
-        'amount' = usage * property's water_rate.
-        """
-        self.usage = self.current_reading - self.previous_reading
-        self.amount = self.usage * self.unit.property.water_rate
-        super().save(*args, **kwargs)
+        indexes = [Index(fields=['unit', 'reading_date'])]
 
     def __str__(self):
-        """String showing unit, date, and usage."""
         return f"{self.unit} @ {self.reading_date}: {self.usage} m³"
 
 
 class Invoice(models.Model):
-    """
-    Represents a billing record for a lease period, including rent,
-    water charges, and other fees. Tracks payment status.
-    """
-    lease = models.ForeignKey(
-        Lease,
-        on_delete=models.CASCADE,
-        related_name='invoices',
-        help_text="Lease this invoice is billed against."
-    )
-    invoice_date = models.DateField(
-        db_index=True,
-        help_text="Date invoice was generated or issued."
-    )
-    due_date = models.DateField(
-        db_index=True,
-        help_text="Date by which payment is due."
-    )
-    rent_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Rent portion of the invoice."
-    )
-    water_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.0,
-        help_text="Water portion based on meter readings or shared policy."
-    )
-    other_charges = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.0,
-        help_text="Any additional fees or fines."
-    )
-    total_amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Sum of rent, water, and other charges."
-    )
-    is_paid = models.BooleanField(
-        default=False,
-        db_index=True,
-        help_text="Indicates if invoice is fully paid."
-    )
-    auto_generated = models.BooleanField(
-        default=True,
-        help_text="Marks invoices created automatically by system vs manual."
-    )
+    STATUS_DRAFT = "DRAFT"
+    STATUS_PENDING = "PENDING"       # rent present, waiting for water
+    STATUS_FINALIZED = "FINALIZED"   # ready / sent
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Draft"),
+        (STATUS_PENDING, "Pending Readings"),
+        (STATUS_FINALIZED, "Finalized"),
+    ]
+
+    tenant = models.ForeignKey("Tenant", on_delete=models.CASCADE, related_name="invoices")
+    billing_period_start = models.DateField()
+    billing_period_end = models.DateField()
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, editable=False, default=Decimal('0.00'))
+
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+
+    is_paid = models.BooleanField(default=False, db_index=True)
+    auto_generated = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
-            Index(fields=['lease', 'invoice_date']),
-            Index(fields=['is_paid']),
-        ]
+        indexes = [Index(fields=['tenant', 'billing_period_start']), Index(fields=['is_paid'])]
+        unique_together = ('tenant', 'billing_period_start', 'billing_period_end')
 
     def __str__(self):
-        """String representation showing invoice ID and lease."""
-        return f"Invoice #{self.id} - {self.lease}"
-
-    def mark_paid(self):
-        """
-        Marks the invoice as paid and saves.
-        """
-        self.is_paid = True
-        self.save()
+        return f"Invoice #{self.id} - {self.tenant.full_name} ({self.billing_period_start} to {self.billing_period_end})"
 
     @property
     def total_paid(self):
-        """
-        Sum of all payments made toward this invoice.
-        """
         return sum(p.amount for p in self.payments.all())
-
+    
     @property
     def balance(self):
+        from .utils import q
+        return q(self.total_amount) - q(self.total_paid)
+
+
+    def mark_paid(self):
+        self.is_paid = True
+        self.save(update_fields=['is_paid'])
+        
+    def recalc_total(self, save=True):
+        total = self.lines.aggregate(s=Sum('amount')).get('s') or Decimal('0.00')
+        self.total_amount = total
+        if save:
+            self.save(update_fields=['total_amount'])
+        return total
+
+    def update_status_for_lease(self, lease):
         """
-        Calculates remaining due amount after payments.
+        Decide invoice.status with respect to a particular lease.
+        - If both rent and water lines exist for this lease in this invoice -> FINALIZED
+        - If rent exists but water missing -> PENDING
+        - If neither exists -> DRAFT
+        Note: invoice is per-tenant; this is a conservative approach that finalizes
+        when the given lease is complete.
         """
-        return self.total_amount - self.total_paid
+        rent_exists = self.lines.filter(lease=lease, line_type=InvoiceLine.LINE_RENT).exists()
+        water_exists = self.lines.filter(lease=lease, line_type=InvoiceLine.LINE_WATER).exists()
+
+        if rent_exists and water_exists:
+            new_status = Invoice.STATUS_FINALIZED
+        elif rent_exists and not water_exists:
+            new_status = Invoice.STATUS_PENDING
+        else:
+            new_status = Invoice.STATUS_DRAFT
+
+        if self.status != new_status:
+            self.status = new_status
+            self.save(update_fields=['status'])
+            
+            
+            
+
+
+class InvoiceLine(models.Model):
+    LINE_RENT = 'RENT'
+    LINE_WATER = 'WATER'
+    LINE_DEPOSIT = 'DEPOSIT'
+    LINE_REFUND = 'REFUND'
+    LINE_OTHER = 'OTHER'
+    LINE_TYPES = [
+        (LINE_RENT, 'Rent'),
+        (LINE_WATER, 'Water'),
+        (LINE_DEPOSIT, 'DepositApplied'),
+        (LINE_REFUND, 'Refund'),
+        (LINE_OTHER, 'Other')
+    ]
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="lines")
+    meter_reading = models.ForeignKey('MeterReading', null=True, blank=True, on_delete=models.SET_NULL, related_name='invoice_lines')
+    lease = models.ForeignKey(Lease, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoice_lines")
+    deposit = models.ForeignKey('Deposit', null=True, blank=True, on_delete=models.SET_NULL, related_name='applied_lines')
+    line_type = models.CharField(max_length=20, choices=LINE_TYPES, default=LINE_OTHER, db_index=True)
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def __str__(self):
+        lease_info = f" ({self.lease.unit.unit_number})" if self.lease else ""
+        return f"{self.description}{lease_info}: {self.amount}"
 
 
 class Payment(models.Model):
-    """
-    Records payments made against an invoice, often via M-Pesa.
-    Automatically generates a receipt and updates invoice status.
-    """
-    invoice = models.ForeignKey(
-        Invoice,
-        on_delete=models.CASCADE,
-        related_name='payments',
-        help_text="Invoice this payment applies to."
-    )
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        help_text="The tenant making the payment."
-    )
-    amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Amount paid."
-    )
-    payment_date = models.DateTimeField(
-        auto_now_add=True,
-        db_index=True,
-        help_text="Timestamp when payment was recorded."
-    )
-    method = models.CharField(
-        max_length=50,
-        default='Mpesa',
-        help_text="Payment method used."
-    )
-    mpesa_receipt = models.CharField(
-        max_length=100,
-        null=True,
-        blank=True,
-        help_text="Reference code from M-Pesa."
-    )
-    balance_after = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.0,
-        help_text="Remaining invoice balance after this payment."
-    )
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True, db_index=True)
+    method = models.CharField(max_length=50, default='Mpesa')
+    reference = models.CharField(max_length=100, null=True, blank=True)
+    balance_after = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
 
     class Meta:
-        indexes = [
-            Index(fields=['tenant', 'payment_date']),
-        ]
+        indexes = [Index(fields=['invoice', 'payment_date'])]
 
     def __str__(self):
-        """String summarizing payment details."""
         return f"Payment {self.amount} for Invoice {self.invoice.id}"
 
-    def save(self, *args, **kwargs):
+
+
+class TenantBalance(models.Model):
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, related_name="balance")
+    balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+
+    class Meta:
+        indexes = [Index(fields=['tenant'])]
+
+    def __str__(self):
+        return f"TenantBalance {self.tenant.full_name}: {self.balance}"
+
+    @staticmethod
+    def recalc_for_tenant(tenant, use_logger: bool = True):
         """
-        After saving a payment, auto-generate its receipt and update invoice status
-        if fully paid.
+        Recalculate the tenant's balance.
+
+        Balance formula:
+            TenantBalance = Total unpaid invoice balances
+                            + Total debits (all)
+                            - Total credits (only unallocated)
+
+        Notes:
+        - Only unallocated credits (not linked to invoices or deposits) reduce the balance.
+        - Allocated credits are already applied via invoice or deposit and should not reduce the balance again.
+        - Ensures balance cannot be None and is properly quantized.
         """
-        super().save(*args, **kwargs)
-        # Create a receipt record
-        Receipt.objects.create(payment=self)
-        # Update invoice if balance is cleared
-        if self.invoice.balance <= 0:
-            self.invoice.mark_paid()
+
+        def _quantize(value):
+            return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
+
+        def log(msg):
+            if use_logger:
+                logger.debug(msg)
+            else:
+                print(msg)
+
+        # Total unpaid invoice balances
+        invoices = Invoice.objects.filter(tenant=tenant)
+        total_invoice_balance = sum(_quantize(inv.balance) for inv in invoices)
+        log(f"[DEBUG] Total unpaid invoice balance for tenant {tenant}: {total_invoice_balance}")
+
+        # Fetch all ledger entries for the tenant
+        ledger_entries = LedgerEntry.objects.filter(tenant=tenant)
+
+        # Only unallocated credits reduce the balance
+        total_unallocated_credit = sum(
+            _quantize(le.credit)
+            for le in ledger_entries
+            if le.credit > 0 and le.invoice is None and le.deposit is None
+        )
+
+        # All debits count
+        total_debit = sum(_quantize(le.debit) for le in ledger_entries if le.debit > 0)
+
+        log(f"[DEBUG] Total tenant debit={total_debit}, total unallocated credit={total_unallocated_credit}")
+
+        # Calculate final tenant balance
+        balance = _quantize(total_invoice_balance + total_debit - total_unallocated_credit)
+        log(f"[DEBUG] Calculated tenant balance={balance}")
+
+        # Update or create TenantBalance
+        tenant_balance_obj, _ = TenantBalance.objects.get_or_create(tenant=tenant)
+        tenant_balance_obj.balance = balance
+        tenant_balance_obj.save(update_fields=["balance"])
+        log(f"[DEBUG] TenantBalance updated for tenant {tenant}: {tenant_balance_obj.balance}")
+
+        return tenant_balance_obj.balance
+
+
+
+
+
+
+
+
+
+
+class LedgerEntry(models.Model):
+    DEPOSIT = 'deposit'
+    RENT = 'rent'
+    ENTRY_TYPE_CHOICES = [(DEPOSIT, 'Deposit'), (RENT, 'Rent')]
+
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, null=True, blank=True)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True)
+    deposit = models.ForeignKey('Deposit', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    debit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    credit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    entry_type = models.CharField(max_length=20, choices=ENTRY_TYPE_CHOICES, default=DEPOSIT)
+    description = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"LedgerEntry {self.pk} ({self.entry_type}) D={self.debit} C={self.credit}"
+
+
+class Deposit(models.Model):
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name='deposits')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='deposits')
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    amount_held = models.DecimalField(max_digits=14, decimal_places=2,default=Decimal('0.00'))
+    paid_at = models.DateTimeField(null=True, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    refunded_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-paid_at']
+
+    def __str__(self):
+        return f"Deposit #{self.pk} {self.amount} (held {self.amount_held}) for lease {self.lease_id}"
+
+    def refund(self, amount=None):
+        """
+        Refund deposit: reduces amount_held, sets refunded_amount, creates ledger entry.
+        Only admin should trigger this at lease end.
+        """
+        from apps.tenant_management.billings.services import refund_deposit as svc_refund
+        return svc_refund(self, amount=amount)
+
+    def apply_to_invoice(self, invoice, amount=None):
+        """
+        Only admin can apply deposit to an invoice manually.
+        By default, this does nothing automatically on invoice creation.
+        """
+        from apps.tenant_management.billings.services import apply_deposit_to_invoice as svc_apply
+        return svc_apply(self, invoice, amount=amount)
+
 
 
 class Receipt(models.Model):
-    """
-    Represents a generated receipt for a payment. Contains unique number and timestamp.
-    """
-    payment = models.OneToOneField(
-        Payment,
-        on_delete=models.CASCADE,
-        help_text="The payment this receipt is issued for."
-    )
-    receipt_number = models.CharField(
-        max_length=50,
-        unique=True,
-        help_text="Unique identifier for this receipt."
-    )
-    issued_date = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when receipt was created."
-    )
+    payment = models.OneToOneField(Payment, on_delete=models.CASCADE)
+    receipt_number = models.CharField(max_length=50, unique=True)
+    issued_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
-            Index(fields=['receipt_number']),
-        ]
+        indexes = [Index(fields=['receipt_number'])]
 
     def __str__(self):
-        """String representation of the receipt."""
         return f"Receipt #{self.receipt_number}"
 
 
 class NotificationLog(models.Model):
-    """
-    Logs outgoing notifications (SMS, Email, WhatsApp) sent to tenants.
-    Tracks status for auditing and troubleshooting.
-    """
     SMS = 'SMS'
     EMAIL = 'EMAIL'
     WHATSAPP = 'WHATSAPP'
-    CHANNEL_CHOICES = [
-        (SMS, 'SMS'),
-        (EMAIL, 'Email'),
-        (WHATSAPP, 'WhatsApp'),
-    ]
+    CHANNEL_CHOICES = [(SMS, 'SMS'), (EMAIL, 'Email'), (WHATSAPP, 'WhatsApp')]
 
-    tenant = models.ForeignKey(
-        Tenant,
-        on_delete=models.CASCADE,
-        help_text="Recipient tenant of the notification."
-    )
-    message = models.TextField(
-        help_text="Content of the sent notification."
-    )
-    channel = models.CharField(
-        max_length=10,
-        choices=CHANNEL_CHOICES,
-        help_text="Delivery channel used for this notification."
-    )
-    status = models.CharField(
-        max_length=20,
-        default='sent',
-        help_text="Delivery status (sent, failed)."
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when the notification was logged."
-    )
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    message = models.TextField()
+    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+    status = models.CharField(max_length=20, default='sent')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [
-            Index(fields=['tenant', 'created_at']),
-        ]
+        indexes = [Index(fields=['tenant', 'created_at'])]
 
     def __str__(self):
-        """String showing recipient and channel."""
         return f"Notification to {self.tenant.full_name} via {self.channel}"

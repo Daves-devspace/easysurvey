@@ -20,7 +20,7 @@
                     <ul class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                         <li class="breadcrumb-item"><a href="javascript: void(0)">Property</a></li>
-                        <li class="breadcrumb-item" aria-current="page">{{ property_obj.name }}</li>
+                        <li class="breadcrumb-item" aria-current="page"><strong class="text-info" />{{ property_obj.name }}</strong></li>
                     </ul>
                 </div>
                 
@@ -165,7 +165,7 @@
                                     <div class="tab-content" id="serviceTabsContent">
                                     <div class="card-body p-0">
                                         {# This is the element HTMX will replace — keep filters OUTSIDE this div #}
-                                        <div id="unitTable">
+                                        <div id="unitTable" class="table-responsive">
                                         {% include 'units/partials/unit_table.html' with property_obj=property_obj units=units %}
                                         </div>
                                     </div>
@@ -263,12 +263,111 @@
                       </div>
                     </div>
 
+
+
+                    <div class="tab-pane" id="profile-5" role="tabpanel"
+                             aria-labelledby="profile-tab-5">
+                           <div class="row">
+                                <div class="col-12">
+                                  <div class="card">
+                                    
+                                    <!-- Header -->
+                                    <div class="card-header pb-2">
+                                      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                                        <h5 class="mb-0">{{ property_obj.name }}</h5>
+                                        <div id="pendingFlag">
+                                          {% include 'meter_readings/partials/pending_flag.html' %}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <!-- Body -->
+                                    <div class="card-body">
+
+                                      <!-- Filters -->
+                                      <form
+                                        class="row g-2 align-items-end mb-3 flex-wrap"
+                                        hx-get="{% url 'property_readings_partial' property_obj.id %}"
+                                        hx-target="#readingsWrapper"
+                                        hx-trigger="change from:input, change from:select, submit"
+                                      >
+                                        <div class="col-auto">
+                                          <label for="month" class="form-label small mb-1">Billing month</label>
+                                          <!-- Use last finalized month by default -->
+                                          <input
+                                            type="month"
+                                            id="month"
+                                            name="month"
+                                            value="{{ active_month }}"
+                                            max="{{ active_month }}"
+                                            class="form-control form-control-sm"
+                                          />
+                                        </div>
+
+                                        <div class="col-auto">
+                                          <label for="reading_status" class="form-label small mb-1">Status</label>
+                                          <select
+                                            id="reading_status"
+                                            name="reading_status"
+                                            class="form-select form-select-sm"
+                                          >
+                                            <option value="all" {% if reading_status == "all" %}selected{% endif %}>All</option>
+                                            <option value="filled" {% if reading_status == "filled" %}selected{% endif %}>Filled</option>
+                                            <option value="pending" {% if reading_status == "pending" %}selected{% endif %}>Pending</option>
+                                          </select>
+                                        </div>
+
+                                        <div class="col-auto">
+                                          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                                        </div>
+                                        <div class="col-auto">
+                                          <!-- Optional: quick reset to default month + all -->
+                                          <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-secondary"
+                                            hx-get="{% url 'property_readings_partial' property_obj.id %}?month={{ active_month }}&reading_status=all"
+                                            hx-target="#readingsWrapper"
+                                          >
+                                            Reset
+                                          </button>
+                                        </div>
+                                      </form>
+
+                                      <!-- Wrapper the partial will replace -->
+                                      <div id="readingsWrapper">
+                                        {% include 'meter_readings/partials/readings_wrapper.html' %}
+                                      </div>
+
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+
+                        </div>
+
                 </div>
 
                         
   
             </div>
 
+
+
+
+            <!-- Modal Shell -->
+<!-- modal shell (include once on the page) -->
+<div class="modal fade" id="meterReadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="meterModalTitle">Reading</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <!-- .modal-content body will be replaced with form partial by JS -->
+    </div>
+  </div>
+</div>
 
 
 
@@ -372,5 +471,5 @@ document.addEventListener('DOMContentLoaded', function () {
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'tenants/js/tenant_management.js' %}"></script>
+<script src="{% static 'assets/js/meterReadings.js' %}"></script>
 {% endblock %}

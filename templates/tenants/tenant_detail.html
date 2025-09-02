@@ -86,64 +86,69 @@
                          aria-labelledby="profile-tab-1">
                         <div class="row">
                             <div class="col-lg-4 col-xxl-3">
-                                <div class="card">
-                                    <div class="card-body position-relative">
-                                        <div class="position-absolute end-0 top-0 p-3">
-                                            <span class="badge bg-primary">
-                                                 <a href="#" class="btn btn-primary btn-sm">Edit Details</a>
-                                                 <a href="#" class="btn btn-success btn-sm">Add Payment</a>
-                                                    </span>
+                                <div class="card shadow-sm border-0 h-100">
+                                    <div class="card-body text-center p-4">
+                                        
+                                        <!-- Avatar -->
+                                        <div class="chat-avtar d-inline-flex mx-auto mb-3">
+                                        <img class="rounded-circle img-fluid wid-70 shadow-sm"
+                                            src="{% static 'assets/images/user/avatar-5.jpg' %}"
+                                            alt="User image">
                                         </div>
-                                        <div class="text-center mt-3">
-                                            <div class="chat-avtar d-inline-flex mx-auto">
-                                                <img class="rounded-circle img-fluid wid-70"
-                                                     src="{% static 'assets/images/user/avatar-5.jpg' %}"
-                                                     alt="User image">
-                                            </div>
-                                            <h5 class="mb-0">{{ tenant.full_name }}</h5>
-                                            <p class="text-muted text-sm">tenant</p>
-                                            <hr class="my-3">
-                                            <div class="row g-3">
-                                                <div class="col-4">
-                                                    <h5 class="mb-0">{{ total_units }}</h5>
-                                                    <small class="text-muted">Units</small>
-                                                </div>
-                                                <div class="col-4 border border-top-0 border-bottom-0">
-                                                    <h5 class="mb-0">lease</h5>
-                                                    <small class="text-muted">Completed Services</small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <h5 class="mb-0">{{ total_balance }}</h5>
-                                                    <small class="text-muted">Total Balance</small>
-                                                </div>
-                                            </div>
-                                            <hr class="my-3">
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-phone"></i>
-                                                <p class="mb-0">{{ tenant.phone_number }}</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-mail"></i>
-                                                <p class="mb-0">{{ tenant.email }}</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-map-pin"></i>
-                                                <p class="mb-0">{{ tenant.national_id }}</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100">
-                                                <i class="ti ti-link"></i>
-                                                <a href="#" class="link-primary">
-                                                    <p class="mb-0">Active</p>
-                                                </a>
-                                            </div>
+                                        
+                                        <!-- Name + Role -->
+                                        <h5 class="mb-1">{{ tenant.full_name }}</h5>
+                                        <p class="text-muted text-sm mb-3">Tenant</p>
 
-                                            
+                                        <!-- Action Buttons -->
+                                        <div class="d-flex justify-content-center gap-2 mb-4 flex-wrap">
+                                        <a href="#" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-pencil-square me-1"></i>Edit Details
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-cash-coin me-1"></i>Add Payment
+                                        </a>
+                                        </div>
 
+                                        <!-- Stats -->
+                                        <div class="row g-0 border rounded overflow-hidden mb-4">
+                                        <div class="col-4 py-3">
+                                            <h5 class="mb-0">{{ total_units }}</h5>
+                                            <small class="text-muted">Units</small>
+                                        </div>
+                                        <div class="col-4 border-start border-end py-3">
+                                            <h5 class="mb-0">Lease</h5>
+                                            <small class="text-muted">Completed Services</small>
+                                        </div>
+                                        <div class="col-4 py-3">
+                                            <h5 class="mb-0">{{ total_balance }}</h5>
+                                            <small class="text-muted">Balance</small>
+                                        </div>
+                                        </div>
 
+                                        <!-- Info -->
+                                        <div class="list-group list-group-flush text-start">
+                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
+                                            <i class="ti ti-phone text-primary me-2"></i>
+                                            <span>{{ tenant.phone_number }}</span>
+                                        </div>
+                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
+                                            <i class="ti ti-mail text-primary me-2"></i>
+                                            <span>{{ tenant.email }}</span>
+                                        </div>
+                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
+                                            <i class="ti ti-map-pin text-primary me-2"></i>
+                                            <span>{{ tenant.national_id }}</span>
+                                        </div>
+                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
+                                            <i class="ti ti-link text-success me-2"></i>
+                                            <a href="#" class="link-primary mb-0">Active</a>
+                                        </div>
                                         </div>
 
                                     </div>
-                                </div>
+                                    </div>
+
 
                             </div>
 
@@ -209,50 +214,101 @@
                                     </div>
 
                                     <!-- Active Leases Table -->
-                                    <div class="card shadow p-3 mb-5 bg-white rounded">
-                                        <h6 class="mt-4"><i class="fas fa-list me-1"></i> Active Lease</h6>
-                                        <div class="table-responsive">
-                                            <table class="datatable table table-striped table-hover nowrap w-100">
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th>Unit</th>
-                                                        <th>Property</th>
-                                                        <th>Rent Amount</th>
-                                                        <th>Deposit</th>
-                                                        <th>Status</th>
-                                                        <th>Previous Meter</th>
-                                                        <th>Current Meter</th>
-                                                        <th>Balance</th>
-                                                        <th>Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for ld in leases_data %}
-                                                    <tr>
-                                                        <td>{{ ld.unit.unit_number }}</td>
-                                                        <td>{{ ld.property.name }}</td>
-                                                        <td>Ksh {{ ld.rent_amount }}</td>
-                                                        <td>Ksh {{ ld.deposit }}</td>
-                                                        <td>{{ ld.status }}</td>
-                                                        <td>{{ ld.previous_meter|default:'-' }}</td>
-                                                        <td>{{ ld.current_meter|default:'-' }}</td>
-                                                        <td>Ksh {{ ld.balance }}</td>
-                                                        <td class="d-flex flex-wrap gap-1">
-                                                            <a href="#" class="btn btn-sm btn-info d-flex align-items-center">
-                                                                <i class="fas fa-file-invoice me-1"></i> Invoice
-                                                            </a>
-                                                            <a href="#" class="btn btn-sm btn-danger d-flex align-items-center">
-                                                                <i class="fas fa-times me-1"></i> Terminate
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                    {% empty %}
-                                                    <tr><td colspan="9" class="text-center">No active leases</td></tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                   <!-- Active Leases Table -->
+                                <div class="card shadow p-3 mb-5 bg-white rounded">
+                                    <h6 class="mt-4"><i class="fas fa-list me-1"></i> Active Leases</h6>
+                                    <div class="table-responsive">
+                                        <table class="datatable table table-striped table-hover nowrap w-100">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Unit</th>
+                                                    <th>Property</th>
+                                                    <th>Rent Amount</th>
+                                                    <th>Deposit</th>
+                                                    <th>Status</th>
+                                                    <th>Total Invoiced</th>
+                                                    <th>Total Paid</th>
+                                                    <th>Balance</th>
+                                                    <th>Water Charges</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for ld in leases_data %}
+                                                <tr>
+                                                    <td>{{ ld.unit.unit_number }}</td>
+                                                    <td>{{ ld.property.name }}</td>
+                                                    <td>Ksh {{ ld.rent_amount }}</td>
+                                                    <td>Ksh {{ ld.deposit }}</td>
+                                                    <td>{{ ld.status }}</td>
+                                                    <td>Ksh {{ ld.total_invoiced }}</td>
+                                                    <td>Ksh {{ ld.total_paid }}</td>
+                                                    <td>
+                                                        {% if ld.balance > 0 %}
+                                                            <span class="text-danger fw-bold">Ksh {{ ld.balance }}</span>
+                                                        {% elif ld.balance < 0 %}
+                                                            <span class="text-success fw-bold">Credit {{ balance_abs }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">Settled</span>
+                                                        {% endif %}
+                                                    </td>
+
+                                                    <!-- Expandable Water Lines -->
+                                                    <td>
+                                                        {% if ld.water_lines %}
+                                                           <table class="datatable table table-striped table-hover nowrap w-100">
+                                                                <thead>
+                                                                    <tr class="table-light">
+                                                                        <th>Date</th>
+                                                                        <th>Prev</th>
+                                                                        <th>Curr</th>
+                                                                        <th>Usage</th>
+                                                                        <th>Rate</th>
+                                                                        <th>Amount</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for wl in ld.water_lines %}
+                                                                    <tr>
+                                                                        <td>{{ wl.invoice.billing_period_start|date:"Y-m-d" }}</td>
+                                                                        <td>{{ wl.meter_reading.previous_reading }}</td>
+                                                                        <td>{{ wl.meter_reading.current_reading }}</td>
+                                                                        <td>{{ wl.meter_reading.usage }}</td>
+                                                                        <td>{{ wl.meter_reading.rate }}</td>
+                                                                        <td>Ksh {{ wl.amount }}</td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                            </table>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+
+                                                    <!-- Actions -->
+                                                    <td class="d-flex flex-wrap gap-1">
+                                                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                                            role="tab"
+                                                            aria-selected="true">
+                                                            <i class="fas fa-file-invoice me-1"></i> Invoices
+                                                        </a>
+                                                        <a href="{% url 'end_lease' ld.lease.id %}"
+                                                        class="btn btn-sm btn-danger d-flex align-items-center">
+                                                            <i class="fas fa-times me-1"></i> Terminate
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="10" class="text-center">No active leases</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
                                     </div>
+                                </div>
+
+
+
+
                                 </div>
 
                             </div>

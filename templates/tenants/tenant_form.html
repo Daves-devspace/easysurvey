@@ -1,5 +1,5 @@
 <!-- tenant_form.html -->
-<form method="post" action="{% if tenant %}{% url 'tenant_edit' property.id tenant.id %}{% else %}{% url 'tenant_create' property.id %}{% endif %}">
+<form method="post" action="{% if form.instance.pk %}{% url 'tenant_edit' property.id form.instance.id %}{% else %}{% url 'tenant_create' property.id %}{% endif %}">
   {% csrf_token %}
   {{ form.non_field_errors }}
   <div class="mb-3">

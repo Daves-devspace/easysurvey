@@ -143,7 +143,7 @@
         <div class="card">
             <div class="card-header pb-0">
                 <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                    {% if perms.easydocs.view_payment %}
+                    
                         <li class="nav-item">
                             <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
                                href="#profile-1"
@@ -152,7 +152,7 @@
                                 <i class="ti ti-zoom-money me-2"></i>Payments
                             </a>
                         </li>
-                    {% endif %}
+                   
                     {% if perms.easydocs.view_expense %}
                         <li class="nav-item">
                             <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
@@ -177,7 +177,7 @@
             </div>
             <div class="card-body">
                 <div class="tab-content">
-                    {% if perms.easydocs.view_payment %}
+                    
                         <div class="tab-pane show active" id="profile-1" role="tabpanel"
                              aria-labelledby="profile-tab-1">
                             <div class="row">
@@ -245,7 +245,7 @@
                         </div>
                        
                         
-                    {% endif %}
+                    
                    
 
                 </div>

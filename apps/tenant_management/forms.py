@@ -1,7 +1,12 @@
 # forms.py
 from django import forms
-from .models import Unit, Property, Lease
+from .models import Unit, Property, Lease, MeterReading
+from django import forms
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from .models import Tenant, Unit, Lease, Property
 
+from datetime import date as dt_date
 
 class UnitForm(forms.ModelForm):
     class Meta:
@@ -17,7 +22,7 @@ class UnitForm(forms.ModelForm):
 class PropertyForm(forms.ModelForm):
     class Meta:
         model = Property
-        fields = ['name', 'location', 'water_policy', 'water_rate']
+        fields = ['name', 'location', 'water_policy', 'water_company']
 
         widgets = {
             'name': forms.TextInput(attrs={
@@ -31,28 +36,34 @@ class PropertyForm(forms.ModelForm):
             'water_policy': forms.Select(attrs={
                 'class': 'form-select',
             }),
-            'water_rate': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'placeholder': 'Ksh per cubic meter (optional)',
+            'water_company': forms.Select(attrs={
+                'class': 'form-select',
             }),
         }
 
         help_texts = {
             'name': 'The name used to identify the property.',
             'location': 'Describe the physical address or location.',
-            'water_policy': 'Choose how water billing should be handled.',
-            'water_rate': 'Applicable if water billing is per meter. Enter cost per cubic meter.',
+            'water_policy': 'Choose how water billing should be handled: shared, metered, or prepaid.',
+            'water_company': 'Select the water company that supplies this property.',
         }
 
     def clean(self):
-        """Custom validation to ensure water_rate is required when water_policy is 'meter'."""
+        """
+        Custom validation.
+        If water_policy is 'meter', ensure the selected water company has an active rate.
+        """
         cleaned_data = super().clean()
         policy = cleaned_data.get('water_policy')
-        rate = cleaned_data.get('water_rate')
+        company = cleaned_data.get('water_company')
 
-        if policy == Property.METER and (rate is None or rate <= 0):
-            self.add_error('water_rate', 'Water rate is required for metered properties.')
+        if policy == Property.METER and company:
+            active_rate = company.water_rates.filter(is_active=True).first()
+            if not active_rate:
+                self.add_error(
+                    'water_company',
+                    f"{company.name} does not have an active water rate. Please add one before assigning."
+                )
 
         return cleaned_data
     
@@ -70,10 +81,6 @@ class LeaseForm(forms.ModelForm):
 
 
 
-from django import forms
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from .models import Tenant, Unit, Lease, Property
 
 
 class TenantCreationForm(forms.ModelForm):
@@ -250,3 +257,64 @@ class CombinedTenantLeaseForm(forms.Form):
             raise ValidationError("Selected unit is already occupied.")
 
         return cleaned
+    
+
+
+
+
+
+class BillingPeriodMixin(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "billing_period" not in self.fields:
+            self.fields["billing_period"] = forms.DateField(
+                required=True,
+                widget=forms.DateInput(attrs={"type": "month"}),
+                help_text="Billing month this reading belongs to",
+            )
+
+        if not self.initial.get("billing_period"):
+            today = timezone.now().date()
+            if today.month == 1:
+                year, month = today.year - 1, 12
+            else:
+                year, month = today.year, today.month - 1
+            self.initial["billing_period"] = dt_date(year, month, 1)
+
+    def clean_billing_period(self):
+        val = self.cleaned_data["billing_period"]
+        return val.replace(day=1)
+
+
+class MeterReadingCreateForm(BillingPeriodMixin, forms.ModelForm):
+    class Meta:
+        model = MeterReading
+        fields = [ "previous_reading"]
+        widgets = {
+            "previous_reading": forms.NumberInput(attrs={"step": "0.01", "min": "0"})
+        }
+
+    def clean_previous_reading(self):
+        v = self.cleaned_data.get("previous_reading")
+        if v is None:
+            raise forms.ValidationError("Previous reading is required.")
+        if v < 0:
+            raise forms.ValidationError("Reading cannot be negative.")
+        return v
+
+
+class MeterReadingUpdateForm(BillingPeriodMixin, forms.ModelForm):
+    class Meta:
+        model = MeterReading
+        fields = ["current_reading"]
+        widgets = {
+            "current_reading": forms.NumberInput(attrs={"step": "0.01", "min": "0"})
+        }
+
+    def clean_current_reading(self):
+        v = self.cleaned_data.get("current_reading")
+        if v is None:
+            raise forms.ValidationError("Current reading is required.")
+        if v < 0:
+            raise forms.ValidationError("Reading cannot be negative.")
+        return v

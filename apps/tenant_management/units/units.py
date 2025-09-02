@@ -263,3 +263,6 @@ class UnitDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse_lazy("property_detail", kwargs={"pk": self.object.property.pk})
+    
+    def _render_messages(self):
+        return render_to_string("messages/messages.html", {}, request=self.request)

@@ -16,8 +16,9 @@ from decimal import Decimal
 from .services import get_property_leases_data
 from django.db.models.functions import Coalesce
 from django.db import transaction, IntegrityError
-from apps.tenant_management.utils import filter_units_for_property
-
+from apps.tenant_management.utils import filter_units_for_property, filter_meter_readings_for_property
+from typing import Optional
+from datetime import datetime
 
 
 
@@ -93,23 +94,37 @@ class PropertyDetailView(DetailView):
     context_object_name = 'property_obj'
 
     def get_queryset(self):
-        # keep your annotations as-is
+        active_leases_qs = (
+            Lease.objects.filter(is_active=True)
+            .select_related('tenant', 'unit')
+        )
+
         return (
             Property.objects
             .annotate(
                 units_count=Count('units', distinct=True),
                 active_leases_count=Count(
-                    'units__lease',
-                    filter=Q(units__lease__is_active=True),
-                    distinct=True
+                    'units__leases',
+                    filter=Q(units__leases__is_active=True),
+                    distinct=True,
                 ),
                 active_tenants_count=Count(
-                    'units__lease__tenant',
-                    filter=Q(units__lease__is_active=True, units__lease__tenant__isnull=False),
-                    distinct=True
-                )
+                    'units__leases__tenant',
+                    filter=Q(
+                        units__leases__is_active=True,
+                        units__leases__tenant__isnull=False,
+                    ),
+                    distinct=True,
+                ),
             )
-            .prefetch_related('units')
+            .prefetch_related(
+                'units',
+                Prefetch(
+                    'units__leases',
+                    queryset=active_leases_qs,
+                    to_attr='active_leases_prefetched'
+                ),
+            )
         )
 
     def get_context_data(self, **kwargs):
@@ -119,29 +134,90 @@ class PropertyDetailView(DetailView):
         ctx['property_obj'] = property_obj
         ctx['property'] = property_obj
 
-        # Get status from request (if any). property detail may be loaded with ?status=occupied via HTMX
+        # --- Units list (for unit-specific table/filters) ---
         status = self.request.GET.get('status')
         if status == 'all':
             status = None
-
-        # Use the shared util - this will annotate units with has_active_lease
         ctx['units'] = filter_units_for_property(property_obj, status=status)
+
+        # --- Meter readings (for meter readings table) ---
+        month = self.request.GET.get("month")
+
+        # if no month provided, use last full month (billing is retrospective)
+        today = datetime.today().date()
+        if today.month == 1:
+            default_year, default_month = today.year - 1, 12
+        else:
+            default_year, default_month = today.year, today.month - 1
+
+        default_month_str = f"{default_year}-{default_month:02d}"
+        active_month = month or default_month_str
+
+        ctx['meter_readings'] = filter_meter_readings_for_property(property_obj, month_str=active_month)
+
+        # --- Aggregates & counters ---
         ctx['units_count'] = getattr(property_obj, 'units_count', property_obj.units.count())
         ctx['active_leases_count'] = getattr(property_obj, 'active_leases_count', 0)
         ctx['active_tenants_count'] = getattr(property_obj, 'active_tenants_count', 0)
 
+        # --- Forms ---
         ctx['unit_form'] = UnitForm()
         ctx['tenant_form'] = TenantCreationForm()
         ctx['lease_form'] = LeaseForm(initial={'property': property_obj.id})
 
+        # --- Lease/tenant aggregates ---
         leases_data, aggregates = get_property_leases_data(property_obj)
         ctx['leases_data'] = leases_data
-        ctx['tenants_data'] = leases_data  # legacy
+        ctx['tenants_data'] = leases_data
         ctx.update(aggregates)
 
-        # totals for template convenience
+        # --- State ---
         ctx['total_units'] = len(list(ctx['units']))
+        ctx['current_status'] = status or 'all'
+        ctx['current_month'] = month or ""
+        ctx['active_month'] = active_month  
+
+        # --- Pending readings count ---
+        ctx['pending_meter_readings_count'] = sum(
+            1 for r in ctx['meter_readings'] if r['status'] == 'pending'
+        )
+        
+        ctx['reading_status'] = self.request.GET.get("reading_status") or "all"
+
         return ctx
 
 
 
+
+class PropertyReadingsPartialView(DetailView):
+    """HTMX endpoint to render only readings table + pending flag."""
+    model = Property
+    template_name = "meter_readings/partials/readings_wrapper.html"  
+    context_object_name = "property_obj"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        property_obj = self.object
+
+        # --- Filtering ---
+        month = self.request.GET.get("month")
+        status_filter = self.request.GET.get("reading_status")
+
+        meter_readings = filter_meter_readings_for_property(property_obj, month_str=month)
+
+        if status_filter and status_filter != "all":
+            meter_readings = [r for r in meter_readings if r["status"] == status_filter]
+
+        # --- Pending counts ---
+        today = datetime.today().date()
+        default_month = f"{today.year}-{today.month:02d}"
+        active_month = month or default_month
+        pending_count = sum(1 for r in meter_readings if r["status"] == "pending")
+
+        ctx.update({
+            "meter_readings": meter_readings,
+            "pending_meter_readings_count": pending_count,
+            "active_month": active_month,
+            "reading_status": status_filter or "all",
+        })
+        return ctx

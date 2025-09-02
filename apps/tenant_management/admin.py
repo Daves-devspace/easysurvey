@@ -1,123 +1,137 @@
 from django.contrib import admin
 from .models import (
-    Property, Unit, Tenant, Lease, 
-    MeterReading, Invoice, Payment, 
-    Receipt, NotificationLog
+    WaterCompany, Property, WaterRate,
+    Unit, Tenant, Lease, MeterReading,
+    Invoice, InvoiceLine, Payment, Receipt,
+    NotificationLog
 )
 
 
-class UnitInline(admin.TabularInline):
-    model = Unit
-    extra = 1
-    show_change_link = True
+# ------------------------------------------------------------------------------
+# Inline Configurations
+# ------------------------------------------------------------------------------
 
-
-class TenantInline(admin.TabularInline):
-    model = Tenant
-    extra = 1
-    show_change_link = True
-
-
-@admin.register(Property)
-class PropertyAdmin(admin.ModelAdmin):
-    list_display = ("name", "location", "water_policy", "water_rate", "created_at")
-    search_fields = ("name", "location")
-    list_filter = ("water_policy", "created_at")
-    inlines = [UnitInline, TenantInline]
-    ordering = ("-created_at",)
-
-
-@admin.register(Unit)
-class UnitAdmin(admin.ModelAdmin):
-    list_display = ("unit_number", "property", "rent_amount", "is_occupied", "meter_number")
-    search_fields = ("unit_number", "property__name", "meter_number")
-    list_filter = ("is_occupied", "property")
-    autocomplete_fields = ("property",)
-    ordering = ("property", "unit_number")
-
-
-@admin.register(Tenant)
-class TenantAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "phone_number", "property", "created_at")
-    search_fields = ("full_name", "phone_number", "national_id", "property__name")
-    list_filter = ("property",)
-    autocomplete_fields = ("property",)
-    ordering = ("-created_at",)
-
-
-class InvoiceInline(admin.TabularInline):
-    model = Invoice
+class LeaseInline(admin.TabularInline):
+    model = Lease
     extra = 0
-    readonly_fields = ("total_amount", "is_paid")
+    fields = ("unit", "start_date", "deposit_amount", "is_active")
+    readonly_fields = ("is_active",)
     show_change_link = True
 
 
-@admin.register(Lease)
-class LeaseAdmin(admin.ModelAdmin):
-    list_display = ("tenant", "unit", "start_date", "deposit_amount", "is_active")
-    search_fields = ("tenant__full_name", "unit__unit_number", "unit__property__name")
-    list_filter = ("is_active", "start_date", "tenant__property")
-    autocomplete_fields = ("tenant", "unit")
-    inlines = [InvoiceInline]
-
-
-@admin.register(MeterReading)
-class MeterReadingAdmin(admin.ModelAdmin):
-    list_display = ("unit", "reading_date", "previous_reading", "current_reading", "usage", "amount")
-    search_fields = ("unit__unit_number", "unit__property__name")
-    list_filter = ("reading_date", "unit__property")
-    autocomplete_fields = ("unit",)
-    readonly_fields = ("usage", "amount")
-    ordering = ("-reading_date",)
+class InvoiceLineInline(admin.TabularInline):
+    model = InvoiceLine
+    extra = 0
+    fields = ("description", "lease", "amount")
+    show_change_link = True
 
 
 class PaymentInline(admin.TabularInline):
     model = Payment
     extra = 0
-    readonly_fields = ("payment_date", "balance_after", "method")
+    fields = ("amount", "payment_date", "method", "reference", "balance_after")
+    readonly_fields = ("payment_date", "balance_after")
     show_change_link = True
 
 
-@admin.action(description="Mark selected invoices as paid")
-def mark_invoices_paid(modeladmin, request, queryset):
-    for invoice in queryset:
-        invoice.mark_paid()
+# ------------------------------------------------------------------------------
+# Main Admin Models
+# ------------------------------------------------------------------------------
+
+@admin.register(WaterCompany)
+class WaterCompanyAdmin(admin.ModelAdmin):
+    list_display = ("name", "contact_info")
+    search_fields = ("name",)
+    ordering = ("name",)
+
+
+@admin.register(Property)
+class PropertyAdmin(admin.ModelAdmin):
+    list_display = ("name", "location", "water_policy", "water_company", "created_at")
+    list_filter = ("water_policy", "water_company")
+    search_fields = ("name", "location")
+    ordering = ("name",)
+
+
+@admin.register(WaterRate)
+class WaterRateAdmin(admin.ModelAdmin):
+    list_display = ("water_company", "rate_per_cubic_meter", "effective_from", "effective_to", "is_active")
+    list_filter = ("water_company", "is_active")
+    search_fields = ("water_company__name",)
+    ordering = ("-effective_from",)
+
+
+@admin.register(Unit)
+class UnitAdmin(admin.ModelAdmin):
+    list_display = ("unit_number", "property", "rent_amount", "is_occupied", "meter_number")
+    list_filter = ("is_occupied", "property")
+    search_fields = ("unit_number", "property__name")
+    ordering = ("property", "unit_number")
+
+
+@admin.register(Tenant)
+class TenantAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "phone_number", "email", "national_id", "property", "created_at")
+    list_filter = ("property",)
+    search_fields = ("full_name", "phone_number", "national_id", "email")
+    ordering = ("full_name",)
+    inlines = [LeaseInline]
+
+
+@admin.register(Lease)
+class LeaseAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "unit", "start_date", "deposit_amount", "is_active")
+    list_filter = ("is_active", "start_date", "unit__property")
+    search_fields = ("tenant__full_name", "unit__unit_number")
+    ordering = ("-start_date",)
+
+
+@admin.register(MeterReading)
+class MeterReadingAdmin(admin.ModelAdmin):
+    list_display = ("unit", "reading_date", "previous_reading", "current_reading", "usage", "amount")
+    list_filter = ("unit__property", "reading_date")
+    search_fields = ("unit__unit_number", "unit__property__name")
+    ordering = ("-reading_date",)
 
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ("id", "lease", "invoice_date", "due_date", "total_amount", "is_paid")
-    search_fields = ("lease__tenant__full_name", "lease__unit__unit_number")
-    list_filter = ("is_paid", "invoice_date", "due_date")
-    autocomplete_fields = ("lease",)
-    readonly_fields = ("total_amount", "auto_generated")
-    inlines = [PaymentInline]
-    actions = [mark_invoices_paid]
-    ordering = ("-invoice_date",)
+    list_display = ("id", "tenant", "billing_period_start", "billing_period_end", "total_amount", "is_paid")
+    list_filter = ("is_paid", "billing_period_start", "tenant__property")
+    search_fields = ("tenant__full_name", "tenant__phone_number")
+    ordering = ("-billing_period_start",)
+    inlines = [InvoiceLineInline, PaymentInline]
+    readonly_fields = ("total_amount", "created_at")
+
+
+@admin.register(InvoiceLine)
+class InvoiceLineAdmin(admin.ModelAdmin):
+    list_display = ("invoice", "description", "lease", "amount")
+    list_filter = ("invoice__tenant__property",)
+    search_fields = ("description", "invoice__tenant__full_name")
+    ordering = ("invoice",)
 
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("amount", "tenant", "invoice", "payment_date", "method", "balance_after")
-    search_fields = ("tenant__full_name", "invoice__id", "mpesa_receipt")
-    list_filter = ("method", "payment_date", "tenant__property")
-    autocomplete_fields = ("tenant", "invoice")
-    readonly_fields = ("balance_after", "payment_date")
+    list_display = ("invoice", "amount", "payment_date", "method", "reference", "balance_after")
+    list_filter = ("method", "payment_date", "invoice__tenant__property")
+    search_fields = ("invoice__tenant__full_name", "reference")
     ordering = ("-payment_date",)
+    readonly_fields = ("payment_date", "balance_after")
 
 
 @admin.register(Receipt)
 class ReceiptAdmin(admin.ModelAdmin):
     list_display = ("receipt_number", "payment", "issued_date")
-    search_fields = ("receipt_number", "payment__tenant__full_name", "payment__invoice__id")
-    readonly_fields = ("issued_date",)
+    search_fields = ("receipt_number", "payment__invoice__tenant__full_name")
     ordering = ("-issued_date",)
+    readonly_fields = ("issued_date",)
 
 
 @admin.register(NotificationLog)
 class NotificationLogAdmin(admin.ModelAdmin):
     list_display = ("tenant", "channel", "status", "created_at")
-    search_fields = ("tenant__full_name", "message")
     list_filter = ("channel", "status", "created_at")
-    autocomplete_fields = ("tenant",)
+    search_fields = ("tenant__full_name", "message")
     ordering = ("-created_at",)
