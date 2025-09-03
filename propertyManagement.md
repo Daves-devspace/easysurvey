@@ -29,6 +29,44 @@ Receipt: Links a payment to a receipt number.
 
 NotificationLog: Tracks messages sent to tenants (SMS, Email, WhatsApp).
 
+                 ┌─────────────────────────┐
+                 │Tenant / Lease / Unit    │
+                 └─────────────┬──────────┘
+                               │
+                               ▼
+                 ┌─────────────────────────┐
+                 │get_or_create_monthly_invoice(tenant, date)│
+                 └─────────────┬──────────┘
+                               │
+               ┌───────────────┴────────────────┐
+               │                                │
+        Invoice exists?                     Invoice does NOT exist
+               │                                │
+       ┌───────▼────────┐               ┌───────▼────────┐
+       │Return invoice   │               │Create new      │
+       │                │               │Invoice record  │
+       └────────────────┘               └────────────────┘
+               │                                │
+               └──────────────┬─────────────────┘
+                              ▼
+                  ┌─────────────────────────┐
+                  │Add Invoice Lines        │
+                  │ ├─ Rent Line            │
+                  │ └─ Water Line (if any) │
+                  └─────────────┬───────────┘
+                                ▼
+                  ┌─────────────────────────┐
+                  │Invoice ready for tenant │
+                  └─────────────────────────┘
+
+Concurrency Handling:
+--------------------------------
+Multiple threads calling get_or_create_monthly_invoice() simultaneously:
+- Only one thread succeeds in creating the invoice.
+- Others fetch the already created invoice.
+- Ensures **no duplicate invoices**.
+
+
 2. Key Workflows
 2.1 Lease & Unit Occupancy
 
