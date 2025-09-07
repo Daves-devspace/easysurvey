@@ -11,15 +11,21 @@
   
   <td>
     {% if item.reading %}
-      <button type="button" class="btn btn-sm btn-primary open-meter-modal"
-              data-url="{% url 'meter_readings_update' item.reading.id %}"
-              data-title="Update Reading">Update</button>
+      {% if item.tenant %}
+        <button type="button" class="btn btn-sm btn-primary open-meter-modal"
+                data-url="{% url 'meter_readings_update' item.reading.id %}"
+                data-title="Update Reading">Update</button>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-warning open-meter-modal"
+                data-url="{% url 'meter_readings_update' item.reading.id %}"
+                data-title="Update Baseline"
+                title="No active lease - baseline only">Baseline</button>
+      {% endif %}
     {% else %}
       <button type="button" class="btn btn-sm btn-success open-meter-modal"
               data-url="{% url 'meter_readings_add' item.unit.id %}"
               data-title="Add Starting Reading">Add</button>
     {% endif %}
-
   </td>
   
 </tr>

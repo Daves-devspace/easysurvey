@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
-from .models import Property, Unit, Lease, Tenant, Payment, Invoice
+from .models import Property, Unit, Lease, Tenant, Payment, Invoice, Deposit, MeterReading
 from .forms import PropertyForm, UnitForm,LeaseForm, CombinedTenantLeaseForm, TenantCreationForm
 import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
@@ -20,7 +20,7 @@ from apps.tenant_management.utils import filter_units_for_property, filter_meter
 from typing import Optional
 from datetime import datetime
 
-
+from apps.tenant_management.billings.services import apply_deposit_to_invoice
 
 # mixin to pick HTMX template
 class HTMXTemplateResponseMixin(TemplateResponseMixin):
@@ -221,3 +221,23 @@ class PropertyReadingsPartialView(DetailView):
             "reading_status": status_filter or "all",
         })
         return ctx
+
+
+
+
+
+@transaction.atomic
+def apply_deposit_to_final_invoice(lease, invoice):
+    """
+    Apply deposit to final invoice at lease end
+    """
+    deposit = Deposit.objects.filter(lease=lease, amount_held__gt=0).first()
+    if not deposit:
+        return None
+    
+    return apply_deposit_to_invoice(
+        deposit=deposit,
+        invoice=invoice,
+        lease=lease,
+        amount=deposit.amount_held  # Apply the full amount
+    )

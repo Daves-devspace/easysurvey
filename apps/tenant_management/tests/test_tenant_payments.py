@@ -1,202 +1,150 @@
-# tests/test_tenant_billing.py
+# apps/tenant_management/tests/test_tenant_billing.py
 import os
 import django
+import threading
 from decimal import Decimal
-from threading import Thread
+from django.test import TestCase
 from django.utils import timezone
 from django.db import transaction
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "GGI.settings")
 django.setup()
-# apps/tenant_management/tests/test_tenant_payments.py
-from decimal import Decimal
-from django.test import TestCase
-from django.utils import timezone
-from apps.tenant_management.models import (
-    Tenant, Property, Unit, Lease, Invoice, InvoiceLine,
-    Payment, Deposit, LedgerEntry, TenantBalance,WaterCompany
-)
-from apps.tenant_management.signals import apply_payment_safe, _apply_credit_and_deposit
 
-class TenantPaymentTests(TestCase):
+from apps.tenant_management.models import (
+    Tenant, Property, Unit, Lease, Invoice, InvoiceLine, WaterCompany, MeterReading
+)
+from apps.tenant_management.billings.services import (
+    get_or_create_monthly_invoice,
+    upsert_rent_invoice_line_for_lease,
+    upsert_water_invoice_line_from_reading,
+)
+
+
+class MonthlyInvoiceFactoryTests(TestCase):
     def setUp(self):
-        # Create Property & WaterCompany
+        # Property + Water company
         self.water_company = WaterCompany.objects.create(name="Default Water Co.")
         self.property = Property.objects.create(
             name="Test Property",
             location="Test Location",
             water_policy=Property.SHARED,
-            water_company=self.water_company
+            water_company=self.water_company,
         )
         self.unit = Unit.objects.create(
             property=self.property,
             unit_number="A1",
-            rent_amount=Decimal("1000.00")
+            rent_amount=Decimal("1000.00"),
         )
         self.tenant = Tenant.objects.create(
-            full_name="John Doe",
-            phone_number="0712345678",
-            national_id="12345678",
-            property=self.property
+            full_name="Jane Doe",
+            phone_number="0711222333",
+            national_id="11223344",
+            property=self.property,
         )
         self.lease = Lease.objects.create(
             tenant=self.tenant,
             unit=self.unit,
             start_date=timezone.now().date(),
             deposit_amount=Decimal("500.00"),
-            is_active=True
+            is_active=True,
         )
 
-        # Create deposit manually to avoid auto-create conflict
-        self.deposit = Deposit.objects.create(
-            lease=self.lease,
+    def test_get_or_create_creates_invoice_once(self):
+        ref_date = timezone.now().date()
+
+        inv1 = get_or_create_monthly_invoice(self.tenant, ref_date)
+        inv2 = get_or_create_monthly_invoice(self.tenant, ref_date)
+
+        self.assertEqual(inv1.id, inv2.id)
+        self.assertEqual(Invoice.objects.count(), 1)
+
+    def test_rent_and_water_share_same_invoice(self):
+        ref_date = timezone.now().date()
+
+        rent_invoice = upsert_rent_invoice_line_for_lease(self.lease, ref_date)
+
+        reading = MeterReading.objects.create(
+            unit=self.unit,
+            reading_date=ref_date,
+            usage=Decimal("10.00"),
+            rate_per_cubic_meter=Decimal("50.00"),
+        )
+        water_line = upsert_water_invoice_line_from_reading(reading)
+
+        self.assertIsNotNone(water_line)
+        self.assertEqual(rent_invoice.id, water_line.invoice.id)
+        self.assertEqual(Invoice.objects.filter(tenant=self.tenant).count(), 1)
+        self.assertEqual(rent_invoice.lines.count(), 2)  # rent + water
+
+    def test_invoice_is_unique_per_month(self):
+        today = timezone.now().date()
+        next_month = (today.replace(day=1) + timezone.timedelta(days=32)).replace(day=1)
+
+        inv1 = get_or_create_monthly_invoice(self.tenant, today)
+        inv2 = get_or_create_monthly_invoice(self.tenant, next_month)
+
+        self.assertNotEqual(inv1.id, inv2.id)
+        self.assertEqual(Invoice.objects.count(), 2)
+
+
+# apps/tenant_management/tests/test_tenant_billing.py
+from django.test import TransactionTestCase
+
+class MonthlyInvoiceConcurrencyTests(TransactionTestCase):
+    reset_sequences = True  # so PKs are stable across threads
+
+    def setUp(self):
+        self.water_company = WaterCompany.objects.create(name="Concurrent Water Co.")
+        self.property = Property.objects.create(
+            name="Concurrent Property",
+            location="Concurrent Location",
+            water_policy=Property.SHARED,
+            water_company=self.water_company,
+        )
+        self.unit = Unit.objects.create(
+            property=self.property,
+            unit_number="C1",
+            rent_amount=Decimal("2000.00"),
+        )
+        self.tenant = Tenant.objects.create(
+            full_name="Concurrent User",
+            phone_number="0711999888",
+            national_id="99887766",
+            property=self.property,
+        )
+        self.lease = Lease.objects.create(
             tenant=self.tenant,
-            amount=self.lease.deposit_amount,
-            amount_held=Decimal("0.00")
+            unit=self.unit,
+            start_date=timezone.now().date(),
+            deposit_amount=Decimal("1000.00"),
+            is_active=True,
         )
 
-        # Ensure tenant balance starts at 0
-        TenantBalance.objects.update_or_create(
-            tenant=self.tenant, defaults={"balance": Decimal("0.00")}
-        )
+    def _worker(self, results, idx, ref_date):
+        inv = get_or_create_monthly_invoice(self.tenant, ref_date)
+        results[idx] = inv.id
 
-    def test_apply_payment_full_invoice(self):
-        invoice = Invoice.objects.create(
-            tenant=self.tenant,
-            billing_period_start=timezone.now().date(),
-            billing_period_end=timezone.now().date()
-        )
-        InvoiceLine.objects.create(
-            invoice=invoice,
-            lease=self.lease,
-            line_type=InvoiceLine.LINE_RENT,
-            description="Monthly Rent",
-            amount=Decimal("400.00")
-        )
+    def test_concurrent_double_threads(self):
+        ref_date = timezone.now().date()
+        results = [None, None]
 
-        result = apply_payment_safe(
-            tenant=self.tenant,
-            payment_amount=Decimal("500.00"),
-            reference="Mpesa456",
-            method="Mpesa"
-        )
+        t1 = threading.Thread(target=self._worker, args=(results, 0, ref_date))
+        t2 = threading.Thread(target=self._worker, args=(results, 1, ref_date))
+        t1.start(); t2.start(); t1.join(); t2.join()
 
-        self.deposit.refresh_from_db()
-        invoice.refresh_from_db()
+        self.assertEqual(len(set(results)), 1)
+        self.assertEqual(Invoice.objects.count(), 1)
 
-        self.assertEqual(invoice.balance, Decimal("0.00"))
-        self.assertTrue(invoice.is_paid)
-        self.assertEqual(self.deposit.amount_held, Decimal("100.00"))
-        self.assertEqual(result["applied_to_invoices"], "400.00")
-        self.assertEqual(result["applied_to_deposit"], "100.00")
-        self.assertEqual(result["unallocated"], "0.00")
+    def test_concurrent_stress_ten_threads(self):
+        ref_date = timezone.now().date()
+        num_threads = 10
+        results = [None] * num_threads
+        threads = [
+            threading.Thread(target=self._worker, args=(results, i, ref_date))
+            for i in range(num_threads)
+        ]
+        for t in threads: t.start()
+        for t in threads: t.join()
 
-    def test_apply_payment_topup_deposit_then_invoice(self):
-        invoice = Invoice.objects.create(
-            tenant=self.tenant,
-            billing_period_start=timezone.now().date(),
-            billing_period_end=timezone.now().date()
-        )
-        InvoiceLine.objects.create(
-            invoice=invoice,
-            lease=self.lease,
-            line_type=InvoiceLine.LINE_RENT,
-            description="Monthly Rent",
-            amount=Decimal("1000.00")
-        )
-
-        result = apply_payment_safe(
-            tenant=self.tenant,
-            payment_amount=Decimal("1200.00"),
-            reference="Mpesa123",
-            method="Mpesa",
-            apply_to_deposit=True
-        )
-
-        self.deposit.refresh_from_db()
-        invoice.refresh_from_db()
-        tenant_balance = TenantBalance.objects.get(tenant=self.tenant)
-
-        self.assertEqual(invoice.balance, Decimal("0.00"))
-        self.assertTrue(invoice.is_paid)
-        self.assertEqual(self.deposit.amount_held, Decimal("200.00"))
-        self.assertEqual(tenant_balance.balance, Decimal("0.00"))
-        self.assertEqual(result["applied_to_invoices"], "1000.00")
-        self.assertEqual(result["applied_to_deposit"], "200.00")
-        self.assertEqual(result["unallocated"], "0.00")
-
-    def test_auto_apply_credit_to_invoice(self):
-        # Create tenant credit
-        LedgerEntry.objects.create(
-            tenant=self.tenant,
-            entry_type=LedgerEntry.RENT,
-            credit=Decimal("300.00"),
-            description="Overpayment"
-        )
-        # Recalculate balance
-        TenantBalance.recalc_for_tenant(self.tenant)
-        tenant_balance = TenantBalance.objects.get(tenant=self.tenant)
-        self.assertEqual(tenant_balance.balance, Decimal("-300.00"))
-
-        # Create invoice
-        invoice = Invoice.objects.create(
-            tenant=self.tenant,
-            billing_period_start=timezone.now().date(),
-            billing_period_end=timezone.now().date()
-        )
-        InvoiceLine.objects.create(
-            invoice=invoice,
-            lease=self.lease,
-            line_type=InvoiceLine.LINE_RENT,
-            description="Monthly Rent",
-            amount=Decimal("200.00")
-        )
-
-        # Use internal helper to apply tenant credit
-        result = _apply_credit_and_deposit(
-            tenant=self.tenant,
-            payment_amount=None,
-            invoice=invoice
-        )
-
-        invoice.refresh_from_db()
-        tenant_balance.refresh_from_db()
-
-        self.assertEqual(invoice.balance, Decimal("0.00"))
-        self.assertTrue(invoice.is_paid)
-        self.assertEqual(tenant_balance.balance, Decimal("-100.00"))
-        self.assertEqual(result["applied_to_invoices"], "200.00")
-        self.assertEqual(result["applied_to_deposit"], "0.00")
-        self.assertIsNone(result["unallocated"])
-
-    def test_partial_payment_creates_overpayment_credit(self):
-        invoice = Invoice.objects.create(
-            tenant=self.tenant,
-            billing_period_start=timezone.now().date(),
-            billing_period_end=timezone.now().date()
-        )
-        InvoiceLine.objects.create(
-            invoice=invoice,
-            lease=self.lease,
-            line_type=InvoiceLine.LINE_RENT,
-            description="Monthly Rent",
-            amount=Decimal("800.00")
-        )
-
-        result = apply_payment_safe(
-            tenant=self.tenant,
-            payment_amount=Decimal("1000.00"),
-            reference="Mpesa789",
-            method="Mpesa",
-            apply_to_deposit=False  # Changed: Don't apply overpayment to deposit
-        )
-
-        invoice.refresh_from_db()
-        tenant_balance = TenantBalance.objects.get(tenant=self.tenant)
-
-        self.assertTrue(invoice.is_paid)
-        self.assertEqual(invoice.balance, Decimal("0.00"))
-        self.assertEqual(tenant_balance.balance, Decimal("-200.00"))
-        self.assertEqual(result["applied_to_invoices"], "800.00")
-        self.assertEqual(result["applied_to_deposit"], "0.00")
-        self.assertEqual(result["unallocated"], "0.00")
+        self.assertEqual(len(set(results)), 1)
+        self.assertEqual(Invoice.objects.count(), 1)

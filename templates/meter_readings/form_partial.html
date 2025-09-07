@@ -1,64 +1,111 @@
 {% if unit %}
 
-{# if is_update True => show previous as readonly and current input; else show previous input only #}
 <div class="modal-header">
   <h5 class="modal-title" id="meterModalTitle">
-    {% if is_update %} Update Reading - {{ unit.unit_number }} {% else %} Add Starting Reading - {{ unit.unit_number }} {% endif %}
+    {% if is_update %}Update Reading - {{ unit.unit_number }}{% else %}Add Starting Reading - {{ unit.unit_number }}{% endif %}
   </h5>
   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
 <div class="modal-body">
-  <form method="post" action="{% if is_update %}{% url 'meter_readings_update' form.instance.pk %}{% else %}{% url 'meter_readings_add' unit.id %}{% endif %}">
-    {% csrf_token %}
-    <div class="mb-3">
-  <label for="id_billing_period" class="form-label">Billing Period</label>
-  {{ form.billing_period }}
-  {% if form.billing_period.errors %}
-    <div class="text-danger">{{ form.billing_period.errors }}</div>
+  {% if is_update and not has_active_lease %}
+    <div class="alert alert-warning mb-3">
+      <strong>Warning:</strong> This unit has no active lease. You can only update the baseline reading.
+      Current reading cannot be entered without an active tenant.
+    </div>
   {% endif %}
-  <div class="form-text">
-    Choose the billing month this reading applies to.
-  </div>
-</div>
 
+  <form method="post" action="{% if is_update %}{% url 'meter_readings_update' form.instance.pk %}{% else %}{% url 'meter_readings_add' unit.id %}{% endif %}" class="needs-validation" novalidate>
+    {% csrf_token %}
+    
+    <div class="mb-3">
+      <label for="id_billing_period" class="form-label">Billing Period</label>
+      {{ form.billing_period }}
+      <div class="form-text">Choose the billing month this reading applies to.</div>
+      {% if form.billing_period.errors %}
+        <div class="text-danger">{{ form.billing_period.errors.0 }}</div>
+      {% endif %}
+    </div>
 
     {% if is_update %}
-
       <div class="mb-3">
-        <label class="form-label">Previous reading</label>
-        <input type="number" step="0.01" class="form-control" value="{{ form.instance.previous_reading }}" readonly>
+        <label class="form-label">Previous Reading</label>
+        <input type="number" 
+               step="0.01" 
+               class="form-control" 
+               value="{{ form.instance.previous_reading }}" 
+               readonly>
         <div class="form-text">This value is fixed (baseline).</div>
       </div>
 
       <div class="mb-3">
-        {{ form.current_reading.label_tag }}
-        {{ form.current_reading }}
+        <label for="id_current_reading" class="form-label">
+          Current Reading
+          {% if not has_active_lease %}
+            <span class="text-muted">(Disabled - No Active Lease)</span>
+          {% endif %}
+        </label>
+        {% if has_active_lease %}
+          <input type="number" 
+                 step="0.01" 
+                 class="form-control {% if form.current_reading.errors %}is-invalid{% endif %}" 
+                 id="id_current_reading" 
+                 name="current_reading" 
+                 value="{{ form.current_reading.value|default:'' }}"
+                 placeholder="Enter current meter reading">
+        {% else %}
+          <input type="number" 
+                 step="0.01" 
+                 class="form-control" 
+                 disabled 
+                 value="{{ form.current_reading.value|default:'' }}" 
+                 placeholder="Requires active lease">
+        {% endif %}
         {% if form.current_reading.errors %}
-          <div class="text-danger">{{ form.current_reading.errors }}</div>
+          <div class="invalid-feedback">
+            {{ form.current_reading.errors.0 }}
+          </div>
         {% endif %}
       </div>
 
     {% else %}
       <div class="mb-3">
-        {{ form.previous_reading.label_tag }}
-        {{ form.previous_reading }}
+        <label for="id_previous_reading" class="form-label">Previous Reading (Baseline)</label>
+        <input type="number" 
+               step="0.01" 
+               class="form-control {% if form.previous_reading.errors %}is-invalid{% endif %}" 
+               id="id_previous_reading" 
+               name="previous_reading" 
+               value="{{ form.previous_reading.value|default:'' }}"
+               placeholder="Enter starting meter reading"
+               required>
+        <div class="form-text">This will be used as the baseline for future billing calculations.</div>
         {% if form.previous_reading.errors %}
-          <div class="text-danger">{{ form.previous_reading.errors }}</div>
+          <div class="invalid-feedback">
+            {{ form.previous_reading.errors.0 }}
+          </div>
         {% endif %}
       </div>
-      <p class="form-text">Leave current reading to be entered at billing-period end.</p>
+      <p class="text-info">
+        <i class="fas fa-info-circle me-1"></i>
+        Current reading will be entered at billing period end.
+      </p>
     {% endif %}
 
     <div class="modal-footer">
-      <button type="submit" class="btn btn-primary">Save</button>
+      <button type="submit" class="btn btn-primary">
+        {% if is_update %}Update Reading{% else %}Save Baseline{% endif %}
+      </button>
       <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
     </div>
   </form>
 </div>
 
-
-
 {% else %}
-  <p class="text-danger">Unit context missing — contact admin.</p>
+  <div class="modal-body">
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      Unit context missing — contact admin.
+    </div>
+  </div>
 {% endif %}

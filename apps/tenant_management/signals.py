@@ -15,6 +15,7 @@ from .models import (
 from django.db.models import Index, Q, Sum, F
 from django.shortcuts import get_object_or_404
 from apps.tenant_management.billings.services import get_applicable_rate_for_date, q
+from apps.tenant_management.billings.services import apply_credit_and_deposit, allocate_payment_to_deposit_lines
 from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 import threading
@@ -74,25 +75,38 @@ def update_invoice_total(sender, instance, **kwargs):
 # -------------------------
 # Payments & receipts
 # -------------------------
+
+
+
+
 @receiver(post_save, sender=Payment)
-def handle_payment(sender, instance, created, **kwargs):
+def handle_payment_unified(sender, instance, created, **kwargs):
     """
-    On new payment: update balance_after, create receipt, mark invoice paid if cleared.
+    Handle payment without creating duplicates.
+    Deposit allocation is now handled in apply_credit_and_deposit, so we remove it here.
     """
     if not created:
         return
 
+    # REMOVED: Deposit allocation is now handled in apply_credit_and_deposit
+
+    # Update balance_after field
+    instance.invoice.refresh_from_db()
     balance_after = instance.invoice.balance
+    
+    # Use update to avoid triggering another signal
     Payment.objects.filter(pk=instance.pk).update(balance_after=balance_after)
 
+    # Create receipt
     Receipt.objects.create(
         payment=instance,
         receipt_number=f"RCP-{timezone.now().strftime('%Y%m%d%H%M%S')}-{instance.pk}"
     )
 
-    if instance.invoice.balance <= 0 and not instance.invoice.is_paid:
+    # Mark invoice as paid if balance is zero
+    if balance_after <= 0 and not instance.invoice.is_paid:
         instance.invoice.mark_paid()
-
+        logger.info(f"Invoice {instance.invoice.pk} marked as paid after payment {instance.pk}")
 
 # -------------------------
 # MeterReading: compute & invoice-line generation (thin signal)
@@ -151,6 +165,7 @@ def compute_meter_reading(sender, instance, **kwargs):
         reading_date = getattr(instance, 'reading_date', None) or timezone.now().date()
         rate = get_applicable_rate_for_date(instance.unit.property.water_company, reading_date)
         rate_value = _quantize(getattr(rate, 'rate_per_cubic_meter', Decimal('0.00')))
+        instance.rate_per_cubic_meter = rate_value
         instance.amount = _quantize(instance.usage * rate_value)
 
     except Exception:
@@ -160,22 +175,39 @@ def compute_meter_reading(sender, instance, **kwargs):
         instance.amount = instance.amount or None
 
 
+
 @receiver(post_save, sender=MeterReading)
 def meterreading_post_save(sender, instance, created, **kwargs):
     """
     Enqueue a Celery task after every MeterReading save *only if* the reading
-    has a current_reading (i.e. it's ready for processing).
+    has a current_reading (i.e. it's ready for processing) AND the unit has an active lease.
     """
     try:
+        # Skip if this was already processed in the view
+        if hasattr(instance, '_processed_in_view') and instance._processed_in_view:
+            logger.debug("meterreading_post_save: reading %s already processed in view; skipping", instance.pk)
+            return
+            
         if instance.current_reading is None:
             logger.debug("meterreading_post_save: reading %s has no current_reading; not enqueuing", instance.pk)
             return
 
-        from apps.tenant_management.tasks import process_new_meter_reading
-        process_new_meter_reading.delay(instance.pk)
-        logger.debug("📤 Enqueued meter reading %s for async processing", instance.pk)
+        # Check if unit has active lease
+        active_lease = instance.unit.leases.filter(is_active=True).first()
+        if not active_lease:
+            logger.debug("meterreading_post_save: reading %s unit has no active lease; not enqueuing", instance.pk)
+            return
+
+        # Only enqueue if this is a final reading (has current_reading)
+        # and the reading_date is set (should always be true)
+        if instance.reading_date:
+            from apps.tenant_management.tasks import process_new_meter_reading
+            process_new_meter_reading.delay(instance.pk)
+            logger.debug("Enqueued meter reading %s for async processing", instance.pk)
     except Exception:
-        logger.exception("❌ Failed to enqueue invoice upsert for MeterReading %s", instance.pk)
+        logger.exception("Failed to enqueue invoice upsert for MeterReading %s", instance.pk)
+        
+        
 
 
 @receiver(post_delete, sender=MeterReading)
@@ -198,6 +230,7 @@ def remove_water_invoice_line_on_reading_delete(sender, instance, **kwargs):
 def create_deposit_record_for_lease(sender, instance, created, **kwargs):
     """
     On lease creation: create a Deposit record representing the obligation.
+    The actual collection happens when the first invoice is paid.
     """
     if not created or not getattr(instance, 'deposit_amount', None):
         return
@@ -212,193 +245,20 @@ def create_deposit_record_for_lease(sender, instance, created, **kwargs):
             lease=instance,
             tenant=instance.tenant,
             amount=instance.deposit_amount,
-            amount_held=Decimal("0.00"),
-            paid_at=None
+            amount_held=Decimal("0.00"),  # Start with 0 held
+            paid_at=None,
+            notes=f"Deposit obligation created for lease {instance.pk}"
         )
 
         logger.info("Created deposit obligation %s (amount=%s) for lease %s",
                     deposit.pk, deposit.amount, instance.pk)
-
+        
+        # REMOVED: Don't create ledger entry here
+        # The ledger entry should be created when the deposit is actually invoiced and paid
 
 # -------------------------
 # Payment / Deposit helper (refined)
 # -------------------------
-def _apply_credit_and_deposit(
-    tenant,
-    payment_amount: Decimal = None,
-    reference: str = None,
-    method: str = "Mpesa",
-    apply_to_deposit: bool = True,
-    invoice=None,
-    use_logger: bool = True  # optional flag to switch between print/log
-):
-    """
-    Apply payment or tenant credits to invoices and optionally deposit.
-
-    - If payment_amount is None, uses unallocated tenant credits.
-    - Applies to unpaid invoices in order, then optionally to deposit top-up.
-    - Any leftover real payment becomes tenant credit.
-    """
-
-    def _quantize(value):
-        return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
-
-    def log(msg):
-        if use_logger:
-            logger.debug(msg)
-        else:
-            print(msg)
-
-    def to_dec(v):
-        return _quantize(v) if v is not None else None
-
-    payment_left = to_dec(payment_amount)
-    applied_to_invoices = Decimal("0.00")
-    applied_to_deposit = Decimal("0.00")
-
-    tenant_balance_obj, _ = TenantBalance.objects.get_or_create(tenant=tenant)
-    active_lease = Lease.objects.filter(tenant=tenant, is_active=True).first()
-
-    # Determine available credit
-    if payment_left is None:
-        unallocated_credit_entries = LedgerEntry.objects.filter(
-            tenant=tenant,
-            invoice__isnull=True,
-            deposit__isnull=True,
-            credit__gt=0
-        )
-        available_credit = sum(_quantize(e.credit) for e in unallocated_credit_entries)
-        payment_source = "TenantBalance"
-        using_tenant_credit = True
-        log(f"[DEBUG] Using tenant credit: total available={available_credit}")
-    else:
-        available_credit = payment_left
-        payment_source = method
-        using_tenant_credit = False
-        log(f"[DEBUG] Using real payment: amount={payment_left}, method={method}")
-
-    # Determine unpaid invoices
-    if invoice:
-        unpaid_qs = list(Invoice.objects.filter(pk=invoice.pk, tenant=tenant, is_paid=False))
-        unpaid_qs += list(
-            Invoice.objects.filter(tenant=tenant, is_paid=False)
-            .exclude(pk=invoice.pk)
-            .order_by('billing_period_start', 'id')
-        )
-    else:
-        unpaid_qs = Invoice.objects.filter(tenant=tenant, is_paid=False).order_by('billing_period_start', 'id')
-
-    log(f"[DEBUG] Found {len(unpaid_qs)} unpaid invoices for tenant {tenant}")
-
-    # Apply to invoices
-    for inv in unpaid_qs:
-        if available_credit <= 0:
-            break
-
-        allocate = _quantize(min(available_credit, inv.balance))
-        if allocate <= 0:
-            continue
-
-        Payment.objects.create(
-            invoice=inv,
-            amount=allocate,
-            method=payment_source,
-            reference=(reference if payment_amount is not None else "Auto-applied tenant credit")
-        )
-        log(f"[DEBUG] Allocated {allocate} to Invoice {inv.pk}")
-
-        if using_tenant_credit:
-            remaining = allocate
-            for entry in unallocated_credit_entries:
-                if remaining <= 0:
-                    break
-                to_use = min(_quantize(entry.credit), remaining)
-
-                if to_use < entry.credit:
-                    entry.credit -= to_use
-                    entry.save(update_fields=["credit"])
-                    LedgerEntry.objects.create(
-                        lease=entry.lease,
-                        tenant=entry.tenant,
-                        invoice=inv,
-                        deposit=None,
-                        credit=to_use,
-                        debit=Decimal("0.00"),
-                        entry_type=entry.entry_type,
-                        description=f"Applied credit to Invoice {inv.pk}"
-                    )
-                    log(f"[DEBUG] Split tenant credit entry: used {to_use}, remaining {entry.credit}")
-                else:
-                    entry.invoice = inv
-                    entry.save(update_fields=["invoice"])
-                    log(f"[DEBUG] Applied full tenant credit entry {entry.pk} to Invoice {inv.pk}")
-
-                remaining -= to_use
-
-        applied_to_invoices += allocate
-        inv.recalc_total()
-        if inv.balance <= 0 and not inv.is_paid:
-            inv.mark_paid()
-            log(f"[DEBUG] Invoice {inv.pk} marked as paid")
-
-        available_credit -= allocate
-        if not using_tenant_credit:
-            payment_left -= allocate
-
-    # Deposit top-up (real payments only)
-    if apply_to_deposit and active_lease and payment_left is not None and payment_left > 0:
-        deposit = Deposit.objects.filter(tenant=tenant).order_by('-lease__is_active', '-id').first()
-        if deposit:
-            shortfall = deposit.amount - deposit.amount_held
-            if shortfall > 0:
-                allocate = _quantize(min(payment_left, shortfall))
-                LedgerEntry.objects.create(
-                    lease=deposit.lease,
-                    tenant=tenant,
-                    deposit=deposit,
-                    debit=Decimal("0.00"),
-                    credit=allocate,
-                    entry_type=LedgerEntry.DEPOSIT,
-                    description=f"Top-up deposit for Lease {deposit.lease.pk}"
-                )
-                deposit.amount_held += allocate
-                deposit.paid_at = deposit.paid_at or timezone.now()
-                deposit.save(update_fields=["amount_held", "paid_at"])
-                applied_to_deposit += allocate
-                payment_left -= allocate
-                log(f"[DEBUG] Applied {allocate} to deposit for Lease {deposit.lease.pk}")
-
-    # Overpayment stored as tenant credit (real payments)
-    if not using_tenant_credit and payment_left is not None and payment_left > 0:
-        LedgerEntry.objects.create(
-            lease=None,
-            tenant=tenant,
-            invoice=None,
-            deposit=None,
-            debit=Decimal("0.00"),
-            credit=payment_left,
-            entry_type=LedgerEntry.RENT,
-            description="Overpayment stored as tenant credit"
-        )
-        log(f"[DEBUG] Stored overpayment of {payment_left} as tenant credit")
-        payment_left = Decimal("0.00")
-
-    # Recalculate tenant balance using robust method
-    TenantBalance.recalc_for_tenant(tenant)
-    log(f"[DEBUG] Tenant balance recalculated for {tenant}")
-
-    return {
-        "applied_to_deposit": str(_quantize(applied_to_deposit)),
-        "applied_to_invoices": str(_quantize(applied_to_invoices)),
-        "unallocated": str(_quantize(payment_left)) if payment_left is not None else None,
-    }
-
-
-
-
-
-
-
 
 
 # -------------------------
@@ -417,7 +277,7 @@ def apply_payment_safe(
     Public entry for external payments arriving (cash).
     Can optionally target a specific invoice.
     """
-    return _apply_credit_and_deposit(
+    return apply_credit_and_deposit(
         tenant=tenant,
         payment_amount=payment_amount,
         reference=reference,
@@ -441,7 +301,7 @@ def auto_apply_credit_and_deposit(sender, instance, created, **kwargs):
         return
 
     with transaction.atomic():
-        _apply_credit_and_deposit(
+        apply_credit_and_deposit(
             tenant=instance.tenant,
             payment_amount=None,   # indicates "no external cash"
             reference=None,

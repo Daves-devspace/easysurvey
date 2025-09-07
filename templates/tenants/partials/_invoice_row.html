@@ -1,0 +1,23 @@
+<tr>
+    <td>#{{ invoice.id }}</td>
+    <td>Ksh {{ invoice.total_amount }}</td>
+    <td>Ksh {{ invoice.total_paid }}</td>
+    <td>Ksh {{ invoice.balance }}</td>
+    <td>{{ invoice.due_date }}</td>
+    <td class="{% if invoice.is_paid %}text-success{% else %}text-danger{% endif %}">
+        {% if invoice.is_paid %}Paid{% else %}Pending{% endif %}
+    </td>
+    <td>
+        {% if not invoice.is_paid %}
+        <button
+            class="btn btn-primary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#paymentModal"
+            data-payment-url="{% url 'tenant_payment_modal' tenant.id %}"
+            data-invoice-id="{{ invoice.id }}"
+            data-invoice-balance="{{ invoice.balance }}">
+            Pay
+        </button>
+        {% endif %}
+    </td>
+</tr>

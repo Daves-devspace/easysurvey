@@ -1,4 +1,5 @@
 # apps/tenant_management/models.py
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from django.db import models, transaction
 from django.utils import timezone
@@ -150,6 +151,7 @@ class MeterReading(models.Model):
     current_reading = models.DecimalField(max_digits=10, decimal_places=2,null=True, blank=True)
     usage = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
+    rate_per_cubic_meter = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, editable=False)
 
     class Meta:
         get_latest_by = 'reading_date'
@@ -230,6 +232,21 @@ class Invoice(models.Model):
         if self.status != new_status:
             self.status = new_status
             self.save(update_fields=['status'])
+            
+    @property
+    def due_date(self):
+        """
+        Compute invoice due date based on the tenant's property.billing_day.
+        Ensures the due date is always a valid day in the month.
+        """
+        
+        billing_day = self.tenant.property.billing_day
+        # Ensure due day is within the current month
+        year = self.billing_period_end.year
+        month = self.billing_period_end.month
+        last_day_of_month = (date(year + int(month / 12), (month % 12) + 1, 1) - timedelta(days=1)).day
+        day = min(billing_day, last_day_of_month)
+        return date(year, month, day)
             
             
             

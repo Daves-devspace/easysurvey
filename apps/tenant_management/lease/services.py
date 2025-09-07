@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from apps.tenant_management.models import Tenant, Lease, Deposit, LedgerEntry
@@ -41,23 +42,20 @@ class TenantLeaseService:
                     lease = Lease.objects.create(tenant=tenant, **lease_data)
                     lease_action = "created"
 
-                # Deposit (same as before)
+                # Deposit - FIXED: Set amount_held to 0, not the deposit amount
                 deposit_amount = lease_data.get("deposit_amount", 0)
                 if deposit_amount > 0:
                     deposit, created = Deposit.objects.get_or_create(
                         lease=lease,
-                        defaults={"amount": deposit_amount, "amount_held": deposit_amount},
+                        defaults={"amount": deposit_amount, "amount_held": Decimal('0.00')},  # Changed to 0.00
                     )
                     if not created:
                         deposit.amount = deposit_amount
-                        deposit.amount_held = deposit_amount
+                        # Don't update amount_held here - it should only be updated when payment is received
                         deposit.save()
 
-                    LedgerEntry.objects.update_or_create(
-                        lease=lease,
-                        description="Deposit received",
-                        defaults={"debit": deposit_amount}
-                    )
+                    
+                    # Ledger entries should only be created when payments are actually made
 
                 return {
                     "tenant": tenant,

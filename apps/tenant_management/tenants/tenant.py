@@ -1,4 +1,5 @@
 from django.conf import settings
+from collections import defaultdict
 from django.urls import path, include
 from django.views.generic import DetailView, CreateView, ListView, UpdateView, DeleteView
 from django.db.models import Prefetch, Q, OuterRef, Subquery, Sum, Value
@@ -6,7 +7,7 @@ from django.db.models.functions import Coalesce
 from django.db.models import DecimalField
 from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
-from apps.tenant_management.models import Tenant, Lease, Payment, Invoice, Property, Unit, Deposit, MeterReading, InvoiceLine
+from apps.tenant_management.models import Tenant, Lease, Payment, Invoice, Property, Unit, Deposit, MeterReading, InvoiceLine,LedgerEntry
 from apps.tenant_management.forms import TenantCreationForm, CombinedTenantLeaseForm
 from django.contrib import messages
 from django.urls import reverse_lazy
@@ -17,7 +18,7 @@ from django.core.exceptions import ValidationError
 from apps.tenant_management.tenants.tenants_aggregates import get_tenant_financials
 from django.db.models import F, ExpressionWrapper
 from django.http import Http404
-
+from django.views import View
 
 def _build_tenant_row_context(tenant):
     """Return a 'row' dict used by the tenant_row partial."""
@@ -257,110 +258,164 @@ class TenantDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        tenant = self.object
+        tenant: Tenant = self.object
 
-        # --- Subqueries for per-lease aggregates ---
-        payments_sq = (
-            Payment.objects
-            .filter(invoice__lines__lease=OuterRef("pk"))   # ✅ go through invoice lines
-            .values("invoice__lines__lease")
-            .annotate(
-                total_paid=Coalesce(
-                    Sum("amount"),
-                    Value(Decimal("0.00")),
-                    output_field=DecimalField()
-                )
-            )
-            .values("total_paid")
-        )
-
-        deposits_sq = (
-            Deposit.objects
-            .filter(lease=OuterRef("pk"))
-            .values("lease")
-            .annotate(
-                total_deposit=Coalesce(
-                    Sum("amount"),
-                    Value(Decimal("0.00")),
-                    output_field=DecimalField()
-                )
-            )
-            .values("total_deposit")
-        )
-
-        invoices_sq = (
-            InvoiceLine.objects
-            .filter(lease=OuterRef("pk"))   # ✅ invoices via lines
-            .values("lease")
-            .annotate(
-                total=Coalesce(
-                    Sum("amount"),
-                    Value(Decimal("0.00")),
-                    output_field=DecimalField()
-                )
-            )
-            .values("total")
-        )
-
-        # --- Annotate leases with financials ---
+        # --- Simple approach: Get leases first, then calculate totals in Python ---
+        # This avoids all the complex subquery issues and is actually more reliable
+        
+        # Get basic lease information
         leases_qs = (
-            Lease.objects
-            .filter(tenant=tenant)
+            Lease.objects.filter(tenant=tenant)
             .select_related("unit", "unit__property")
-            .annotate(
-                total_paid=Coalesce(Subquery(payments_sq, output_field=DecimalField()), Value(Decimal("0.00"))),
-                total_deposit=Coalesce(Subquery(deposits_sq, output_field=DecimalField()), Value(Decimal("0.00"))),
-                total_invoiced=Coalesce(Subquery(invoices_sq, output_field=DecimalField()), Value(Decimal("0.00"))),
-            )
-            .annotate(
-                balance=ExpressionWrapper(
-                    F("total_invoiced") - F("total_paid"),
-                    output_field=DecimalField()
-                )
+        )
+
+        # Get all payments for this tenant to calculate totals
+        all_payments = Payment.objects.filter(
+            invoice__tenant=tenant
+        ).select_related("invoice")
+
+        # Get all invoice lines for this tenant
+        all_invoice_lines = InvoiceLine.objects.filter(
+            lease__tenant=tenant
+        ).select_related("lease", "invoice", "meter_reading")
+
+        # Get all deposits for this tenant  
+        all_deposits = Deposit.objects.filter(tenant=tenant)
+
+        # Get latest meter readings for each unit
+        meter_readings = {}
+        for lease in leases_qs:
+            latest_reading = MeterReading.objects.filter(
+                unit=lease.unit
+            ).order_by("-reading_date").first()
+            if latest_reading:
+                meter_readings[lease.unit_id] = latest_reading
+
+        # --- Fetch all invoices with prefetched related data ---
+        invoices_qs = (
+            Invoice.objects
+            .filter(lines__lease__tenant=tenant)
+            .distinct()
+            .prefetch_related(
+                Prefetch("lines", queryset=InvoiceLine.objects.select_related("meter_reading", "lease", "deposit"), to_attr="prefetched_lines"),
+                Prefetch("payments", queryset=Payment.objects.all(), to_attr="prefetched_payments"),
             )
         )
 
-        # --- Payments history (latest first) ---
-        payments = (
-            Payment.objects
-            .filter(invoice__tenant=tenant)
-            .select_related("invoice")
-            .order_by("-payment_date")
-        )
+        # --- Build lease -> invoices mapping ---
+        lease_invoices_map = defaultdict(list)
+        for inv in invoices_qs:
+            seen = set()
+            for line in getattr(inv, "prefetched_lines", []):
+                if not line.lease_id or line.lease_id in seen:
+                    continue
+                lease_invoices_map[line.lease_id].append(inv)
+                seen.add(line.lease_id)
 
-        # --- Build per-lease data ---
+        # --- Calculate totals per lease in Python (avoiding subquery issues) ---
         leases_data = []
         for lease in leases_qs:
-            last_meter = lease.unit.meter_readings.order_by("-reading_date").first()
-
-            # water-related invoice lines for this lease
-            water_lines = (
-                InvoiceLine.objects
-                .filter(lease=lease, meter_reading__isnull=False)
-                .select_related("meter_reading", "invoice")
-                .order_by("-invoice__billing_period_start")
+            # Calculate total invoiced for this lease
+            total_invoiced = sum(
+                line.amount for line in all_invoice_lines 
+                if line.lease_id == lease.pk
             )
 
+            # Calculate total paid for this lease (FIXED: avoid duplicates)
+            lease_invoices = lease_invoices_map.get(lease.pk, [])
+            unique_invoice_ids = set(inv.pk for inv in lease_invoices)
+            
+            total_paid_for_lease = Decimal("0.00")
+            for payment in all_payments:
+                if payment.invoice_id in unique_invoice_ids:
+                    total_paid_for_lease += payment.amount
+
+            # Calculate total deposit for this lease
+            total_deposit = sum(
+                dep.amount for dep in all_deposits 
+                if dep.lease_id == lease.pk
+            )
+
+            # Calculate balance
+            balance = total_invoiced - total_paid_for_lease
+
+            # Get meter readings for this lease's unit
+            latest_reading = meter_readings.get(lease.unit_id)
+            previous_meter = latest_reading.previous_reading if latest_reading else None
+            current_meter = latest_reading.current_reading if latest_reading else None
+
+            # Process water usage data
+            water_lines = []
+            total_water_usage = Decimal("0.00")
+            total_water_amount = Decimal("0.00")
+
+            for inv in lease_invoices:
+                for line in getattr(inv, "prefetched_lines", []):
+                    if line.lease_id != lease.pk:
+                        continue
+                    if line.meter_reading:
+                        water_lines.append(line)
+                        total_water_usage += getattr(line.meter_reading, "usage", Decimal("0.00")) or Decimal("0.00")
+                        total_water_amount += Decimal(str(line.amount or Decimal("0.00")))
+
+            # Build lease data structure
             leases_data.append({
                 "lease": lease,
                 "unit": lease.unit,
                 "property": lease.unit.property,
+                "all_invoices": lease_invoices,
+                "unpaid_invoices": [inv for inv in lease_invoices if not inv.is_paid],
                 "rent_amount": lease.unit.rent_amount or Decimal("0.00"),
-                "deposit": lease.total_deposit,
+                "deposit": total_deposit,
                 "status": "Active" if lease.is_active else "Expired",
-                "total_invoiced": lease.total_invoiced,
-                "balance": lease.balance,
-                "balance_abs": abs(lease.balance), 
-                "total_paid": lease.total_paid,
-                "previous_meter": getattr(last_meter, "previous_reading", None),
-                "current_meter": getattr(last_meter, "current_reading", None),
-                "water_lines": list(water_lines),
+                "total_invoiced": total_invoiced,
+                "balance": balance,  # Now correctly calculated
+                "balance_abs": abs(balance),
+                "total_paid": total_paid_for_lease,  # Now correctly shows 6000 instead of 18000
+                "previous_meter": previous_meter,
+                "current_meter": current_meter,
+                "water_lines": water_lines,
+                "total_water_usage": total_water_usage,
+                "total_water_amount": total_water_amount,
+                "water_records_count": len(water_lines),
             })
 
-        # --- Tenant-wide totals via helper ---
-        totals = get_tenant_financials(tenant)
+        # --- Tenant-level deposits summary ---
+        deposits_for_tenant = Deposit.objects.filter(tenant=tenant)
 
-        # --- Vacant units in this tenant’s properties ---
+        total_deposit_held = deposits_for_tenant.aggregate(
+            total=Coalesce(Sum("amount_held"), Value(Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
+        total_deposit_refunded = deposits_for_tenant.aggregate(
+            total=Coalesce(Sum("refunded_amount"), Value(Decimal("0.00")))
+        )["total"] or Decimal("0.00")
+
+        total_deposit_ledger_credit = LedgerEntry.objects.filter(
+            tenant=tenant,
+            deposit__isnull=False,
+            credit__gt=0
+        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
+
+        total_deposit_applied_to_invoices = LedgerEntry.objects.filter(
+            tenant=tenant,
+            deposit__isnull=False,
+            invoice__isnull=False,
+            credit__gt=0
+        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
+
+        # Tenant unallocated credit
+        tenant_credit = LedgerEntry.objects.filter(
+            tenant=tenant,
+            invoice__isnull=True,
+            deposit__isnull=True
+        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
+
+        # Additional context data
+        payments = Payment.objects.filter(invoice__tenant=tenant).select_related("invoice").order_by("-payment_date")
+        total_units = leases_qs.values_list("unit_id", flat=True).distinct().count()
+
+        # Vacant units grouped by property
         property_ids = leases_qs.values_list("unit__property_id", flat=True).distinct()
         if property_ids:
             properties = Property.objects.filter(pk__in=set(property_ids)).prefetch_related(
@@ -368,21 +423,43 @@ class TenantDetailView(DetailView):
             )
         else:
             properties = Property.objects.none()
+        available_units_by_property = [{"property": p, "units": list(p.units.all())} for p in properties if p.units.exists()]
 
-        available_units_by_property = [
-            {"property": p, "units": list(p.units.all())}
-            for p in properties if p.units.exists()
-        ]
-        
+        # Tenant-wide financial totals
+        totals = get_tenant_financials(tenant)
 
-
-        # --- Final context ---
+        # Final context dictionary
         ctx.update({
             "leases": list(leases_qs),
+            "leases_data": leases_data,  # Contains corrected calculations
             "payments": list(payments),
-            "leases_data": leases_data,
-            "total_units": leases_qs.count(),
-            **totals,  # merge total_deposit, total_paid, total_invoiced, total_water_charges, total_balance
+            "total_units": total_units,
+            "total_deposit_held": total_deposit_held,
+            "total_deposit_refunded": total_deposit_refunded,
+            "total_deposit_ledger_credit": total_deposit_ledger_credit,
+            "total_deposit_applied_to_invoices": total_deposit_applied_to_invoices,
+            "tenant_credit": tenant_credit,
             "available_units_by_property": available_units_by_property,
+            **totals,
         })
+
         return ctx
+
+
+
+# HTMX endpoint for filtering
+# views.py
+class TenantInvoicesFilterView(View):
+    def get(self, request, tenant_id):
+        status = request.GET.get("status", "all")
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+
+        invoices = Invoice.objects.filter(lines__lease__tenant=tenant).distinct().order_by("-billing_period_start")
+
+        if status == "unpaid":
+            invoices = invoices.filter(is_paid=False)
+        elif status == "paid":
+            invoices = invoices.filter(is_paid=True)
+
+        # render a partial that loops through invoices
+        return render(request, "tenants/partials/_invoice_rows.html", {"invoices": invoices, "tenant": tenant})

@@ -3,7 +3,7 @@ from .models import (
     WaterCompany, Property, WaterRate,
     Unit, Tenant, Lease, MeterReading,
     Invoice, InvoiceLine, Payment, Receipt,
-    NotificationLog
+    NotificationLog, TenantBalance, LedgerEntry, Deposit
 )
 
 
@@ -22,7 +22,7 @@ class LeaseInline(admin.TabularInline):
 class InvoiceLineInline(admin.TabularInline):
     model = InvoiceLine
     extra = 0
-    fields = ("description", "lease", "amount")
+    fields = ("description", "lease", "amount", "line_type")
     show_change_link = True
 
 
@@ -31,6 +31,14 @@ class PaymentInline(admin.TabularInline):
     extra = 0
     fields = ("amount", "payment_date", "method", "reference", "balance_after")
     readonly_fields = ("payment_date", "balance_after")
+    show_change_link = True
+
+
+class LedgerEntryInline(admin.TabularInline):
+    model = LedgerEntry
+    extra = 0
+    fields = ("entry_type", "debit", "credit", "lease", "invoice", "deposit", "description", "created_at")
+    readonly_fields = ("created_at",)
     show_change_link = True
 
 
@@ -106,8 +114,8 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 @admin.register(InvoiceLine)
 class InvoiceLineAdmin(admin.ModelAdmin):
-    list_display = ("invoice", "description", "lease", "amount")
-    list_filter = ("invoice__tenant__property",)
+    list_display = ("invoice", "description", "lease", "amount", "line_type")
+    list_filter = ("invoice__tenant__property", "line_type")
     search_fields = ("description", "invoice__tenant__full_name")
     ordering = ("invoice",)
 
@@ -135,3 +143,29 @@ class NotificationLogAdmin(admin.ModelAdmin):
     list_filter = ("channel", "status", "created_at")
     search_fields = ("tenant__full_name", "message")
     ordering = ("-created_at",)
+
+
+@admin.register(TenantBalance)
+class TenantBalanceAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "balance")
+    search_fields = ("tenant__full_name",)
+    ordering = ("tenant",)
+
+
+@admin.register(LedgerEntry)
+class LedgerEntryAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "entry_type", "debit", "credit", "lease", "invoice", "deposit", "created_at")
+    list_filter = ("entry_type", "created_at")
+    search_fields = ("tenant__full_name", "description")
+    ordering = ("-created_at",)
+    readonly_fields = ("created_at",)
+
+
+@admin.register(Deposit)
+class DepositAdmin(admin.ModelAdmin):
+    list_display = ("tenant", "lease", "amount", "amount_held", "paid_at", "refunded_at", "refunded_amount")
+    list_filter = ( "paid_at", "refunded_at")
+    search_fields = ("tenant__full_name", "lease__unit__unit_number")
+    ordering = ("-paid_at",)
+    readonly_fields = ("amount_held", "refunded_amount")
+    inlines = [LedgerEntryInline]

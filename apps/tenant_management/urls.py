@@ -10,10 +10,11 @@ from .views import (
     PropertyReadingsPartialView,
     
 )
+from apps.tenant_management.tenants.payments import TenantPaymentModalView,ManualInvoiceGenerationView
 from apps.tenant_management.lease.meter_readings import MeterReadingListView, MeterReadingDeleteView, MeterReadingCreateView, MeterReadingUpdateView
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
 from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
-from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView
+from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView
 
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
@@ -35,6 +36,18 @@ urlpatterns = [
     path("<int:pk>/edit/", MeterReadingUpdateView.as_view(), name="meter_readings_update"),
     path("<int:pk>/delete/", MeterReadingDeleteView.as_view(), name="delete"),
     
+    path('tenant/<int:tenant_id>/payment/', TenantPaymentModalView.as_view(), name='tenant_payment_modal'),
+    path(
+        'tenants/<int:tenant_id>/invoices/filter/',
+        TenantInvoicesFilterView.as_view(),
+        name='tenant_invoices_filter'
+    ),
+    
+     path(
+        "invoices/manual-generate/",
+        ManualInvoiceGenerationView.as_view(),
+        name="manual_invoice_generate",
+    ),
      
     
     # Tenant management URLs

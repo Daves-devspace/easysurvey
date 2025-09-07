@@ -55,7 +55,7 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
       - unit
       - tenant (active lease tenant or None)
       - reading (latest MeterReading in the billing month or None)
-      - previous_current (baseline – last current_reading before billing_start; 0 if none)
+      - previous_current (baseline – uses stored previous_reading if available, else last current_reading before billing_start; 0 if none)
       - usage (Decimal or None)
       - rate (Decimal or None)
       - amount (Decimal or None)
@@ -131,14 +131,21 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
             if unit.active_leases_prefetched:
                 tenant = unit.active_leases_prefetched[0].tenant
 
-        previous_current = q(unit.previous_current)
+        # FIXED: Use the stored previous_reading if available, otherwise fall back to calculated value
+        if reading and reading.previous_reading is not None:
+            # Use the stored previous_reading from the MeterReading record
+            previous_current = q(reading.previous_reading)
+        else:
+            # Fall back to the calculated value from subquery
+            previous_current = q(unit.previous_current)
+            
         usage = None
         rate_val = None
         amount = None
 
-        if reading:
-            # Calculate usage & amount if a reading exists
-            usage = q((reading.current_reading or Decimal("0.00")) - previous_current)
+        if reading and reading.current_reading is not None:
+            # Calculate usage & amount only if current_reading exists and is not None
+            usage = q(reading.current_reading - previous_current)
             rate_obj = get_applicable_rate_for_date(unit.property.water_company, billing_end)
             if rate_obj:
                 # Guard against multiple naming conventions

@@ -4,7 +4,7 @@ from .models import Unit, Property, Lease, MeterReading
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import Tenant, Unit, Lease, Property
+from .models import Tenant, Unit, Lease, Property, MeterReading, WaterCompany,Payment
 
 from datetime import date as dt_date
 
@@ -270,6 +270,7 @@ class BillingPeriodMixin(forms.Form):
             self.fields["billing_period"] = forms.DateField(
                 required=True,
                 widget=forms.DateInput(attrs={"type": "month"}),
+                input_formats=["%Y-%m"],  # <-- Accept "YYYY-MM" from type="month"
                 help_text="Billing month this reading belongs to",
             )
 
@@ -283,7 +284,9 @@ class BillingPeriodMixin(forms.Form):
 
     def clean_billing_period(self):
         val = self.cleaned_data["billing_period"]
+        # Ensure day is always 1
         return val.replace(day=1)
+
 
 
 class MeterReadingCreateForm(BillingPeriodMixin, forms.ModelForm):
@@ -318,3 +321,27 @@ class MeterReadingUpdateForm(BillingPeriodMixin, forms.ModelForm):
         if v < 0:
             raise forms.ValidationError("Reading cannot be negative.")
         return v
+    
+    
+class PaymentForm(forms.Form):
+    amount = forms.DecimalField(
+        max_digits=12, decimal_places=2,
+        min_value=0.01,
+        widget=forms.NumberInput(attrs={"step": "0.01", "class": "form-control", "placeholder": "Amount"})
+    )
+    invoice_id = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    method = forms.CharField(
+        max_length=50, required=True, initial="Mpesa",
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+    reference = forms.CharField(
+        max_length=100, required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Payment reference (optional)"})
+    )
+
+    def clean_amount(self):
+        val = self.cleaned_data["amount"]
+        # Django DecimalField already validates range and scale. Extra checks can go here.
+        if val <= 0:
+            raise forms.ValidationError("Amount must be greater than 0")
+        return val
