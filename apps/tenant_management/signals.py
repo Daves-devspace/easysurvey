@@ -1,4 +1,6 @@
 # apps/tenant_management/signals.py
+from .signals.invoice_signals import *
+
 import calendar
 import logging
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
@@ -22,6 +24,9 @@ import threading
 from django import db
 from django.db import connections
 from django.db import DatabaseError
+from apps.tenant_management.services.payment_service import PaymentService
+from .signals.invoice_signals import *
+from .signals.payment_signals import *
 
 
 logger = logging.getLogger(__name__)
@@ -82,32 +87,46 @@ def update_invoice_total(sender, instance, **kwargs):
 @receiver(post_save, sender=Payment)
 def handle_payment_unified(sender, instance, created, **kwargs):
     """
-    Handle payment without creating duplicates.
+    FIXED: Handle payment without trying to access balance_after field.
     Deposit allocation is now handled in apply_credit_and_deposit, so we remove it here.
     """
     if not created:
         return
 
-    # REMOVED: Deposit allocation is now handled in apply_credit_and_deposit
+    try:
+        # Create receipt for all payments
+        Receipt.objects.create(
+            payment=instance,
+            receipt_number=f"RCP-{timezone.now().strftime('%Y%m%d%H%M%S')}-{instance.pk}"
+        )
 
-    # Update balance_after field
-    instance.invoice.refresh_from_db()
-    balance_after = instance.invoice.balance
-    
-    # Use update to avoid triggering another signal
-    Payment.objects.filter(pk=instance.pk).update(balance_after=balance_after)
-
-    # Create receipt
-    Receipt.objects.create(
-        payment=instance,
-        receipt_number=f"RCP-{timezone.now().strftime('%Y%m%d%H%M%S')}-{instance.pk}"
-    )
-
-    # Mark invoice as paid if balance is zero
-    if balance_after <= 0 and not instance.invoice.is_paid:
-        instance.invoice.mark_paid()
-        logger.info(f"Invoice {instance.invoice.pk} marked as paid after payment {instance.pk}")
-
+        if not instance.invoice:
+            # This is a credit payment (invoice=None)
+            logger.info(f"Created receipt for credit payment {instance.pk}")
+        else:
+            # This is an invoice payment
+            logger.info(f"Created receipt for invoice payment {instance.pk}")
+            
+            # Mark invoice as paid if balance is zero
+            instance.invoice.refresh_from_db()
+            if instance.invoice.balance <= 0 and not instance.invoice.is_paid:
+                instance.invoice.mark_paid()
+                logger.info(f"Invoice {instance.invoice.pk} marked as paid after payment {instance.pk}")
+            
+    except Exception as e:
+        logger.error(f"Error processing payment {instance.pk}: {e}")
+        # Still create a receipt even if there's an error
+        try:
+            Receipt.objects.create(
+                payment=instance,
+                receipt_number=f"RCP-{timezone.now().strftime('%Y%m%d%H%M%S')}-{instance.pk}"
+            )
+        except:
+            logger.error(f"Failed to create receipt for payment {instance.pk}")
+            
+            
+            
+            
 # -------------------------
 # MeterReading: compute & invoice-line generation (thin signal)
 # -------------------------
@@ -290,26 +309,18 @@ def apply_payment_safe(
 # -------------------------
 # Invoice-created receiver (auto-apply existing tenant credit)
 # -------------------------
+# Update the auto_apply_credit_and_deposit function
 @receiver(post_save, sender=Invoice)
 def auto_apply_credit_and_deposit(sender, instance, created, **kwargs):
     """
     When a new invoice is created, consume available TenantBalance credit (if any)
     and attempt to auto-apply it to the newly-created invoice first.
-    This path does NOT create deposit top-ups (no external cash).
     """
     if not created:
         return
 
     with transaction.atomic():
-        apply_credit_and_deposit(
-            tenant=instance.tenant,
-            payment_amount=None,   # indicates "no external cash"
-            reference=None,
-            method="TenantBalance",
-            apply_to_deposit=False,
-            invoice=instance
-        )
-
+        PaymentService.apply_credit_to_invoice(instance.tenant, instance)
 
 @receiver(pre_save, sender=Lease)
 def refund_deposit_on_lease_end(sender, instance, **kwargs):

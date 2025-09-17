@@ -10,15 +10,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from apps.tenant_management.utils.payment_utils import q
+from apps.tenant_management.utils.date_utils import month_bounds_for
+
 # ---------- Utilities ----------
-CENTS = Decimal('0.01')
-def quantize(d: Decimal) -> Decimal:
-    """Uniform rounding to 2dp for storing money values."""
-    if d is None:
-        return Decimal('0.00')
-    if not isinstance(d, Decimal):
-        d = Decimal(str(d))
-    return d.quantize(CENTS, rounding=ROUND_HALF_UP)
+# CENTS = Decimal('0.01')
+# def quantize(d: Decimal) -> Decimal:
+#     """Uniform rounding to 2dp for storing money values."""
+#     if d is None:
+#         return Decimal('0.00')
+#     if not isinstance(d, Decimal):
+#         d = Decimal(str(d))
+#     return d.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
 # ---------- Core models ----------
@@ -122,7 +125,12 @@ class Lease(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
-        indexes = [Index(fields=['start_date']), Index(fields=['is_active'])]
+        indexes = [
+            # Add index for is_active (commonly filtered)
+            models.Index(fields=['is_active']),
+            # Add composite index for tenant and is_active
+            models.Index(fields=['tenant', 'is_active']),
+        ]
         constraints = [UniqueConstraint(fields=['unit'], condition=Q(is_active=True), name='unique_active_lease_per_unit')]
 
     def __str__(self):
@@ -137,8 +145,24 @@ class Lease(models.Model):
         return cls.objects.filter(is_active=True)
 
     def clean(self):
-        if self.tenant.property != self.unit.property:
+        """
+        Ensure tenant and unit belong to the same property.
+        Defensive: only runs if both foreign keys are set.
+        Uses *_id fields to avoid triggering RelatedObjectDoesNotExist
+        when related objects are not yet loaded.
+        """
+        # Skip check if tenant or unit not yet set
+        if not self.tenant_id or not self.unit_id:
+            return
+
+        # Fetch property ids directly from DB (efficient + safe)
+        tenant_prop_id = Tenant.objects.filter(pk=self.tenant_id).values_list("property_id", flat=True).first()
+        unit_prop_id = Unit.objects.filter(pk=self.unit_id).values_list("property_id", flat=True).first()
+
+        # Only validate when both lookups succeeded
+        if tenant_prop_id and unit_prop_id and tenant_prop_id != unit_prop_id:
             raise ValidationError("Tenant and Unit must belong to the same property.")
+
 
 
 class MeterReading(models.Model):
@@ -155,7 +179,12 @@ class MeterReading(models.Model):
 
     class Meta:
         get_latest_by = 'reading_date'
-        indexes = [Index(fields=['unit', 'reading_date'])]
+        indexes = [
+            # Add composite index for unit and reading_date
+            models.Index(fields=['unit', 'reading_date']),
+            # Add index for current_reading (for filtering NULL values)
+            models.Index(fields=['current_reading']),
+        ]
 
     def __str__(self):
         return f"{self.unit} @ {self.reading_date}: {self.usage} m³"
@@ -183,7 +212,16 @@ class Invoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        indexes = [Index(fields=['tenant', 'billing_period_start']), Index(fields=['is_paid'])]
+        indexes = [
+            # Add composite index for tenant and status
+            models.Index(fields=['tenant', 'status']),
+            # Add index for billing_period_start for range queries
+            models.Index(fields=['billing_period_start']),
+            # Add index for billing_period_end for range queries
+            models.Index(fields=['billing_period_end']),
+            # Add composite index for tenant and is_paid
+            models.Index(fields=['tenant', 'is_paid']),
+        ]
         unique_together = ('tenant', 'billing_period_start', 'billing_period_end')
 
     def __str__(self):
@@ -191,20 +229,41 @@ class Invoice(models.Model):
 
     @property
     def total_paid(self):
+        """
+        ROBUST: Only count Payment records linked to this invoice.
+        No longer considers negative InvoiceLines.
+        """
         return sum(p.amount for p in self.payments.all())
     
     @property
     def balance(self):
+        """
+        ROBUST: Simple calculation using only Payment records.
+        total_amount = sum of positive InvoiceLines (charges only)
+        total_paid = sum of Payment records
+        balance = charges - payments
+        """
         from .utils import q
         return q(self.total_amount) - q(self.total_paid)
 
+    def finalize(self):
+        """Called after all required lines are present (rent + water)."""
+        if self.status != self.STATUS_FINALIZED:
+            self.status = self.STATUS_FINALIZED
+            self.save(update_fields=["status"])
 
     def mark_paid(self):
-        self.is_paid = True
-        self.save(update_fields=['is_paid'])
+        """Called when balance is fully settled via Payment records."""
+        if not self.is_paid:
+            self.is_paid = True
+            self.save(update_fields=["is_paid"])
         
     def recalc_total(self, save=True):
-        total = self.lines.aggregate(s=Sum('amount')).get('s') or Decimal('0.00')
+        """
+        ROBUST: Only sum positive amounts from InvoiceLines.
+        Negative payment amounts are no longer stored as InvoiceLines.
+        """
+        total = self.lines.filter(amount__gt=0).aggregate(s=Sum('amount')).get('s') or Decimal('0.00')
         self.total_amount = total
         if save:
             self.save(update_fields=['total_amount'])
@@ -280,19 +339,52 @@ class InvoiceLine(models.Model):
 
 
 class Payment(models.Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments')
+    """
+    ROBUST: Payment records are the single source of truth for all payments.
+    Each payment is linked to a specific tenant and optionally to a specific invoice.
+    """
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='payments')
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments', null=True, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True, db_index=True)
     method = models.CharField(max_length=50, default='Mpesa')
     reference = models.CharField(max_length=100, null=True, blank=True)
-    balance_after = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
-
+    
+    # Additional fields for better payment tracking
+    payment_type = models.CharField(max_length=20, choices=[
+        ('RENT', 'Rent Payment'),
+        ('DEPOSIT', 'Deposit Payment'),
+        ('MIXED', 'Mixed Payment'),
+        ('CREDIT', 'Credit Application'),
+    ], default='MIXED')
+    
+    #balance_after as it's now calculated from TenantBalance
+    
     class Meta:
-        indexes = [Index(fields=['invoice', 'payment_date'])]
+        indexes = [
+            # Add composite index for tenant and payment_date
+            models.Index(fields=['tenant', 'payment_date']),
+            # Add index for payment_type
+            models.Index(fields=['payment_type']),
+            # Add composite index for invoice and payment_date
+            models.Index(fields=['invoice', 'payment_date']),
+        ]
 
     def __str__(self):
-        return f"Payment {self.amount} for Invoice {self.invoice.id}"
+        if self.invoice is None:
+            return f"Payment of {self.amount} by {self.tenant.full_name} (unallocated)"
+        return f"Payment of {self.amount} for Invoice {self.invoice.id}"
 
+    def save(self, *args, **kwargs):
+        """
+        ROBUST: Auto-update invoice payment status when Payment is saved.
+        """
+        super().save(*args, **kwargs)
+        
+        # Update invoice payment status if this payment is linked to an invoice
+        if self.invoice:
+            if self.invoice.balance <= 0 and not self.invoice.is_paid:
+                self.invoice.mark_paid()
 
 
 class TenantBalance(models.Model):
@@ -300,7 +392,9 @@ class TenantBalance(models.Model):
     balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
 
     class Meta:
-        indexes = [Index(fields=['tenant'])]
+        indexes = [Index(fields=['tenant']),
+                   models.Index(fields=['balance']),]
+        
 
     def __str__(self):
         return f"TenantBalance {self.tenant.full_name}: {self.balance}"
@@ -308,19 +402,14 @@ class TenantBalance(models.Model):
     @staticmethod
     def recalc_for_tenant(tenant, use_logger: bool = True):
         """
-        Recalculate the tenant's balance.
-
-        Balance formula:
-            TenantBalance = Total unpaid invoice balances
-                            + Total debits (all)
-                            - Total credits (only unallocated)
-
-        Notes:
-        - Only unallocated credits (not linked to invoices or deposits) reduce the balance.
-        - Allocated credits are already applied via invoice or deposit and should not reduce the balance again.
-        - Ensures balance cannot be None and is properly quantized.
+        ROBUST: Recalculate tenant balance using only Payment records and Invoice balances.
+        No longer considers LedgerEntry credits/debits for balance calculation.
+        
+        New Logic:
+        - Sum all unpaid invoice balances
+        - Subtract unallocated payment credits (payments not linked to specific invoices)
+        - Add any additional debits from LedgerEntry (if needed for special cases)
         """
-
         def _quantize(value):
             return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_DOWN)
 
@@ -330,28 +419,27 @@ class TenantBalance(models.Model):
             else:
                 print(msg)
 
-        # Total unpaid invoice balances
-        invoices = Invoice.objects.filter(tenant=tenant)
+        # Sum all unpaid invoice balances (using the robust Invoice.balance property)
+        invoices = Invoice.objects.filter(tenant=tenant, is_paid=False)
         total_invoice_balance = sum(_quantize(inv.balance) for inv in invoices)
         log(f"[DEBUG] Total unpaid invoice balance for tenant {tenant}: {total_invoice_balance}")
 
-        # Fetch all ledger entries for the tenant
-        ledger_entries = LedgerEntry.objects.filter(tenant=tenant)
+        # Find unallocated payments (payments not linked to any invoice)
+        unallocated_payments = Payment.objects.filter(tenant=tenant, invoice__isnull=True)
+        total_unallocated_credit = sum(_quantize(p.amount) for p in unallocated_payments)
+        log(f"[DEBUG] Total unallocated payment credits: {total_unallocated_credit}")
 
-        # Only unallocated credits reduce the balance
-        total_unallocated_credit = sum(
-            _quantize(le.credit)
-            for le in ledger_entries
-            if le.credit > 0 and le.invoice is None and le.deposit is None
+        # Include any additional debits from LedgerEntry (for special cases like fees)
+        additional_debits = LedgerEntry.objects.filter(
+            tenant=tenant, 
+            debit__gt=0,
+            invoice__isnull=True  # Only count debits not already included in invoices
         )
-
-        # All debits count
-        total_debit = sum(_quantize(le.debit) for le in ledger_entries if le.debit > 0)
-
-        log(f"[DEBUG] Total tenant debit={total_debit}, total unallocated credit={total_unallocated_credit}")
+        total_additional_debit = sum(_quantize(le.debit) for le in additional_debits)
+        log(f"[DEBUG] Additional debits from ledger: {total_additional_debit}")
 
         # Calculate final tenant balance
-        balance = _quantize(total_invoice_balance + total_debit - total_unallocated_credit)
+        balance = _quantize(total_invoice_balance + total_additional_debit - total_unallocated_credit)
         log(f"[DEBUG] Calculated tenant balance={balance}")
 
         # Update or create TenantBalance
@@ -360,9 +448,7 @@ class TenantBalance(models.Model):
         tenant_balance_obj.save(update_fields=["balance"])
         log(f"[DEBUG] TenantBalance updated for tenant {tenant}: {tenant_balance_obj.balance}")
 
-        return tenant_balance_obj.balance
-
-
+        return tenant_balance_obj
 
 
 

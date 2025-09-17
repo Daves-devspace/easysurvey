@@ -557,7 +557,7 @@
 
 <!-- unit management -->
  <script src="{% static 'assets/js/unitManagement.js' %}"></script>
-
+<script src="{% static 'assets/js/lease-modal.js' %}" defer></script>
  <!--tenantlease modal -->
  <script src="{% static 'assets/js/tenantLease.js' %}"></script>
 
@@ -608,21 +608,24 @@
 <script src="{% static 'assets/js/modals/dashboardAnalytics.js' %}"></script>
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
+
+
 <script>
-    $(document).ready(function () {
-        $('.datatable').DataTable({
-            responsive: true,
-            paging: true,
-            autoWidth: false,
-            searching: true,
-            ordering: true,
-            info: true,
-            language: {
-                emptyTable: "No data found."
-            }
-        });
+$(document).ready(function () {
+    $('.datatable').DataTable({
+        responsive: true,
+        paging: true,
+        autoWidth: false,
+        searching: true,
+        ordering: true,
+        info: true,
+        language: {
+            emptyTable: "No data found."
+        }
     });
+});
 </script>
+
 
 
 <!-- [Page Specific JS] end -->

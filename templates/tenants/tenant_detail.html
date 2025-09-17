@@ -18,16 +18,10 @@
                     <ul class="breadcrumb">
                         <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
                         <li class="breadcrumb-item"><a href="javascript: void(0)">Property</a></li>
-                        <li class="breadcrumb-item" aria-current="page">Tenant</li>
+                        <li class="breadcrumb-item" aria-current="page">Tenant's Profile</li>
                     </ul>
                 </div>
-                <div class="col-md-12">
-                    <div class="page-header-title">
-                        <h2 class="mb-0"> Tenant Profile</h2>
-
-                    </div>
-
-                </div>
+                
 
             </div>
         </div>
@@ -69,13 +63,26 @@
                             <i class="ti ti-user me-2"></i>Profile
                         </a>
                     </li>
+                   
                     <li class="nav-item">
                         <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                           role="tab"
-                           aria-selected="true">
-                            <i class="ti ti-file-text me-2"></i>Lease
+                        role="tab" aria-selected="true">
+                            <i class="ti ti-file-text me-2"></i>Lease / Invoices
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                        role="tab" aria-selected="false">
+                            <i class="ti ti-file-text me-2"></i>All Payments
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                        role="tab" aria-selected="false">
+                            <i class="ti ti-file-text me-2"></i>Meter Readings
+                        </a>
+                    </li>
+
                     
                 </ul>
             </div>
@@ -162,15 +169,20 @@
                                         </h5>
 
                                         <div class="d-flex flex-wrap gap-2">
-                                            {% for group in available_units_by_property %}
-                                                <h6 class="me-2">{{ group.property.name }}</h6>
-                                                {% for unit in group.units %}
-                                                    <button class="btn btn-outline-primary btn-sm d-flex align-items-center"
-                                                            data-crud-url="{% url 'existing_tenant_lease_create' unit.id tenant.id %}">
-                                                        <i class="fas fa-arrow-right me-1"></i> Assign {{ unit.unit_number }}
-                                                    </button>
-                                                {% endfor %}
-                                            {% endfor %}
+                                            <!-- Create button: include data attributes -->
+                                                <button
+                                                type="button"
+                                                class="btn btn-primary open-lease-modal"
+                                                data-mode="create"
+                                                data-tenant-id="{{ tenant.id }}"
+                                                data-tenant-name="{{ tenant.full_name|escape }}"
+                                                data-property-id="{% if tenant.property %}{{ tenant.property.id }}{% endif %}"
+                                                data-submit-template="/tenant_management/units/:unit_id:/tenant/:tenant_id:/existing-tenant-lease/"
+                                                data-insert-target="#leasesTableBody"
+                                                >
+                                                Assign unit
+                                                </button>
+
                                             <div class="mb-3">
                                             
                                             <button
@@ -187,73 +199,73 @@
                                     </div>
 
                                          <div class="row g-3 mt-3 p-3">
-    <!-- Units -->
-    <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-        <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-            <div class="card-body text-center">
-                <h6 class="card-title text-uppercase small mb-1">
-                    <i class="fas fa-building me-1"></i> Units
-                </h6>
-                <p class="card-text fs-6 fw-semibold">{{ total_units }}</p>
-            </div>
-        </div>
-    </div>
+                                                <!-- Units -->
+                                                <div class="col-12 col-sm-6 col-md-3 col-lg-3">
+                                                    <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
+                                                        <div class="card-body text-center">
+                                                            <h6 class="card-title text-uppercase small mb-1">
+                                                                <i class="fas fa-building me-1"></i> Units
+                                                            </h6>
+                                                            <p class="card-text fs-6 fw-semibold">{{ total_units }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-    <!-- Total Paid -->
-    <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-        <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-            <div class="card-body text-center">
-                <h6 class="card-title text-uppercase small mb-1">
-                    <i class="fas fa-coins me-1"></i> Total Paid
-                </h6>
-                <p class="card-text fs-6 fw-semibold">Ksh {{ total_paid }}</p>
-            </div>
-        </div>
-    </div>
+                                                <!-- Total Paid -->
+                                                <div class="col-12 col-sm-6 col-md-3 col-lg-3">
+                                                    <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
+                                                        <div class="card-body text-center">
+                                                            <h6 class="card-title text-uppercase small mb-1">
+                                                                <i class="fas fa-coins me-1"></i> Total Paid
+                                                            </h6>
+                                                            <p class="card-text fs-6 fw-semibold">Ksh {{ total_paid }}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
-    <!-- Balance / Credit (conditionally) -->
-   <!-- Deposit Card -->
-<div class="col-12 col-sm-6 col-md-3 col-lg-3">
-    <div class="card bg-info bg-opacity-10 text-info shadow rounded-3 h-100">
-        <div class="card-body text-center">
-            <h6 class="card-title text-uppercase small mb-1">
-                <i class="fas fa-piggy-bank me-1"></i> Deposit
-            </h6>
-            <p class="card-text fs-6 fw-semibold">
-                Ksh {{ total_deposit|floatformat:2 }}
-            </p>
-            <small class="text-muted d-block">
-                Held: Ksh {{ total_deposit_held|floatformat:2 }}<br>
-                Refunded: Ksh {{ total_deposit_refunded|floatformat:2 }}<br>
-                Applied: Ksh {{ total_deposit_applied_to_invoices|floatformat:2 }}
-            </small>
-        </div>
-    </div>
-</div>
+                                                <!-- Balance / Credit (conditionally) -->
+                                            <!-- Deposit Card -->
+                                            <div class="col-12 col-sm-6 col-md-3 col-lg-3">
+                                                <div class="card bg-info bg-opacity-10 text-info shadow rounded-3 h-100">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                            <i class="fas fa-piggy-bank me-1"></i> Deposit
+                                                        </h6>
+                                                        <p class="card-text fs-6 fw-semibold">
+                                                            Ksh {{ total_deposit|floatformat:2 }}
+                                                        </p>
+                                                        <small class="text-muted d-block">
+                                                            Held: Ksh {{ total_deposit_held|floatformat:2 }}<br>
+                                                            Refunded: Ksh {{ total_deposit_refunded|floatformat:2 }}<br>
+                                                            Applied: Ksh {{ total_deposit_applied_to_invoices|floatformat:2 }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-<!-- Balance / Credit Card -->
-<div class="col-12 col-sm-6 col-md-3 col-lg-3">
-    {% if tenant_credit > 0 %}
-    <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-        <div class="card-body text-center">
-            <h6 class="card-title text-uppercase small mb-1">
-                <i class="fas fa-gift me-1"></i> Credit
-            </h6>
-            <p class="card-text fs-6 fw-semibold">Ksh {{ tenant_credit }}</p>
-        </div>
-    </div>
-    {% else %}
-    <div class="card {% if total_balance > 0 %}bg-warning bg-opacity-10 text-warning{% else %}bg-success bg-opacity-10 text-success{% endif %} shadow rounded-3 h-100">
-        <div class="card-body text-center">
-            <h6 class="card-title text-uppercase small mb-1">
-                <i class="fas fa-wallet me-1"></i> Balance
-            </h6>
-            <p class="card-text fs-6 fw-semibold">Ksh {{ total_balance|floatformat:2 }}</p>
-        </div>
-    </div>
-    {% endif %}
-</div>
-</div>
+                                            <!-- Balance / Credit Card -->
+                                            <div class="col-12 col-sm-6 col-md-3 col-lg-3">
+                                                {% if tenant_credit > 0 %}
+                                                <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                            <i class="fas fa-gift me-1"></i> Credit
+                                                        </h6>
+                                                        <p class="card-text fs-6 fw-semibold">Ksh {{ tenant_credit }}</p>
+                                                    </div>
+                                                </div>
+                                                {% else %}
+                                                <div class="card {% if total_balance > 0 %}bg-warning bg-opacity-10 text-warning{% else %}bg-success bg-opacity-10 text-success{% endif %} shadow rounded-3 h-100">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-uppercase small mb-1">
+                                                            <i class="fas fa-wallet me-1"></i> Balance
+                                                        </h6>
+                                                        <p class="card-text fs-6 fw-semibold">Ksh {{ total_balance|floatformat:2 }}</p>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
 
 
 
@@ -442,125 +454,205 @@
 
                         </div>
                     </div>
-                    <!--documents-->
-                    <div class="tab-pane" id="profile-2" role="tabpanel"
-                         aria-labelledby="profile-tab-2">
-                        <div class="row">
-                            <div class="col-lg-6 col-xxl-6">
-                                <div class="card mb-4 shadow-sm">
-                                    <div class="card-body position-relative">
-                                        <div class="card-header">
-                                            <h5>Invoices</h5>
-                                            <div class="btn-group mt-2">
-                                                <button class="btn btn-outline-primary btn-sm"
-                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}?status=all"
+                    <!-- Invoices / Lease -->
+                        <div class="tab-pane fade" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                            <div class="row g-4">
+
+                            <!-- Invoices Card -->
+                                <div class="col-lg-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header bg-gradient-to-r from-green-600 to-green-700 text-white d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">Invoices</h5>
+                                            <span class="badge bg-green-500">Total: {{ invoices.count }}</span>
+                                        </div>
+                                        <div class="card-body">
+                                            <!-- Filters -->
+                                            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <label for="invoice-status" class="form-label mb-0">Status:</label>
+                                                    <select id="invoice-status" name="status"
+                                                            class="form-select form-select-sm"
+                                                            hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
+                                                            hx-target="#invoices-table-body"
+                                                            hx-include="#invoice-status, #invoice-billing-period"
+                                                            hx-trigger="change">
+                                                        <option value="all">All</option>
+                                                        <option value="paid">Paid</option>
+                                                        <option value="unpaid">Unpaid</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <label for="invoice-billing-period" class="form-label mb-0">Billing Period:</label>
+                                                    <input type="month" id="invoice-billing-period" name="billing_period"
+                                                        class="form-control form-control-sm"
+                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
                                                         hx-target="#invoices-table-body"
-                                                        hx-swap="innerHTML">
-                                                    All
-                                                </button>
-                                                <button class="btn btn-outline-primary btn-sm"
-                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}?status=unpaid"
-                                                        hx-target="#invoices-table-body"
-                                                        hx-swap="innerHTML">
-                                                    Unpaid
-                                                </button>
-                                                <button class="btn btn-outline-primary btn-sm"
-                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}?status=paid"
-                                                        hx-target="#invoices-table-body"
-                                                        hx-swap="innerHTML">
-                                                    Paid
+                                                        hx-include="#invoice-status, #invoice-billing-period"
+                                                        hx-trigger="change">
+                                                </div>
+
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        onclick="clearInvoiceFilters()">
+                                                    Clear Filters
                                                 </button>
                                             </div>
-                                        </div>
 
-                                        <div class="card-body table-responsive">
-                                            <table class="datatable table table-striped table-hover nowrap w-100">
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th>Invoice #</th>
-                                                        <th>Total</th>
-                                                        <th>Paid</th>
-                                                        <th>Balance</th>
-                                                        <th>Due Date</th>
-                                                        <th>Status</th>
-                                                        <th>Action</th>
-                                                    </tr>
-                                                </thead>
-                                            
-                                                    {% for ld in leases_data %}
-                                                        {% for invoice in ld.all_invoices %}
-                                                            {% include "tenants/partials/_invoice_row.html" with invoice=invoice %}
-                                                        {% endfor %}
-                                                    {% endfor %}
-                                                
-                                            </table>
+                                            <!-- Invoices Table -->
+                                            <!-- Invoices Table -->
+                                            <div class="table-responsive">
+                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                    <thead class="table-dark">
+                                                        <tr>
+                                                            <th scope="col" class="align-middle">
+                                                                <div class="form-check mb-0">
+                                                                    <input class="form-check-input" type="checkbox" id="select-all-invoices" aria-label="Select all invoices">
+                                                                </div>
+                                                            </th>
+                                                            <th scope="col" class="align-middle">Invoice</th>
+                                                            <th scope="col" class="align-middle text-end">Total</th>
+                                                            <th scope="col" class="align-middle text-end">Paid</th>
+                                                            <th scope="col" class="align-middle text-end">Balance</th>
+                                                            <th scope="col" class="align-middle">Due Date</th>
+                                                            <th scope="col" class="align-middle">Status</th>
+                                                            <th scope="col" class="align-middle text-center">Records</th>
+                                                            <th scope="col" class="align-middle">Action</th>
+                                                        </tr>
+                                                    </thead>
+
+                                                    <!-- IMPORTANT: include both controls by ID so HTMX sends the month on load/change -->
+                                                    <tbody id="invoices-table-body"
+                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
+                                                        hx-trigger="load"
+                                                        hx-swap="innerHTML"
+                                                        hx-include="#invoice-status, #invoice-billing-period">
+                                                        <tr><td colspan="9" class="text-center">Loading invoices…</td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
                                         </div>
                                     </div>
-
                                 </div>
 
+
+                            
+
                             </div>
-                            <div class="col-lg-6">
-                                
-
-
-                                <div class="card">
-                                    <div class="card-header">
-                                         <h5>Payments History</h5>
-
+                        </div>
+                        <!-- Payments -->
+                        <div class="tab-pane fade" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                            <div class="row g-4">
+                                <div class="col-lg-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header  text-white">
+                                            <h5 class="mb-0">Payments History</h5>
+                                        </div>
                                         
-                                    </div>
-                                    <div class="card-body table-card">
-                                        <div class="table-responsive mt-3">
-                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
-                                                <thead class="table-dark">
-                                                <tr>
-                                                    <th>
-                                                        <div class="form-check">
-                                                            <input class="form-check-input"
-                                                                   type="checkbox"
-                                                                   id="select-all">
-                                                        </div>
-                                                    </th>
-                                                    
-          
-                                                    <th>Date</th>
-                                                    <th>Amount</th>
-                                                    <th>Method</th>
-                                                    <th>Invoice</th>
-                                                    <th>Balance After</th>
-                                                </tr>
-                                                </thead>
-                                                <tbody>
-                                                {% for p in payments %}
-                                                <tr>
-                                                   <td>#</td>
-
-                                                    <td>{{ p.payment_date|date:"d M Y H:i" }}</td>
-                                                    <td>Ksh {{ p.amount }}</td>
-                                                    <td>{{ p.method }}</td>
-                                                    <td>#</td>
-                                                    <td>Ksh {{ p.balance_after }}</td>
-                                                </tr>
+                            
+                                            <div class="card shadow-sm">
                                                 
-                                                {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                <div class="card-body table-responsive">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th scope="col"><input type="checkbox" id="select-all"></th>
+                                                                <th scope="col">Date</th>
+                                                                <th scope="col">Amount</th>
+                                                                <th scope="col">Method</th>
+                                                                <th scope="col">Invoice</th>
+                                                                <th scope="col">Balance After</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for p in payments %}
+                                                            <tr>
+                                                                <td>{{ forloop.counter }}</td>
+                                                                <td>{{ p.payment_date|date:"d M Y H:i" }}</td>
+                                                                <td>Ksh {{ p.amount }}</td>
+                                                                <td>{{ p.method }}</td>
+                                                                <td>{{ p.invoice }}</td>
+                                                                <td>Ksh {{ p.balance_after }}</td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                
                                     </div>
-
-
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Meter Readings -->
+                    <!-- Meter Readings -->
+                        <div class="tab-pane fade" id="profile-4" role="tabpanel" aria-labelledby="profile-tab-4">
+                            <div class="row g-4">
+                                <div class="col-lg-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header bg-gradient-to-r from-blue-600 to-blue-700 text-white d-flex justify-content-between align-items-center rounded-top">
+                                            <h5 class="mb-0">Meter Readings</h5>
+                                            <span class="badge bg-blue-500 px-3 py-2">Total: {{ meter_readings.count }}</span>
+                                        </div>
+                                        <div class="card-body">
+
+                                            <!-- Filters -->
+                                            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <label for="meter-billing-period" class="form-label mb-0 fw-medium">Billing Period:</label>
+                                                    <input type="month" id="meter-billing-period" name="billing_period"
+                                                        class="form-control form-control-sm"
+                                                        hx-get="{% url 'tenant_meter_readings_filter' tenant.id %}"
+                                                        hx-target="#meter-readings-table"
+                                                        hx-include="#meter-billing-period"
+                                                        hx-trigger="change">
+                                                </div>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                        onclick="clearMeterFilters()">
+                                                    Clear Filter
+                                                </button>
+                                            </div>
+
+                                            <!-- Meter Readings Table -->
+                                            <!-- Meter Readings Table -->
+                                            <div class="table-responsive">
+                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                    <thead class="table-dark">
+                                                        <tr>
+                                                            <th scope="col" class="align-middle">Reading Date</th>
+                                                            <th scope="col" class="align-middle">Property</th>
+                                                            <th scope="col" class="align-middle">Unit</th>
+                                                            <th scope="col" class="align-middle text-end">Previous Reading</th>
+                                                            <th scope="col" class="align-middle text-end">Current Reading</th>
+                                                            <th scope="col" class="align-middle text-end">Usage</th>
+                                                            <th scope="col" class="align-middle text-end">Rate</th>
+                                                            <th scope="col" class="align-middle text-end">Amount</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="meter-readings-table" class="bg-white"
+                                                        hx-get="{% url 'tenant_meter_readings_filter' tenant.id %}"
+                                                        hx-trigger="load"
+                                                        hx-swap="innerHTML"
+                                                        hx-include="#meter-billing-period">
+                                                        {% include "tenants/partials/_meter_readings_rows.html" %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
 
 
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                                
+                                </div>
+                            </div>
                         </div>
                     </div>
-                 
-                </div>
-            </div>
-        </div>
-    </div>
     <!-- [ sample-page ] end -->
 </div>
 <!-- [ Main Content ] end -->
@@ -618,8 +710,226 @@
 
 
 
+<!-- modal (place near bottom of page) -->
+<div class="modal fade" id="leaseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <form id="leaseModalForm" class="needs-validation" novalidate>
+        <div class="modal-header">
+          <h5 class="modal-title" id="leaseModalTitle">Assign unit</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" id="leaseModalMode" value=""> <!-- create | update -->
+          <input type="hidden" id="leaseModalTenantId" value="">
+          <input type="hidden" id="leaseModalUnitId" value="">
+          <input type="hidden" id="leaseModalSubmitTemplate" value=""> <!-- template or url -->
+
+          <div class="row">
+            <!-- Left: search + form -->
+            <div class="col-lg-8">
+              <div class="mb-3">
+                <label class="form-label">Tenant</label>
+                <input type="text" id="leaseModalTenantName" class="form-control" readonly>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Search available unit</label>
+                <input id="leaseModalSearch" class="form-control" type="search" placeholder="Type unit number, meter, or property..." autocomplete="off">
+                <div id="leaseModalResults" class="list-group mt-2" style="max-height:300px; overflow:auto;"></div>
+                <div class="form-text">Results are paged. Use ↑↓ or type to search. Press Enter to select highlighted.</div>
+              </div>
+
+              <div class="row g-3 mt-3">
+                <div class="col-md-6">
+                  <label class="form-label">Start date</label>
+                  <input id="leaseModalStartDate" name="start_date" type="date" class="form-control" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Deposit amount</label>
+                  <input id="leaseModalDeposit" name="deposit_amount" type="number" step="0.01" class="form-control">
+                </div>
+              </div>
+
+              <div id="leaseModalError" class="mt-3 alert alert-danger d-none"></div>
+            </div>
+
+            <!-- Right: unit details -->
+            <div class="col-lg-4">
+              <div class="card">
+                <div class="card-body">
+                  <h6 class="card-title">Unit details</h6>
+                  <dl class="row">
+                    <dt class="col-5">Unit</dt><dd id="detailUnit" class="col-7">—</dd>
+                    <dt class="col-5">Property</dt><dd id="detailProperty" class="col-7">—</dd>
+                    <dt class="col-5">Rent</dt><dd id="detailRent" class="col-7">—</dd>
+                    <dt class="col-5">Meter</dt><dd id="detailMeter" class="col-7">—</dd>
+                  </dl>
+                  <p id="detailNote" class="small text-muted">Select a unit to view details.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div> <!-- modal-body -->
+
+        <div class="modal-footer">
+          <div class="me-auto"><small class="text-muted" id="leaseModalHelp"> </small></div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button id="leaseModalSubmit" type="submit" class="btn btn-success">Assign</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 
+{% comment %} <script>
+(function(){
+  // CSRF setup (Django default)
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : '';
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  const tenantId = document.getElementById('assignTenantId').value;
+  const propertyId = document.getElementById('assignPropertyId').value;
+
+  // init select2
+  $('#unitSelect').select2({
+    placeholder: 'Search units (unit number, meter, property)...',
+    minimumInputLength: 1,
+    ajax: {
+      url: '{% url "unit_search_json" %}',
+      dataType: 'json',
+      delay: 250,
+      data: function(params) {
+        return {
+          q: params.term, // search term
+          page: params.page || 1,
+          page_size: 25,
+          property_id: propertyId || ''
+        };
+      },
+      processResults: function(data, params) {
+        params.page = params.page || 1;
+        return {
+          results: data.results,
+          pagination: {
+            more: data.pagination && data.pagination.more
+          }
+        };
+      },
+      cache: true
+    },
+    width: 'resolve',
+    templateResult: function (repo) { return repo.text; },
+    templateSelection: function (repo) { return repo.text || repo.id; }
+  });
+
+  // Handle form submit (AJAX to existing_tenant_lease_create)
+  document.getElementById('assignUnitForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    const unitSel = $('#unitSelect').select2('data');
+    if (!unitSel || !unitSel.length) {
+      showError('Please select a unit.');
+      return;
+    }
+    const unitId = unitSel[0].id;
+    const startDate = document.getElementById('startDate').value || '';
+    const depositAmount = document.getElementById('depositAmount').value || '';
+
+    // Build POST url: /units/{unit_id}/tenant/{tenant_id}/existing-tenant-lease/
+    const postUrl = `/units/${unitId}/tenant/${tenantId}/existing-tenant-lease/`;
+
+    const payload = new FormData();
+    // If your LeaseCreateView expects 'unit' (since you included a unit field), it's okay
+    // but because the URL carries the unit_id, your view will assign the unit accordingly.
+    // nevertheless include start_date and deposit_amount if present
+    if (startDate) payload.append('start_date', startDate);
+    if (depositAmount) payload.append('deposit_amount', depositAmount);
+
+    // AJAX POST
+    fetch(postUrl, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrftoken
+      },
+      body: payload
+    })
+    .then(async res => {
+      const data = await res.json().catch(() => null);
+      if (res.ok && data && data.success) {
+        // Insert returned HTML row into leases table if present
+        if (data.html && data.row_id) {
+          // append to your lease rows container (adjust selector)
+          const tb = document.querySelector('#leasesTableBody'); // example selector
+          if (tb) {
+            // create temporary container and insert
+            const tmp = document.createElement('div');
+            tmp.innerHTML = data.html;
+            const rowEl = tmp.querySelector('tr') || tmp.firstChild;
+            if (rowEl) tb.prepend(rowEl);
+          }
+        }
+
+        // close modal
+        var modalEl = document.getElementById('assignUnitModal');
+        var bsModal = bootstrap.Modal.getInstance(modalEl);
+        if (bsModal) bsModal.hide();
+
+        // optional toast
+        alert(data.message || 'Lease created successfully.');
+      } else {
+        // handle validation errors returned as html fragment
+        if (data && data.html) {
+          // replace modal body with rendered form (server-side validation)
+          const modalBody = document.querySelector('#assignUnitModal .modal-body');
+          if (modalBody) modalBody.innerHTML = data.html;
+        } else if (data && data.error) {
+          showError(data.error);
+        } else {
+          showError('Failed to create lease. Please check input and try again.');
+        }
+      }
+    }).catch(err => {
+      console.error(err);
+      showError('Unexpected error. Check console for details.');
+    });
+  });
+
+  function showError(msg) {
+    const el = document.getElementById('assignUnitErrors');
+    el.classList.remove('d-none');
+    el.innerText = msg;
+  }
+
+})();
+</script> {% endcomment %}
+
+
+
+<script>
+function clearInvoiceFilters() {
+  const status = document.getElementById('invoice-status');
+  const month = document.getElementById('invoice-billing-period');
+
+  if (status) status.value = 'all';
+  if (month) month.value = '';
+
+  // trigger change events so HTMX fires again
+  if (status) status.dispatchEvent(new Event('change', { bubbles: true }));
+  if (month) month.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function clearMeterFilters() {
+  const month = document.getElementById('meter-billing-period');
+  if (month) month.value = '';
+  if (month) month.dispatchEvent(new Event('change', { bubbles: true }));
+}
+</script>
 
 
 {% endblock %}

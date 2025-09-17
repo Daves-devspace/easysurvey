@@ -158,7 +158,7 @@
                             <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
                                role="tab"
                                aria-selected="true">
-                                <i class="ti ti-file-text me-2"></i>Expenses
+                                <i class="ti ti-file-text me-2"></i>KPIS
                             </a>
                         </li>
                     {% endif %}
@@ -243,6 +243,110 @@
 
                             </div>
                         </div>
+
+
+
+                        <div class="tab-pane" id="profile-2" role="tabpanel"
+                             aria-labelledby="profile-tab-2">
+                            <div class="row">
+
+                                <div class="col-12 col-md-6 mb-4">
+                                    
+
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6>Property Overview</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="container-fluid my-4">
+  <h2 class="mb-4">📊 Property Management Dashboard</h2>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6>Total Collected</h6>
+          <h4 id="total-collected">--</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6>Outstanding</h6>
+          <h4 id="outstanding">--</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6>Vacant Loss</h6>
+          <h4 id="vacant-loss">--</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6>Deposits Held</h6>
+          <h4 id="deposits-held">--</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>Occupancy per Property</h6>
+          <canvas id="occupancyChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>Invoice Status Breakdown</h6>
+          <canvas id="invoiceChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>Collections Aging</h6>
+          <canvas id="agingChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h6>Top 5 Tenants in Arrears</h6>
+          <canvas id="arrearsChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
                        
                         
                     
@@ -278,4 +382,5 @@
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'assets/js/propertyManagement.js' %}"></script>
+<script src="{% static 'assets/js/dashboard.js' %}"></script>
 {% endblock %}

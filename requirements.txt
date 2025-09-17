@@ -17,6 +17,7 @@ django-celery-email==3.0.0
 django-timezone-field==7.1
 djangorestframework==3.16.0
 django-widget-tweaks>=1.4.8
+django-crispy-forms>=2.4
 
 gunicorn==23.0.0
 idna==3.10
@@ -41,3 +42,7 @@ vine==5.1.0
 wcwidth==0.2.13
 
 freezegun~=1.5.2
+
+
+pytest>=7.0.0
+pytest-django>=4.5.0

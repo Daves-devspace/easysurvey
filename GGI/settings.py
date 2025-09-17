@@ -50,7 +50,11 @@ INSTALLED_APPS = [
     'apps.EasyDocs',
     'apps.tenant_management',
     'widget_tweaks',
+    "crispy_forms",
+  
 ]
+
+
 
 # settings.py
 

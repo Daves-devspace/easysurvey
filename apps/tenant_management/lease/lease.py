@@ -29,7 +29,7 @@ import logging
 from django.core.exceptions import ValidationError
 from django.views import View
 logger = logging.getLogger(__name__)
-
+from django.forms import HiddenInput
 from decimal import Decimal
 from django.db import IntegrityError
 
@@ -178,18 +178,34 @@ def _build_lease_row_context(lease):
     return row
 
 
+
+
+
+
+
 class LeaseCreateView(CreateView):
-    """Create a new lease."""
+    """
+    Create a new lease. If unit_id is present in the URL we lock the form to that unit.
+    """
     model = Lease
     form_class = LeaseCreationForm
     template_name = 'leases/lease_form.html'
 
     def get_form_kwargs(self):
-        """Pass property_id to form for unit filtering."""
         kwargs = super().get_form_kwargs()
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
         kwargs['property_id'] = tenant.property.id if tenant.property else None
         return kwargs
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        unit_id = self.kwargs.get('unit_id')
+        if unit_id:
+            unit = get_object_or_404(Unit, pk=unit_id)
+            form.fields['unit'].queryset = Unit.objects.filter(pk=unit.pk)
+            form.initial['unit'] = unit.pk
+            form.fields['unit'].widget = HiddenInput()
+        return form
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -198,21 +214,63 @@ class LeaseCreateView(CreateView):
 
     def form_valid(self, form):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
-        lease = form.save(commit=False)
-        lease.tenant = tenant
+        unit_id = self.kwargs.get('unit_id')
 
         try:
             with transaction.atomic():
+                if unit_id:
+                    try:
+                        unit_obj = Unit.objects.select_for_update().get(pk=unit_id)
+                    except Unit.DoesNotExist:
+                        form.add_error(None, "Selected unit does not exist.")
+                        return self.form_invalid(form)
+
+                    if tenant.property_id != unit_obj.property_id:
+                        form.add_error(None, "Selected unit does not belong to tenant's property.")
+                        return self.form_invalid(form)
+
+                    if unit_obj.is_occupied:
+                        form.add_error(None, "Selected unit is already occupied.")
+                        return self.form_invalid(form)
+
+                    lease = form.save(commit=False)
+                    lease.tenant = tenant
+                    lease.unit = unit_obj
+
+                else:
+                    lease = form.save(commit=False)
+                    lease.tenant = tenant
+
+                    if not lease.unit_id:
+                        form.add_error('unit', "Please select a unit.")
+                        return self.form_invalid(form)
+
+                    try:
+                        unit_obj = Unit.objects.select_for_update().get(pk=lease.unit.pk)
+                    except Unit.DoesNotExist:
+                        form.add_error('unit', "Selected unit does not exist.")
+                        return self.form_invalid(form)
+
+                    if unit_obj.property_id != tenant.property_id:
+                        form.add_error('unit', "Selected unit does not belong to tenant's property.")
+                        return self.form_invalid(form)
+
+                    if unit_obj.is_occupied:
+                        form.add_error('unit', "Selected unit is already occupied.")
+                        return self.form_invalid(form)
+
+                    lease.unit = unit_obj
+
                 lease.save()
-                # Mark unit as occupied
                 lease.unit.is_occupied = True
-                lease.unit.save()
+                lease.unit.save(update_fields=['is_occupied'])
+
         except IntegrityError:
-            form.add_error(None, "Failed to create lease.")
+            form.add_error(None, "Failed to create lease; please try again.")
             return self.form_invalid(form)
 
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # Build row context and return HTML
+            # use tenant variable (already fetched) for property context
             row = _build_lease_row_context(lease)
             html = render_to_string(
                 "leases/partials/lease_row.html",
@@ -225,9 +283,9 @@ class LeaseCreateView(CreateView):
                 "html": html,
                 "message": f'Lease created successfully for {tenant.full_name}!'
             })
-        else:
-            messages.success(self.request, f'Lease created successfully for {tenant.full_name}!')
-            return super().form_valid(form)
+
+        messages.success(self.request, f'Lease created successfully for {tenant.full_name}!')
+        return super().form_valid(form)
 
     def form_invalid(self, form):
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -241,7 +299,80 @@ class LeaseCreateView(CreateView):
 
     def get_success_url(self):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
-        return reverse_lazy("property_detail", kwargs={"pk": tenant.property.pk})
+        return reverse_lazy("tenant_detail", kwargs={"pk": tenant.property.pk})
+
+
+class LeaseUpdateView(UpdateView):
+    """
+    Edit an existing lease. For AJAX updates we lock the affected unit rows and swap occupancy flags.
+    """
+    model = Lease
+    form_class = LeaseCreationForm
+    template_name = "leases/lease_form.html"
+    context_object_name = "lease"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['property_id'] = self.object.tenant.property.id if self.object.tenant.property else None
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["tenant"] = self.object.tenant
+        return ctx
+
+    def form_valid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                new_unit = form.cleaned_data.get('unit')
+                old_unit = self.object.unit
+
+                unit_ids_to_lock = {old_unit.pk}
+                if new_unit and new_unit.pk:
+                    unit_ids_to_lock.add(new_unit.pk)
+
+                with transaction.atomic():
+                    Unit.objects.select_for_update().filter(pk__in=list(unit_ids_to_lock))
+                    self.object = form.save()
+
+                    if old_unit.pk != self.object.unit.pk:
+                        old_unit.is_occupied = False
+                        old_unit.save(update_fields=['is_occupied'])
+                        self.object.unit.is_occupied = True
+                        self.object.unit.save(update_fields=['is_occupied'])
+
+                row = _build_lease_row_context(self.object)
+                html = render_to_string(
+                    "leases/partials/lease_row.html",
+                    {"row": row, "property_obj": self.object.tenant.property},
+                    request=self.request,
+                )
+                return JsonResponse({
+                    "success": True,
+                    "row_id": f"lease-row-{self.object.id}",
+                    "html": html,
+                    "message": "Lease updated successfully"
+                })
+
+            except IntegrityError:
+                form.add_error(None, "Failed to update lease.")
+                return self.form_invalid(form)
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            html = render_to_string(
+                self.template_name,
+                {**self.get_context_data(), "form": form},
+                request=self.request,
+            )
+            return JsonResponse({"success": False, "html": html}, status=400)
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("property_detail", kwargs={"pk": self.object.tenant.property.pk})
+
 
 
 
@@ -320,69 +451,6 @@ def end_lease_view(request, lease_id):
 
 
 
-
-
-class LeaseUpdateView(UpdateView):
-    """Edit an existing lease."""
-    model = Lease
-    form_class = LeaseCreationForm
-    template_name = "leases/lease_form.html"
-    context_object_name = "lease"
-
-    def get_form_kwargs(self):
-        """Pass property_id to form for unit filtering."""
-        kwargs = super().get_form_kwargs()
-        kwargs['property_id'] = self.object.tenant.property.id if self.object.tenant.property else None
-        return kwargs
-
-    def get_success_url(self):
-        return reverse_lazy("property_detail", kwargs={"pk": self.object.tenant.property.pk})
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["tenant"] = self.object.tenant
-        return context
-
-    def form_valid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            try:
-                old_unit = self.object.unit
-                self.object = form.save()
-                
-                # Update unit occupancy if unit changed
-                if old_unit != self.object.unit:
-                    old_unit.is_occupied = False
-                    old_unit.save()
-                    self.object.unit.is_occupied = True
-                    self.object.unit.save()
-                
-                # Build row context and return HTML
-                row = _build_lease_row_context(self.object)
-                html = render_to_string(
-                    "leases/partials/lease_row.html",
-                    {"row": row, "property_obj": self.object.tenant.property},
-                    request=self.request,
-                )
-                return JsonResponse({
-                    "success": True,
-                    "row_id": f"lease-row-{self.object.id}",
-                    "html": html,
-                    "message": "Lease updated successfully"
-                })
-            except IntegrityError:
-                form.add_error(None, "Failed to update lease.")
-                return self.form_invalid(form)
-        return super().form_valid(form)
-
-    def form_invalid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            html = render_to_string(
-                self.template_name,
-                {**self.get_context_data(), "form": form},
-                request=self.request,
-            )
-            return JsonResponse({"success": False, "html": html}, status=400)
-        return super().form_invalid(form)
 
 
 class LeaseDeleteView(DeleteView):

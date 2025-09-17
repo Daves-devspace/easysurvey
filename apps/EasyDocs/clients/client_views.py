@@ -15,7 +15,7 @@ from apps.EasyDocs.exceptions import ClientServiceError
 from apps.EasyDocs.forms import ClientSmsForm, ClientServiceForm, ClientSubServiceForm, ClientSubServiceEditForm
 from apps.EasyDocs.models import Client, MessageLog, ClientService, ClientSubService, ServiceCategory
 from apps.EasyDocs.services.services import create_client_service_with_overrides, \
-    update_client_service_overrides, handle_ground_booking, default_scheduled_date
+    apply_client_service_logic, handle_ground_booking, default_scheduled_date
 from apps.EasyDocs.utils import MobileSasaAPI
 
 from django.contrib.auth.decorators import login_required, permission_required     
@@ -95,7 +95,6 @@ class SendClientSMSView(ClientActionView):
 
 # views.py
 
-
 class ClientServiceManageView(View):
     _permission_map = {
         'add': ['easydocs.add_clientservice'],
@@ -144,19 +143,33 @@ class ClientServiceManageView(View):
             return self._handle_form_errors(form, client.id)
 
         try:
+            # detect service change BEFORE saving so we know whether to rebuild CSPs
+            new_service = form.cleaned_data['service']
+            service_changed = cs.service_id != new_service.id
+
+            # Save the basic ClientService changes
             cs = form.save(commit=False)
             cs.client = client
             cs.save()
 
-            update_client_service_overrides(cs, request.POST)
-            cs.save(update_fields=['overridden_total_price'])  # ← persist the override
+            # IMPORTANT: call the helper so CSPs are rebuilt/synced
+            # If the service changed, treat as "new" so helper clears old CSPs and rebuilds
+            apply_client_service_logic(cs, new_service, post_data=request.POST, is_new=service_changed)
 
+            # Use the correct booking helper name (this is the fix for your AttributeError)
             book_note = self._handle_booking_service(cs, form)
             sms_note = self._sms_feedback(cs)
 
             messages.success(request, f"✅ Service updated successfully.{book_note}{sms_note}")
+            logger.info("Edited ClientService id=%s service_changed=%s", cs.pk, service_changed)
+
         except ClientServiceError as e:
             messages.error(request, f"❌ Failed to update service: {e}")
+        except Exception as e:
+            # keep a broad except while debugging to log unexpected errors
+            logger.exception("Unexpected error in handle_edit_client_service: %s", e)
+            messages.error(request, f"❌ Failed to update service: {e}")
+
         return redirect('client_details', client_id=client.id)
 
     def _handle_form_errors(self, form, client_id):

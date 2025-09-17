@@ -19,7 +19,7 @@ from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollecti
     ClientSubServiceEditForm, ClientSmsForm
 from apps.EasyDocs.models import Client, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
     ClientSubService, SiteSettings, SmsProviderToken, PaymentHistory, Expense, Payment, MessageLog, TitleDeedCollection, \
-    Booking
+    Booking, ServiceCategory, Service, Process
 
 from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
@@ -27,6 +27,7 @@ from django.shortcuts import redirect
 from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
 from .analytics import get_yearly_revenue_data, get_available_years, monthly_company_revenue,get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
+from .services.services import apply_client_service_logic
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 
@@ -655,80 +656,38 @@ def edit_client(request, client_id):
     return redirect(reverse('client_details', kwargs={'client_id': client_id}))
 
 
+
+
 class ClientServiceCreateView(CreateView):
     model = ClientService
     form_class = ClientServiceForm
 
     def form_valid(self, form):
-        """
-        Creates a ClientService record and applies any overrides (total price or per-process costs)
-        before it is saved, so post_save signals receive correct values.
-
-        The actual SMS sending is handled in the signal, not here.
-        """
         try:
             with transaction.atomic():
-                # Create object but delay DB write until we set top-level overrides
                 client_service = form.save(commit=False)
 
-                # Optional fields from POST
-                scheduled_date = self.request.POST.get('scheduled_date')
-                dispatch_message = self.request.POST.get('dispatch_message')
+                client_service.scheduled_date = self.request.POST.get('scheduled_date') or None
+                client_service.dispatch_message = self.request.POST.get('dispatch_message') or None
 
-                if scheduled_date:
-                    client_service.scheduled_date = scheduled_date
-                if dispatch_message:
-                    client_service.dispatch_message = dispatch_message
-
-                # Override total price before first save (so signal sees correct value)
                 override_total_price = self.request.POST.get('override_total_price')
                 if override_total_price:
                     try:
                         client_service.overridden_total_price = Decimal(override_total_price)
                     except InvalidOperation:
                         client_service.overridden_total_price = None
-                        messages.warning(
-                            self.request, "⚠️ Invalid total price override. Ignored."
-                        )
+                        messages.warning(self.request, "⚠️ Invalid total price override. Ignored.")
 
-                # Save once now so related objects can be updated
                 client_service.save()
 
-                # Handle per-process cost overrides
-                process_ids = self.request.POST.getlist('process_id[]')
-                process_costs = self.request.POST.getlist('process_cost[]')
+                # Delegate to shared helper (is_new=True ensures sync-add happens)
+                apply_client_service_logic(
+                    cs=client_service,
+                    service=client_service.service,
+                    post_data=self.request.POST,
+                    is_new=True
+                )
 
-                if process_ids and process_costs:
-                    for pid, cost_str in zip(process_ids, process_costs):
-                        try:
-                            cost = Decimal(cost_str)
-                        except InvalidOperation:
-                            logger.warning(
-                                "Invalid cost for process_id %s: %s", pid, cost_str
-                            )
-                            continue
-
-                        try:
-                            csp = client_service.service_processes.get(process_id=pid)
-                            csp.overridden_cost = cost
-                            csp.save(update_fields=['overridden_cost'])
-                        except ClientServiceProcess.DoesNotExist:
-                            logger.warning(
-                                "No ClientServiceProcess for pid %s on ClientService %s",
-                                pid,
-                                client_service.pk
-                            )
-                            continue
-
-                # Ensure totals are recalculated in case the model doesn't handle it automatically
-                try:
-                    client_service.recalculate_full_total_price()
-                    client_service.save(update_fields=['full_total_price', 'overridden_total_price'])
-                except AttributeError:
-                    # Fallback: let model signals handle recalculation
-                    client_service.save()
-
-            # Messages only after success
             messages.success(self.request, "✅ Service assigned successfully.")
             return JsonResponse({'success': True, 'client_service_id': client_service.pk})
 
@@ -738,38 +697,226 @@ class ClientServiceCreateView(CreateView):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
     def form_invalid(self, form):
-        return JsonResponse({
-            'success': False,
-            'errors': form.errors,
-        }, status=400)
-        
-        
-        
-        
-        
+        return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+
+
+
 
 def edit_client_service(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
     if request.method == 'POST':
-        # Assuming ClientService has fields: service, category, cost, etc.
-        service = request.POST.get('service')
-        category = request.POST.get('category')
-        cost = request.POST.get('cost')  # Modify according to your form fields
+        client_service_id = request.POST.get('client_service_id')
+        client_service = get_object_or_404(ClientService, id=client_service_id, client=client)
 
-        # Update the client service or create a new one as needed
-        client_service = ClientService.objects.filter(client=client).first()
-        if client_service:
-            client_service.service = service
-            client_service.category = category
-            client_service.cost = cost
-            client_service.save()
+        try:
+            with transaction.atomic():
+                new_service = get_object_or_404(Service, id=request.POST.get('service'))
+                service_changed = client_service.service_id != new_service.id  # <-- check before overwrite
 
-        # After the update, redirect to the client detail page
-        return redirect('clientdetail', client_id=client.id)
+                client_service.service = new_service
+                client_service.land_description = request.POST.get('land_description', '')
 
-    # If the request method is GET, simply render the template
+                if new_service.category == ServiceCategory.GROUND:
+                    client_service.scheduled_date = request.POST.get('scheduled_date') or None
+                    client_service.dispatch_message = request.POST.get('dispatch_preview') or None
+
+                client_service.save()
+
+                apply_client_service_logic(
+                    cs=client_service,
+                    service=new_service,
+                    post_data=request.POST,
+                    is_new=service_changed  # 👈 treat as "new" if service changed
+                )
+
+            return JsonResponse({'success': True, 'message': '✅ Service updated successfully.'})
+
+        except Exception as e:
+            logger.exception("Error updating ClientService: %s", e)
+            return JsonResponse({'success': False, 'error': f'❌ Failed to update service: {str(e)}'}, status=500)
+
     return render(request, 'edit_client_service.html', {'client': client})
+
+
+
+# class ClientServiceCreateView(CreateView):
+#     model = ClientService
+#     form_class = ClientServiceForm
+
+#     def form_valid(self, form):
+#         """
+#         Creates a ClientService record and applies any overrides (total price or per-process costs)
+#         before it is saved, so post_save signals receive correct values.
+#         """
+#         try:
+#             with transaction.atomic():
+#                 # Create object but delay DB write until we set top-level overrides
+#                 client_service = form.save(commit=False)
+
+#                 # Optional fields from POST
+#                 scheduled_date = self.request.POST.get('scheduled_date')
+#                 dispatch_message = self.request.POST.get('dispatch_message')
+
+#                 if scheduled_date:
+#                     client_service.scheduled_date = scheduled_date
+#                 if dispatch_message:
+#                     client_service.dispatch_message = dispatch_message
+
+#                 # Override total price before first save (so signal sees correct value)
+#                 override_total_price = self.request.POST.get('override_total_price')
+#                 if override_total_price:
+#                     try:
+#                         client_service.overridden_total_price = Decimal(override_total_price)
+#                     except InvalidOperation:
+#                         client_service.overridden_total_price = None
+#                         messages.warning(
+#                             self.request, "⚠️ Invalid total price override. Ignored."
+#                         )
+
+#                 # Save once now so related objects can be updated
+#                 client_service.save()
+
+#                 # 🔥 Create ClientServiceProcess entries for the selected service
+#                 if client_service.service.category == ServiceCategory.TITLE:
+#                     for process in client_service.service.processes.all():
+#                         ClientServiceProcess.objects.get_or_create(
+#                             client_service=client_service,
+#                             process=process
+#                         )
+
+#                 # 🔥 Handle per-process cost overrides (only update existing ones)
+#                 process_ids = self.request.POST.getlist('process_id[]')
+#                 process_costs = self.request.POST.getlist('process_cost[]')
+
+#                 if process_ids and process_costs:
+#                     for pid, cost_str in zip(process_ids, process_costs):
+#                         try:
+#                             cost = Decimal(cost_str)
+#                         except InvalidOperation:
+#                             logger.warning(
+#                                 "Invalid cost for process_id %s: %s", pid, cost_str
+#                             )
+#                             continue
+
+#                         try:
+#                             csp = client_service.service_processes.filter(process_id=pid).first()
+#                             if csp:
+#                                 csp.overridden_cost = cost
+#                                 csp.save(update_fields=['overridden_cost'])
+#                         except Exception as e:
+#                             logger.warning(
+#                                 "Error updating cost for process_id %s on ClientService %s: %s",
+#                                 pid, client_service.pk, e
+#                             )
+#                             continue
+
+#                 # Ensure totals are recalculated
+#                 try:
+#                     client_service.recalculate_full_total_price()
+#                     client_service.save(update_fields=['full_total_price', 'overridden_total_price'])
+#                 except AttributeError:
+#                     client_service.save()
+
+#             messages.success(self.request, "✅ Service assigned successfully.")
+#             return JsonResponse({'success': True, 'client_service_id': client_service.pk})
+
+#         except Exception as e:
+#             logger.exception("Error creating ClientService: %s", e)
+#             messages.error(self.request, f"❌ An unexpected error occurred: {str(e)}")
+#             return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+#     def form_invalid(self, form):
+#         return JsonResponse({
+#             'success': False,
+#             'errors': form.errors,
+#         }, status=400)
+
+
+# def edit_client_service(request, client_id):
+#     client = get_object_or_404(Client, id=client_id)
+
+#     if request.method == 'POST':
+#         client_service_id = request.POST.get('client_service_id')
+#         client_service = get_object_or_404(ClientService, id=client_service_id, client=client)
+        
+#         # Get form data
+#         service_id = request.POST.get('service')
+#         category = request.POST.get('category')
+#         land_description = request.POST.get('land_description', '')
+        
+#         try:
+#             with transaction.atomic():
+#                 # Update basic fields
+#                 service = get_object_or_404(Service, id=service_id)
+#                 client_service.service = service
+#                 client_service.land_description = land_description
+                
+#                 # Handle ground service fields
+#                 if category == ServiceCategory.GROUND:
+#                     scheduled_date = request.POST.get('scheduled_date')
+#                     dispatch_preview = request.POST.get('dispatch_preview')
+#                     if scheduled_date:
+#                         client_service.scheduled_date = scheduled_date
+#                     if dispatch_preview:
+#                         client_service.dispatch_message = dispatch_preview
+                
+#                 client_service.save()
+                
+#                 # 🔥 Handle service change - recreate ClientServiceProcess records
+#                 if service.category == ServiceCategory.TITLE:
+#                     client_service.service_processes.all().delete()
+#                     for process in service.processes.all():
+#                         ClientServiceProcess.objects.create(
+#                             client_service=client_service,
+#                             process=process
+#                         )
+                
+#                 # Apply cost overrides (only updates existing ones now)
+#                 update_client_service_overrides(client_service, request.POST)
+                
+#                 # Save any override changes
+#                 client_service.save()
+                
+#                 # Recalculate totals
+#                 try:
+#                     client_service.recalculate_full_total_price()
+#                     client_service.save(update_fields=['full_total_price'])
+#                 except AttributeError:
+#                     pass
+
+#             return JsonResponse({'success': True, 'message': '✅ Service updated successfully.'})
+            
+#         except Exception as e:
+#             logger.exception("Error updating ClientService: %s", e)
+#             return JsonResponse({'success': False, 'error': f'❌ Failed to update service: {str(e)}'}, status=500)
+
+#     return render(request, 'edit_client_service.html', {'client': client})
+
+
+
+# def edit_client_service(request, client_id):
+#     client = get_object_or_404(Client, id=client_id)
+
+#     if request.method == 'POST':
+#         # Assuming ClientService has fields: service, category, cost, etc.
+#         service = request.POST.get('service')
+#         category = request.POST.get('category')
+#         cost = request.POST.get('cost')  # Modify according to your form fields
+
+#         # Update the client service or create a new one as needed
+#         client_service = ClientService.objects.filter(client=client).first()
+#         if client_service:
+#             client_service.service = service
+#             client_service.category = category
+#             client_service.cost = cost
+#             client_service.save()
+
+#         # After the update, redirect to the client detail page
+#         return redirect('clientdetail', client_id=client.id)
+
+#     # If the request method is GET, simply render the template
+#     return render(request, 'edit_client_service.html', {'client': client})
 
 
 def search_clients(request):

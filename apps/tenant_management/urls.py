@@ -1,6 +1,14 @@
 
 # urls.py
 from django.urls import path
+
+from . import views
+from apps.tenant_management.dashboard.kpis import (
+    financial_kpis,
+    occupancy_kpis,
+    operational_kpis,
+    collections_kpis,
+)
 from .views import (
     PropertyDetailView,
     PropertyListView,
@@ -14,7 +22,7 @@ from apps.tenant_management.tenants.payments import TenantPaymentModalView,Manua
 from apps.tenant_management.lease.meter_readings import MeterReadingListView, MeterReadingDeleteView, MeterReadingCreateView, MeterReadingUpdateView
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
 from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
-from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView
+from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView, TenantMeterReadingsFilterView
 
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
@@ -42,6 +50,9 @@ urlpatterns = [
         TenantInvoicesFilterView.as_view(),
         name='tenant_invoices_filter'
     ),
+      path('tenants/<int:tenant_id>/meter-readings/filter/', 
+         TenantMeterReadingsFilterView.as_view(), 
+         name='tenant_meter_readings_filter'),
     
      path(
         "invoices/manual-generate/",
@@ -94,6 +105,8 @@ urlpatterns = [
           LeaseUpdateView.as_view(),
           name='lease_edit'),
      
+     path('api/units/search/', views.unit_search_json, name='unit_search_json'),
+     
      
 
     # Lease management URLs
@@ -113,5 +126,12 @@ urlpatterns = [
     path('api/units-by-property/',
          get_units_by_property,
          name='units_by_property'),
+    
+    
+    
+    path("api/dashboard/financial/", financial_kpis),
+    path("api/dashboard/occupancy/", occupancy_kpis),
+    path("api/dashboard/operational/", operational_kpis),
+    path("api/dashboard/collections/", collections_kpis),
 ]
 

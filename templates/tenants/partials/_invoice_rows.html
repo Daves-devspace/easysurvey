@@ -1,7 +1,6 @@
-<tbody id="invoices-table-body">
-    {% for invoice in invoices %}
-        {% include "tenants/partials/_invoice_row.html" %}
-    {% empty %}
-        <tr><td colspan="7" class="text-center">No invoices found.</td></tr>
-    {% endfor %}
-</tbody>
+{# templates/tenants/partials/_invoice_rows.html #}
+{# Only include the table rows - no tbody wrapper #}
+{% for invoice in invoices %}
+    {% include "tenants/partials/_invoice_row.html" with invoice=invoice tenant=tenant %}
+
+{% endfor %}

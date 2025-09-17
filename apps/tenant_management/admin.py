@@ -29,8 +29,7 @@ class InvoiceLineInline(admin.TabularInline):
 class PaymentInline(admin.TabularInline):
     model = Payment
     extra = 0
-    fields = ("amount", "payment_date", "method", "reference", "balance_after")
-    readonly_fields = ("payment_date", "balance_after")
+    fields = ("amount", "payment_date", "method", "reference")
     show_change_link = True
 
 
@@ -122,11 +121,11 @@ class InvoiceLineAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("invoice", "amount", "payment_date", "method", "reference", "balance_after")
+    list_display = ("invoice", "amount", "payment_date", "method", "reference")
     list_filter = ("method", "payment_date", "invoice__tenant__property")
     search_fields = ("invoice__tenant__full_name", "reference")
     ordering = ("-payment_date",)
-    readonly_fields = ("payment_date", "balance_after")
+   
 
 
 @admin.register(Receipt)

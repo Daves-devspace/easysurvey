@@ -13,7 +13,7 @@ import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
 from django.db.models import Count, Prefetch, Sum, Q,OuterRef,Subquery,DecimalField, Value
 from decimal import Decimal
-from .services import get_property_leases_data
+from apps.tenant_management.services import get_property_leases_data
 from django.db.models.functions import Coalesce
 from django.db import transaction, IntegrityError
 from apps.tenant_management.utils import filter_units_for_property, filter_meter_readings_for_property
@@ -21,6 +21,69 @@ from typing import Optional
 from datetime import datetime
 
 from apps.tenant_management.billings.services import apply_deposit_to_invoice
+
+
+from django.core.paginator import Paginator, EmptyPage
+from django.views.decorators.http import require_GET
+
+@require_GET
+def unit_search_json(request):
+    """
+    JSON endpoint used by the Select2 AJAX widget.
+    Params:
+      - property_id (optional but in tenant-detail case we'll pass it)
+      - q (search text)
+      - page (1-based)
+      - page_size (optional, default 20)
+    Response: {
+      "results": [{"id": 123, "text": "UnitNumber — rent 1200"}, ...],
+      "pagination": {"more": True/False}
+    }
+    """
+    q = request.GET.get('q', '').strip()
+    prop_id = request.GET.get('property_id')
+    page = int(request.GET.get('page', 1))
+    page_size = int(request.GET.get('page_size', 20))
+
+    qs = Unit.objects.filter(is_occupied=False).select_related('property')
+
+    if prop_id:
+        qs = qs.filter(property_id=prop_id)
+
+    if q:
+        # search unit_number or meter_number or property name
+        qs = qs.filter(
+            Q(unit_number__icontains=q) |
+            Q(meter_number__icontains=q) |
+            Q(property__name__icontains=q)
+        )
+
+    qs = qs.order_by('unit_number')  # stable ordering
+
+    paginator = Paginator(qs, page_size)
+    try:
+        page_obj = paginator.page(page)
+    except EmptyPage:
+        return JsonResponse({"results": [], "pagination": {"more": False}})
+
+    results = [
+        {
+        "id": u.id,
+        "text": f"{u.unit_number} — {u.property.name} (rent {u.rent_amount})",
+        "unit_number": u.unit_number,
+        "rent": str(u.rent_amount),
+        "meter_number": u.meter_number or '',
+        "property_name": u.property.name
+        } for u in page_obj.object_list
+    ]
+
+
+    return JsonResponse({
+        "results": results,
+        "pagination": {"more": page_obj.has_next()}
+    })
+
+
 
 # mixin to pick HTMX template
 class HTMXTemplateResponseMixin(TemplateResponseMixin):

@@ -1,23 +1,116 @@
+{# templates/tenants/partials/_invoice_row.html #}
 <tr>
-    <td>#{{ invoice.id }}</td>
-    <td>Ksh {{ invoice.total_amount }}</td>
-    <td>Ksh {{ invoice.total_paid }}</td>
-    <td>Ksh {{ invoice.balance }}</td>
-    <td>{{ invoice.due_date }}</td>
-    <td class="{% if invoice.is_paid %}text-success{% else %}text-danger{% endif %}">
-        {% if invoice.is_paid %}Paid{% else %}Pending{% endif %}
+    <!-- Main Invoice Row -->
+    <td>
+        <div class="form-check">
+            <input class="form-check-input row-select-invoice" 
+                   type="checkbox" 
+                   data-invoice-id="{{ invoice.id }}">
+        </div>
     </td>
+    <td>{{ forloop.counter }}</td>
+    <td>Ksh {{ invoice.total_amount|floatformat:2 }}</td>
+    <td>Ksh {{ invoice.total_paid|floatformat:2 }}</td>
+    <td>Ksh {{ invoice.balance|floatformat:2 }}</td>
+    <td>{{ invoice.due_date|date:"M d, Y" }}</td>
+
+    <!-- Status -->
+    <td>
+        {% if invoice.is_paid %}
+            <span class="text-success">Paid</span>
+        {% elif invoice.status == 'finalized' %}
+            <span class="text-danger">Pending</span>
+        {% else %}
+            <span class="text-warning">Draft</span>
+        {% endif %}
+    </td>
+
+    <!-- Collapsible Records -->
+    <td class="text-center">
+        {% if invoice.lines.exists %}
+            <button class="btn btn-outline-info btn-sm" type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#invoiceLines{{ invoice.id }}"
+                    aria-expanded="false">
+                <i class="fas fa-receipt me-1"></i>
+                {{ invoice.lines.count }} Record{{ invoice.lines.count|pluralize }}
+            </button>
+        {% else %}
+            <span class="text-muted">No Records</span>
+        {% endif %}
+    </td>
+
+    <!-- Actions -->
     <td>
         {% if not invoice.is_paid %}
-        <button
-            class="btn btn-primary btn-sm"
-            data-bs-toggle="modal"
-            data-bs-target="#paymentModal"
-            data-payment-url="{% url 'tenant_payment_modal' tenant.id %}"
-            data-invoice-id="{{ invoice.id }}"
-            data-invoice-balance="{{ invoice.balance }}">
-            Pay
-        </button>
+            <button class="btn btn-primary btn-sm"
+                    data-bs-toggle="modal"
+                    data-bs-target="#paymentModal"
+                    data-payment-url="{% url 'tenant_payment_modal' tenant.id %}"
+                    data-invoice-id="{{ invoice.id }}"
+                    data-invoice-balance="{{ invoice.balance }}">
+                Pay
+            </button>
         {% endif %}
     </td>
 </tr>
+
+{% if invoice.lines.exists %}
+<tr class="invoice-lines-row">
+    <td colspan="9" class="p-0 border-0">
+        <div class="collapse" id="invoiceLines{{ invoice.id }}">
+            <div class="card card-body border-0 bg-light mb-2">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-receipt me-2"></i>
+                    Invoice Records - Invoice #{{ invoice.id }}
+                    ({{ invoice.billing_period_start|date:"M d, Y" }} – {{ invoice.billing_period_end|date:"M d, Y" }})
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered mb-0 w-100">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-end">Previous Reading</th>
+                                <th class="text-end">Current Reading</th>
+                                <th class="text-end">Usage (m³)</th>
+                                <th class="text-end">Rate/m³</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in invoice.lines.all %}
+                                <tr>
+                                    <td>{{ line.description }}</td>
+                                    <td class="text-end">
+                                        {% if line.meter_reading %}{{ line.meter_reading.previous_reading }}{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if line.meter_reading %}{{ line.meter_reading.current_reading }}{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if line.meter_reading %}{{ line.meter_reading.usage|default:"-" }}{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if line.meter_reading %}Ksh {{ line.meter_reading.rate_per_cubic_meter|floatformat:2 }}{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">Ksh {{ line.amount|floatformat:2 }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-secondary">
+                            <tr>
+                                <th>Total</th>
+                                <th></th>
+                                <th></th>
+                                <th class="text-end">{{ invoice.total_water_usage|default:0|floatformat:2 }} m³</th>
+                                <th></th>
+                                <th class="text-end">Ksh {{ invoice.total_amount|floatformat:2 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endif %}
