@@ -26,6 +26,99 @@ logger = logging.getLogger(__name__)
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
+
+# apps/EasyDocs/forms.py
+
+from django import forms
+from django.core.exceptions import ValidationError
+import json
+
+import json
+from django import forms
+from django.core.exceptions import ValidationError
+from apps.EasyDocs.models import SiteSettings
+from apps.EasyDocs.files.security import credential_service
+
+
+class GoogleDriveConfigForm(forms.ModelForm):
+    # Service account key upload
+    service_account_key = forms.FileField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'accept': '.json',
+            'class': 'form-control',
+        }),
+        help_text="Upload your Google service account JSON key. Leave blank to keep the existing key."
+    )
+
+    # OAuth client secret (for adding/updating)
+    google_oauth_client_secret = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter OAuth Client Secret'
+        }),
+        help_text="Leave blank to keep the existing secret."
+    )
+
+    class Meta:
+        model = SiteSettings
+        fields = [
+            "google_drive_enabled",
+            "google_drive_root_folder_id",
+            "drive_auto_folder_creation",
+            "drive_file_naming_pattern",
+            "google_oauth_client_id",
+        ]
+        widgets = {
+            "google_drive_enabled": forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            "google_drive_root_folder_id": forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter Google Drive Folder ID'
+            }),
+            "drive_auto_folder_creation": forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            "drive_file_naming_pattern": forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'E.g. {client_last_name}_{service_name}'
+            }),
+            "google_oauth_client_id": forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter OAuth Client ID'
+            }),
+        }
+
+    def save(self, commit=True):
+        """
+        Save Google Drive settings, encrypting secrets as needed.
+        - Service account key: encrypt and extract client_email
+        - OAuth client secret: encrypt if provided
+        """
+        instance = super().save(commit=False)
+
+        # --- Service account key ---
+        key_file = self.cleaned_data.get("service_account_key")
+        if key_file:
+            content = key_file.read().decode("utf-8")
+            # Encrypt the service account key and store email
+            instance.google_drive_service_account_key_encrypted = credential_service.encrypt_service_account_key(content)
+            instance.google_drive_service_account_email = json.loads(content).get("client_email")
+            instance.drive_config_status = "configured"
+
+        # --- OAuth client secret ---
+        raw_secret = self.cleaned_data.get("google_oauth_client_secret")
+        if raw_secret:
+            instance.google_oauth_client_secret_encrypted = credential_service.encrypt(raw_secret)
+
+
+        if commit:
+            instance.save()
+
+        return instance
+
+
+
+
+
 class CustomAuthenticationForm(AuthenticationForm):
     username = forms.CharField(
         max_length=254,
@@ -157,7 +250,7 @@ class CustomPasswordResetForm(PasswordResetForm):
 class DocumentForm(forms.ModelForm):
     class Meta:
         model = Document
-        fields = ['doc_name', 'doc_type', 'location', 'reference', 'file']
+        fields = ['doc_name', 'doc_type', 'location', 'reference', 'doc_file']
 
 
 
@@ -253,6 +346,8 @@ class ClientServiceForm(forms.ModelForm):
             )
         else:
             self.fields['service'].queryset = Service.objects.all()
+        
+        
 
     def clean(self):
         cleaned = super().clean()
@@ -683,11 +778,12 @@ class ClientSubServiceEditForm(forms.ModelForm):
 class SiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['company_name', 'phone', 'tagline', 'logo', 'stamp_signature']
+        fields = ['company_name', 'company_phone','company_email','tagline', 'logo', 'stamp_signature']
         widgets = {
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
 
-            'phone':        forms.TextInput(attrs={'class': 'form-control'}),
+            'company_phone':        forms.TextInput(attrs={'class': 'form-control'}),
+            'company_email':        forms.EmailInput(attrs={'class': 'form-control'}),
             'tagline':      forms.TextInput(attrs={'class': 'form-control'}),
             'logo':         forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'stamp_signature': forms.ClearableFileInput(attrs={'class': 'form-control'}),

@@ -1,0 +1,473 @@
+{# templates/Management/partials/_google_drive_tab.html #}
+{# Expects in context: gdrive_form (GoogleDriveConfigForm), site_settings, connection_status, has_encrypted_key, service_account_email #}
+
+<div class="card" id="gdrive-card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Google Drive — Document Storage</h5>
+    <small id="gdrive-status" class="text-muted">
+      {% if connection_status.status == 'connected' %}
+        <span class="badge bg-success">Connected</span>
+      {% elif connection_status.status == 'testing' %}
+        <span class="badge bg-info">Testing…</span>
+      {% elif connection_status.status == 'disabled' %}
+        <span class="badge bg-secondary">Disabled</span>
+      {% elif connection_status.status == 'not_configured' %}
+        <span class="badge bg-warning">Not Configured</span>
+      {% elif connection_status.status == 'error' %}
+        <span class="badge bg-danger">Error</span>
+      {% else %}
+        <span class="badge bg-warning">{{ connection_status.message }}</span>
+      {% endif %}
+      {% if connection_status.storage_mode_display %}
+        <span class="badge bg-primary">{{ connection_status.storage_mode_display }}</span>
+      {% else %}
+        <span class="badge bg-secondary">Not configured</span>
+      {% endif %}
+
+    </small>
+  </div>
+
+  <div class="card-body">
+    <div id="gdrive-messages"></div>
+
+    <!-- Folder Information -->
+    {% if site_settings.google_drive_root_folder_id %}
+    <div class="alert alert-info mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>📁 Google Drive Folder</strong><br>
+                <small>
+                    ID: <code>{{ site_settings.google_drive_root_folder_id }}</code><br>
+                    {% if site_settings.company_email %}
+                    Shared with company: <strong>{{ site_settings.company_email }}</strong>
+                    {% endif %}
+                </small>
+            </div>
+            <a href="https://drive.google.com/drive/folders/{{ site_settings.google_drive_root_folder_id }}" 
+               target="_blank" class="btn btn-sm btn-outline-primary">
+                Open in Drive
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <form id="gdrive-config-form" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <div id="gdrive-nonfield-errors">
+        {% if gdrive_form.non_field_errors %}
+          <div class="alert alert-danger">
+            <ul class="mb-0">
+              {% for e in gdrive_form.non_field_errors %}
+                <li>{{ e }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="row g-3">
+
+
+
+
+       
+        <!-- Google Drive Enabled -->
+        <div class="col-md-6">
+          <div class="form-check form-switch">
+            {{ gdrive_form.google_drive_enabled }}
+            <label class="form-check-label" for="{{ gdrive_form.google_drive_enabled.id_for_label }}">
+              {{ gdrive_form.google_drive_enabled.label }}
+            </label>
+          </div>
+          <div class="invalid-feedback" id="error_{{ gdrive_form.google_drive_enabled.name }}">
+            {% for e in gdrive_form.google_drive_enabled.errors %}{{ e }}{% endfor %}
+          </div>
+        </div>
+
+        <!-- Root Folder ID -->
+        <div class="col-md-6">
+          <label class="form-label" for="{{ gdrive_form.google_drive_root_folder_id.id_for_label }}">
+            {{ gdrive_form.google_drive_root_folder_id.label }}
+          </label>
+          {{ gdrive_form.google_drive_root_folder_id }}
+          <div class="form-text">{{ gdrive_form.google_drive_root_folder_id.help_text }}</div>
+          <div class="invalid-feedback" id="error_{{ gdrive_form.google_drive_root_folder_id.name }}">
+            {% for e in gdrive_form.google_drive_root_folder_id.errors %}{{ e }}{% endfor %}
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label" for="{{ gdrive_form.google_oauth_client_id.id_for_label }}">
+            {{ gdrive_form.google_oauth_client_id.label }}
+          </label>
+          {{ gdrive_form.google_oauth_client_id }}
+          <div class="form-text">
+            Enter the OAuth Client ID from your Google Cloud project. Required for user account authorization.
+          </div>
+          <div class="invalid-feedback" id="error_{{ gdrive_form.google_oauth_client_id.name }}">
+            {% for e in gdrive_form.google_oauth_client_id.errors %}{{ e }}{% endfor %}
+          </div>
+        </div>    
+
+        <div class="col-md-6">
+            <label class="form-label" for="{{ gdrive_form.google_oauth_client_secret.id_for_label }}">
+              {{ gdrive_form.google_oauth_client_secret.label }}
+            </label>
+            {{ gdrive_form.google_oauth_client_secret }}
+            <div class="form-text">
+              Enter the OAuth Client Secret from your Google Cloud project.
+              {% if has_encrypted_key %}
+                <span class="badge bg-success ms-2">Configured</span> — leave blank to keep existing
+              {% endif %}
+            </div>
+            <div class="invalid-feedback" id="error_{{ gdrive_form.google_oauth_client_secret.name }}">
+                {% for e in gdrive_form.google_oauth_client_secret.errors %}{{ e }}{% endfor %}
+            </div>
+          </div>
+
+        
+        <!-- Auto Folder Creation -->
+        <div class="col-md-6">
+          <div class="form-check">
+            {{ gdrive_form.drive_auto_folder_creation }}
+            <label class="form-check-label" for="{{ gdrive_form.drive_auto_folder_creation.id_for_label }}">
+              {{ gdrive_form.drive_auto_folder_creation.label }}
+            </label>
+          </div>
+          <div class="invalid-feedback" id="error_{{ gdrive_form.drive_auto_folder_creation.name }}">
+            {% for e in gdrive_form.drive_auto_folder_creation.errors %}{{ e }}{% endfor %}
+          </div>
+        </div>
+
+        <!-- File Naming Pattern -->
+        <div class="col-md-6">
+          <label class="form-label" for="{{ gdrive_form.drive_file_naming_pattern.id_for_label }}">
+            {{ gdrive_form.drive_file_naming_pattern.label }}
+          </label>
+          {{ gdrive_form.drive_file_naming_pattern }}
+          <div class="form-text">
+            Use <code>{client_id}</code> <code>{year}</code> <code>{month}</code> <code>{day}</code> <code>{filename}</code>
+          </div>
+          <div class="invalid-feedback" id="error_{{ gdrive_form.drive_file_naming_pattern.name }}">
+            {% for e in gdrive_form.drive_file_naming_pattern.errors %}{{ e }}{% endfor %}
+          </div>
+        </div>
+
+        <!-- Service Account Key -->
+        <div class="col-12">
+          <label class="form-label" for="{{ gdrive_form.service_account_key.id_for_label }}">
+            Service Account Key
+          </label>
+
+          {% if has_encrypted_key %}
+            <div class="mb-2">
+              <span class="badge bg-success">Configured</span>
+              {% if service_account_email %}
+                <small class="text-muted">Service account: <strong id="gdrive-service-account-email">{{ service_account_email }}</strong></small>
+              {% endif %}
+              <small class="d-block text-muted">Upload a new JSON file to rotate the key.</small>
+            </div>
+          {% else %}
+            <div class="mb-2">
+              <span class="badge bg-secondary">Not configured</span>
+              <small class="d-block text-muted">Upload a service account JSON key to enable Drive integration.</small>
+            </div>
+          {% endif %}
+
+          {{ gdrive_form.service_account_key }}
+          <div class="invalid-feedback" id="error_{{ gdrive_form.service_account_key.name }}">
+            {% for e in gdrive_form.service_account_key.errors %}{{ e }}{% endfor %}
+          </div>
+          <div class="form-text">
+            We encrypt and securely store the key — only the service account email is displayed.
+          </div>
+        </div>
+
+      </div> <!-- /row -->
+    </form>
+  </div>
+
+ <div class="card-footer d-flex justify-content-between">
+  <div>
+    <button id="gdrive-test-btn" class="btn btn-outline-info btn-sm">
+      <i class="fas fa-plug"></i> Test Connection
+    </button>
+    {% if has_encrypted_key %}
+      <button id="gdrive-reset-btn" class="btn btn-outline-danger btn-sm">
+        <i class="fas fa-trash"></i> Clear Key
+      </button>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <!-- New: Connect with Google (OAuth) -->
+    <a href="{% url 'drive_oauth_start' %}" class="btn btn-success">
+      <i class="fab fa-google"></i> Connect with Google
+    </a>
+    <button id="gdrive-save-btn" class="btn btn-primary">
+      <i class="fas fa-save"></i> Save Changes
+    </button>
+  </div>
+</div>
+
+</div>
+
+<script>
+function initGDriveCard() {
+  (function(){
+    const form = document.getElementById('gdrive-config-form');
+    if (!form) return;
+
+    const saveBtn = document.getElementById('gdrive-save-btn');
+    const testBtn = document.getElementById('gdrive-test-btn');
+    const resetBtn = document.getElementById('gdrive-reset-btn');
+    const messages = document.getElementById('gdrive-messages');
+    const nonFieldContainer = document.getElementById('gdrive-nonfield-errors');
+
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+      return v ? v.pop() : '';
+    }
+
+    function clearFieldErrors() {
+      if (nonFieldContainer) nonFieldContainer.innerHTML = '';
+      const fields = ['google_drive_enabled', 'google_drive_root_folder_id','google_oauth_client_id',
+  'google_oauth_client_secret', 'drive_auto_folder_creation', 'drive_file_naming_pattern', 'service_account_key'];
+      fields.forEach(f => {
+        const el = document.getElementById(`id_${f}`);
+        const err = document.getElementById(`error_${f}`);
+        if (el) el.classList.remove('is-invalid');
+        if (err) err.textContent = '';
+      });
+      if (messages) messages.innerHTML = '';
+    }
+
+    function renderNonFieldErrors(msgs) {
+      if (!msgs || msgs.length === 0) return;
+      let html = '<div class="alert alert-danger"><ul class="mb-0">';
+      msgs.forEach(m => html += `<li>${m}</li>`);
+      html += '</ul></div>';
+      if (nonFieldContainer) nonFieldContainer.innerHTML = html;
+    }
+
+    function applyFieldErrors(errors) {
+      for (const [field, items] of Object.entries(errors || {})) {
+        if (field === '__all__' || field === 'non_field_errors') {
+          const msgs = items.map(i => i.message || i);
+          renderNonFieldErrors(msgs);
+          continue;
+        }
+        const fieldName = field;
+        const el = document.getElementById(`id_${fieldName}`);
+        const err = document.getElementById(`error_${fieldName}`);
+        const msgs = items.map(it => it.message || it);
+        const joined = msgs.join(' ');
+        
+        if (el) el.classList.add('is-invalid');
+        if (err) err.textContent = joined;
+      }
+    }
+
+    // Remove invalid class as user interacts
+    ['input', 'change'].forEach(evt => {
+      form.addEventListener(evt, (e) => {
+        const target = e.target;
+        if (!target) return;
+        const name = target.name;
+        const err = document.getElementById(`error_${name}`);
+        if (target.classList.contains('is-invalid')) {
+          target.classList.remove('is-invalid');
+        }
+        if (err) err.textContent = '';
+        if (nonFieldContainer) nonFieldContainer.innerHTML = '';
+      }, {capture: true});
+    });
+
+    async function replaceCardAndReinit(html) {
+      if (!html) return;
+      const old = document.getElementById('gdrive-card');
+      if (!old) return;
+      old.outerHTML = html;
+      setTimeout(initGDriveCard, 50);
+    }
+
+        // Enhanced test connection handler with detailed results
+    if (testBtn) {
+      testBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        testBtn.disabled = true;
+        const savedText = testBtn.innerHTML;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Testing...';
+
+        if (messages) messages.innerHTML = '<div class="alert alert-info">Testing Google Drive connection...</div>';
+
+        try {
+          const resp = await fetch("{% url 'test_google_drive_connection' %}", {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCookie('csrftoken'),
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+
+          const data = await resp.json().catch(() => ({}));
+
+          // Special handling: quota issue for service account
+          if (data && data.quota_issue) {
+            // Big red warning with two CTAs
+            const oauthUrl = data.oauth_authorize_url || "{% url 'drive_oauth_start' %}";
+            const sharedDriveDocs = data.shared_drive_docs_url || "https://support.google.com/a/answer/7212023";
+            const html = `
+              <div class="alert alert-danger">
+                <h5 class="mb-2">⚠️ Service account lacks usable storage quota</h5>
+                <p>${data.message || "The configured service account cannot write files to the selected Drive due to quota/permissions."}</p>
+                <div class="d-flex gap-2">
+                  <a class="btn btn-outline-light" href="${sharedDriveDocs}" target="_blank" rel="noopener">
+                    How to create a Shared Drive
+                  </a>
+                  ${ oauthUrl ? `<a class="btn btn-warning" href="${oauthUrl}">Authorize company account</a>` : '' }
+                </div>
+                <hr class="my-2"/>
+                <small>If you are on a free Google account you can authorize a company account instead; otherwise consider Shared Drives (Workspace) and grant the service account access to that Shared Drive.</small>
+              </div>
+            `;
+            if (messages) messages.innerHTML = html;
+            if (data.html) await replaceCardAndReinit(data.html);
+            return;
+          }
+
+          if (resp.ok && data.success) {
+            let successHtml = `<div class="alert alert-success">
+              <strong>✅ ${data.message}</strong>`;
+
+            if (data.folder_url) {
+              successHtml += `<br><strong>Folder:</strong> <a href="${data.folder_url}" target="_blank">Open in Drive</a>`;
+            }
+            if (data.shared_with && data.shared_with.length > 0) {
+              successHtml += `<br><strong>Shared with:</strong> ${data.shared_with.map(u => u.email).join(', ')}`;
+            }
+            if (data.company_email) {
+              successHtml += `<br><strong>Company email:</strong> ${data.company_email}`;
+            }
+
+            successHtml += `</div>`;
+
+            if (messages) messages.innerHTML = successHtml;
+            if (data.html) await replaceCardAndReinit(data.html);
+          } else {
+            let errorHtml = `<div class="alert alert-danger">
+              <strong>❌ ${data.error || data.message || 'Connection test failed'}</strong>`;
+
+            if (data.next_steps) {
+              errorHtml += `<br><small>${data.next_steps.join('<br>')}</small>`;
+            }
+
+            errorHtml += `</div>`;
+
+            if (messages) messages.innerHTML = errorHtml;
+            if (data.html) await replaceCardAndReinit(data.html);
+          }
+
+        } catch (err) {
+          console.error('Test error:', err);
+          if (messages) messages.innerHTML = `<div class="alert alert-danger">Test request failed: ${err.message}</div>`;
+        } finally {
+          testBtn.disabled = false;
+          testBtn.innerHTML = savedText;
+        }
+      });
+    }
+
+    // Save handler
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        clearFieldErrors();
+        saveBtn.disabled = true;
+        const savedText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+
+        const fd = new FormData(form);
+        
+        // Handle checkbox values properly
+        const driveEnabled = document.getElementById('id_google_drive_enabled');
+        const autoFolder = document.getElementById('id_drive_auto_folder_creation');
+        if (driveEnabled) fd.set('google_drive_enabled', driveEnabled.checked ? 'on' : '');
+        if (autoFolder) fd.set('drive_auto_folder_creation', autoFolder.checked ? 'on' : '');
+
+        try {
+          const resp = await fetch("{% url 'google_drive_config_update_ajax' %}", {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCookie('csrftoken'),
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: fd
+          });
+
+          const data = await resp.json().catch(() => ({}));
+
+          if (resp.ok && data.success) {
+            if (messages) messages.innerHTML = `<div class="alert alert-success">${data.message || 'Configuration saved successfully'}</div>`;
+            if (data.html) await replaceCardAndReinit(data.html);
+          } else {
+            if (data.errors) {
+              applyFieldErrors(data.errors);
+              if (data.html) await replaceCardAndReinit(data.html);
+            } else if (data.message) {
+              if (messages) messages.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+              if (data.html) await replaceCardAndReinit(data.html);
+            }
+          }
+        } catch (err) {
+          console.error('Save error:', err);
+          if (messages) messages.innerHTML = `<div class="alert alert-danger">Network error while saving</div>`;
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = savedText;
+        }
+      });
+    }
+
+    // Clear key
+    if (resetBtn) {
+      resetBtn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        if (!confirm('This will remove the stored service account key. Continue?')) return;
+        resetBtn.disabled = true;
+        const savedText = resetBtn.innerHTML;
+        resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Clearing...';
+        
+        try {
+          const resp = await fetch("{% url 'google_drive_config_clear_key' %}", {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': getCookie('csrftoken'),
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+          
+          const data = await resp.json().catch(() => ({}));
+          
+          if (resp.ok && data.success) {
+            if (messages) messages.innerHTML = `<div class="alert alert-success">${data.message || 'Key cleared successfully'}</div>`;
+            if (data.html) await replaceCardAndReinit(data.html);
+          } else {
+            if (messages) messages.innerHTML = `<div class="alert alert-danger">${data.error || data.message || 'Failed to clear key'}</div>`;
+            if (data.html) await replaceCardAndReinit(data.html);
+          }
+        } catch (err) {
+          console.error('Clear key error:', err);
+          if (messages) messages.innerHTML = `<div class="alert alert-danger">Clear key request failed</div>`;
+        } finally {
+          resetBtn.disabled = false;
+          resetBtn.innerHTML = savedText;
+        }
+      });
+    }
+
+  })();
+}
+
+document.addEventListener('DOMContentLoaded', initGDriveCard);
+</script>

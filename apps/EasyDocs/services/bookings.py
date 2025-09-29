@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.views.generic import TemplateView
 
 from apps.EasyDocs.forms import BookingManageForm
-from apps.EasyDocs.models import BookingAssignment, Booking
+from apps.EasyDocs.models import BookingAssignment, Booking, ClientService
 from apps.Employee.models import EmployeeProfile
 
 # bookings/utils.py
@@ -22,6 +22,13 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.views import View
+from django.views.generic.edit import UpdateView, CreateView
+from django.urls import reverse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.utils.dateformat import format as dformat
+
 
 def get_calendar_events(start=None, end=None, include_handled=True):
     qs = Booking.objects.all()
@@ -54,6 +61,77 @@ def get_calendar_events(start=None, end=None, include_handled=True):
         }
         for entry in summary
     ]
+
+
+# -- Create
+class BookingCreateView(CreateView):
+    model = Booking
+    fields = ['scheduled_date', 'dispatch_message']
+
+    def form_valid(self, form):
+        cs_id = self.kwargs.get('client_service_id')
+        client_service = get_object_or_404(ClientService, id=cs_id)
+
+        booking = form.save(commit=False)
+        booking.client_service = client_service
+        booking.save()
+
+        sched = timezone.localtime(booking.scheduled_date)
+        sched_str = sched.strftime('%a, %d %b %Y %H:%M')
+
+        # Check for AJAX request more explicitly
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'id': booking.id,
+                'scheduled_date': sched_str,
+                'dispatch_message': booking.dispatch_message or '',
+            })
+
+        return redirect('client_details', client_id=client_service.client.id)
+
+    def form_invalid(self, form):
+        # Check for AJAX request more explicitly
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+        return super().form_invalid(form)
+
+
+# -- Update
+class BookingUpdateView(UpdateView):
+    model = Booking
+    fields = ['scheduled_date', 'dispatch_message']
+
+    def form_valid(self, form):
+        booking = form.save()
+
+        sched = timezone.localtime(booking.scheduled_date)
+        sched_str = sched.strftime('%a, %d %b %Y %H:%M')
+
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'scheduled_date': sched_str,
+                'dispatch_message': booking.dispatch_message or '',
+            })
+
+        return redirect('client_details', client_id=booking.client_service.client.id)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+        return super().form_invalid(form)
+
 
 
 

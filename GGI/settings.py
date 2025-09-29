@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.Employee',
     'apps.EasyDocs',
     'widget_tweaks',
+    
 ]
 
 # settings.py
@@ -150,6 +151,19 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+#change to True in production
+CSRF_COOKIE_SECURE = False
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/0"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
 
 # # ]
 # # CSRF_TRUSTED_ORIGINS = [
@@ -244,9 +258,30 @@ LOGGING = {
 
 
 
+
+
+# Bot / n8n settings
+N8N_BOT_WEBHOOK_URL = os.getenv("N8N_BOT_WEBHOOK_URL", "https://n8n.example.com/webhook/bot")
+BOT_SECRET = os.getenv("BOT_SECRET", "replace-with-strong-secret")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET", None)
+VERIFY_N8N_CERT =os.getenv("VERIFY_N8N_CERT", True)
+
+BOT_CONNECT_TIMEOUT = os.getenv("BOT_CONNECT_TIMEOUT", 3.0)
+BOT_READ_TIMEOUT = os.getenv("BOT_READ_TIMEOUT", 8.0)
+BOT_TOTAL_TIMEOUT = os.getenv("BOT_TOTAL_TIMEOUT", 10.0)
+BOT_REQUEST_RETRY_BACKOFF = os.getenv("BOT_REQUEST_RETRY_BACKOFF", 0.2)
+BOT_STATUS_RETRIES = os.getenv("BOT_STATUS_RETRIES", 1)
+BOT_MAX_PAYLOAD_BYTES = os.getenv("BOT_MAX_PAYLOAD_BYTES", 32 * 1024)
+
+
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+#ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+ALLOWED_HOSTS = ['*']
+
+if DEBUG:
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 DATABASES = {
     'default': {
@@ -305,6 +340,22 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
+
+
+# settings.py additions (near other env vars)
+GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON")
+GOOGLE_DRIVE_USE_SERVICE_ACCOUNT = os.getenv("GOOGLE_DRIVE_USE_SERVICE_ACCOUNT", "True") == "True"
+
+# Optional: a temp dir for uploads used by the upload view / celery pipeline
+FILE_UPLOAD_TEMP_DIR = os.getenv("FILE_UPLOAD_TEMP_DIR", "/tmp")
+
+# settings.py
+DEFAULT_FILE_STORAGE = "apps.EasyDocs.files.storage_backends.UnifiedStorage"
+
+# Optionally set as default file storage if you want all FileFields to use Drive:
+# DEFAULT_FILE_STORAGE = 'apps.EasyDocs.storage_backends.GoogleDriveStorage'
+# If you enable DEFAULT_FILE_STORAGE, adjust storage class __init__ to accept args
 
 # Base URLs (e.g., served by Nginx)
 STATIC_URL = os.getenv("STATIC_URL", "/static/")

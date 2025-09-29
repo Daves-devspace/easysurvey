@@ -35,6 +35,9 @@
     <link rel="stylesheet" href="{% static 'assets/css/style.css' %}" id="main-style-link">
     <link rel="stylesheet" href="{% static 'assets/css/style-preset.css' %}">
 
+    <!-- [Custom bot CSS] -->
+    <link rel="stylesheet" href="{% static 'assets/css/bot.css' %}">
+
 
     <!-- [Page specific CSS] start -->
     <!-- data tables css -->
@@ -86,6 +89,7 @@
 }
 
 </style>
+
 <!-- [Body] Start -->
 
 
@@ -157,7 +161,7 @@
                         <span class="pc-mtext">Projects</span>
                     </a>
                 </li>
-
+                
 
 
             {% if perms.easydocs.view_messagelog %}
@@ -238,12 +242,12 @@
             </ul>
             <div class="card text-center">
                 <div class="card-body">
-                    <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;"
+                    {% comment %} <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;"
                          alt="images"
                          class="img-fluid mb-2">
                     <h5>🤔 Not sure what to do next? </h5>
                     <a href="" target="_blank"
-                       class="btn btn-success">Start chat</a>
+                       class="btn btn-success">Start chat</a> {% endcomment %}
                 </div>
             </div>
         </div>
@@ -497,13 +501,27 @@
 {% block extra_js %}
     <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}"></script>
     <script type="module" src="{% static 'assets/js/clientdetails.js' %}"></script>
+   
 
     {#    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>#}
 {% endblock %}
-{% block scripts %}
 
+<div id="chatBotButton"><i class="fas fa-comment"></i></div>
 
-{% endblock %}
+<div id="chatBotSidebar">
+  <div id="chatBotHeader">
+    <span><i class="fas fa-robot" style="margin-right: 8px;"></i>Assistant</span>
+    <button id="chatBotClose" class="btn btn-sm btn-light">&times;</button>
+  </div>
+  <div id="chatBotMessages">
+    <div class="bot-message">Hi! How can I help you today?</div>
+  </div>
+  <div id="chatBotInput">
+    <input type="text" id="chatInput" placeholder="Ask me anything about the system.." />
+    <button id="chatSend"><i class="fas fa-paper-plane"></i></button>
+  </div>
+</div>
+
 
 <footer class="pc-footer">
     <div class="footer-wrapper container-fluid">
@@ -529,6 +547,11 @@
 
 
 
+<!-- unit management -->
+ <script src="{% static 'assets/js/unitManagement.js' %}"></script>
+<script src="{% static 'assets/js/lease-modal.js' %}" defer></script>
+ <!--tenantlease modal -->
+ <script src="{% static 'assets/js/tenantLease.js' %}"></script>
 
 
 <!-- [Page Specific JS] start -->
@@ -550,6 +573,13 @@
 <script src="{% static 'assets/js/pcoded.js' %}"></script>
 <script src="{% static 'assets/js/plugins/feather.min.js' %}"></script>
 
+<script>
+  window.currentUser = "{{ request.user.username|default:'' }}";
+</script>
+
+<!-- bot -->
+<script src="{% static 'assets/js/utils/bot.js' %}"></script
+
 <!--modal-->
 <!-- jQuery -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -570,21 +600,24 @@
 <script src="{% static 'assets/js/modals/dashboardAnalytics.js' %}"></script>
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
+
+
 <script>
-    $(document).ready(function () {
-        $('.datatable').DataTable({
-            responsive: true,
-            paging: true,
-            autoWidth: false,
-            searching: true,
-            ordering: true,
-            info: true,
-            language: {
-                emptyTable: "No data found."
-            }
-        });
+$(document).ready(function () {
+    $('.datatable').DataTable({
+        responsive: true,
+        paging: true,
+        autoWidth: false,
+        searching: true,
+        ordering: true,
+        info: true,
+        language: {
+            emptyTable: "No data found."
+        }
     });
+});
 </script>
+
 
 
 <!-- [Page Specific JS] end -->

@@ -1,23 +1,47 @@
 from django.urls import path
-from . import views, documents, accounts, reciepts, analytics, auth_views
+from . import views, documents, accounts, reciepts, analytics, auth_views, bot
+from apps.EasyDocs.files import views as file_views
+from apps.EasyDocs.files import connection
+from apps.EasyDocs.accounts import accounts
 from .accounts.legal_payout import BulkPayToLegalView
 from .clients.client_views import SendClientSMSView, \
     DeleteClientServiceView, AddClientSubserviceView, EditClientSubserviceView, DeleteClientSubserviceView, \
-    ClientServiceManageView
+    ClientServiceManageView, soft_delete_client_subservice,restore_client_subservice, hard_delete_client_subservice
+
 from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
 from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
 
-
+from apps.EasyDocs.bot import views_enqueue, views_result, views_async, views_kb
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
-from .services.services import BookingUpdateView
+from .services.bookings import BookingUpdateView, BookingCreateView
 from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 
+from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback
+
 urlpatterns = [
+    
+    #path('api/bot/forward/', bot.forward_to_n8n, name='bot_forward'),
+    path("drive/oauth/start/", drive_oauth_start, name="drive_oauth_start"),
+    path("drive/oauth/callback/", drive_oauth_callback, name="drive_oauth_callback"), 
+    
+    path("api/kb/", views_kb.knowledge_base, name="knowledge_base"),
+        # Enqueue request → Celery task, returns 202 + poll_url
+    path("api/bot/enqueue/", views_enqueue.enqueue_forward, name="bot-enqueue"),
+
+    # Poll for result by request_id (returns 200 ready, 202 pending, 404 not found)
+    path("api/bot/result/<uuid:request_id>/", views_result.poll_result, name="bot-result"),
+    
+    path("api/bot/result/<uuid:request_id>/complete/", views_result.store_result, name="bot-result-complete"),
+
+
+    # Direct async forward (bypasses queue, runs via httpx.AsyncClient)
+    path("forward/", views_async.forward_to_n8n_async, name="bot-forward-async"),
+    
     path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path(
         'password-reset/done/',
@@ -57,15 +81,15 @@ urlpatterns = [
     # Other URLs...
     path('collect-title-deed/<int:service_id>/', processes.collect_title_deed, name='collect_title_deed'),
 
-    path('client/<int:client_id>/delete-doc/<int:doc_id>/', documents.delete_document, name='delete_document'),
+    path('client/<int:client_id>/delete-doc/<int:doc_id>/', file_views.delete_client_document, name='delete_document'),
     # urls.py
-    path('add-doctype/', documents.add_doctype, name='add_doctype'),
+    path('add-doctype/', file_views.add_doctype, name='add_doctype'),
     # urls.py
-    path('clients/<int:client_id>/upload-doc/', documents.upload_client_doc, name='upload_client_doc'),
+    path('clients/<int:client_id>/upload-doc/', file_views.upload_client_document, name='upload_client_doc'),
 
-    path('add-document/', documents.add_document, name='add_document'),
+    path('add-document/', file_views.upload_office_document, name='add_document'),
 
-    path('documents/', documents.document_list, name='document_list'),
+    path('documents/', file_views.office_documents, name='document_list'),
 
     # Client detail page
 
@@ -78,8 +102,13 @@ urlpatterns = [
          name='client-edit-subservice'),
     path('clients/<int:client_id>/subservices/delete/', DeleteClientSubserviceView.as_view(),
          name='client-delete-subservice'),
+    
+    
+    path('client-subservice/<int:pk>/soft-delete/', soft_delete_client_subservice, name='soft_delete_client_subservice'),
+    path('client-subservice/<int:pk>/restore/', restore_client_subservice, name='restore_client_subservice'),
+    path('client-subservice/<int:pk>/hard-delete/', hard_delete_client_subservice, name='hard_delete_client_subservice'),
 
-    path('clients/<int:client_id>/add-payment/', accounts.accounts.add_payment_view, name='add_payment'),
+    path('clients/<int:client_id>/add-payment/', accounts.add_payment_view, name='add_payment'),
 
     path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
 
@@ -96,7 +125,7 @@ urlpatterns = [
 
     path("update-sms-token/", views.update_sms_token, name="update_sms_token"),
 
-    path('send-doc-email/<int:client_id>/<int:doc_id>/', documents.send_doc_email_to_client,
+    path('client/<int:client_id>/docs/<int:doc_id>/email/', file_views.email_client_document,
          name='send_doc_email_to_client'),
 
     path('accounts/', AccountsDashboardView.as_view(), name='accounts_dashboard'),
@@ -111,7 +140,7 @@ urlpatterns = [
     # Create new expense
     path("submit-expense/", ExpenseView.as_view(), name="submit_expense"),
 
-    path('expenses/<int:pk>/delete/', accounts.accounts.expense_delete, name='expense_delete'),
+    path('expenses/<int:pk>/delete/', accounts.expense_delete, name='expense_delete'),
 
     path('api/chart-data/', views.chart_data, name='chart-data'),
 
@@ -124,6 +153,8 @@ urlpatterns = [
     path('message-logs/', CommunicationView.as_view(), name='communication_bulk'),
 
     path('booking/<int:pk>/edit/', BookingUpdateView.as_view(), name='edit_booking'),
+    path('clients/<int:client_service_id>/bookings/add/', BookingCreateView.as_view(), name='booking_create'),
+
 
     path('bookings/<int:pk>/mark-handled/', MarkBookingHandledView.as_view(), name='mark-booking-handled'),
     path('bookings/<int:pk>/assign/', AssignSurveyorsView.as_view(), name='assign-surveyors'),
@@ -131,5 +162,16 @@ urlpatterns = [
     path('api/calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
     
     
-    path('projects/', views.projects_view, name='projects')
+    path('projects/', views.projects_view, name='projects'),
+    
+    path('google-drive/config/', connection.google_drive_deployment_config, name='google_drive_config'),
+    path('google-drive/config/update/', connection.google_drive_config_update_ajax, name='google_drive_config_update_ajax'),
+    path('google-drive/config/clear-key/', connection.google_drive_config_clear_key, name='google_drive_config_clear_key'),
+    path('google-drive/test-connection/', connection.test_google_drive_connection, name='test_google_drive_connection'),
+    path('test-connection/', connection.test_google_drive_connection, name='test_connection'),
+    path('generate-key/', connection.generate_deployment_key, name='generate_key'),
+    path('debug-drive-config/', connection.debug_drive_config, name='debug_drive_config'),
+    path('emergency-share-folder/', connection.emergency_share_folder, name='emergency_share_folder'),
+    
+
 ]

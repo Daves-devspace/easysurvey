@@ -17,12 +17,12 @@
                     <ul class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{% url 'home' %}l">Home</a></li>
                         <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
-                        <li class="breadcrumb-item" aria-current="page">Mnagement</li>
+                        <li class="breadcrumb-item" aria-current="page">Management</li>
                     </ul>
                 </div>
                 <div class="col-md-12">
                     <div class="page-header-title">
-                        <h2 class="mb-0">Mnagement</h2>
+                        <h2 class="mb-0">Management</h2>
                     </div>
                 </div>
             </div>
@@ -72,6 +72,13 @@
                                role="tab"
                                aria-selected="true">
                                 <i class="ti ti-settings me-2"></i>Company Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-7" data-bs-toggle="tab" href="#profile-7"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-brand-google-drive me-2"></i>Google Drive
                             </a>
                         </li>
                     </ul>
@@ -665,24 +672,19 @@
                                                         <!-- Email -->
                                                         <!-- Email -->
                                                         <div class="col-md-6">
-                                                            <label for="contactEmail" class="form-label">Contact
+                                                            <label for="{{ settings_form.company_email.id_for_label }}" class="form-label">Company
                                                                 Email</label>
-                                                            <input
-                                                                    type="email"
-                                                                    class="form-control"
-                                                                    id="contactEmail"
-                                                                    value="info@greatguardianinvestment.co.ke "
-                                                                    readonly
-                                                            >
+                                                             {{ settings_form.company_email }}
+                                                            {{ settings_form.company_email.errors }}
                                                         </div>
 
 
                                                         <!-- Phone -->
                                                         <div class="col-md-6">
-                                                            <label for="{{ settings_form.phone.id_for_label }}"
+                                                            <label for="{{ settings_form.company_phone.id_for_label }}"
                                                                    class="form-label">Phone Number</label>
-                                                            {{ settings_form.phone }}
-                                                            {{ settings_form.phone.errors }}
+                                                            {{ settings_form.company_phone }}
+                                                            {{ settings_form.company_phone.errors }}
                                                         </div>
 
                                                         <!-- Tagline -->
@@ -816,6 +818,16 @@
                                 </div>
                             </div>
                         </div>
+
+
+                         <div class="tab-pane" id="profile-7" role="tabpanel"
+                             aria-labelledby="profile-tab-7">
+                            <div class="row">
+                               {% include 'Management/partials/_google_drive_tab.html' %}
+
+                               
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- [ sample-page ] end -->
@@ -824,6 +836,10 @@
         </div>
     </div>
     <!-- [ Main Content ] end -->
+
+
+
+
 
 
 
@@ -920,6 +936,15 @@
         });
 
     </script>
+
+
+
+
+
+
+
+
+
 {% endblock %}
 
 {% block scripts %}

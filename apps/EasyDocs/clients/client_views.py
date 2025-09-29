@@ -15,10 +15,10 @@ from apps.EasyDocs.exceptions import ClientServiceError
 from apps.EasyDocs.forms import ClientSmsForm, ClientServiceForm, ClientSubServiceForm, ClientSubServiceEditForm
 from apps.EasyDocs.models import Client, MessageLog, ClientService, ClientSubService, ServiceCategory
 from apps.EasyDocs.services.services import create_client_service_with_overrides, \
-    update_client_service_overrides, handle_ground_booking, default_scheduled_date
+    apply_client_service_logic, handle_ground_booking, default_scheduled_date
 from apps.EasyDocs.utils import MobileSasaAPI
 
-
+from django.contrib.auth.decorators import login_required, permission_required     
 import logging
 
 
@@ -95,7 +95,6 @@ class SendClientSMSView(ClientActionView):
 
 # views.py
 
-
 class ClientServiceManageView(View):
     _permission_map = {
         'add': ['easydocs.add_clientservice'],
@@ -144,19 +143,33 @@ class ClientServiceManageView(View):
             return self._handle_form_errors(form, client.id)
 
         try:
+            # detect service change BEFORE saving so we know whether to rebuild CSPs
+            new_service = form.cleaned_data['service']
+            service_changed = cs.service_id != new_service.id
+
+            # Save the basic ClientService changes
             cs = form.save(commit=False)
             cs.client = client
             cs.save()
 
-            update_client_service_overrides(cs, request.POST)
-            cs.save(update_fields=['overridden_total_price'])  # ← persist the override
+            # IMPORTANT: call the helper so CSPs are rebuilt/synced
+            # If the service changed, treat as "new" so helper clears old CSPs and rebuilds
+            apply_client_service_logic(cs, new_service, post_data=request.POST, is_new=service_changed)
 
+            # Use the correct booking helper name (this is the fix for your AttributeError)
             book_note = self._handle_booking_service(cs, form)
             sms_note = self._sms_feedback(cs)
 
             messages.success(request, f"✅ Service updated successfully.{book_note}{sms_note}")
+            logger.info("Edited ClientService id=%s service_changed=%s", cs.pk, service_changed)
+
         except ClientServiceError as e:
             messages.error(request, f"❌ Failed to update service: {e}")
+        except Exception as e:
+            # keep a broad except while debugging to log unexpected errors
+            logger.exception("Unexpected error in handle_edit_client_service: %s", e)
+            messages.error(request, f"❌ Failed to update service: {e}")
+
         return redirect('client_details', client_id=client.id)
 
     def _handle_form_errors(self, form, client_id):
@@ -248,6 +261,50 @@ class DeleteClientSubserviceView(ClientActionView):
             messages.success(request, "🗑️ SubService deleted.")
         except ClientSubService.DoesNotExist:
             messages.error(request, "⚠️ SubService not found.")
+            
+            
+     
+            
+
+@login_required
+@permission_required('yourapp.change_clientsubservice', raise_exception=True)
+def soft_delete_client_subservice(request, pk):
+    """
+    Soft-delete a ClientSubService instance.
+    """
+    cs = get_object_or_404(ClientSubService.objects.select_related('client_service'), pk=pk)
+    try:
+        cs.soft_delete(clear_price=True, force=False)
+        messages.success(request, "Client subservice soft-deleted.")
+    except ValueError as e:
+        messages.error(request, str(e))
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
+
+@login_required
+@permission_required('yourapp.change_clientsubservice', raise_exception=True)
+def restore_client_subservice(request, pk):
+    """
+    Restore a previously soft-deleted ClientSubService.
+    Uses all_objects manager so inactive rows can be found.
+    """
+    cs = get_object_or_404(ClientSubService.all_objects.select_related('client_service'), pk=pk)
+    if cs.is_active:
+        messages.info(request, "Client subservice is already active.")
+        return redirect(request.META.get('HTTP_REFERER', 'management'))
+    cs.restore()
+    messages.success(request, "Client subservice restored.")
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
+
+@login_required
+@permission_required('yourapp.delete_clientsubservice', raise_exception=True)
+def hard_delete_client_subservice(request, pk):
+    """
+    Permanently delete a ClientSubService from DB. Use with care.
+    """
+    cs = get_object_or_404(ClientSubService.all_objects.select_related('client_service'), pk=pk)
+    cs.hard_delete()
+    messages.success(request, "Client subservice permanently deleted.")
+    return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
 
