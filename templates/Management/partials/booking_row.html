@@ -1,59 +1,60 @@
-<h6 class="mt-5">Booking Schedule:</h6>
+{# templates/partials/booking_row.html #}
 <div class="table-responsive">
-    <table class="table table-bordered table-sm align-middle">
-        <thead class="table-light">
-        <tr>
-            <th>#</th>
-            <th>Scheduled Date</th>
-            <th>Created At</th>
-            <th>Dispatch Message</th>
-
-        </tr>
-        </thead>
-    <tbody>
-  {% if cs.ground_data.scheduled_date %}
-    {# We know there's a booking if scheduled_date is non‑empty #}
-    {% with gd=cs.ground_data %}
-      <tr id="booking-row-{{ cs.id }}">
-        <td>1</td>
-        <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
-        <th>
-          {{ cs.ground_booking.created_at }}
-        </th>
-        <td>
-          {% if gd.dispatch_message %}
-            <span
-              id="msg-preview-{{ cs.id }}"
-              class="preview-with-tooltip"
-              data-bs-toggle="tooltip"
-              title="{{ gd.dispatch_message|escapejs }}">
-              {{ gd.dispatch_message|truncatechars:60 }}
-            </span>
-          {% else %}
-            <em class="text-muted">No message</em>
-          {% endif %}
-        </td>
-
+  <table class="table table-bordered table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>#</th>
+        <th>Service</th>
+        <th>Scheduled Date</th>
+        <th>Dispatch Message</th>
+        <th>Reschedule</th>
       </tr>
-
-
-    {% endwith %}
-  {% else %}
-    <tr>
-      <td colspan="5" class="text-center text-muted py-3">
-        No bookings available.
-      </td>
-    </tr>
-  {% endif %}
-</tbody>
-
-
-
-    </table>
+    </thead>
+    <tbody>
+      {% if bookings %}
+        {% for gd in bookings %}
+          <tr id="booking-row-{{ gd.id }}">
+            <td>{{ forloop.counter }}</td>
+            <td>{{ cs.service.name }}</td>
+            <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
+            <td>
+              {% if gd.dispatch_message %}
+                <span
+                  id="msg-preview-{{ gd.id }}"
+                  class="preview-with-tooltip"
+                  data-bs-toggle="tooltip"
+                  title="{{ gd.dispatch_message|escapejs }}">
+                  {{ gd.dispatch_message|truncatechars:60 }}
+                </span>
+              {% else %}
+                <em class="text-muted">No message</em>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary open-booking-modal"
+                data-action="edit"
+                data-url="{% url 'edit_booking' gd.id %}"
+                data-booking-id="{{ gd.id }}"
+                data-scheduled="{{ gd.scheduled_date|date:'Y-m-d\\TH:i' }}"
+                data-message="{{ gd.dispatch_message|escapejs }}"
+                data-client-name="{{ cs.client.first_name }}"
+                data-service-name="{{ cs.service.name }}"
+                data-service-id="{{ cs.id }}"
+                data-service-id-label="{{ cs.service.name }}">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-3">
+            No bookings scheduled for {{ cs.service.name }}.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </div>
-
-
-
-
-
-

@@ -1,6 +1,7 @@
 {% extends 'Home/base.html' %}
 {% load static %}
 
+{% load document_tags %}
 
 
 
@@ -87,6 +88,7 @@
                                         <th>Location</th>
                                         <th>Reference</th>
                                         <th>Uploaded At</th>
+                                        <th>Storage</th>
                                         <th>Action</th>
                                     </tr>
                                     </thead>
@@ -102,6 +104,7 @@
                                             <td>{{ document.location }}</td>
                                             <td>{{ document.reference }}</td>
                                             <td>{{ document.uploaded_at }}</td>
+                                            <td>{{ document.storage_backend|storage_badge|safe }}</td>
                                             <td>
                                                 <a href="{{ document.file.url }}" class="btn btn-info" target="_blank">View</a>
                                             </td>

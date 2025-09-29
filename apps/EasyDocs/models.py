@@ -13,6 +13,58 @@ from django.core.cache import cache
 from django.utils.functional import cached_property
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Office Documents
+# -----------------------
+# File upload paths
+# -----------------------
+
+
+def validate_mime(file, allowed_mimes):
+    mime_type = mimetypes.guess_type(file.name)[0]
+    if mime_type not in allowed_mimes:
+        raise ValidationError(f"File type {mime_type} not allowed")
+    
+    
+
+# File upload paths and validators
+def validate_file_size(file):
+    max_size = 10 * 1024 * 1024  # 10MB
+    if file.size > max_size:
+        raise ValidationError(f"File size must be under {max_size//1024//1024}MB")
+
+def office_document_path(instance, filename):
+    """Organize office documents by type/year/month with better naming"""
+    now = timezone.now()
+    doc_type_slug = instance.doc_type.name.lower().replace(' ', '_')
+    safe_filename = f"{now.strftime('%Y%m%d_%H%M%S')}_{filename}"
+    return f"office/{doc_type_slug}/{now.year}/{now.month:02d}/{safe_filename}"
+
+def client_document_path(instance, filename):
+    """Organize client documents with client context"""
+    now = timezone.now()
+    client_slug = f"client_{instance.client.id}"
+    doc_type_slug = instance.doc_type.name.lower().replace(' ', '_')
+    safe_filename = f"{now.strftime('%Y%m%d_%H%M%S')}_{filename}"
+    return f"clients/{client_slug}/{doc_type_slug}/{now.year}/{now.month:02d}/{safe_filename}"
+
+# MIME type constants
+ALLOWED_CLIENT_DOC_MIME_TYPES = [
+    'application/pdf', 'image/jpeg', 'image/png', 
+    'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]
+
+ALLOWED_OFFICE_MIME_TYPES = ALLOWED_CLIENT_DOC_MIME_TYPES + [
+    'text/plain', 'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+]
+
+
+
+
 # Gender choices
 class Gender(models.TextChoices):
     MALE = 'Male', 'Male'
@@ -28,64 +80,102 @@ class ServiceCategory(models.TextChoices):
 
 
 # models.py
-
+class DriveOAuthToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='drive_oauth_token')
+    refresh_token_encrypted = models.TextField(blank=True, null=True)
+    access_token_encrypted = models.TextField(blank=True, null=True)
+    token_expiry = models.DateTimeField(blank=True, null=True)
+    scopes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Drive OAuth - {self.user.username}"
 
 
 
 class SiteSettings(models.Model):
     # Enforce only one row
-    singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)
-
-    company_name    = models.CharField(max_length=200, default="SMARTSURVEYOR", help_text="Company name for the receipt header")
-    logo            = models.ImageField(upload_to="company/", blank=True, null=True)
-    # email           = models.EmailField(validators=[validate_email], default="info@example.com")
-    phone           = models.CharField(max_length=20, blank=True, null=True)
-    tagline         = models.CharField(max_length=255, blank=True, default="Thank you for letting us serve you!")
+    singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)  
+    company_name = models.CharField(max_length=200, default="SMARTSURVEYOR")
+    logo = models.ImageField(upload_to="company/", blank=True, null=True)
+    company_phone = models.CharField(max_length=20, blank=True, null=True)
+    company_email = models.EmailField(unique=True, blank=True, null=True, db_index=True)
+    tagline = models.CharField(max_length=255, blank=True, default="Thank you for letting us serve you!")
     stamp_signature = models.ImageField(upload_to="company/", blank=True, null=True)
-
-    def __str__(self):
-        return "Site Settings"
-
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # GOOGLE DRIVE CONFIGURATION
+    
+    google_drive_enabled = models.BooleanField(default=False)
+    google_drive_root_folder_id = models.CharField(max_length=255, blank=True, null=True)
+    google_drive_service_account_key_encrypted = models.TextField(blank=True, null=True)
+    google_drive_service_account_email = models.CharField(max_length=255, blank=True, null=True)
+    
+    google_oauth_client_id = models.CharField(max_length=255, blank=True, null=True)
+    google_oauth_client_secret_encrypted = models.TextField(blank=True, null=True)
+    google_oauth_redirect_uris = models.TextField(
+        blank=True,
+        default="",
+        help_text="Allowed OAuth redirect URIs (one per line or comma-separated). Example: http://localhost:8080/drive/oauth/callback/"
+    )
+    
+    
+    # Configuration
+    drive_auto_folder_creation = models.BooleanField(default=True)
+    drive_file_naming_pattern = models.CharField(
+        max_length=500, 
+        default="{client_id}/{year}/{month}/{filename}",
+        help_text="Available variables: {client_id}, {year}, {month}, {day}, {filename}"
+    )
+    
+    # Status tracking
+    drive_config_status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('not_configured', 'Not Configured'),
+            ('configured', 'Configured'),
+            ('testing', 'Testing'),
+            ('error', 'Error')
+        ],
+        default='not_configured'
+    )
+    drive_last_test_status = models.TextField(blank=True, null=True)
+    drive_last_test_at = models.DateTimeField(blank=True, null=True)
+    drive_config_updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    drive_config_updated_at = models.DateTimeField(auto_now=True)
+    
 
     class Meta:
-        verbose_name = "Site Settings"
-        verbose_name_plural = "Site Settings"
+            verbose_name_plural = "Site Settings"
+        
+    def __str__(self):
+            return "Site Configuration"
+        
+    def is_google_drive_ready(self):
+        """
+        Check if Google Drive is ready for use.
+        During testing, we should still allow storage initialization.
+        """
+        return (self.google_drive_enabled and 
+                self.google_drive_service_account_key_encrypted and
+                self.drive_config_status in ['configured', 'testing'])  # ← Allow 'testing' status
+
 
 
 
 # Document Type
 class DocType(models.Model):
     name = models.CharField(max_length=100, help_text="Enter document type name")
+    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
 
-# Office Documents
-class Document(models.Model):
-    doc_name = models.CharField(max_length=100, help_text="Enter a short name for the document")
-    doc_type = models.ForeignKey(DocType, on_delete=models.CASCADE, related_name='documents')
-    mime_type = models.CharField(max_length=100, blank=True)
-    location = models.CharField(max_length=50)
-    reference = models.CharField(max_length=50)
-    file = models.FileField(upload_to='office_documents/', blank=True, null=True, help_text="Upload office-related documents")
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['doc_name']),
-            models.Index(fields=['location']),
-            models.Index(fields=['uploaded_at']),
-        ]
 
 
-    def save(self, *args, **kwargs):
-        if self.file and not self.mime_type:
-            mime, _ = mimetypes.guess_type(self.file.name)
-            self.mime_type = mime or 'application/octet-stream'
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.doc_name} - {self.reference} ({self.location})"
+    
+    
 
 # Client Model
 class Client(models.Model):
@@ -313,12 +403,15 @@ class ClientService(models.Model):
 
 
 class Booking(models.Model):
-    client_service = models.OneToOneField(ClientService, on_delete=models.CASCADE, related_name='ground_booking')
-    created_at = models.DateTimeField(auto_now_add=True)  # When the booking was created
-    scheduled_date = models.DateTimeField()               # When the service is scheduled to occur
+    client_service = models.ForeignKey(
+        ClientService,
+        on_delete=models.CASCADE,
+        related_name='bookings'   # <-- allow many
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    scheduled_date = models.DateTimeField()
     dispatch_message = models.TextField(blank=True, null=True)
 
-    # NEW FIELDS
     handled = models.BooleanField(default=False)
     handled_at = models.DateTimeField(null=True, blank=True)
     handled_by = models.ForeignKey(
@@ -336,10 +429,8 @@ class Booking(models.Model):
         help_text="Which surveyors were allocated"
     )
 
-
-
     def generate_default_message(self):
-        scheduled_local = timezone.localtime(self.scheduled_date)  # 👈 Use localtime here
+        scheduled_local = timezone.localtime(self.scheduled_date)
         return (
             f"Hi {self.client_service.client.first_name}, surveyors for "
             f"{self.client_service.service.name} have been scheduled for "
@@ -353,6 +444,7 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.client_service} - Scheduled: {timezone.localtime(self.scheduled_date).strftime('%Y-%m-%d %H:%M')}"
+
 
 
 
@@ -457,7 +549,22 @@ class ClientSubService(models.Model):
     # New Fields for Payout Tracking
     is_paid_to_legal_office = models.BooleanField(default=False)
     paid_month = models.DateField(blank=True, null=True)  # e.g., 2025-05-01
-    paid_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    # snapshot fields
+    institution_cost_snapshot = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    overridden_price_snapshot = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        # snapshot original values only on create
+        if not self.pk:
+            self.institution_cost_snapshot = self.sub_service.price
+            self.overridden_price_snapshot = self.overridden_price if self.overridden_price is not None else None
+
+        # set paid_at only when marking as paid_to_legal_office
+        if self.is_paid_to_legal_office and not self.paid_at:
+            self.paid_at = timezone.now()
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.client_service} → {self.sub_service.name}"
@@ -593,12 +700,15 @@ class Payment(models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     payment_date = models.DateTimeField(default=timezone.now)
+    institution_cost_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    overridden_total_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return (
             f"{self.client_service.client.first_name} – "
             f"KSH {self.amount} on {self.payment_date:%Y-%m-%d}"
         )
+
 
     def clean(self):
         balance = self.client_service.total_balance
@@ -607,9 +717,21 @@ class Payment(models.Model):
                 f"You’re trying to pay KES {self.amount:.2f}, but the remaining balance is only KES {balance:.2f}."
             )
 
-
     def save(self, *args, **kwargs):
+        # validate first
         self.clean()
+
+        # populate snapshots only on first save (freeze historic values)
+        if not self.pk:
+            svc = self.client_service
+            # snapshot the service institution cost (the external cost portion)
+            self.institution_cost_snapshot = getattr(svc.service, 'total_price', None)
+            # snapshot overridden_total_price if present otherwise full_total_price
+            self.overridden_total_snapshot = (
+                svc.overridden_total_price
+                if svc.overridden_total_price is not None
+                else svc.full_total_price
+            )
         super().save(*args, **kwargs)
 
 
@@ -641,29 +763,163 @@ class Expense(models.Model):
 
 
 
+# -----------------------
+# Office Document
+# -----------------------
+class DocumentManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().select_related('doc_type', 'uploaded_by')
+    
+    def by_type(self, doc_type_name):
+        return self.filter(doc_type__name=doc_type_name)
+    
+    def with_drive_access(self):
+        return self.filter(
+            models.Q(storage_backend__in=['drive', 'hybrid']) |
+            models.Q(drive_file_id__isnull=False)
+        )
+    
+    def recent_uploads(self, days=30):
+        cutoff = timezone.now() - timezone.timedelta(days=days)
+        return self.filter(uploaded_at__gte=cutoff)
 
+class BaseDocument(models.Model):
+    from apps.EasyDocs.files.storage_backends import UnifiedStorage
 
+    UPLOAD_STATUS = [
+        ('pending', 'Pending'),
+        ('uploaded', 'Uploaded'),
+        ('local', 'Local Only'),
+        ('failed', 'Upload Failed'),
+    ]
 
-class ClientDoc(models.Model):
-    client = models.ForeignKey(Client, related_name='client_documents', on_delete=models.CASCADE)
-    doc_name = models.CharField(max_length=100)
-    doc_type = models.ForeignKey('DocType', on_delete=models.CASCADE, related_name='client_doc')
-    doc_file = models.FileField(upload_to='client_docs/')
-    mime_type = models.CharField(max_length=100, blank=True)
+    STORAGE_BACKEND_CHOICES = [
+        ('local', 'Local Storage'),
+        ('drive', 'Google Drive'),
+        ('hybrid', 'Both Local and Drive'),
+    ]
+
+    doc_name = models.CharField(max_length=255)
+
+    doc_file = models.FileField(
+        upload_to="documents/",  
+        validators=[validate_file_size],
+    )
+
+    doc_type = models.ForeignKey(DocType, on_delete=models.PROTECT)
+    uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, editable=False)
 
+    # Storage tracking
+    storage_backend = models.CharField(
+        max_length=20, 
+        choices=STORAGE_BACKEND_CHOICES, 
+        default='local'
+    )
+    drive_file_id = models.CharField(max_length=255, blank=True, null=True)
+    drive_url = models.URLField(blank=True, null=True)
+    local_path = models.CharField(max_length=500, blank=True, null=True)
 
-    def save(self, *args, **kwargs):
-        if self.doc_file and not self.mime_type:
-            mime, _ = mimetypes.guess_type(self.doc_file.name)
-            self.mime_type = mime or 'application/octet-stream'
-        super().save(*args, **kwargs)
+    status = models.CharField(max_length=20, choices=UPLOAD_STATUS, default='pending')
+    failure_reason = models.TextField(blank=True, null=True)
+
+    objects = DocumentManager()
+
+    class Meta:
+        abstract = True
 
     def __str__(self):
-        return f"{self.doc_name} for {self.client.first_name}"
+        return self.doc_name
+
+    @property
+    def site_settings(self):
+        from .models import SiteSettings
+        return SiteSettings.objects.first()
+
+    def get_drive_folder_path(self):
+        """Generate consistent Drive folder path based on document type"""
+        if isinstance(self, Document):
+            return f"office/{self.doc_type.name}/{self.uploaded_at.year}/{self.uploaded_at.month:02d}"
+        return f"clients/{self.client.id}/{self.doc_type.name}/{self.uploaded_at.year}/{self.uploaded_at.month:02d}"
+
+    def get_drive_file_name(self):
+        """Generate Drive file name with timestamp to avoid conflicts"""
+        timestamp = self.uploaded_at.strftime('%Y%m%d_%H%M%S')
+        return f"{timestamp}_{self.doc_name}"
+
+    def get_full_drive_path(self):
+        return f"{self.get_drive_folder_path()}/{self.get_drive_file_name()}"
+
+    # ✅ Refactored for Option 2
+    @property
+    def file_available(self):
+        """Check if file exists in the correct backend."""
+        from apps.EasyDocs.files.storage_backends import UnifiedStorage
+        storage = UnifiedStorage()
+
+        if not self.doc_file or not self.doc_file.name:
+            return False
+
+        if self.storage_backend in ("local", "hybrid"):
+            return storage._local_exists(self.doc_file.name)
+        elif self.storage_backend == "drive":
+            return storage._drive_exists(self.doc_file.name)
+
+        return False
+
+    def get_file_content(self):
+        """Open the file content from the proper backend."""
+        from apps.EasyDocs.files.storage_backends import UnifiedStorage
+        storage = UnifiedStorage()
+        try:
+            with storage.open(self) as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch content for {self.id}: {e}")
+            return None
+        
+    def file_url(self):
+        try:
+            from apps.EasyDocs.files.storage_backends import UnifiedStorage
+            storage = UnifiedStorage()
+
+            if self.storage_backend == "drive":
+                if self.drive_file_id:
+                    return storage.url(self.drive_file_id, backend="drive")
+                return self.drive_url or None
+
+            # local or hybrid (prefer doc_file if present)
+            if self.doc_file and getattr(self.doc_file, 'name', None):
+                return storage.url(self.doc_file.name, backend=self.storage_backend)
+
+            return self.drive_url or None
+        except Exception as e:
+            logger.warning("file_url resolution failed for %s: %s", getattr(self, 'id', None), e)
+            return None
 
 
+class Document(BaseDocument):
+    location = models.CharField(max_length=100, default="Office")
+    reference = models.CharField(max_length=100, default="AUTO")
+    
+    class Meta:
+        verbose_name = "Office Document"
+        verbose_name_plural = "Office Documents"
+    
+    def save(self, *args, **kwargs):
+        # ✅ Don’t override doc_file.name — paths are handled by upload_document_with_strategy
+        super().save(*args, **kwargs)
+
+class ClientDoc(BaseDocument):
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='documents')
+    
+    class Meta:
+        verbose_name = "Client Document"
+        verbose_name_plural = "Client Documents"
+    
+    def save(self, *args, **kwargs):
+        # ✅ Don’t override doc_file.name — paths are handled by upload_document_with_strategy
+        super().save(*args, **kwargs)
 
 
 
@@ -744,3 +1000,35 @@ class MessageLog(models.Model):
 
     def __str__(self):
         return f"{self.client} | {self.reason} | {self.send_status}"
+    
+    
+    
+    
+    
+    
+
+
+# models.py (append at bottom)
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('upload', 'Upload'),
+        ('download', 'Download'),
+        ('delete', 'Delete'),
+        ('email_sent', 'Email Sent'),
+        ('email_failed', 'Email Failed'),
+        ('drive_sync', 'Drive Sync'),
+        ('drive_failed', 'Drive Sync Failed')
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    model_name = models.CharField(max_length=100)
+    object_id = models.PositiveIntegerField()
+    description = models.TextField(blank=True, null=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.action} - {self.model_name} {self.object_id}"

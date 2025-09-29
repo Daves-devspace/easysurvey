@@ -1,0 +1,13 @@
+[run]
+branch = True
+source =
+    apps
+
+[report]
+omit =
+    */migrations/*
+    */tests/*
+    */__init__.py
+
+[html]
+directory = coverage_html_report

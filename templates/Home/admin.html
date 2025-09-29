@@ -56,152 +56,196 @@
                 <div class="container-fluid mt-3">
                     <div class="row g-2">
 
-                        {% comment %}—— CLIENTS ——{% endcomment %}
-                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-lg rounded-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-secondary">
-              <i class="fas fa-users text-primary"></i> Clients
-            </span>
-                                        <span class="badge rounded-pill {% if clients_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
-              {{ clients_growth_pct|floatformat:1 }}%
-            </span>
-                                    </div>
-                                    <h4 class="mb-2 fw-bold">{{ clients_cur }}</h4>
-
-                                    <p class="text-muted small mb-0">
-                                        {% if clients_diff > 0 %}
-                                            <i class="fas fa-arrow-up text-success"></i> {{ clients_diff_abs }} more
-                                            than last year
-                                        {% elif clients_diff < 0 %}
-                                            <i class="fas fa-arrow-down text-danger"></i> {{ clients_diff_abs }} fewer
-                                            than last year
-                                        {% else %}
-                                            <i class="fas fa-equals text-secondary"></i> No change from last year
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
+                    {% comment %}—— CLIENTS ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-users text-primary"></i> Clients
+                            </span>
+                            <span class="badge rounded-pill {% if clients_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ clients_growth_pct|floatformat:1 }}%
+                            </span>
                         </div>
-
-                        {% comment %}—— REVENUE ——{% endcomment %}
-                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-lg rounded-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-secondary">
-              <i class="fas fa-money-bill-wave text-success"></i> Revenue
-            </span>
-                                        <span class="badge rounded-pill {% if rev_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
-              {{ rev_growth_pct|floatformat:1 }}%
-            </span>
-                                    </div>
-                                    <h4 class="mb-2 fw-bold">KES {{ rev_cur|intcomma }}</h4>
-
-                                    <p class="text-muted small mb-0">
-                                        {% if rev_diff > 0 %}
-                                            <i class="fas fa-arrow-up text-success"></i> KES {{ rev_diff_abs|intcomma }}
-                                            more than last year
-                                        {% elif rev_diff < 0 %}
-                                            <i class="fas fa-arrow-down text-danger"></i> KES
-                                            {{ rev_diff_abs|intcomma }} less than last year
-                                        {% else %}
-                                            <i class="fas fa-equals text-secondary"></i> No change from last year
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {% comment %}—— EXPENSES ——{% endcomment %}
-                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-lg rounded-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-secondary">
-              <i class="fas fa-file-invoice text-danger"></i> Expenses
-            </span>
-                                        <span class="badge rounded-pill {% if exp_growth_pct <= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
-              {{ exp_growth_pct|floatformat:1 }}%
-            </span>
-                                    </div>
-                                    <h4 class="mb-2 fw-bold">KES {{ exp_cur|intcomma }}</h4>
-
-                                    <p class="text-muted small mb-0">
-                                        {% if exp_diff > 0 %}
-                                            <i class="fas fa-arrow-up text-danger"></i> KES {{ exp_diff_abs|intcomma }}
-                                            more than last year
-                                        {% elif exp_diff < 0 %}
-                                            <i class="fas fa-arrow-down text-success"></i> KES
-                                            {{ exp_diff_abs|intcomma }} less than last year
-                                        {% else %}
-                                            <i class="fas fa-equals text-secondary"></i> No change from last year
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {% comment %}—— NET REVENUE ——{% endcomment %}
-                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-lg rounded-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-secondary">
-              <i class="fas fa-chart-line text-info"></i> Net Rev
-            </span>
-                                        <span class="badge rounded-pill {% if net_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
-              {{ net_growth_pct|floatformat:1 }}%
-            </span>
-                                    </div>
-                                    <h4 class="mb-2 fw-bold">KES {{ net_cur|intcomma }}</h4>
-
-                                    <p class="text-muted small mb-0">
-                                        {% if net_diff > 0 %}
-                                            <i class="fas fa-arrow-up text-success"></i> KES {{ net_diff_abs|intcomma }}
-                                            more than last year
-                                        {% elif net_diff < 0 %}
-                                            <i class="fas fa-arrow-down text-danger"></i> KES
-                                            {{ net_diff_abs|intcomma }} less than last year
-                                        {% else %}
-                                            <i class="fas fa-equals text-secondary"></i> No change from last year
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {% comment %}—— TITLE DEEDS ——{% endcomment %}
-                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
-                            <div class="card border-0 shadow-lg rounded-2">
-                                <div class="card-body p-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="text-secondary">
-              <i class="fas fa-file-contract text-warning"></i> Deeds
-            </span>
-                                        <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
-              {{ titles_growth_pct|floatformat:1 }}%
-            </span>
-                                    </div>
-                                    <h4 class="mb-2 fw-bold">{{ titles_cur }}</h4>
-
-                                    <p class="text-muted small mb-0">
-                                        {% if titles_diff > 0 %}
-                                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff_abs }} more than
-                                            last year
-                                        {% elif titles_diff < 0 %}
-                                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs }} fewer
-                                            than last year
-                                        {% else %}
-                                            <i class="fas fa-equals text-secondary"></i> No change from last year
-                                        {% endif %}
-                                    </p>
-                                </div>
-                            </div>
+                        <h4 class="mb-2 fw-bold">{{ clients_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if clients_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> {{ clients_diff|intcomma }} more than last year
+                            {% elif clients_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> {{ clients_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
                         </div>
                     </div>
+                    </div>
+
+
+                {% comment %}—— CLIENT PAYMENTS / GROSS COLLECTIONS ——{% endcomment %}
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="card border-0 shadow-lg rounded-2">
+                    <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary">
+                        <i class="fas fa-hand-holding-usd text-success"></i> Client Payments
+                        </span>
+                        <span class="badge rounded-pill {% if client_payments_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                        {{ client_payments_growth_pct|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <h4 class="mb-2 fw-bold">KES {{ client_payments_cur|intcomma }}</h4>
+                    <p class="text-muted small mb-0">
+                        {% if client_payments_diff > 0 %}
+                        <i class="fas fa-arrow-up text-success"></i> KES {{ client_payments_diff|intcomma }} more than last year
+                        {% elif client_payments_diff < 0 %}
+                        <i class="fas fa-arrow-down text-danger"></i> KES {{ client_payments_diff_abs|intcomma }} less than last year
+                        {% else %}
+                        <i class="fas fa-equals text-secondary"></i> No change from last year
+                        {% endif %}
+                    </p>
+                    </div>
                 </div>
+                </div>
+
+
+
+                    {% comment %}—— INSTITUTION COSTS PAID ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-university text-warning"></i> Institutions Paid
+                            </span>
+                            <span class="badge rounded-pill {% if inst_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ inst_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ rev_cur_inst_paid|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if inst_diff > 0 %}
+                            <i class="fas fa-arrow-up text-danger"></i> KES {{ inst_diff|intcomma }} more than last year
+                            {% elif inst_diff < 0 %}
+                            <i class="fas fa-arrow-down text-success"></i> KES {{ inst_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+
+                    {% comment %}—— REVENUE ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-money-bill-wave text-success"></i> Revenue
+                            </span>
+                            <span class="badge rounded-pill {% if rev_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ rev_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ rev_cur_net|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if rev_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> KES {{ rev_diff|intcomma }} more than last year
+                            {% elif rev_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> KES {{ rev_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— EXPENSES ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-file-invoice text-danger"></i> Expenses
+                            </span>
+                            <span class="badge rounded-pill {% if exp_growth_pct <= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ exp_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ exp_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if exp_diff > 0 %}
+                            <i class="fas fa-arrow-up text-danger"></i> KES {{ exp_diff|intcomma }} more than last year
+                            {% elif exp_diff < 0 %}
+                            <i class="fas fa-arrow-down text-success"></i> KES {{ exp_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— NET REVENUE ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-chart-line text-info"></i> Net Rev
+                            </span>
+                            <span class="badge rounded-pill {% if net_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ net_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ net_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if net_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> KES {{ net_diff|intcomma }} more than last year
+                            {% elif net_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> KES {{ net_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-file-contract text-warning"></i> Title Deeds
+                            </span>
+                            <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ titles_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">{{ titles_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if titles_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff|intcomma }} more than last year
+                            {% elif titles_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
 
 
                 <div class="row g-4">
@@ -446,7 +490,7 @@
 <!-- Just before </body>: FullCalendar bundle + your init -->
 
 
-{% block scripts %}
+{% block  extra_js %}
 
 
     <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
@@ -477,5 +521,4 @@
 {% endblock %}
 
 <!-- v5 CSS & JS -->
-
 

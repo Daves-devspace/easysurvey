@@ -3,6 +3,9 @@
 {% load custom_filters %}
 {% load service_extras %}
 {% load client_extras %}
+{% load document_tags %}
+
+
 
 {% block body %}
 
@@ -82,6 +85,13 @@
                            aria-selected="true">
                             <i class="ti ti-id me-2"></i>Account
                         </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-time me-2"></i>Ground Bookings
+                        </a>        
                     </li>
 
                     <li class="nav-item">
@@ -271,6 +281,24 @@
                                                                             <i class="ti ti-plus"></i> Add SubService
                                                                         </button>
                                                                     {% endif %}
+                                                                    {% if cs.service %}
+                                                                     <div>
+                                                                        <button
+                                                                        type="button"
+                                                                        class="btn btn-sm btn-primary open-booking-modal"
+                                                                        data-action="create"
+                                                                        data-url="{% url 'booking_create' cs.id %}"
+                                                                        data-client-name="{{ cs.client.first_name }}"
+                                                                        data-service-name="{{ cs.service.name }}"
+                                                                        data-service-id="{{ cs.id }}"
+                                                                        data-service-id-label="{{ cs.service.name }}">  {# optional label fallback #}
+                                                                        <i class="fas fa-plus me-1"></i> Add Booking
+                                                                        </button>
+                                                                    </div>
+                                                                    
+                                                                        
+                                                                    {% endif %}
+
                                                                     {% if perms.easydocs.change_clientservice %}
                                                                         <button
                                                                                 class="btn btn-sm btn-primary edit-client-service-btn"
@@ -287,24 +315,14 @@
                                                                                 data-land-description="{{ cs.land_description|default_if_none:'' }}"
                                                                                 data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
 
-                                                                                data-scheduled-date="{{ cs.ground_data.scheduled_date|date:'Y-m-d\\TH:i'|default:'' }}"
-                                                                                data-dispatch-preview="{{ cs.ground_data.dispatch_message|default:'' }}"
+                                                                                data-scheduled-date="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.scheduled_date|date:'Y-m-d\\TH:i' }}{% endif %}"
+                                                                                data-dispatch-preview="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.dispatch_message|default:'' }}{% endif %}"
 
-                                                                                data-ps-ids="
-
-
-
-
-                                                                                        {% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                                                data-ps-costs="
-
-
-
-
-                                                                                        {% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                                        >
-                                                                            <i class="ti ti-pencil"></i> Edit
-                                                                        </button>
+                                                                                data-ps-ids="{% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                                data-ps-costs="{% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                            >
+                                                                                <i class="ti ti-pencil"></i> Edit
+                                                                            </button>
 
                                                                     {% endif %}
 
@@ -400,17 +418,17 @@
                                                                                     <td>{{ sp.process.name }}</td>
                                                                                     <td>{{ sp.cost }}</td>
                                                                                     <td>
-              <span class="badge
-                {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
-                {% elif sp.status == 'completed' %}bg-success
-                {% elif sp.status == 'in_progress' %}bg-warning
-                {% else %}bg-secondary{% endif %}">
-                {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}
-                    Collected
-                {% else %}
-                    {{ sp.get_status_display }}
-                {% endif %}
-              </span>
+                                                                                    <span class="badge
+                                                                                        {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
+                                                                                        {% elif sp.status == 'completed' %}bg-success
+                                                                                        {% elif sp.status == 'in_progress' %}bg-warning
+                                                                                        {% else %}bg-secondary{% endif %}">
+                                                                                        {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}
+                                                                                            Collected
+                                                                                        {% else %}
+                                                                                            {{ sp.get_status_display }}
+                                                                                        {% endif %}
+                                                                                    </span>
                                                                                     </td>
 
                                                                                     <td>
@@ -514,11 +532,14 @@
                                                                     </table>
                                                                 </div>
                                                             {% endif %}
-                                                            {% if cs.service.category == "ground" %}
-                                                                {% include "Management/partials/booking_row.html" %}
+                                                {# —————————————————————— #}
+                                                {#     Bookings Table      #}
+                                                {# —————————————————————— #}
+                                                <h6 class="mt-4">Booking Schedule:</h6>
+                                                {% include 'Management/partials/booking_row.html' with bookings=cs.ground_data cs=cs %}
 
 
-                                                            {% endif %}
+
 
 
                                                             {# —————————————————————— #}
@@ -584,7 +605,7 @@
                                                                                                 data-bs-toggle="modal"
                                                                                                 data-bs-target="#deleteSubServiceModal"
                                                                                                 data-client-subservice-id="{{ ss.id }}"
-                                                                                                data-csinfo="{{ ss.sub_service.name }} — {{ ss.client_service.land_description }}">
+                                                                                                data-csinfo="{{ ss.sub_service.name }} — {{ ss.current_service.land_description }}">
                                                                                             <i class="ti ti-trash"></i>
                                                                                         </button>
                                                                                     </td>
@@ -916,6 +937,7 @@
                                                     <th>Uploaded by</th>
                                                     <th>Name</th>
                                                     <th>Type</th>
+                                                    <th>Storage</th>
                                                     <th>Uploaded on</th>
                                                     <th class="text-end">Actions</th>
                                                     {% if perms.easydocs.delete_clientdoc %}
@@ -931,22 +953,27 @@
                                                         <td>{{ doc.uploaded_by }}</td>
                                                         <td>{{ doc.doc_name }}</td>
                                                         <td>{{ doc.doc_type.name }}</td>
+                                                        <td>{{ doc.storage_backend|storage_badge|safe }}</td>
                                                         <td><span
                                                                 class="badge bg-success">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
                                                         </td>
                                                         <td class="text-end">
                                                             <!-- View -->
-                                                            <a href="{{ doc.doc_file.url }}"
-                                                               target="_blank"
-                                                               class="btn btn-sm btn-outline-success">View</a>
+                                                            {% if doc.file_url %}
+                                                                <a href="{{ doc.file_url }}" target="_blank">View</a>
+                                                                {% else %}
+                                                                <span class="text-muted">No file</span>
+                                                                {% endif %}
 
-                                                            <!-- WhatsApp -->
-                                                            <a href="https://wa.me/{{ client.phone }}?text=Hello {{ client.first_name }}, here is your document: {{ doc.doc_file.url }}"
-                                                               target="_blank"
-                                                               class="btn btn-sm btn-outline-success"
-                                                               title="WhatsApp">
-                                                                <i class="ti ti-brand-whatsapp"></i>
-                                                            </a>
+                                                                {# WhatsApp link: only render if file_url exists and URL-encode it #}
+                                                                {% if doc.file_url %}
+                                                                <a href="https://wa.me/{{ client.phone }}?text=Hello {{ client.first_name }}, here is your document: {{ doc.file_url|urlencode }}"
+                                                                    target="_blank"
+                                                                    class="btn btn-sm btn-outline-success"
+                                                                    title="WhatsApp">
+                                                                    <i class="ti ti-brand-whatsapp"></i>
+                                                                </a>
+                                                                {% endif %}
 
                                                             <!-- Email -->
                                                             {% if client.email %}
@@ -1343,6 +1370,27 @@
 
                         </div>
                     {% endif %}
+
+                    <div class="tab-pane" id="profile-4" role="tabpanel"
+                         aria-labelledby="profile-tab-4">
+                        <div class="row">
+
+                            <div class="card mt-4">
+                            <div class="card-header">
+                                <i class="fas fa-calendar-alt me-2"></i> Client Bookings
+                            </div>
+                            <div class="card-body">
+                                {% include "Management/partials/all_bookings_table.html" with all_services=all_services %}
+                            </div>
+                            </div>
+
+                            
+                           
+                          
+
+
+                        </div>
+                    </div>
                     <!--messages-->
                     {% if perms.easydocs.view_messagelog %}
                         <div class="tab-pane" id="profile-6" role="tabpanel"
@@ -1507,11 +1555,21 @@
                         </div>
 
                         <!-- Override total price if no processes -->
-                        <div class="mt-4 totalPriceOverride" style="display:none;">
+                        {% comment %} <div class="mt-4 totalPriceOverride" style="display:none;">
                             <label for="overrideTotalPrice" class="form-label">Override Total Price
                                 (Ksh)</label>
                             <input type="number" step="0.01" name="overridden_total_price"
                                    class="form-control overrideTotalPrice" id="overrideTotalPrice">
+                        </div> {% endcomment %}
+                        <!-- For both Add and Edit modals -->
+                        <div class="mt-4 totalPriceOverride" style="display:none;">
+                            <label for="overrideTotalPrice" class="form-label">Client Price (KES)</label>
+                            <input type="number" step="0.01" name="override_total_price"
+                                class="form-control overrideTotalPrice" id="overrideTotalPrice"
+                                value="{% if current_service and current_service.service.category == 'ground' %}{{ current_service.overridden_total_price|default:current_service.service.total_price }}{% endif %}">
+                            <small class="form-text text-muted">
+                                Institution Cost: <span class="institution-cost">0.00</span> KES
+                            </small>
                         </div>
 
                         <!-- Land description -->
@@ -1963,7 +2021,46 @@
     </div>
 
 
+<!-- Booking Modal (used for both Add & Edit) -->   
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form class="booking-form" method="post" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="bookingModalLabel">Booking</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
 
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Scheduled Date</label>
+            <input type="datetime-local" name="scheduled_date" class="form-control scheduled-date-input" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Dispatch Message</label>
+            <textarea name="dispatch_message" class="form-control message-input" rows="3"></textarea>
+            <div class="form-text">You may refine this message before sending.</div>
+          </div>
+
+          {# Optional: small helper text showing client & service (populated by JS) #}
+          <div class="small text-muted">
+            <span id="bookingModalClient"></span>
+            <span id="bookingModalService" class="ms-2"></span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save me-1"></i> Save Booking
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 
 

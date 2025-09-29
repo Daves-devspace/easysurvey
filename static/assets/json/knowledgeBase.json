@@ -1,0 +1,570 @@
+[
+  {
+    "question": "hi",
+    "answer": "Hey there! 👋 Welcome to our survey agency system. I'm here to help you with anything you need - just ask!"
+  },
+  {
+    "question": "hello",
+    "answer": "Hello! 😊 Great to see you here. What can I help you with today? Need help with clients, services, payments, or something else?"
+  },
+  {
+    "question": "good morning",
+    "answer": "Good morning! ☀️ Hope you're having a great start to your day. What would you like to work on in the system?"
+  },
+  {
+    "question": "good afternoon",
+    "answer": "Good afternoon! 👋 Ready to tackle some work? I can help you with Clients, Services, Bookings, Documents, Accounts, or Employee management."
+  },
+  {
+    "question": "good evening",
+    "answer": "Good evening! 🌙 Still working hard I see. How can I make your evening more productive?"
+  },
+  {
+    "question": "what is this system",
+    "answer": "This is your complete survey agency management system! Think of it as your digital command center - it handles everything from client requests and service workflows to payments, document storage, staff management, and automated notifications. Basically, it keeps your entire operation running smoothly from start to finish."
+  },
+  {
+    "question": "what is the system overview",
+    "answer": "Here's the big picture: Our system manages your agency's core operations across 6 main modules. It tracks client work from initial request to completion, automates scheduling and reminders for ground services, handles all payments and payouts to legal partners, keeps documents centralized and secure, provides HR tools for employees and payroll, and ensures everyone sees only what they need to do their job effectively."
+  },
+  {
+    "question": "what does the clients module do",
+    "answer": "The Clients module is where all client magic happens! It's your central hub for managing client records and everything connected to them - services, process progress, payments, documents, and message history. You can quickly see client status, manage their services, track payments, store their documents, and keep communication logs all in one place."
+  },
+  {
+    "question": "how do i add a client",
+    "answer": "Super easy! Just go to the **Clients** section, hit the **Add Client** button, fill in the required details (name, contact info, ID number, etc.), and click **Save**. The new client will appear in your list immediately and you're ready to start adding services!"
+  },
+  {
+    "question": "how do i view client details",
+    "answer": "Click the **Details** button next to any client in your clients list. This opens their complete profile with four organized tabs: **Profile** (services and progress), **Documents** (their files), **Accounts** (payments and receipts), and **Messages** (communication history). Everything you need about that client is right there!"
+  },
+  {
+    "question": "how do i add a service to a client",
+    "answer": "Open the client's **Profile** tab and click **Add Service**. Choose between Title Deed services (multi-step workflows) or Ground services (scheduled visits). Select the specific service type, enter land details and costs, allocate costs to processes if needed, then hit **Save**. The system automatically sends the first notification to your client!"
+  },
+  {
+    "question": "what is a title deed service workflow",
+    "answer": "Title deed services are our multi-step workflows - think of them as a journey with checkpoints! They have ordered processes (Process 1, Process 2, etc.) that must be completed in sequence. You can set costs for each process, and when you complete one, the system automatically moves to the next step and sends SMS updates to keep your client informed throughout the journey."
+  },
+  {
+    "question": "what is a ground service workflow",
+    "answer": "Ground services are for scheduled field visits like beacon reestablishment or land surveys. When you add one, just set the date/time, enter land details and price, and we handle the rest! The system automatically creates a booking, sends scheduling messages to the client, and even sends same-day reminders. It's all automated for you!"
+  },
+  {
+    "question": "how do i complete a process",
+    "answer": "In any service's **Processes** table, just click the **Complete** button for the current process. The system instantly marks it as complete, moves the next process to 'In progress', and shoots off an SMS to your client letting them know about the progress. It's that simple!"
+  },
+  {
+    "question": "what is payment gating",
+    "answer": "Payment gating is your financial safety net! It's a smart rule that prevents the next process from starting until you've received a required payment amount for the current process. This way, you can enforce staged payments for multi-step services and protect your cash flow."
+  },
+  {
+    "question": "how do allocations work",
+    "answer": "Think of allocations as splitting a payment check across different work items. When you record a client payment, you can divide it between processes and subservices (like putting 5,000 toward Process 1 and 3,000 toward Process 2 from an 8,000 payment). The system tracks exactly where every shilling went for perfect record-keeping!"
+  },
+  {
+    "question": "what is a subservice",
+    "answer": "A subservice is like an add-on or smaller component within a main service. For example, if your main service is a title deed transfer, a subservice might be legal stamping or document authentication. Each subservice has its own cost, tracks payments separately, and shows its own payment status."
+  },
+  {
+    "question": "what is the clients documents tab",
+    "answer": "The Documents tab is your client's personal file cabinet! Store all their important documents here - contracts, IDs, certificates, survey reports, you name it. You can upload files, organize them by type, and even send documents directly to clients via WhatsApp or Email right from the system."
+  },
+  {
+    "question": "how do i send a document to a client",
+    "answer": "Easy peasy! Go to the client's **Documents** tab, find the document you want to share, then click either the **WhatsApp** or **Email** button next to it. The system will securely deliver it to your client - no need to leave the platform!"
+  },
+  {
+    "question": "what is the accounts tab in client details",
+    "answer": "The Accounts tab is your financial command center for each client! It shows you everything money-related: receipts you can view and print, payment history with full details, and allocation breakdowns showing exactly how payments were applied to different processes and subservices. It's your complete financial picture per client."
+  },
+  {
+    "question": "how do i record a service payment",
+    "answer": "Head to the client's **Accounts → Receipts** section and click **Record service payment**. Choose which service the payment is for, enter the amount, select the payment method (M-Pesa, bank transfer, etc.), add the transaction ID, then allocate the payment across processes or subservices as needed. Save it and you're done!"
+  },
+  {
+    "question": "how do i view or print a receipt",
+    "answer": "In the client's **Accounts → Receipts** area, click **View** or **Receipt** next to any service. The receipt details will appear in a neat card on the left side where you can review all the details and print or save it. Perfect for client records or your files!"
+  },
+  {
+    "question": "what is the bookings module",
+    "answer": "Bookings is your scheduling headquarters! It manages all your ground service appointments. When you add a ground service with a date and time, the system automatically creates a booking. Your staff can then assign surveyors, track which bookings need attention, and mark visits as complete when they're done."
+  },
+  {
+    "question": "how do i assign a surveyor to a booking",
+    "answer": "Go to **Bookings → Unhandled Bookings**, find the booking that needs assignment, and click **Assign Surveyor**. Select which team member should handle the visit, and they'll be notified. Simple as that!"
+  },
+  {
+    "question": "how do i mark a booking handled",
+    "answer": "Once a field visit is complete, go to **Unhandled Bookings** and click **Mark handled** for that booking. It moves to the **Handled Bookings** section with a timestamp and records who completed it. Great for tracking team performance!"
+  },
+  {
+    "question": "what is the calendar view in bookings",
+    "answer": "The Calendar is your visual scheduling tool! Switch between day, week, or month views to see all your bookings laid out clearly. Click any booking event to see full details, assign surveyors, or mark it complete. It's like having a smart appointment book that does the work for you!"
+  },
+  {
+    "question": "what is the office documents module",
+    "answer": "Office Documents is your company's digital filing cabinet! Store templates, receipts, policies, contracts - any document your team needs access to. It reduces paper clutter and ensures everyone can find important company documents when they need them. View, print, edit, and organize everything in one secure place."
+  },
+  {
+    "question": "how do I schedule broadcast messages",
+    "answer": "Head to **Communication**, write your message (pro tip: use placeholders like {FirstName} for personalization!), choose your audience (all clients or specific groups), set a future date and time if you want to schedule it for later, then hit **Schedule** or **Send**. The system handles the rest!"
+  },
+  {
+    "question": "how do I check message logs",
+    "answer": "Go to **Communication → Message logs** to see your complete message history. You'll see all messages (both broadcasts and automated notifications) with their send status, delivery confirmation, and any error details. It's your communication control panel!"
+  },
+  {
+    "question": "what if messages fail to send",
+    "answer": "No worries - check the Message logs for the error details (usually things like insufficient balance or wrong phone numbers). Fix the issue (like topping up your SMS account), then use the handy **Retry** button to resend failed messages. The system makes it easy to recover!"
+  },
+  {
+    "question": "what is the accounts module",
+    "answer": "Accounts is your financial brain center! It manages everything money-related: client payments, company expenses, revenue analytics, and payouts to legal partners. You've got tabs for Payments (client money coming in), Expenses (money going out), Analytics (financial insights), and Legal Payments (partner payouts). Your complete financial picture!"
+  },
+  {
+    "question": "how do I add an expense",
+    "answer": "In **Accounts → Expenses**, click **Add expense**, then fill in the details: what it was for, how much, how you paid, who handled it, who approved it, and the receipt number. Save it and your expense is tracked! Perfect for keeping your books clean."
+  },
+  {
+    "question": "what analytics are available",
+    "answer": "You get some really useful insights! Revenue charts showing net and gross income over time, plus a cool stacked chart that shows how much each service type contributes to your revenue by month and year. Perfect for understanding your business trends and making smart decisions!"
+  },
+  {
+    "question": "what are legal payments",
+    "answer": "Legal payments track work that requires legal partner involvement (like document stamping or legal processes). The smart part? The system ensures you only pay legal partners after clients have fully paid for those subservices. It protects your cash flow and keeps partnerships fair!"
+  },
+  {
+    "question": "how do I pay the legal office",
+    "answer": "Go to **Accounts → Legal Payments → Payouts**, select the subservices where clients have paid in full, and mark them as **Paid to legal office**. This triggers the payout workflow and updates all your records. The system won't let you pay out until clients have paid you first!"
+  },
+  {
+    "question": "what is the employees module",
+    "answer": "Employees is your HR command center! Manage staff records, assign roles and permissions, set up salaries with allowances and deductions, and run payroll cycles. Everything you need to keep your team organized, paid, and happy - from hiring to monthly salary runs."
+  },
+  {
+    "question": "how do I add an employee",
+    "answer": "Go to **Employees → Add Employee**, fill in their details (name, email, phone, role, department, etc.), and save. When you assign a role, the system automatically creates their user account with the right permissions. They'll be ready to start working in the system right away!"
+  },
+  {
+    "question": "how do I generate payroll",
+    "answer": "In **Employees → Payroll**, set up each employee's salary, allowances (like housing or transport), and deductions (like insurance or taxes). When everything looks good, click **Generate payroll**. Just remember - you typically need to pay the current month before generating the next month's payroll!"
+  },
+  {
+    "question": "how do I add allowances or deductions",
+    "answer": "Open an employee's payroll section, add allowances (things that increase pay like housing allowance) or deductions (things that reduce pay like insurance). You can make them recurring, set start and end dates, and the system automatically calculates the impact on their gross and net salary."
+  },
+  {
+    "question": "how do payroll payments work",
+    "answer": "Use **Payroll Payments** to see who's been paid and who hasn't. Filter by month and payment status to track everything. Mark salaries as paid after you've sent the money to keep your records accurate. It's your payroll accountability system!"
+  },
+  {
+    "question": "what is an example title deed flow",
+    "answer": "Here's a typical journey: Add a title deed service → allocate costs per process → save (system sends 'Process 1 started' SMS) → when Process 1 is done, click **Complete** → Process 2 becomes active and client gets notified → repeat until all processes are complete and title deed is ready for collection!"
+  },
+  {
+    "question": "what is an example ground booking flow",
+    "answer": "Super smooth process: Add ground service with scheduled date/time → booking auto-creates → assign your surveyor → system sends scheduling message and same-day reminder to client → surveyor completes the visit → mark booking as handled. The system keeps everyone informed automatically!"
+  },
+  {
+    "question": "what is a background task",
+    "answer": "Background tasks are your invisible helpers! They're automated jobs that run behind the scenes - like sending reminder messages, processing scheduled notifications, or updating statuses. They keep your workflows moving smoothly without you having to remember every little detail."
+  },
+  {
+    "question": "how does the system send notifications",
+    "answer": "The system is pretty smart about notifications! It automatically sends SMS when processes start or complete, schedules reminder messages for ground services, and handles your broadcast messages. All delivery status and errors are logged so you can track everything and fix issues when they pop up."
+  },
+  {
+    "question": "how do I update knowledge base for bot",
+    "answer": "To update the bot's knowledge, edit the **knowledgeBase.json** file (usually in static/assets/json/). Add or update question/answer pairs, make sure your JSON syntax is valid, and restart or refresh the bot to pick up the changes. If you're using embeddings, you might need to regenerate them too."
+  },
+  {
+    "question": "what should i do if i get insufficient balance errors",
+    "answer": "Check your Message logs for the specific error, then top up your SMS/broadcast account balance. Once that's sorted, head back to Communication and use the **Retry** option to resend those failed messages. The system makes recovery easy!"
+  },
+  {
+    "question": "what is a booking",
+    "answer": "A booking is like a scheduled appointment for field work. It includes all the essentials: which client it's for, what service needs to be done, land/plot details, when it's scheduled, which surveyor is assigned, and whether it's been completed. Think of it as your field work tracker!"
+  },
+  {
+    "question": "how do i resend a failed message",
+    "answer": "Easy fix! Go to **Communication → Message logs**, find the failed message (look for the error details), resolve the underlying issue (like topping up balance or fixing a phone number), then click **Retry**. The system will attempt to send it again."
+  },
+  {
+    "question": "how do i view allocation details",
+    "answer": "Open the client's **Accounts → Payments** tab, expand the service section you want to check, and look at the **Allocation details** table. This shows you exactly how each payment was split across processes and subservices - your complete money trail!"
+  },
+  {
+    "question": "how to check if knowledge base json is valid",
+    "answer": "Open your **knowledgeBase.json** file in any text editor that shows JSON errors, or use an online JSON validator. Make sure it's a proper JSON array with objects containing 'question' and 'answer' keys. Watch out for missing commas, quotes, or brackets - they'll break everything!"
+  },
+  {
+    "question": "how do i edit client details",
+    "answer": "Find your client in the **Clients** list, click **Details** to open their profile, then look for an **Edit** button in the **Profile** tab. Update whatever needs changing (name, contact info, etc.) and save. Quick and simple!"
+  },
+  {
+    "question": "how do i delete a client",
+    "answer": "In the Clients list, use the **Delete** action next to the client. But be careful! Clients with active services or payment history might be protected from deletion. Check your business rules first, and consider deactivating instead of deleting to preserve records."
+  },
+  {
+    "question": "what client information is shown in the list",
+    "answer": "The clients overview shows you the essentials at a glance: client name and contact details, their most recent service (like 'Land transfer'), which process they're currently on, and overall status (like 'In progress', 'Title deed ready', or 'Title deed collected'). Perfect for quick status checks!"
+  },
+  {
+    "question": "what are the four tabs in client details",
+    "answer": "Each client has four organized tabs: **Profile** (services and process management), **Documents** (all their files), **Accounts** (payments, receipts, and financial history), and **Messages** (communication logs and messaging). Everything about a client is neatly organized!"
+  },
+  {
+    "question": "how do i search for clients",
+    "answer": "Use the search bar in the **Clients** section to find clients by name, phone number, ID, or any other searchable field. Most systems also have filters to help you narrow down results. Makes finding specific clients super quick!"
+  },
+  {
+    "question": "what's the difference between title deed and ground services",
+    "answer": "Great question! Title deed services are multi-step workflows with ordered processes and automated progress notifications. Ground services are scheduled field visits (like surveys or beacon work) that create bookings with reminders. One's a workflow, the other's an appointment!"
+  },
+  {
+    "question": "can i edit a service after adding it",
+    "answer": "Yes! Open the service in the client's **Profile** tab and look for **Edit** options within the service section. You can usually change details, costs, land descriptions, and other service information. Just save your changes when done!"
+  },
+  {
+    "question": "how do i delete a service",
+    "answer": "Find the service in the client's **Profile** tab and click **Delete**. But heads up! Deleting a service can affect payment records and process history, so double-check your business rules first. Sometimes it's better to mark it as cancelled instead."
+  },
+  {
+    "question": "what happens when i complete the last process",
+    "answer": "When you complete the final process, the magic happens! The service status updates (like to 'Title deed ready'), the client gets a completion notification, and the service is marked as finished. Your workflow is complete and everyone knows it!"
+  },
+  {
+    "question": "can i skip processes",
+    "answer": "Nope! Processes must be completed in order - that's what makes them a workflow. You can't mark Process 3 as done if Process 2 is still pending. The system enforces this to maintain quality and consistency in your work."
+  },
+  {
+    "question": "what is service status progression",
+    "answer": "Status typically flows like this: Title deed services go from **In progress** → **Title deed ready** → **Title deed collected**. Ground services go from **Scheduled** → **Completed**. The system updates these automatically as work progresses!"
+  },
+  {
+    "question": "what payment methods are supported",
+    "answer": "Common options include M-Pesa, bank transfers, cash, and cheques. The exact methods available depend on your system setup - check with your admin or look in the payment method dropdown when recording payments. Most Kenyan businesses love M-Pesa integration!"
+  },
+  {
+    "question": "can i edit a payment after recording it",
+    "answer": "It depends on your system's rules and your permissions. Recent payments might be editable, but reconciled or locked payments often can't be changed for audit reasons. If you need to modify a payment, check with your admin about your system's policies first."
+  },
+  {
+    "question": "what is partial payment",
+    "answer": "A partial payment is when a client pays part (but not all) of what they owe for a service. The system records what was paid, shows the remaining balance, and updates the payment status to 'Partially paid'. Great for managing cash flow when clients pay in installments!"
+  },
+  {
+    "question": "how do i handle overpayments",
+    "answer": "If a client pays more than they owe, the system will show a negative balance or credit. You can apply this overpayment to other services they have, issue a refund, or keep it as credit for future work - whatever matches your company policy!"
+  },
+  {
+    "question": "what is payment allocation",
+    "answer": "Allocation is how you split payments across different work items. For example, from a 10,000 shilling payment, you might allocate 6,000 to Process 1 and 4,000 to Process 2. The system tracks exactly where every shilling went for perfect record-keeping and transparency!"
+  },
+  {
+    "question": "how do i view payment history for a client",
+    "answer": "Open the client's **Accounts → Payments** tab to see their complete payment story: all transactions with dates, amounts, payment methods, transaction IDs, and how each payment was allocated. It's their complete financial journey with your agency!"
+  },
+  {
+    "question": "can i delete a payment",
+    "answer": "Depends on your system's audit rules and your permissions. Some payments can be removed while others (especially reconciled ones) are locked for audit trails. If you need to delete a payment, check with your admin about what's allowed."
+  },
+  {
+    "question": "what document types are available",
+    "answer": "Common types include ID copies, land certificates, survey reports, contracts, receipts, and legal documents. You can also create custom types using the **+** button when adding documents. Organize by type to make finding documents super easy!"
+  },
+  {
+    "question": "how do i add a new document type",
+    "answer": "When adding a document, look for the **+** icon next to the document type dropdown. Click it, enter your new type name (like 'Surveyor Reports' or 'Legal Stamps'), and save. It'll then appear in the dropdown for future use!"
+  },
+  {
+    "question": "what file formats can i upload",
+    "answer": "Usually PDF, JPG, PNG, and DOC files work great. Check your system settings for any file size limits or format restrictions. PDFs are perfect for official documents, while images work well for photos of sites or certificates."
+  },
+  {
+    "question": "how do i replace an existing document",
+    "answer": "Find the document in the client's **Documents** tab, click **Edit**, upload your new file to replace the old one, and save. The system will swap them out while keeping the document history and any sharing links intact."
+  },
+  {
+    "question": "can clients access their documents",
+    "answer": "Clients don't log into the system directly, but you can share their documents easily! Use the **WhatsApp** or **Email** buttons in the Documents tab to send files securely to clients. They get what they need without system access."
+  },
+  {
+    "question": "how do i organize documents",
+    "answer": "Use document types strategically! Create categories like 'Legal Documents', 'Survey Reports', 'Client IDs', etc. This makes searching and filtering much easier. Think of types as your digital filing system - the better organized, the faster you work!"
+  },
+  {
+    "question": "what information does a booking contain",
+    "answer": "Bookings are comprehensive! They include client name, service type, land/plot details, scheduled date and time, assigned surveyor, handling status (handled/unhandled), and space for notes. Everything your team needs to complete successful field visits!"
+  },
+  {
+    "question": "how do i reschedule a booking",
+    "answer": "Open the booking through the Calendar or Unhandled Bookings, click to edit the details, change the scheduled date/time, and save. The system can notify the client about the change if that's configured - no more awkward surprise visits!"
+  },
+  {
+    "question": "what happens if a surveyor doesn't show up",
+    "answer": "Keep the booking as 'Unhandled' and decide next steps: reassign to a different surveyor, reschedule for later, or add notes about what happened. The system keeps a record that the appointment wasn't completed for accountability."
+  },
+  {
+    "question": "can i add notes to a booking",
+    "answer": "Absolutely! Use the notes field for directions, special instructions, access codes, or anything else your surveyor needs to know. Good notes make the difference between smooth visits and confused surveyors wandering around looking for the right plot!"
+  },
+  {
+    "question": "how do i see all bookings for a specific surveyor",
+    "answer": "Use the Calendar view and filter by surveyor name, or look for a surveyor-specific view in your Bookings section. This helps with workload management and ensures everyone has a balanced schedule."
+  },
+  {
+    "question": "what's the difference between handled and unhandled bookings",
+    "answer": "Unhandled bookings need action - they're waiting for surveyor assignment or completion. Handled bookings are done deals - completed visits with timestamps and the responsible surveyor recorded. It's your 'to-do' versus 'done' tracking!"
+  },
+  {
+    "question": "what message placeholders can i use",
+    "answer": "Placeholders personalize your messages! Use {FirstName}, {LastName}, {ServiceName}, {ProcessName}, and similar fields. The system automatically fills these with real client data when sending, making every message feel personally crafted."
+  },
+  {
+    "question": "how do i send a message to specific clients",
+    "answer": "In **Communication**, write your message, choose your target audience (all clients or use filters for specific groups), add placeholders for personalization, and send immediately or schedule for later. Perfect for targeted updates or marketing!"
+  },
+  {
+    "question": "can i schedule messages for later",
+    "answer": "Yes! In the message composer, set the Date & Time field for when you want it sent, then save or schedule it. Great for sending reminders during business hours or timing announcements perfectly. The system becomes your message scheduler!"
+  },
+  {
+    "question": "how do i know if a message was delivered",
+    "answer": "Check **Communication → Message logs** for complete delivery tracking. You'll see 'Sent' for successful messages with delivery confirmation, or error details for failed ones. It's like having a personal message tracking assistant!"
+  },
+  {
+    "question": "what causes message failures",
+    "answer": "Common culprits include insufficient SMS balance, invalid phone numbers, network hiccups, or provider issues. The Message logs show the exact error so you can fix the root cause. Most issues are quick fixes like topping up credit!"
+  },
+  {
+    "question": "how do i personalize broadcast messages",
+    "answer": "Use placeholders like {FirstName} or {ServiceName} in your message text. When the system sends each message, it automatically replaces these with the real client information. One message becomes hundreds of personalized communications!"
+  },
+  {
+    "question": "can i see message history for a specific client",
+    "answer": "Definitely! Go to the client's **Messages** tab to see their complete communication history - broadcasts, process notifications, manual messages, everything. It's like having a conversation log for each relationship."
+  },
+  {
+    "question": "how do i add office documents",
+    "answer": "In **Office Documents**, click **Add Document**, upload your template, policy, or resource file, give it a clear name and type, then save. Now all your team can access it whenever they need it - no more hunting for templates!"
+  },
+  {
+    "question": "what's the difference between office documents and client documents",
+    "answer": "Office documents are shared company resources (templates, policies, procedures) that all staff can access. Client documents are specific files tied to individual client records. Think company library vs. personal file folders!"
+  },
+  {
+    "question": "who can access office documents",
+    "answer": "Generally all staff can view office documents - they're meant to be shared resources. Edit and delete permissions might be restricted to admins or document owners depending on your system's permission setup."
+  },
+  {
+    "question": "how do i share office document templates",
+    "answer": "Office documents are automatically available to your staff through the system. Use **View** or **Print** to access templates when needed. For external sharing, you can download and email them or create client-specific copies."
+  },
+  {
+    "question": "how do i view revenue by time period",
+    "answer": "In **Accounts → Analytics**, use the time period filters (month, quarter, year) to display revenue charts for your selected timeframe. Great for tracking seasonal trends or measuring growth over time!"
+  },
+  {
+    "question": "what's the difference between gross and net revenue",
+    "answer": "Gross revenue is all the money coming in from client payments - your total earnings. Net revenue subtracts your business expenses to show actual profit - what you really made after costs. Both are important for different reasons!"
+  },
+  {
+    "question": "how do i track expenses by category",
+    "answer": "When adding expenses in **Accounts → Expenses**, use consistent categories in the description. Look for grouped reports in Analytics to see spending patterns by category - super useful for budgeting and cost control!"
+  },
+  {
+    "question": "can i export financial reports",
+    "answer": "Look for **Export** or **Print** options in the Analytics section to save reports as PDF or Excel files. Perfect for accounting, tax preparation, or sharing with business partners. Having data you can take with you is always handy!"
+  },
+  {
+    "question": "how do i see which services are most profitable",
+    "answer": "Use the service contribution chart in Analytics to compare revenue by service type. This shows you which services bring in the most money, helping you focus on your most profitable offerings. Data-driven business decisions!"
+  },
+  {
+    "question": "what is the payment status filter",
+    "answer": "In **Accounts → Payments**, you can filter by statuses like 'Fully paid', 'Partially paid', or 'Pending' to quickly find payments that match what you're looking for. Super useful for following up on outstanding payments!"
+  },
+  {
+    "question": "why do we track legal payments separately",
+    "answer": "Legal payments protect your cash flow! They track money owed to legal partners and ensure you only pay them after clients have fully paid you for those services. No more paying partners with your own money while waiting for client payments!"
+  },
+  {
+    "question": "what happens when i mark a subservice as paid to legal office",
+    "answer": "The system records the payout, updates the legal payment status to 'paid', and moves it into your reconciliation records. Everything is documented for accounting and audit purposes - clean books all around!"
+  },
+  {
+    "question": "how do i reconcile monthly legal payments",
+    "answer": "Use **Legal Payments → Monthly** to filter by month and review all subservices and payouts for that period. Perfect for monthly accounting reconciliation and ensuring your legal partner payments match your records."
+  },
+  {
+    "question": "can i bulk process legal payouts",
+    "answer": "Yes! In the **Payouts** section, select multiple fully-paid subservices and process them together. This speeds up payments to legal partners while maintaining proper records. Efficiency meets accuracy!"
+  },
+  {
+    "question": "what if a client hasn't fully paid but legal work is done",
+    "answer": "Smart system design! The subservice stays in 'All legal payments' until the client pays fully. This prevents you from paying legal partners before receiving client payment, protecting your cash flow. The work is tracked, but payout waits for full payment."
+  },
+  {
+    "question": "what employee roles are available",
+    "answer": "Common roles include Administrator (full access), Staff (general operations), Surveyor (field work focused), Accountant (financial access), and HR (employee management). Each role has different permissions and sees only the system areas they need for their job."
+  },
+  {
+    "question": "how do i deactivate an employee",
+    "answer": "In **Employees**, find the staff member and use the deactivate or status toggle instead of deleting them. This preserves their payroll history and work records while removing system access. Much better than deletion for maintaining accurate records!"
+  },
+  {
+    "question": "what's the difference between allowances and deductions",
+    "answer": "Allowances add to pay (like housing, transport, or phone allowances) while deductions subtract from pay (like insurance, taxes, or loan repayments). Both affect the final net salary calculation, but in opposite directions!"
+  },
+  {
+    "question": "can allowances and deductions be recurring",
+    "answer": "Absolutely! Toggle the 'recurring' option when adding allowances or deductions, and set start/end dates to control exactly when they apply. Perfect for monthly allowances or temporary deductions that automatically stop."
+  },
+  {
+    "question": "how do i handle employee salary changes",
+    "answer": "Edit the employee's payroll details to update their base salary. Changes typically take effect from the next payroll generation, depending on your company policy. Always check timing rules with your admin before making changes!"
+  },
+  {
+    "question": "what happens if i don't pay all salaries",
+    "answer": "Most systems enforce that all current month salaries must be paid before you can generate next month's payroll. This prevents payroll gaps and ensures consistent payment cycles. It's a built-in financial discipline tool!"
+  },
+  {
+    "question": "how do i view payroll history",
+    "answer": "In **Payroll Payments**, filter by month and status to see historical salary records with payment dates. Perfect for audit purposes, employee inquiries, or tracking payroll patterns over time."
+  },
+  {
+    "question": "can i add mid-month salary adjustments",
+    "answer": "Yes! Create allowances or deductions with specific start and end dates to handle mid-month bonuses, penalties, or adjustments. The system calculates pro-rated amounts automatically for partial month impacts."
+  },
+  {
+    "question": "what do i do if the system is slow",
+    "answer": "First, try refreshing your browser or clearing your cache - that fixes most issues! If problems persist, it might be a server or network issue, so contact your system administrator. They can check server performance and network connectivity."
+  },
+  {
+    "question": "how do i backup my data",
+    "answer": "Contact your system administrator for backup procedures specific to your installation. Backups are typically automated on a schedule, but it's good to confirm the backup frequency and know how to recover data if needed."
+  },
+  {
+    "question": "who do i contact for technical support",
+    "answer": "Your system administrator or IT support team are your first contacts for technical issues, feature requests, or system configuration changes. They know your specific setup and can resolve most issues quickly!"
+  },
+  {
+    "question": "how do i change my password",
+    "answer": "Look for your profile or account settings (usually in the top menu or user dropdown) and find the password change option. Follow the prompts to update your credentials securely. Most systems require your current password for security."
+  },
+  {
+    "question": "what browsers work best with the system",
+    "answer": "Modern browsers like Chrome, Firefox, Safari, and Edge work great! Make sure JavaScript is enabled and keep your browser updated for the best experience. Avoid old browsers - they can cause weird display or functionality issues."
+  },
+  {
+    "question": "can i access the system on mobile",
+    "answer": "Yes! The system should work on mobile browsers, though some complex features might be easier on desktop. If your organization has a mobile app, ask your admin about it for even better mobile experience."
+  },
+  {
+    "question": "how do i log out safely",
+    "answer": "Always use the **Logout** button in the top menu instead of just closing your browser. This properly ends your session and protects your data, especially important on shared computers!"
+  },
+  {
+    "question": "what's the typical workflow for a new client",
+    "answer": "Here's the usual flow: Add client → Add their service (with processes or scheduling) → System sends initial notifications → Track progress and record payments → Complete processes/visits → Send completion notifications. The system guides you through each step!"
+  },
+  {
+    "question": "how do i handle client complaints",
+    "answer": "Document everything in the client's **Messages** tab! Record the complaint, your response, resolution steps, and follow-up until the issue is closed. This creates a complete record for future reference and shows professionalism."
+  },
+  {
+    "question": "what if a client wants to cancel a service",
+    "answer": "Follow your company's cancellation policy! You might need to process refunds, stop ongoing processes, update service status, and handle any cancellation fees. Check your business rules and document the cancellation properly."
+  },
+  {
+    "question": "how do i handle rush jobs",
+    "answer": "For urgent requests, expedite process completion, prioritize surveyor assignment for field work, and send priority notifications to both client and team. Consider marking urgent jobs clearly so everyone knows to give them extra attention!"
+  },
+  {
+    "question": "what reports can i generate",
+    "answer": "Lots of useful reports! Client service status, payment summaries, revenue analytics, employee payroll reports, message delivery logs, booking schedules, and more. Use the Analytics and Reports sections to export them for external use."
+  },
+  {
+    "question": "how do i track overdue payments",
+    "answer": "Use payment status filters to find 'Partially paid' or 'Pending' services, then check payment dates against your terms. Create follow-up tasks or use the messaging system to send payment reminders to clients with overdue balances."
+  },
+  {
+    "question": "what is the difference between processes and subservices",
+    "answer": "Processes are sequential steps in a workflow (Process 1, Process 2, etc.) that must be completed in order. Subservices are additional or optional components that can be added to any service, like add-ons. Think 'workflow steps' vs 'extras'!"
+  },
+  {
+    "question": "how do i handle partial allocations",
+    "answer": "When recording payments, you don't have to allocate the full amount immediately. Leave some unallocated and distribute it later as processes complete or priorities change. The system tracks allocated vs unallocated amounts separately."
+  },
+  {
+    "question": "can i customize notification messages",
+    "answer": "This depends on your system configuration! Some systems allow custom message templates while others use fixed formats. Check with your admin about customization options for process notifications and automated messages."
+  },
+  {
+    "question": "how do i handle duplicate clients",
+    "answer": "Check carefully before creating new clients! Search by phone number or ID first. If you find duplicates, you might need to merge records or deactivate duplicates - check with your admin about the best approach for your system."
+  },
+  {
+    "question": "what happens to completed services",
+    "answer": "Completed services remain in the system for record-keeping but their status changes (like 'Title deed collected'). They become part of your historical data for analytics, client history, and audit purposes. Nothing disappears - it just changes status!"
+  },
+  {
+    "question": "how do i track surveyor performance",
+    "answer": "Use the Handled Bookings section to see which surveyor completed which jobs and when. You can track completion rates, timing, and workload distribution. Great for performance reviews and workload balancing!"
+  },
+  {
+    "question": "can i set payment deadlines",
+    "answer": "While the system tracks payment dates, deadline management depends on your specific configuration. You might be able to set due dates or use payment terms. Check your system settings or ask your admin about deadline features."
+  },
+  {
+    "question": "how do i handle refunds",
+    "answer": "Refunds typically require recording negative payments or adjustments, depending on your system setup. Follow your company's refund policy and ensure proper documentation. Check with your admin about the correct procedure for your system."
+  },
+  {
+    "question": "what if a document upload fails",
+    "answer": "Check your file size and format first - make sure it meets system requirements. Try again with a stable internet connection. If it keeps failing, contact your admin - there might be server storage issues or permission problems."
+  },
+  {
+    "question": "how do i prioritize urgent bookings",
+    "answer": "While scheduling, add clear notes marking urgency and assign your best available surveyor. Some systems allow priority flags or urgency markers. Use the notes field to ensure everyone knows it's a rush job!"
+  },
+  {
+    "question": "can i see all services by type",
+    "answer": "Most systems provide filtering options in various sections. Look for service type filters in Analytics, client lists, or dedicated reports. This helps you understand your service mix and identify trends by service category."
+  },
+  {
+    "question": "how do i handle payment disputes",
+    "answer": "Document everything in the client's Messages tab! Record the dispute details, your investigation, evidence reviewed, and resolution. Keep clear records of all communication and decisions for future reference and legal protection."
+  },
+  {
+    "question": "what reports help with business planning",
+    "answer": "Revenue analytics showing trends over time, service contribution reports showing your most profitable services, expense tracking for cost control, and client acquisition patterns. These help you make data-driven decisions about growth and focus!"
+  },
+  {
+    "question": "how do i train new staff on the system",
+    "answer": "Start with their role-specific areas, use real data for hands-on practice, and focus on daily tasks first before advanced features. This documentation can serve as a training guide, and consider having experienced staff mentor new users!"
+  },
+  {
+    "question": "can clients pay in installments",
+    "answer": "Yes! The system handles partial payments perfectly. Record each installment as it comes in, allocate to specific processes as needed, and track the remaining balance. Payment gating can even enforce installment requirements if configured."
+  },
+  {
+    "question": "how do i monitor system usage",
+    "answer": "Check message logs for communication volume, review user activity if available, and monitor data growth in different modules. Your system admin typically has access to more detailed usage analytics and can help with monitoring reports."
+  },
+  {
+    "question": "what's the best way to organize clients",
+    "answer": "Use consistent naming conventions, complete all required fields, utilize document types effectively, and keep client information updated. Good organization from the start makes searching, filtering, and reporting much easier as your client base grows!"
+  },
+  {
+    "question": "how do i ensure data accuracy",
+    "answer": "Double-check information before saving, use consistent formats for phone numbers and IDs, verify payment amounts against external records, and train staff on data entry standards. Regular reviews and audits help maintain quality over time!"
+  },
+  {
+    "question": "can i integrate with other systems",
+    "answer": "Integration capabilities depend on your specific system setup and available APIs. Common integrations include M-Pesa payment gateways, SMS providers, and accounting software. Check with your system administrator about available integrations and setup requirements."
+  }
+]

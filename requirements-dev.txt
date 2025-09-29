@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# ML / embedding tools
+sentence-transformers
+transformers
+torch
+mysqlclient==2.2.7

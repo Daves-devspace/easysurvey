@@ -171,4 +171,3 @@ class CommunicationView(FormMixin, ListView):
         except Exception as e:
             messages.error(self.request, f"❌ Error: {e}")
             return self.get(self.request)
-

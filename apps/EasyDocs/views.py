@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal, InvalidOperation
-
+from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
@@ -19,14 +19,15 @@ from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollecti
     ClientSubServiceEditForm, ClientSmsForm
 from apps.EasyDocs.models import Client, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
     ClientSubService, SiteSettings, SmsProviderToken, PaymentHistory, Expense, Payment, MessageLog, TitleDeedCollection, \
-    Booking
+    Booking, ServiceCategory, Service, Process
 
 from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
 
 from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
-from .analytics import get_yearly_revenue_data, get_available_years
+from .analytics import get_yearly_revenue_data, get_available_years, monthly_company_revenue,get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
+from .services.services import apply_client_service_logic
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 
@@ -34,8 +35,13 @@ from apps.Employee.utils.mixins import RolePermissionRequiredMixin
 
 import logging
 
+
 from .utils import MobileSasaAPI
 from ..Employee.models import EmployeeProfile, Payroll
+
+
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -107,21 +113,18 @@ def aggregate_ytd(model_or_qs, date_field: str, amount_field: str, start_date, e
     return qs.aggregate(total=Sum(amount_field))['total'] or Decimal('0.00')
 
 
-def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[float]:
+def monthly_series(source, date_field: str, agg_field: str, year: int):
     """
-    Build a 12‑element list (Jan→Dec) of aggregated values:
-      - If agg_field == 'id', performs COUNT('id')
-      - Otherwise performs SUM(agg_field)
-    `source` may be either:
-      * A Model class (e.g. Payment)
-      * A pre‑filtered/annotated QuerySet
+    Build a 12-element list (Jan→Dec).
+    - If agg_field == 'id' -> returns integers (counts).
+    - Otherwise -> returns Decimals (sum), quantized to 2 decimals.
+    Accepts either a Model class or a QuerySet.
     """
     if isinstance(source, QuerySet):
         qs = source
     else:
         qs = source.objects.all()
 
-    # Rename annotation to avoid conflict with existing 'month' field
     qs = (
         qs
         .filter(**{f"{date_field}__year": year})
@@ -136,11 +139,23 @@ def monthly_series(source, date_field: str, agg_field: str, year: int) -> list[f
         .order_by('month_trunc')
     )
 
-    data = OrderedDict((calendar.month_abbr[m], 0.0) for m in range(1, 13))
+    # Initialize months structure: ints for counts, Decimals for sums
+    if agg_field == 'id':
+        data = OrderedDict((calendar.month_abbr[m], 0) for m in range(1, 13))
+    else:
+        data = OrderedDict((calendar.month_abbr[m], Decimal('0.00')) for m in range(1, 13))
+
     for entry in month_vals:
-        mon = entry['month_trunc'].month
+        mon = entry['month_trunc'].month if entry.get('month_trunc') else None
+        if not mon:
+            continue
         key = calendar.month_abbr[mon]
-        data[key] = float(entry['val'] or 0)
+        val = entry['val'] or 0
+        if agg_field == 'id':
+            data[key] = int(val)
+        else:
+            # Ensure Decimal and quantize to 2 dp for consistent math/formatting
+            data[key] = Decimal(val).quantize(Decimal('0.01'))
 
     return list(data.values())
 
@@ -154,31 +169,24 @@ class DashboardView(TemplateView):
         current_year = today.year
         prev_year = current_year - 1
 
-        # ── REVENUE YTD vs Last Year YTD ───────────────────────────────
-        rev_cur = (
-                Payment.objects
-                .filter(payment_date__year=current_year)
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
-        rev_prev = (
-                Payment.objects
-                .filter(
-                    payment_date__year=prev_year,
-                    payment_date__month__lte=today.month,
-                    payment_date__day__lte=today.day
-                )
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
-        rev_growth = pct_growth(rev_cur, rev_prev)
-        rev_diff = rev_cur - rev_prev
+        rev_cur_gross, rev_cur_net, rev_cur_inst = get_revenue_from_payments(current_year, up_to_date=today)
+        rev_prev_gross, rev_prev_net, rev_prev_inst = get_revenue_from_payments(prev_year, up_to_date=today)
+        
+        
 
+        # Keep both gross and net in context
         context.update({
-            'rev_cur': rev_cur,
-            'rev_prev': rev_prev,
-            'rev_growth_pct': rev_growth,
-            'rev_diff': rev_diff,
-            'rev_diff_abs': abs(rev_diff),
+            'rev_cur_gross': rev_cur_gross,
+            'rev_prev_gross': rev_prev_gross,
+            'rev_cur_net': rev_cur_net,        # company profit before general expenses
+            'rev_prev_net': rev_prev_net,
+            'rev_cur_inst_paid': rev_cur_inst, # money passed to institutions
+            'rev_prev_inst_paid': rev_prev_inst,
         })
+
+        # Growth metrics (choose whether to compare gross or net)
+        context['rev_growth_pct'] = pct_growth(rev_cur_net, rev_prev_net)
+        context['rev_diff'] = rev_cur_net - rev_prev_net
 
         # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
         # Payroll expenses
@@ -229,8 +237,9 @@ class DashboardView(TemplateView):
                 )
                 .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         )
-        exp_cur = ss_cur + ge_cur + payroll_cur
-        exp_prev = ss_prev + ge_prev + payroll_prev
+        exp_cur = ge_cur + payroll_cur
+        exp_prev = ge_prev + payroll_prev
+
         exp_growth = pct_growth(exp_cur, exp_prev)
         exp_diff = exp_cur - exp_prev
 
@@ -243,10 +252,18 @@ class DashboardView(TemplateView):
         })
 
         # ── NET REVENUE YTD vs Last Year YTD ───────────────────────────
-        net_cur = rev_cur - exp_cur
-        net_prev = rev_prev - exp_prev
+        net_cur = rev_cur_net - exp_cur
+        net_prev = rev_prev_net - exp_prev
         net_growth = pct_growth(net_cur, net_prev)
         net_diff = net_cur - net_prev
+        
+        # ── INSTITUTION COSTS (external payments) ───────────────────────────
+        inst_growth = pct_growth(rev_cur_inst, rev_prev_inst)
+        inst_diff = rev_cur_inst - rev_prev_inst
+        
+        # ── CLIENT PAYMENTS YTD vs Last Year YTD ─────────────────────────────
+        client_payments_growth = pct_growth(rev_cur_gross, rev_prev_gross)
+        client_payments_diff = rev_cur_gross - rev_prev_gross
 
         context.update({
             'net_cur': net_cur,
@@ -254,6 +271,14 @@ class DashboardView(TemplateView):
             'net_growth_pct': net_growth,
             'net_diff': net_diff,
             'net_diff_abs': abs(net_diff),
+            'inst_growth_pct': inst_growth,
+            'inst_diff': inst_diff,
+            'inst_diff_abs': abs(inst_diff),
+            'client_payments_cur': rev_cur_gross,
+            'client_payments_prev': rev_prev_gross,
+            'client_payments_growth_pct': client_payments_growth,
+            'client_payments_diff': client_payments_diff,
+            'client_payments_diff_abs': abs(client_payments_diff),
         })
 
         # ── CLIENTS YTD vs Last Year YTD ──────────────────────────────
@@ -296,7 +321,8 @@ class DashboardView(TemplateView):
         context['month_labels'] = list(OrderedDict((calendar.month_abbr[m], None) for m in range(1, 13)))
         context['clients_monthly'] = monthly_series(Client, 'created_at', 'id', current_year)
         context['titles_monthly'] = monthly_series(TitleDeedCollection, 'collected_at', 'id', current_year)
-        context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
+        #context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
+        context['revenue_monthly'] = monthly_company_revenue(current_year)
 
         ss_monthly = monthly_series(
             ClientSubService.objects.annotate(amt=Coalesce('overridden_price', F('sub_service__price'))),
@@ -414,6 +440,9 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
+
+
+
 class ClientDetailView(RolePermissionRequiredMixin, DetailView):
     """
     Displays the details for a single client, including services, subservices,
@@ -428,59 +457,65 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
     raise_exception = True
 
     def get_context_data(self, **kwargs):
+        from types import SimpleNamespace
         context = super().get_context_data(**kwargs)
         client = self.object
-        summary = get_client_service_summary(client)
 
+        # summary helper
+        summary = get_client_service_summary(client)
         context['client_service_summary'] = summary
 
-        # Fetch subservices
-        try:
-            context['subservices'] = SubService.objects.all()
-        except Exception as e:
-            messages.error(self.request, "Could not load subservices.")
-            context['subservices'] = []
+        def safe_qs(qs_callable, error_msg, fallback):
+            try:
+                return qs_callable()
+            except Exception as e:
+                messages.error(self.request, error_msg)
+                return fallback
 
-        # Fetch payment history (raw and flat)
-        try:
-            context['histories'] = PaymentHistory.objects.filter(
-                client_service__client=client
-            ).order_by('-created_at')
-        except Exception:
-            messages.error(self.request, "Could not load payment history.")
-            context['histories'] = []
+        # subservices
+        context['subservices'] = safe_qs(
+            lambda: SubService.objects.all(),
+            "Could not load subservices.", []
+        )
 
-        try:
-            context['flat_payment_history'] = get_client_payment_history(client_id=client.id)
-        except Exception:
-            messages.error(self.request, "Error generating payment history.")
-            context['flat_payment_history'] = []
+        # payment history
+        context['histories'] = safe_qs(
+            lambda: PaymentHistory.objects.filter(client_service__client=client).order_by('-created_at'),
+            "Could not load payment history.", []
+        )
+        context['flat_payment_history'] = safe_qs(
+            lambda: get_client_payment_history(client_id=client.id),
+            "Error generating payment history.", []
+        )
 
-        # Fetch client subservices
-        try:
-            context['client_subservices'] = ClientSubService.objects.filter(
-                client_service__client=client
-            ).select_related('sub_service', 'client_service')
-        except Exception:
-            messages.error(self.request, "Could not load client subservices.")
-            context['client_subservices'] = []
+        # client subservices
+        context['client_subservices'] = safe_qs(
+            lambda: ClientSubService.objects.filter(client_service__client=client)
+                                            .select_related('sub_service', 'client_service'),
+            "Could not load client subservices.", []
+        )
 
-        # Fetch and annotate services
+        # ------------------ BOOKINGS REFACTOR ------------------
         try:
-            services_qs = ClientService.objects.filter(client=client)
-            services_qs = services_qs.select_related('service')
+            services_qs = ClientService.objects.filter(client=client).select_related('service')
+
             services_qs = services_qs.prefetch_related(
-                'payments', 'sub_services',
+                'payments',
+                'sub_services',
                 Prefetch(
                     'service_processes',
                     queryset=ClientServiceProcess.objects.select_related('process')
-                    .order_by('process__step_order')
-                )
+                                                        .order_by('process__step_order')
+                ),
+                Prefetch(
+                    'bookings',
+                    queryset=Booking.objects.order_by('-scheduled_date'),
+                    to_attr='prefetched_bookings'
+                ),
             ).order_by('-requested_at')
 
-            # Annotate latest_process and needs_collection
             for cs in services_qs:
-                # existing annotations…
+                # annotate helper props
                 cs.latest_process = cs.service_processes.last() if cs.service_processes.exists() else None
                 cs.needs_collection = cs.service.requires_title_collection
                 try:
@@ -489,34 +524,47 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
                 except TitleDeedCollection.DoesNotExist:
                     cs.has_title_deed_collection = False
 
-                # --- NEW ground_data dict ---
-                try:
-                    booking = cs.ground_booking  # may raise DoesNotExist
-                    cs.ground_data = {
-                        'scheduled_date': booking.scheduled_date,
-                        'dispatch_message': booking.dispatch_message,
-                    }
-                except ObjectDoesNotExist:
-                    cs.ground_data = {
-                        'scheduled_date': None,
-                        'dispatch_message': None,
-                    }
+                # normalize bookings into a flat list of SimpleNamespace objects
+                # Ensure ground_data is always a list, even if empty
+                prefetched_bookings = getattr(cs, 'prefetched_bookings', [])
+                cs.ground_data = [
+                    SimpleNamespace(
+                        id=b.id,
+                        scheduled_date=b.scheduled_date,
+                        dispatch_message=b.dispatch_message,
+                        created_at=b.created_at,
+                        handled=getattr(b, 'handled', False),
+                    )
+                    for b in prefetched_bookings
+                ] if prefetched_bookings else []  # Ensure it's always a list
 
             context['all_services'] = services_qs
+
+            # optional focus on one service
+            service_id = self.request.GET.get('service_id')
+            if service_id:
+                current = next((s for s in services_qs if str(s.id) == str(service_id)), None)
+                context['current_service'] = current
+                context['service_bookings'] = current.ground_data if current else []
+            else:
+                context['current_service'] = None
+                context['service_bookings'] = []
 
         except Exception:
             messages.error(self.request, "Could not load client services.")
             context['all_services'] = []
+            context['service_bookings'] = []
+            context['current_service'] = None
+        # ------------------ END BOOKINGS ------------------
 
-        # Fetch message logs
-        try:
-            context['message_logs'] = MessageLog.objects.filter(
-                client=client
-            ).order_by('-timestamp')
-        except Exception:
-            context['message_logs'] = []
 
-        # Fetch documents
+        # message logs
+        context['message_logs'] = safe_qs(
+            lambda: MessageLog.objects.filter(client=client).order_by('-timestamp'),
+            "Could not load message logs.", []
+        )
+
+        # docs
         try:
             context['doc_types'] = DocType.objects.all()
             context['client_docs'] = ClientDoc.objects.filter(client=client)
@@ -525,7 +573,7 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
             context['doc_types'] = []
             context['client_docs'] = []
 
-        # Prepare forms
+        # forms
         context.update({
             'client_service_form': ClientServiceForm(initial={'client': client}),
             'client_subservice_form': ClientSubServiceForm(),
@@ -537,6 +585,11 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
         })
 
         return context
+
+
+
+
+
 
 
 def client_list(request):
@@ -630,87 +683,90 @@ def edit_client(request, client_id):
     return redirect(reverse('client_details', kwargs={'client_id': client_id}))
 
 
+
+
 class ClientServiceCreateView(CreateView):
     model = ClientService
     form_class = ClientServiceForm
 
     def form_valid(self, form):
         try:
-            # Save the ClientService object first
-            client_service = form.save(commit=False)
+            with transaction.atomic():
+                client_service = form.save(commit=False)
 
-            # Optional scheduled date and dispatch message
-            scheduled_date = self.request.POST.get('scheduled_date')
-            dispatch_message = self.request.POST.get('dispatch_message')
+                client_service.scheduled_date = self.request.POST.get('scheduled_date') or None
+                client_service.dispatch_message = self.request.POST.get('dispatch_message') or None
 
-            if scheduled_date:
-                client_service.scheduled_date = scheduled_date
-            if dispatch_message:
-                client_service.dispatch_message = dispatch_message
-
-            client_service.save()
-
-            # Handle custom process costs
-            process_ids = self.request.POST.getlist('process_id[]')
-            process_costs = self.request.POST.getlist('process_cost[]')
-
-            if process_ids and process_costs:
-                for pid, cost_str in zip(process_ids, process_costs):
-                    try:
-                        cost = Decimal(cost_str)
-                        csp = client_service.service_processes.get(process_id=pid)
-                        csp.overridden_cost = cost
-                        csp.save(update_fields=['overridden_cost'])
-                    except (ClientServiceProcess.DoesNotExist, InvalidOperation):
-                        continue
-            else:
-                # Handle override total price if no processes exist
                 override_total_price = self.request.POST.get('override_total_price')
                 if override_total_price:
                     try:
                         client_service.overridden_total_price = Decimal(override_total_price)
-                        client_service.save(update_fields=['overridden_total_price'])
                     except InvalidOperation:
-                        messages.warning(
-                            self.request, "⚠️ Invalid total price override. Ignored."
-                        )
+                        client_service.overridden_total_price = None
+                        messages.warning(self.request, "⚠️ Invalid total price override. Ignored.")
+
+                client_service.save()
+
+                # Delegate to shared helper (is_new=True ensures sync-add happens)
+                apply_client_service_logic(
+                    cs=client_service,
+                    service=client_service.service,
+                    post_data=self.request.POST,
+                    is_new=True
+                )
 
             messages.success(self.request, "✅ Service assigned successfully.")
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'client_service_id': client_service.pk})
 
         except Exception as e:
+            logger.exception("Error creating ClientService: %s", e)
             messages.error(self.request, f"❌ An unexpected error occurred: {str(e)}")
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
     def form_invalid(self, form):
-        return JsonResponse({
-            'success': False,
-            'errors': form.errors,
-        }, status=400)
+        return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+
+
 
 
 def edit_client_service(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
     if request.method == 'POST':
-        # Assuming ClientService has fields: service, category, cost, etc.
-        service = request.POST.get('service')
-        category = request.POST.get('category')
-        cost = request.POST.get('cost')  # Modify according to your form fields
+        client_service_id = request.POST.get('client_service_id')
+        client_service = get_object_or_404(ClientService, id=client_service_id, client=client)
 
-        # Update the client service or create a new one as needed
-        client_service = ClientService.objects.filter(client=client).first()
-        if client_service:
-            client_service.service = service
-            client_service.category = category
-            client_service.cost = cost
-            client_service.save()
+        try:
+            with transaction.atomic():
+                new_service = get_object_or_404(Service, id=request.POST.get('service'))
+                service_changed = client_service.service_id != new_service.id  # <-- check before overwrite
 
-        # After the update, redirect to the client detail page
-        return redirect('clientdetail', client_id=client.id)
+                client_service.service = new_service
+                client_service.land_description = request.POST.get('land_description', '')
 
-    # If the request method is GET, simply render the template
+                if new_service.category == ServiceCategory.GROUND:
+                    client_service.scheduled_date = request.POST.get('scheduled_date') or None
+                    client_service.dispatch_message = request.POST.get('dispatch_preview') or None
+
+                client_service.save()
+
+                apply_client_service_logic(
+                    cs=client_service,
+                    service=new_service,
+                    post_data=request.POST,
+                    is_new=service_changed  # 👈 treat as "new" if service changed
+                )
+
+            return JsonResponse({'success': True, 'message': '✅ Service updated successfully.'})
+
+        except Exception as e:
+            logger.exception("Error updating ClientService: %s", e)
+            return JsonResponse({'success': False, 'error': f'❌ Failed to update service: {str(e)}'}, status=500)
+
     return render(request, 'edit_client_service.html', {'client': client})
+
+
+
 
 
 def search_clients(request):
@@ -797,6 +853,7 @@ class ManagementView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from .forms import GoogleDriveConfigForm
 
         # Data fetching with error handling
         context['services'] = Service.objects.prefetch_related('processes').all()
@@ -822,7 +879,28 @@ class ManagementView(TemplateView):
             context['settings'] = site_settings  # <-- always define this
             context['settings_form'] = SiteSettingsForm()
             messages.warning(self.request, "Site settings not found. You can create new settings.")
+            
+          # --- NEW: Ensure Drive flags are always in context ---
+        gdrive_initial = {
+            'google_drive_enabled': bool(getattr(site_settings, 'google_drive_enabled', False)),
+            'google_drive_root_folder_id': getattr(site_settings, 'google_drive_root_folder_id', '') or '',
+            'google_oauth_client_id': getattr(site_settings, 'google_oauth_client_id', '') or '',
+            'google_oauth_client_secret': '',  # Always keep blank for security
+            'drive_auto_folder_creation': bool(getattr(site_settings, 'drive_auto_folder_creation', True)),
+            'drive_file_naming_pattern': getattr(site_settings, 'drive_file_naming_pattern', '{client_id}/{year}/{month}/{filename}'),
+        }
+        context['gdrive_form'] = GoogleDriveConfigForm(initial=gdrive_initial)
 
+        # expose the flags that the partial expects
+        context['site_settings'] = site_settings
+        # the boolean whether an encrypted key exists
+        context['has_encrypted_key'] = bool(getattr(site_settings, 'google_drive_service_account_key_encrypted', None))
+        context['service_account_email'] = getattr(site_settings, 'google_drive_service_account_email', None)
+        # connection_status computed with helper (returns dict)
+        from apps.EasyDocs.files.utils import get_connection_status
+        context['connection_status'] = get_connection_status(site_settings)
+        
+        
         # Ensure `sms_token` key is always present
         try:
             sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)
