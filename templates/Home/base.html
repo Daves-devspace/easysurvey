@@ -250,36 +250,30 @@
 
             </ul>
             <!-- Sidebar Bottom User Section -->
-<div class="sidebar-bottom mt-auto mb-3 px-3">
-    <div class="card shadow-sm text-center">
-        <div class="card-body d-flex align-items-center justify-content-between p-2">
-            <!-- Avatar -->
-            <div class="flex-shrink-0">
-                <img src="{{ employee_avatar_url }}" 
-                     alt="{{ request.user.get_full_name|default:'User' }}" 
-                     class="rounded-circle user-avatar" 
-                     style="width: 48px; height: 48px; object-fit: cover;"
-                     onerror="this.onerror=null; this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
-            </div>
-            
-            <!-- User Info -->
-            <div class="flex-grow-1 ms-2 text-start">
-                <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
-                <small class="text-muted">{{ employee_role }}</small>
-            </div>
-            
-            <!-- Dropdown for quick actions -->
-            <div class="flex-shrink-0 ms-2">
-                <a class="dropdown-toggle text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="{% url 'employee-dashboard' %}">Profile</a></li>
-                    <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
-                </ul>
+<!-- Bottom User Card -->
+    <div class="sidebar-bottom p-3">
+        <div class="card shadow-sm text-center">
+            <div class="card-body d-flex align-items-center justify-content-between p-2">
+                <div class="flex-shrink-0">
+                    <img src="{{ employee_avatar_url }}" 
+                         alt="{{ request.user.get_full_name|default:'User' }}" 
+                         class="rounded-circle user-avatar" style="width:48px;height:48px;object-fit:cover;"
+                         onerror="this.onerror=null;this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
+                </div>
+                <div class="flex-grow-1 ms-2 text-start">
+                    <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
+                    <small class="text-muted">{{ employee_role }}</small>
+                </div>
+                <div class="flex-shrink-0 ms-2">
+                    <a class="dropdown-toggle text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"></a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'employee-dashboard' %}">Profile</a></li>
+                        <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
             
         </div>
@@ -408,14 +402,18 @@
                                 {% if request.user.is_authenticated %}
                                     {% with request.user.employeeprofile as profile %}
                                         {% if profile and profile.profile_picture %}
-                                            <img src="{{ profile.profile_picture.url }}" alt="user-image" class="user-avtar">
+                                            <img src="{{ employee_avatar_url }}" 
+                                        alt="{{ request.user.get_full_name|default:'User' }}" 
+                                        class="rounded-circle user-avatar " 
+                                        style="width: 35px; height: 35px; object-fit: cover;"
+                                        onerror="this.onerror=null; this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
                                         {% else %}
                                             <img src="{% static 'assets/images/user/avatar-2.jpg' %}" alt="user-image" class="user-avtar">
                                         {% endif %}
                                     {% endwith %}
                                 {% endif %}
 
-                                <span>{% display_user_role request.user %}</span>
+                                <span class="p-2">{% display_user_role request.user %}</span>
                             </a>
 
 
@@ -429,12 +427,20 @@
                                     data-bs-toggle="dropdown" href="#" role="button"
                                     aria-haspopup="false" data-bs-auto-close="outside"
                                     aria-expanded="false">
-                                        {% if request.user.employeeprofile.profile_picture %}
-                                            <img src="{{ request.user.employeeprofile.profile_picture.url }}" alt="user-image" class="user-avtar">
+                                        {% if request.user.is_authenticated %}
+                                    {% with request.user.employeeprofile as profile %}
+                                        {% if profile and profile.profile_picture %}
+                                            <img src="{{ employee_avatar_url }}" 
+                                        alt="{{ request.user.get_full_name|default:'User' }}" 
+                                        class="rounded-circle user-avatar" 
+                                        style="width: 35px; height: 35px; object-fit: cover;"
+                                        onerror="this.onerror=null; this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
                                         {% else %}
                                             <img src="{% static 'assets/images/user/avatar-2.jpg' %}" alt="user-image" class="user-avtar">
                                         {% endif %}
-                                        <span>{% display_user_role request.user %}</span>
+                                    {% endwith %}
+                                {% endif %}
+                                        <span class="p-2">{% display_user_role request.user %}</span>
                                     </a>
 
 
