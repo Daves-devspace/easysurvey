@@ -31,20 +31,20 @@
               {% endif %}
             </td>
             <td class="text-end">
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary open-booking-modal"
-                data-action="edit"
-                data-url="{% url 'edit_booking' gd.id %}"
-                data-booking-id="{{ gd.id }}"
-                data-scheduled="{{ gd.scheduled_date|date:'Y-m-d\\TH:i' }}"
-                data-message="{{ gd.dispatch_message|escapejs }}"
-                data-client-name="{{ cs.client.first_name }}"
-                data-service-name="{{ cs.service.name }}"
-                data-service-id="{{ cs.id }}"
-                data-service-id-label="{{ cs.service.name }}">
-                <i class="fas fa-edit"></i> Edit
-              </button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary open-booking-modal"
+              data-action="edit"
+              data-url="{% url 'edit_booking' gd.id %}"
+              data-booking-id="{{ gd.id }}"
+              data-scheduled="{{ gd.scheduled_date|date:'Y-m-d\\TH:i' }}"
+              data-message="{{ gd.dispatch_message|escapejs }}"
+              data-client-name="{{ cs.client.first_name }}"
+              data-service-name="{{ cs.service.name }}"
+              data-service-id="{{ cs.id }}"
+              data-service-id-label="{{ cs.service.name }}">
+              <i class="fas fa-edit"></i> Edit
+            </button>
             </td>
           </tr>
         {% endfor %}

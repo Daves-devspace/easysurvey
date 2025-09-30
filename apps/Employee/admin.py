@@ -1,19 +1,25 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from .forms import UnifiedEmployeeProfileForm
 from .models import (
     EmployeeProfile, EmployeeSalary,
     AllowanceTemplate, DeductionTemplate,
     Payroll, AllowanceSnapshot, DeductionSnapshot
 )
 
+User = get_user_model()
 
+
+# -------------------------
+# Employee Salary
+# -------------------------
 @admin.register(EmployeeSalary)
 class EmployeeSalaryAdmin(admin.ModelAdmin):
-    list_display = ('amount', 'effective_from', 'effective_to')
+    list_display = ('employee', 'amount', 'effective_from', 'effective_to')
+    list_filter = ('effective_from', 'effective_to')
+    search_fields = ('employee__user__first_name', 'employee__user__last_name')
 
 
-#
-# Inlines for EmployeeProfil
-#
 class EmployeeSalaryInline(admin.TabularInline):
     model = EmployeeSalary
     extra = 1
@@ -21,6 +27,9 @@ class EmployeeSalaryInline(admin.TabularInline):
     ordering = ('-effective_from',)
 
 
+# -------------------------
+# Allowance / Deduction Templates
+# -------------------------
 class AllowanceTemplateInline(admin.TabularInline):
     model = AllowanceTemplate
     extra = 1
@@ -35,8 +44,9 @@ class DeductionTemplateInline(admin.TabularInline):
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(admin.ModelAdmin):
-    list_display = ('user_full_name', 'department', 'role', 'phone_number')
-    search_fields = ('user__first_name', 'user__last_name', 'department')
+    form = UnifiedEmployeeProfileForm  # <--- unified form here
+    list_display = ('user_full_name', 'department', 'role', 'phone_number', 'email')
+    search_fields = ('user__first_name', 'user__last_name', 'user__email', 'department')
     list_filter = ('department', 'role')
     inlines = [EmployeeSalaryInline, AllowanceTemplateInline, DeductionTemplateInline]
 
@@ -44,10 +54,23 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
         return obj.user.get_full_name()
     user_full_name.short_description = 'Name'
 
+    def email(self, obj):
+        return obj.user.email
+    email.admin_order_field = 'user__email'
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # pass the current user to the form
+        class FormWithUser(form):
+            def __new__(cls, *args, **fkwargs):
+                fkwargs['user'] = request.user
+                return form(*args, **fkwargs)
+        return FormWithUser
 
-#
-# Inlines for Payroll
-#
+
+# -------------------------
+# Payroll and Snapshots
+# -------------------------
 class AllowanceSnapshotInline(admin.TabularInline):
     model = AllowanceSnapshot
     extra = 0
@@ -66,7 +89,8 @@ class DeductionSnapshotInline(admin.TabularInline):
 class PayrollAdmin(admin.ModelAdmin):
     list_display = (
         'employee_full_name',
-        'month', 'gross_salary', 'total_allowances', 'total_deductions', 'net_salary',
+        'month', 'gross_salary', 'total_allowances',
+        'total_deductions', 'net_salary',
         'is_paid', 'paid_on'
     )
     list_filter = ('is_paid', 'month')
@@ -79,18 +103,18 @@ class PayrollAdmin(admin.ModelAdmin):
     employee_full_name.short_description = 'Employee'
 
 
-#
-# Separate admin for templates (optional)
-#
+# -------------------------
+# Separate Template Admins (Optional)
+# -------------------------
 @admin.register(AllowanceTemplate)
 class AllowanceTemplateAdmin(admin.ModelAdmin):
     list_display = ('employee', 'name', 'amount', 'recurring', 'start_date', 'end_date')
-    list_filter = ('recurring',)
+    list_filter = ('recurring', 'start_date', 'end_date')
     search_fields = ('name', 'employee__user__first_name', 'employee__user__last_name')
 
 
 @admin.register(DeductionTemplate)
 class DeductionTemplateAdmin(admin.ModelAdmin):
     list_display = ('employee', 'name', 'amount', 'recurring', 'start_date', 'end_date')
-    list_filter = ('recurring',)
+    list_filter = ('recurring', 'start_date', 'end_date')
     search_fields = ('name', 'employee__user__first_name', 'employee__user__last_name')

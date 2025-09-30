@@ -64,6 +64,7 @@ def get_calendar_events(start=None, end=None, include_handled=True):
 
 
 # -- Create
+
 class BookingCreateView(CreateView):
     model = Booking
     fields = ['scheduled_date', 'dispatch_message']
@@ -79,7 +80,7 @@ class BookingCreateView(CreateView):
         sched = timezone.localtime(booking.scheduled_date)
         sched_str = sched.strftime('%a, %d %b %Y %H:%M')
 
-        # Check for AJAX request more explicitly
+        # Check for AJAX request
         is_ajax = (
             self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
             self.request.content_type == 'application/json'
@@ -91,23 +92,34 @@ class BookingCreateView(CreateView):
                 'id': booking.id,
                 'scheduled_date': sched_str,
                 'dispatch_message': booking.dispatch_message or '',
-            })
+            }, json_dumps_params={'ensure_ascii': False})  # Add this line
 
+        messages.success(self.request, 'Booking created successfully!')
         return redirect('client_details', client_id=client_service.client.id)
 
     def form_invalid(self, form):
-        # Check for AJAX request more explicitly
+        # Check for AJAX request
         is_ajax = (
             self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
             self.request.content_type == 'application/json'
         )
         
         if is_ajax:
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            # Return formatted errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False, 
+                'errors': errors,
+                'error': 'Please correct the errors below.'
+            }, status=400, json_dumps_params={'ensure_ascii': False})  
+        
+        messages.error(self.request, 'Please correct the errors below.')
         return super().form_invalid(form)
 
 
-# -- Update
 class BookingUpdateView(UpdateView):
     model = Booking
     fields = ['scheduled_date', 'dispatch_message']
@@ -118,22 +130,43 @@ class BookingUpdateView(UpdateView):
         sched = timezone.localtime(booking.scheduled_date)
         sched_str = sched.strftime('%a, %d %b %Y %H:%M')
 
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
             return JsonResponse({
                 'success': True,
                 'scheduled_date': sched_str,
                 'dispatch_message': booking.dispatch_message or '',
-            })
+            }, json_dumps_params={'ensure_ascii': False})  # Add this line
 
+        messages.success(self.request, 'Booking updated successfully!')
         return redirect('client_details', client_id=booking.client_service.client.id)
 
     def form_invalid(self, form):
-        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            # Return formatted errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False, 
+                'errors': errors,
+                'error': 'Please correct the errors below.'
+            }, status=400, json_dumps_params={'ensure_ascii': False})  
+        
+        messages.error(self.request, 'Please correct the errors below.')
         return super().form_invalid(form)
-
-
-
 
 
 class BookingCalendarJSON(View):

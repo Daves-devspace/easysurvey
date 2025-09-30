@@ -35,7 +35,13 @@
             </div>
         </div>
     </div>
+
+
     <!-- [ breadcrumb ] end -->
+
+    <div id="booking-messages" class="container-fluid col-lg-12">
+    <!-- AJAX booking messages will appear here -->
+</div>
     <div class="container-fluid col-lg-12">
     {% if messages %}
         {% for message in messages %}
@@ -913,14 +919,29 @@
 
 
                                 <div class="card">
-                                    <div class="card-header">
-
-                                        <!-- Trigger button -->
-                                        <button type="button" class="btn btn-success mb-3"
-                                                data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-                                            Add New Document
-                                        </button>
-
+                                    
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5>Documents</h5>
+                                        <div>
+                                            <!-- Existing buttons -->
+                                            <!-- Trigger button -->
+                                                                        <button type="button" class="btn btn-success mb-3"
+                                                                                data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                                                                            Add New Document
+                                                                        </button>
+                                            
+                                            <!-- Migration Button (show only if Drive is configured) -->
+                                            {% if site_settings.google_drive_enabled %}
+                                            <form method="POST" action="{% url 'migrate_client_docs_to_drive' client.id %}" 
+                                                style="display: inline;" 
+                                                onsubmit="return confirm('Migrate all local documents to Google Drive?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                    <i class="ti ti-cloud-upload"></i> Migrate to Drive
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                     <div class="card-body table-card">
                                         <div class="table-responsive mt-3">
@@ -2041,7 +2062,12 @@
           <div class="mb-3">
             <label class="form-label">Dispatch Message</label>
             <textarea name="dispatch_message" class="form-control message-input" rows="3"></textarea>
-            <div class="form-text">You may refine this message before sending.</div>
+            <div class="form-text d-flex justify-content-between align-items-center">
+              <span>You may refine this message before sending.</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary reset-template-btn">
+                <i class="fas fa-sync-alt me-1"></i> Reset to Template
+              </button>
+            </div>
           </div>
 
           {# Optional: small helper text showing client & service (populated by JS) #}
@@ -2061,9 +2087,6 @@
     </div>
   </div>
 </div>
-
-
-
 
 
 

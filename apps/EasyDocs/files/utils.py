@@ -23,54 +23,101 @@ DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive']
 # --- DriveAdapter: unifies the API used by UnifiedStorage ---
 class DriveAdapter:
     def __init__(self, service, root_folder_id=None, source='service_account', credentials=None):
-        """
-        service: googleapiclient service instance (drive v3)
-        root_folder_id: optional root folder (Shared Drive id or My Drive folder id)
-        source: 'service_account' or 'oauth'
-        credentials: oauth Credentials object if available
-        """
         self.service = service
         self.root_folder_id = root_folder_id
         self.source = source
         self.credentials = credentials
+        self._folder_cache = {}  # Add cache
 
-    # create file, return drive file id
+    def _ensure_folder(self, folder_name: str, parent_id: str) -> str:
+        """Ensure a folder exists, return its ID"""
+        cache_key = (folder_name, parent_id)
+        if cache_key in self._folder_cache:
+            return self._folder_cache[cache_key]
+
+        try:
+            # Search for existing folder
+            query = (
+                f"name = '{folder_name}' and "
+                f"mimeType = 'application/vnd.google-apps.folder' and "
+                f"'{parent_id}' in parents and trashed = false"
+            )
+            results = self.service.files().list(
+                q=query, 
+                spaces="drive", 
+                fields="files(id, name)", 
+                pageSize=1
+            ).execute()
+            
+            items = results.get("files", [])
+            if items:
+                folder_id = items[0]["id"]
+                logger.info(f"📂 Found existing folder '{folder_name}' (ID: {folder_id})")
+            else:
+                # Create new folder
+                file_metadata = {
+                    "name": folder_name,
+                    "mimeType": "application/vnd.google-apps.folder",
+                    "parents": [parent_id]
+                }
+                folder = self.service.files().create(
+                    body=file_metadata, 
+                    fields="id, name"
+                ).execute()
+                folder_id = folder["id"]
+                logger.info(f"📂 Created new folder '{folder_name}' (ID: {folder_id})")
+            
+            self._folder_cache[cache_key] = folder_id
+            return folder_id
+            
+        except Exception as e:
+            logger.error(f"Failed to ensure folder '{folder_name}': {e}")
+            raise
+
     def _save(self, name, content):
-        # name is the desired Drive filename (you can use folders in the name, we'll set parents)
-        # content is a file-like (UploadedFile or BytesIO)
+        """Save file with folder structure"""
         try:
             if hasattr(content, 'seek'):
                 content.seek(0)
+            
+            # Parse path
+            parts = name.strip("/").split("/")
+            filename = parts[-1]
+            folders = parts[:-1]
+            
+            # Create folder structure
+            parent_id = self.root_folder_id
+            for folder_name in folders:
+                parent_id = self._ensure_folder(folder_name, parent_id)
+            
+            # Upload file
             media = MediaIoBaseUpload(
                 io.BytesIO(content.read()) if not isinstance(content, bytes) else io.BytesIO(content),
                 mimetype='application/octet-stream',
                 resumable=True
             )
 
-            metadata = {'name': os.path.basename(name)}
-            parents = []
-
-            # if root_folder_id is configured, use it
-            if self.root_folder_id:
-                parents.append(self.root_folder_id)
-
-            # If name contains folder path, create nested folders inside root (optional: keep simple)
-            # Simpler: store name as a path in the file name or handle folder creation elsewhere
-            if parents:
-                metadata['parents'] = parents
+            metadata = {
+                'name': filename,
+                'parents': [parent_id]
+            }
 
             created = self.service.files().create(
                 body=metadata,
                 media_body=media,
                 fields='id'
             ).execute()
+            
+            logger.info(f"✅ File '{filename}' uploaded to folder {parent_id}")
             return created.get('id')
+            
         except HttpError as e:
             logger.error("Google Drive upload HttpError: %s", e)
             raise
         except Exception as e:
             logger.error("Google Drive upload failed: %s", e)
             raise
+        
 
     def _open(self, file_id):
         try:

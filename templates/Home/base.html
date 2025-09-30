@@ -87,6 +87,14 @@
     border-radius: 50%;
     object-fit: cover;
 }
+.sidebar-bottom {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
+.user-avatar {
+    border: 2px solid #0a6c5e; /* brand color */
+}
 
 </style>
 
@@ -121,6 +129,7 @@
 
 
         <div class="navbar-content">
+
             <ul class="pc-navbar">
                 <li class="pc-item">
                     <a href="{% url 'home' %}" class="pc-link">
@@ -240,17 +249,42 @@
 
 
             </ul>
-            <div class="card text-center">
-                <div class="card-body">
-                    {% comment %} <img src="{% static 'assets/images/assistant-svgrepo-com.svg' %}" style="height: 80px; width:80px;"
-                         alt="images"
-                         class="img-fluid mb-2">
-                    <h5>🤔 Not sure what to do next? </h5>
-                    <a href="" target="_blank"
-                       class="btn btn-success">Start chat</a> {% endcomment %}
-                </div>
+            <!-- Sidebar Bottom User Section -->
+<div class="sidebar-bottom mt-auto mb-3 px-3">
+    <div class="card shadow-sm text-center">
+        <div class="card-body d-flex align-items-center justify-content-between p-2">
+            <!-- Avatar -->
+            <div class="flex-shrink-0">
+                <img src="{{ employee_avatar_url }}" 
+                     alt="{{ request.user.get_full_name|default:'User' }}" 
+                     class="rounded-circle user-avatar" 
+                     style="width: 48px; height: 48px; object-fit: cover;"
+                     onerror="this.onerror=null; this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
+            </div>
+            
+            <!-- User Info -->
+            <div class="flex-grow-1 ms-2 text-start">
+                <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
+                <small class="text-muted">{{ employee_role }}</small>
+            </div>
+            
+            <!-- Dropdown for quick actions -->
+            <div class="flex-shrink-0 ms-2">
+                <a class="dropdown-toggle text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'employee-dashboard' %}">Profile</a></li>
+                    <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                </ul>
             </div>
         </div>
+    </div>
+</div>
+
+            
+        </div>
+
+        
     </div>
 </nav>
 <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->

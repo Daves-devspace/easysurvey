@@ -23,6 +23,17 @@ class EmployeeProfile(models.Model):
         choices=RoleChoices.choices,
         default=RoleChoices.FRONTOFFICE
     )
+    
+    def get_avatar_url(self):
+        """Returns the profile picture URL or None if invalid/missing"""
+        if self.profile_picture:
+            try:
+                # Check if file exists before returning URL
+                if self.profile_picture.storage.exists(self.profile_picture.name):
+                    return self.profile_picture.url
+            except Exception:
+                pass
+        return None
 
     def latest_payroll(self):
         payrolls = getattr(self, 'latest_payrolls', None)
