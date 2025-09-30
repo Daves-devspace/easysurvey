@@ -2,6 +2,63 @@
 document.addEventListener('DOMContentLoaded', () => {
   const DEBUG = false; // set true while debugging
 
+  // Function to decode Unicode escape sequences
+  function decodeUnicodeEscapes(str) {
+    if (!str) return str;
+    return str.replace(/\\u[\dA-F]{4}/gi, function(match) {
+      return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
+    });
+  }
+
+  // Function to safely encode for HTML attributes
+  function safeAttributeEncode(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  // Show message function
+  function showMessage(message, type = 'info') {
+    const messageContainer = document.getElementById('booking-messages');
+    if (!messageContainer) return;
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    messageContainer.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds for success messages
+    if (type === 'success') {
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+  }
+
+  // Format form errors for display
+  function formatFormErrors(errors) {
+    if (typeof errors === 'string') return errors;
+    
+    let errorMessages = [];
+    for (const field in errors) {
+        if (Array.isArray(errors[field])) {
+            errorMessages.push(...errors[field]);
+        } else if (typeof errors[field] === 'string') {
+            errorMessages.push(errors[field]);
+        }
+    }
+    return errorMessages.join('<br>');
+  }
+
   // Build full + short dispatch messages
   function buildDispatchMessage(clientName, svcName, dateValue, isGround=false) {
     if (!dateValue) return { full: '', short: '' };
@@ -52,14 +109,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tr = document.createElement('tr');
     tr.id = `booking-row-${booking.id}`;
+    
+    // Decode any Unicode escapes in the message
+    const decodedMessage = decodeUnicodeEscapes(booking.dispatch_message || '');
+    
     tr.innerHTML = `
-      <td>${booking.id}</td>
+      <td>${tbody.rows.length + 1}</td>
       <td>${booking.scheduled_date}</td>
       <td>
         <span id="msg-preview-${booking.id}" class="preview-with-tooltip"
-              data-bs-toggle="tooltip" title="${booking.dispatch_message || ''}">
-          ${(booking.dispatch_message||'').slice(0,60)}${(booking.dispatch_message?.length>60)?'…':''}
+              data-bs-toggle="tooltip" title="${safeAttributeEncode(decodedMessage)}">
+          ${decodedMessage.slice(0,60)}${decodedMessage.length > 60 ? '…' : ''}
         </span>
+      </td>
+      <td class="text-end">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary open-booking-modal"
+          data-action="edit"
+          data-url="/booking/${booking.id}/edit/"
+          data-booking-id="${booking.id}"
+          data-scheduled="${booking.scheduled_date}"
+          data-message="${safeAttributeEncode(decodedMessage)}"
+          data-client-name="${table.dataset.clientName || ''}"
+          data-service-name="${table.dataset.serviceName || ''}"
+          data-service-id="${table.dataset.serviceId || ''}">
+          <i class="fas fa-edit"></i> Edit
+        </button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -75,20 +151,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const previewSpan = document.getElementById(`msg-preview-${bookingId}`);
     if (previewSpan) {
-      const short = dispatch_message.length > 60 ? dispatch_message.slice(0, 60) + '…' : dispatch_message;
-      previewSpan.textContent = short;
-      previewSpan.setAttribute('title', dispatch_message);
-      initTooltip(previewSpan);
+        // Decode any Unicode escapes in the message
+        const decodedMessage = decodeUnicodeEscapes(dispatch_message);
+        const short = decodedMessage.length > 60 ? decodedMessage.slice(0, 60) + '…' : decodedMessage;
+        previewSpan.textContent = short;
+        previewSpan.setAttribute('title', decodedMessage);
+        initTooltip(previewSpan);
     }
     return true;
+  }
+
+  // Add reset template functionality
+  function setupResetTemplateButton() {
+    document.querySelectorAll('.reset-template-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const form = this.closest('form');
+        const dateInput = form.querySelector('.scheduled-date-input');
+        const msgInput = form.querySelector('.message-input');
+        
+        const realSvcName = resolveName(form.dataset.serviceName, form.dataset.serviceId, 'service');
+        const realClientName = resolveName(form.dataset.clientName, form.dataset.serviceId, 'client');
+        const isGround = form.dataset.isGround === 'true';
+        
+        if (dateInput.value) {
+          const { full } = buildDispatchMessage(realClientName, realSvcName, dateInput.value, isGround);
+          msgInput.value = full;
+          delete msgInput.dataset.userEdited;
+        }
+      });
+    });
   }
 
   // Initialize booking form (modal or inline)
   function initBookingForm(form) {
     if (!form) return;
 
-    let clientName = form.dataset.clientName || '';
-    let svcName = form.dataset.serviceName || '';
     const serviceId = form.dataset.serviceId || null;
     const bookingId = form.dataset.bookingId || null;
     const isGround = form.dataset.isGround === 'true';
@@ -97,22 +194,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const msgInput = form.querySelector('.message-input');
     const previewSpan = bookingId ? document.getElementById(`msg-preview-${bookingId}`) : null;
 
-    // clientName = resolveName(clientName, serviceId, 'client');
-    // svcName = resolveName(svcName, serviceId, 'service');
-
-    if (DEBUG) console.log('initBookingForm resolved', { clientName, svcName, isGround, serviceId, bookingId });
+    if (DEBUG) console.log('initBookingForm resolved', { serviceId, bookingId, isGround });
 
     if (msgInput) {
       msgInput.addEventListener('input', () => msgInput.dataset.userEdited = 'true');
     }
 
     if (dateInput) {
-     dateInput.addEventListener('input', () => {
-      const realSvcName = resolveName(form.dataset.serviceName, form.dataset.serviceId, 'service');
-      const realClientName = resolveName(form.dataset.clientName, form.dataset.serviceId, 'client');
-      const isGround = form.dataset.isGround === 'true';
-      const { full, short } = buildDispatchMessage(realClientName, realSvcName, dateInput.value, isGround);
-
+      dateInput.addEventListener('input', () => {
+        const realSvcName = resolveName(form.dataset.serviceName, form.dataset.serviceId, 'service');
+        const realClientName = resolveName(form.dataset.clientName, form.dataset.serviceId, 'client');
+        const isGround = form.dataset.isGround === 'true';
+        const { full, short } = buildDispatchMessage(realClientName, realSvcName, dateInput.value, isGround);
 
         if (msgInput && !msgInput.dataset.userEdited) msgInput.value = full;
         if (previewSpan) {
@@ -128,18 +221,61 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', e => {
       e.preventDefault();
       const fd = new FormData(form);
+      
+      if (DEBUG) {
+        console.log('=== BOOKING FORM SUBMISSION DEBUG ===');
+        console.log('Form action:', form.action);
+        console.log('Form data entries:');
+        for (let [key, value] of fd.entries()) {
+          console.log(`  ${key}:`, value);
+        }
+      }
 
       fetch(form.action, {
         method: 'POST',
-        headers: { 'X-CSRFToken': fd.get('csrfmiddlewaretoken') },
+        headers: { 
+          'X-CSRFToken': fd.get('csrfmiddlewaretoken'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         body: fd
       })
-      .then(r => r.json())
+      .then(response => {
+        if (DEBUG) {
+          console.log('=== RESPONSE DEBUG ===');
+          console.log('Status:', response.status, response.statusText);
+          console.log('Redirected:', response.redirected);
+        }
+        
+        // Check if we got a redirect
+        if (response.redirected) {
+          throw new Error(`Request was redirected to: ${response.url}`);
+        }
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          return response.text().then(text => {
+            throw new Error(`Expected JSON but got: ${contentType}. Body: ${text.substring(0, 200)}`);
+          });
+        }
+        
+        return response.json();
+      })
       .then(data => {
-        if (!data) return alert('Empty response.');
+        if (DEBUG) console.log('=== SUCCESS RESPONSE ===', data);
+        
+        if (!data) {
+          showMessage('Empty response from server.', 'danger');
+          return;
+        }
 
         if (data.success) {
           const isEdit = !!form.dataset.bookingId;
+          const action = isEdit ? 'updated' : 'created';
+          
+          // Show success message
+          showMessage(`Booking successfully ${action}!`, 'success');
+          
           if (isEdit) {
             updateBookingRow(form.dataset.bookingId, data.scheduled_date, data.dispatch_message || '');
           } else {
@@ -157,14 +293,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (!isEdit) {
             form.reset();
-            delete msgInput.dataset.userEdited;
+            if (msgInput) delete msgInput.dataset.userEdited;
             delete form.dataset.bookingId;
           }
         } else {
-          alert(data.error || JSON.stringify(data.errors) || 'Save failed.');
+          // Show error message with details
+          const errorMsg = data.error || formatFormErrors(data.errors) || 'Save failed. Please check your input.';
+          showMessage(errorMsg, 'danger');
         }
       })
-      .catch(err => { console.error(err); alert('Error saving booking.'); });
+      .catch(err => { 
+        console.error('=== FETCH ERROR ===', err); 
+        showMessage('Network error: ' + err.message, 'danger');
+      });
     });
   }
 
@@ -186,8 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.open-booking-modal').forEach(btn => {
       btn.addEventListener('click', () => {
-        console.log("Raw button dataset:", btn.dataset);
-        console.log("clientName from dataset:", btn.dataset.clientName);
+        if (DEBUG) {
+          console.log("Raw button dataset:", btn.dataset);
+          console.log("clientName from dataset:", btn.dataset.clientName);
+        }
+        
         const { action, url, clientName, serviceName, serviceId, bookingId, scheduled, message, isGround } = btn.dataset;
 
         modalForm.action = url;
@@ -199,8 +343,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'edit' && bookingId) {
           modalForm.dataset.bookingId = bookingId;
           schedInput.value = scheduled || '';
-          msgInput.value = message || '';
-          if (message) msgInput.dataset.userEdited = 'true';
+          
+          // Decode the message from the button data attribute
+          const decodedMessage = decodeUnicodeEscapes(message || '');
+          msgInput.value = decodedMessage;
+          
+          // Only set userEdited if message doesn't match template pattern
+          const realSvcName = resolveName(serviceName, serviceId, 'service');
+          const realClientName = resolveName(clientName, serviceId, 'client');
+          const { full: expectedTemplate } = buildDispatchMessage(realClientName, realSvcName, scheduled, isGround === 'true');
+          
+          // If message differs from template, mark as user-edited
+          if (decodedMessage && decodedMessage !== expectedTemplate) {
+            msgInput.dataset.userEdited = 'true';
+          }
         } else {
           delete modalForm.dataset.bookingId;
           schedInput.value = '';
@@ -222,6 +378,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   })();
+
+  // Setup reset template buttons
+  setupResetTemplateButton();
 
   // Init inline forms + tooltips
   document.querySelectorAll('.booking-form:not(#bookingModal form.booking-form)').forEach(f => initBookingForm(f));

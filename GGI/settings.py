@@ -88,6 +88,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.EasyDocs.context_processors.site_settings',
+                'apps.EasyDocs.context_processors.employee_profile_context',
             ],
         },
     },
@@ -277,8 +278,8 @@ BOT_MAX_PAYLOAD_BYTES = os.getenv("BOT_MAX_PAYLOAD_BYTES", 32 * 1024)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-#ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+#ALLOWED_HOSTS = ['*']
 
 if DEBUG:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'

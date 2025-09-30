@@ -102,12 +102,26 @@ def download_document_workflow(request, doc, as_attachment=True):
         log_audit(request.user, "download_failed", doc, request, extra=str(e))
         raise Http404("Download failed")
 
+
+
+
 def delete_document_workflow(request, doc):
     """
-    Refined delete workflow
+    Refined delete workflow - logs audit BEFORE deletion
     """
     try:
         doc_name = doc.doc_name
+        doc_id = doc.pk  # Save before deletion
+        backend = doc.storage_backend
+        
+        # Log audit BEFORE deleting (so doc.pk is still available)
+        log_audit(
+            request.user, 
+            "delete_attempt", 
+            doc, 
+            request, 
+            extra=f"Attempting to delete from {backend}"
+        )
         
         # Delete from storage
         storage_success = delete_document_from_storage(doc)
@@ -115,15 +129,15 @@ def delete_document_workflow(request, doc):
         # Delete database record
         doc.delete()
         
+        # Log success (doc is deleted, so we can't pass the instance)
+        logger.info(f"Document {doc_id} '{doc_name}' deleted. Storage delete: {storage_success}")
+        
         messages.success(request, f"'{doc_name}' deleted successfully.")
-        log_audit(request.user, "delete", doc, request, 
-                 extra=f"Storage delete: {storage_success}")
         
     except Exception as e:
-        logger.error(f"Delete failed for doc {doc.id}: {e}")
+        logger.error(f"Delete failed for doc {doc.id}: {e}", exc_info=True)
         messages.error(request, f"Delete failed: {str(e)}")
         raise
-
 # ----------------------------
 # CLIENT DOCUMENT VIEWS - REFINED
 # ----------------------------
@@ -198,7 +212,7 @@ def upload_office_document(request):
         document_type="office"
     )
     
-    return redirect(reverse("office_documents"))
+    return redirect(reverse("document_list"))
 
 def download_office_document(request, doc_id):
     doc = get_object_or_404(Document, id=doc_id)
@@ -208,7 +222,7 @@ def download_office_document(request, doc_id):
 def delete_office_document(request, doc_id):
     doc = get_object_or_404(Document, id=doc_id)
     delete_document_workflow(request, doc)
-    return redirect(reverse("office_documents"))
+    return redirect(reverse("document_list"))
 
 
 @require_POST
@@ -299,5 +313,5 @@ def migrate_all_documents_to_drive(request):
         logger.error(f"Failed to start full migration task: {e}")
         messages.error(request, f"Failed to start migration: {str(e)}")
     
-    return redirect(reverse("office_documents"))
+    return redirect(reverse("document_list"))
 

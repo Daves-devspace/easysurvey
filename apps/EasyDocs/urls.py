@@ -90,6 +90,14 @@ urlpatterns = [
     path('add-document/', file_views.upload_office_document, name='add_document'),
 
     path('documents/', file_views.office_documents, name='document_list'),
+    
+     path('clients/<int:client_id>/migrate-to-drive/', 
+         file_views.migrate_client_documents_to_drive, 
+         name='migrate_client_docs_to_drive'),
+    
+    path('documents/migrate-all-to-drive/', 
+         file_views.migrate_all_documents_to_drive, 
+         name='migrate_all_docs_to_drive'),
 
     # Client detail page
 

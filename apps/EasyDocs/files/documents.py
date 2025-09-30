@@ -1,4 +1,5 @@
 import logging
+from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMessage
 from django.shortcuts import get_object_or_404
@@ -8,59 +9,72 @@ import mimetypes
 logger = logging.getLogger(__name__)
 
 def upload_document_with_strategy(document_instance, uploaded_file):
+    """
+    Uploads a document using UnifiedStorage.
+    - Places client docs in: clients/client_<id>/<doc_type>/<timestamp>_<filename>
+    - Office docs in: office/<doc_type>/<timestamp>_<filename>
+    - No year/month subfolders (date baked into filename instead).
+    """
+
     try:
         from apps.EasyDocs.files.storage_backends import UnifiedStorage
         storage = UnifiedStorage()
 
-        # prepare relative path (same pattern you already use)
-        from django.utils import timezone
+        # Use uploaded_at if already set, otherwise use now
         now = document_instance.uploaded_at or timezone.now()
+        timestamp = now.strftime("%Y%m%d_%H%M%S")
 
+        # Decide base path: office vs client
         if document_instance.__class__.__name__ == "Document":
-            base_path = f"office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}/{now.year}/{now.month:02d}"
+            base_path = f"office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}"
         else:
-            base_path = f"clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}/{now.year}/{now.month:02d}"
+            base_path = f"clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}"
 
-        filename = f"{now.strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
+        # Build clean filename (timestamp included, no nested folders)
+        filename = f"{timestamp}_{uploaded_file.name}"
         relative_path = f"{base_path}/{filename}"
 
-        # Save
-        logger.info("Uploading document: %s", uploaded_file.name)
+        logger.info("Uploading document for %s: path=%s", 
+                    getattr(document_instance, 'client', 'office'), 
+                    relative_path)
+
+        # Perform the actual save
         saved_path, backend, drive_file_id = storage.save_with_backend(relative_path, uploaded_file)
 
-
-        # Apply results cleanly:
+        # Handle results depending on backend
         if backend == "local":
-            # write to FileField (this sets the proper field internals)
+            logger.debug("Saving file locally at %s", saved_path)
             document_instance.doc_file.save(saved_path, uploaded_file, save=False)
             document_instance.drive_file_id = None
             document_instance.drive_url = None
 
         elif backend == "drive":
-            # keep doc_file.name as relative_path (optional: set it for consistency)
-            # do not store drive file id into doc_file.name, store in drive_file_id
+            logger.debug("Saving file on Google Drive, id=%s", drive_file_id)
             document_instance.doc_file.name = saved_path
             document_instance.drive_file_id = drive_file_id
             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
 
         elif backend == "hybrid":
+            logger.debug("Hybrid save: local+drive, id=%s", drive_file_id)
             document_instance.doc_file.save(saved_path, uploaded_file, save=False)
             document_instance.drive_file_id = drive_file_id
             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
 
         else:
-            logger.error("Document upload failed: unknown backend %s", backend)
+            logger.error("Unknown backend %s while uploading %s", backend, relative_path)
             document_instance.status = "failed"
             document_instance.failure_reason = "Storage backend failure"
             document_instance.save()
             return False
 
+        # Update final metadata
         document_instance.storage_backend = backend
         document_instance.status = "uploaded"
         document_instance.failure_reason = None
         document_instance.save()
 
-        logger.info("Document saved: backend=%s saved_path=%s drive_id=%s", backend, saved_path, drive_file_id)
+        logger.info("Document upload complete: backend=%s path=%s drive_id=%s", 
+                    backend, saved_path, drive_file_id)
         return True
 
     except Exception as e:
@@ -100,10 +114,39 @@ def delete_document_from_storage(doc):
     """
     from apps.EasyDocs.files.storage_backends import UnifiedStorage
     storage = UnifiedStorage()
+    
     try:
-        return storage.delete(doc.doc_file.name, backend=doc.storage_backend)
+        backend = doc.storage_backend
+        
+        if backend == "drive":
+            # For Drive, use the drive_file_id
+            if not doc.drive_file_id:
+                logger.warning(f"Document {doc.id} has backend='drive' but no drive_file_id")
+                return False
+            
+            identifier = doc.drive_file_id
+            logger.info(f"Deleting from Drive: {identifier}")
+            
+        elif backend in ("local", "hybrid"):
+            # For local/hybrid, use the file path
+            identifier = doc.doc_file.name
+            logger.info(f"Deleting from {backend}: {identifier}")
+            
+        else:
+            logger.warning(f"Unknown storage backend: {backend}")
+            return False
+        
+        success = storage.delete(identifier, backend=backend)
+        
+        if success:
+            logger.info(f"✅ Successfully deleted document {doc.id} from {backend}")
+        else:
+            logger.warning(f"⚠️ Delete returned False for document {doc.id} from {backend}")
+            
+        return success
+        
     except Exception as e:
-        logger.error(f"❌ Storage delete failed for {doc.id}: {e}")
+        logger.error(f"❌ Storage delete failed for document {doc.id}: {e}", exc_info=True)
         return False
 
 def migrate_document_to_drive(document_instance):

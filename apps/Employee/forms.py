@@ -33,29 +33,83 @@ def generate_random_password(length=8):
 from django import forms
 from django.contrib.auth.models import User
 from .models import EmployeeProfile
+from django import forms
+from django.contrib.auth.models import User
+from .models import EmployeeProfile
 
-# —————————————————————————————
-# For superusers (or anyone without an EmployeeProfile)
-# —————————————————————————————
-class ProfileUpdateForm(forms.ModelForm):
+class UnifiedEmployeeProfileForm(forms.ModelForm):
+    # User fields
+    username = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    first_name = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
+
     class Meta:
-        model = User
-        # include username along with the other core fields
+        model = EmployeeProfile
         fields = [
-            'username',
-            'first_name',
-            'last_name',
-            'email',
+            'username', 'first_name', 'last_name', 'email',  # User fields
+            'phone_number', 'address', 'department', 'role', 'profile_picture'  # EmployeeProfile fields
         ]
         widgets = {
-            'username':   forms.TextInput(attrs={'class': 'form-control'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name':  forms.TextInput(attrs={'class': 'form-control'}),
-            'email':      forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'department': forms.TextInput(attrs={'class': 'form-control'}),
+            'role': forms.Select(attrs={'class': 'form-control'}),
+            'profile_picture': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
-        help_texts = {
-            'username': None,  # remove the default “<30 characters or fewer…” help text
-        }
+
+    def __init__(self, *args, **kwargs):
+        # pop 'user' if passed, otherwise None
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # populate user fields from related User
+        if self.instance and hasattr(self.instance, 'user'):
+            u = self.instance.user
+            self.fields['username'].initial = u.username
+            self.fields['first_name'].initial = u.first_name
+            self.fields['last_name'].initial = u.last_name
+            self.fields['email'].initial = u.email
+
+        # Permission checks (only if user is provided)
+        if self.user:
+            if self.user.is_superuser:
+                for field in self.fields:
+                    self.fields[field].disabled = False
+                if self.user == self.instance.user:
+                    self.fields['role'].disabled = True
+            else:
+                for field in ['phone_number', 'address', 'department', 'role', 'profile_picture',
+                              'first_name', 'last_name', 'email']:
+                    self.fields[field].disabled = True
+                self.fields['username'].disabled = False
+        else:
+            # Admin default behavior: enable all fields
+            for field in self.fields:
+                self.fields[field].disabled = False
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        
+        # Save the related User fields
+        if hasattr(profile, 'user') and profile.user:
+            user = profile.user
+            user.username = self.cleaned_data['username']
+            user.first_name = self.cleaned_data['first_name']
+            user.last_name = self.cleaned_data['last_name']
+            user.email = self.cleaned_data['email']
+            if commit:
+                user.save()
+        
+        # Save the profile picture if uploaded
+        if 'profile_picture' in self.cleaned_data and self.cleaned_data['profile_picture']:
+            profile.profile_picture = self.cleaned_data['profile_picture']
+
+        if commit:
+            profile.save()
+
+        return profile
+
 
 # —————————————————————————————
 # For staff/employees

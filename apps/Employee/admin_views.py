@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import UpdateView, ListView, TemplateView
-
+from django.shortcuts import render 
 from apps.Employee.forms import EmployeeProfileForm, EmployeeProfileUpdateForm
 from apps.Employee.models import EmployeeProfile
 
@@ -16,75 +16,54 @@ from django.views.generic.edit import UpdateView
 from django.shortcuts import redirect
 from django.contrib import messages
 
-from .forms import ProfileUpdateForm, EmployeeProfileUpdateForm
+from .forms import UnifiedEmployeeProfileForm
 from .models import EmployeeProfile
 from django.contrib.auth.models import User
 
-# ——————————————————————
-#  Staff / Employee
-# ——————————————————————
+# ——————————————————————————
+# Employee / Superuser profile view
+# ——————————————————————————
 class EmployeeProfileDashboardView(LoginRequiredMixin, UpdateView):
     model = EmployeeProfile
-    form_class = EmployeeProfileUpdateForm
+    form_class = UnifiedEmployeeProfileForm
     template_name = 'Employees/profile.html'
     success_url = reverse_lazy('employee-dashboard')
 
-    def dispatch(self, request, *args, **kwargs):
-        # if no EmployeeProfile, redirect to user-profile-update
-        if not hasattr(request.user, 'employeeprofile'):
-            return redirect('user-profile-update')
-        return super().dispatch(request, *args, **kwargs)
-
     def get_object(self):
-        try:
-            return self.request.user.employeeprofile
-        except EmployeeProfile.DoesNotExist:
-            raise Http404("Employee profile not found.")
+        # Always ensure EmployeeProfile exists
+        profile, created = EmployeeProfile.objects.get_or_create(user=self.request.user)
+        return profile
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['user'] = self.request.user
         return kwargs
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        profile = context['object']  # same as self.get_object()
-        context['payrolls'] = profile.payrolls.order_by('-month')
-        return context
-
-# ——————————————————————
-#  Superuser (or any user w/o EmployeeProfile)
-# ——————————————————————
-def superuser_required(user):
-    return user.is_superuser
-
-
+# ——————————————————————————
+# Admin / Superuser management view
+# ——————————————————————————
 class AdminManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'Home/adminmanagement.html'
-    success_url = reverse_lazy('user-profile-update')
+    success_url = reverse_lazy('admin-management')
 
     def test_func(self):
         return self.request.user.is_superuser
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        # profile form bound to current user
-        ctx['profile_form'] = ProfileUpdateForm(instance=self.request.user)
-        # list of all users to manage
         ctx['users'] = User.objects.all()
+        ctx['profile_form'] = UnifiedEmployeeProfileForm(instance=self.request.user.employeeprofile, user=self.request.user)
         return ctx
 
     def post(self, request, *args, **kwargs):
-        # Distinguish which form was submitted by looking at a hidden field
         if 'profile_submit' in request.POST:
-            form = ProfileUpdateForm(request.POST, instance=request.user)
+            profile_instance = request.user.employeeprofile
+            form = UnifiedEmployeeProfileForm(request.POST, request.FILES, instance=profile_instance, user=request.user)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Your profile has been updated.")
+                messages.success(request, "Profile updated successfully.")
                 return redirect(self.success_url)
-            else:
-                # re‑render with errors
-                return self.render_to_response(self.get_context_data(profile_form=form))
+            return self.render_to_response(self.get_context_data(profile_form=form))
 
         elif 'toggle_user' in request.POST:
             target_id = request.POST.get('toggle_user')
@@ -94,14 +73,13 @@ class AdminManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView)
                 user.save()
             return redirect(request.path)
 
-        # fallback
         return super().get(request, *args, **kwargs)
 
 
 
-
 class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    template_name = 'Home/user_management.html'  # your separate users template
+    template_name = 'Home/user_management.html'
+    success_url = reverse_lazy('user-management')
 
     def test_func(self):
         # Only superusers can access
@@ -109,20 +87,46 @@ class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # List of all users
         context['users'] = User.objects.all().order_by('username')
+        # If editing a specific user, include the form
+        user_id = self.request.GET.get('edit')
+        if user_id:
+            target_user = get_object_or_404(User, id=user_id)
+            profile, _ = EmployeeProfile.objects.get_or_create(user=target_user)
+            context['profile_form'] = UnifiedEmployeeProfileForm(instance=profile, user=self.request.user)
+            context['editing_user'] = target_user
         return context
 
     def post(self, request, *args, **kwargs):
-        user_id = request.POST.get('toggle_user')
-        if user_id:
-            user = get_object_or_404(User, id=user_id)
-            if user != request.user:  # prevent self-deactivation
-                user.is_active = not user.is_active
-                user.save()
-                status = "activated" if user.is_active else "deactivated"
-                messages.success(request, f"User '{user.username}' has been {status}.")
+        # Handle profile updates
+        if 'profile_submit' in request.POST:
+            user_id = request.POST.get('user_id')
+            target_user = get_object_or_404(User, id=user_id)
+            profile, _ = EmployeeProfile.objects.get_or_create(user=target_user)
+            form = UnifiedEmployeeProfileForm(request.POST, request.FILES, instance=profile, user=request.user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, f"Profile for '{target_user.username}' updated successfully.")
+                return redirect(self.success_url)
+            else:
+                # Re-render page with form errors
+                context = self.get_context_data()
+                context['profile_form'] = form
+                context['editing_user'] = target_user
+                return render(request, self.template_name, context)
+
+        # Toggle user activation
+        elif 'toggle_user' in request.POST:
+            user_id = request.POST.get('toggle_user')
+            target_user = get_object_or_404(User, id=user_id)
+            if target_user != request.user:  # prevent self-deactivation
+                target_user.is_active = not target_user.is_active
+                target_user.save()
+                status = "activated" if target_user.is_active else "deactivated"
+                messages.success(request, f"User '{target_user.username}' has been {status}.")
             else:
                 messages.error(request, "You cannot deactivate yourself.")
-            return redirect(request.path)
+            return redirect(self.success_url)
 
         return super().get(request, *args, **kwargs)

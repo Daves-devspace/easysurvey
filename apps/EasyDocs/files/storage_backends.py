@@ -1,5 +1,6 @@
 import io
 import logging
+import mimetypes
 import os
 from django.core.files.storage import Storage
 from django.conf import settings
@@ -24,119 +25,165 @@ class GoogleDriveStorage:
         self.service_account_key_json = service_account_key_json
         self.root_folder_id = root_folder_id
         self._service = None
+        self._folder_cache = {}  # per-instance cache
 
-        # Ensure root folder exists
+        # Ensure root folder exists at init
         if not self.root_folder_id:
-            logger.info("No root folder configured. Creating default root folder 'EasyDocs_Root'.")
+            logger.info("⚙️ No root folder configured. Creating default root folder 'EasyDocs_Root'.")
             try:
                 self.root_folder_id = self._ensure_folder("EasyDocs_Root", parent_id=None)
-                logger.info("Root folder 'EasyDocs_Root' created with ID: %s", self.root_folder_id)
-                # Save to SiteSettings
-                site_settings = SiteSettings.objects.first()
-                if site_settings:
-                    site_settings.google_drive_root_folder_id = self.root_folder_id
-                    site_settings.save(update_fields=["google_drive_root_folder_id"])
-                    logger.info("SiteSettings updated with new root folder ID")
+                logger.info("📂 Root folder 'EasyDocs_Root' created with ID: %s", self.root_folder_id)
+
+                # Save to DB settings if available
+                try:
+                    from apps.EasyDocs.models import SiteSettings
+                    site_settings = SiteSettings.objects.first()
+                    if site_settings:
+                        site_settings.google_drive_root_folder_id = self.root_folder_id
+                        site_settings.save(update_fields=["google_drive_root_folder_id"])
+                        logger.info("✅ SiteSettings updated with new root folder ID")
+                except Exception as db_e:
+                    logger.warning("⚠️ Could not update SiteSettings with root folder ID: %s", db_e)
+
             except Exception as e:
-                logger.error("Failed to create root folder: %s", e)
+                logger.error("❌ Failed to create root folder: %s", e, exc_info=True)
                 raise
 
     @property
     def service(self):
-        """Lazy-load Google Drive service"""
         if self._service is None:
             self._service = self._build_service()
         return self._service
 
     def _build_service(self):
-        """Build Google Drive service using service account"""
         if not self.service_account_key_json:
             raise ValueError("Service account JSON required")
+        creds = service_account.Credentials.from_service_account_info(
+            self.service_account_key_json,
+            scopes=['https://www.googleapis.com/auth/drive']
+        )
+        service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+        logger.info("✅ Google Drive service built successfully")
+        return service
+
+    def _ensure_folder(self, folder_name: str, parent_id: str) -> str:
+        """
+        Ensure a folder exists under the given parent in Google Drive.
+        Uses a per-request cache to avoid repeated API lookups.
+        """
+        cache_key = (folder_name, parent_id)
+        if cache_key in self._folder_cache:
+            logger.debug("📂 Cache hit: folder '%s' under parent %s → %s",
+                         folder_name, parent_id, self._folder_cache[cache_key])
+            return self._folder_cache[cache_key]
+
+        logger.info("📂 Checking existence of folder '%s' under parent %s",
+                    folder_name, parent_id or "root")
+
         try:
-            creds = service_account.Credentials.from_service_account_info(
-                self.service_account_key_json,
-                scopes=['https://www.googleapis.com/auth/drive']
+            # Query Google Drive for an existing folder
+            if parent_id:
+                query = (
+                    f"name = '{folder_name}' and "
+                    f"mimeType = 'application/vnd.google-apps.folder' and "
+                    f"'{parent_id}' in parents and trashed = false"
+                )
+            else:
+                query = (
+                    f"name = '{folder_name}' and "
+                    f"mimeType = 'application/vnd.google-apps.folder' and "
+                    f"'root' in parents and trashed = false"
+                )
+
+            results = (
+                self.service.files()
+                .list(q=query, spaces="drive", fields="files(id, name)", pageSize=1)
+                .execute()
             )
-            service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-            logger.info("Google Drive service built successfully")
-            return service
-        except Exception as e:
-            logger.error("Failed to build Google Drive service: %s", e)
-            raise
+            items = results.get("files", [])
 
-    # -----------------------------
-    # Folder helpers
-    # -----------------------------
-    def _ensure_folder(self, folder_name, parent_id):
-        """
-        Ensure folder exists in Drive under parent_id.
-        Returns folder ID.
-        """
-        try:
-            query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder' and trashed=false"
-            if parent_id:
-                query += f" and '{parent_id}' in parents"
+            if items:
+                folder_id = items[0]["id"]
+                logger.info("📂 Found existing folder '%s' (ID: %s)", folder_name, folder_id)
+            else:
+                # Create new folder
+                file_metadata = {
+                    "name": folder_name,
+                    "mimeType": "application/vnd.google-apps.folder",
+                }
+                if parent_id:
+                    file_metadata["parents"] = [parent_id]
 
-            results = self.service.files().list(q=query, fields="files(id, name)").execute()
-            files = results.get("files", [])
+                folder = (
+                    self.service.files()
+                    .create(body=file_metadata, fields="id, name, parents")
+                    .execute()
+                )
+                folder_id = folder["id"]
+                logger.info("📂 Created new folder '%s' (ID: %s)", folder_name, folder_id)
 
-            if files:
-                folder_id = files[0]["id"]
-                logger.info("Folder exists: '%s' (ID: %s) under parent: %s", folder_name, folder_id, parent_id)
-                return folder_id
-
-            # Folder does not exist, create it
-            folder_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder'}
-            if parent_id:
-                folder_metadata['parents'] = [parent_id]
-            folder = self.service.files().create(body=folder_metadata, fields='id, name, parents').execute()
-            logger.info("Created folder '%s' (ID: %s) under parent: %s", folder_name, folder.get('id'), parent_id)
-            return folder.get('id')
+            # Cache the result
+            self._folder_cache[cache_key] = folder_id
+            return folder_id
 
         except Exception as e:
-            logger.error("Failed to ensure folder '%s': %s", folder_name, e)
+            logger.error("❌ Failed ensuring folder '%s' under parent %s: %s",
+                         folder_name, parent_id, e, exc_info=True)
             raise
 
-    # -----------------------------
-    # Core file operations
-    # -----------------------------
     def _save(self, relative_path: str, content):
         """
-        Save a file to Drive using full folder path.
-        Automatically creates missing folders.
-        Returns the Drive file ID.
+        Save file into Google Drive, ensuring folder structure is created.
+        Example:
+        clients/client_1/mutation/file.pdf
+        office/contracts/file.pdf
         """
         try:
-            if hasattr(content, 'seek'):
+            if hasattr(content, "seek"):
                 content.seek(0)
 
-            # Split path: folders + filename
             parts = relative_path.strip("/").split("/")
-            *folders, filename = parts
+            filename = parts[-1]
+            folders = parts[:-1]
+
+            logger.info("📂 Preparing to save file: %s", filename)
+            logger.info("📂 Path parts: %s", parts)
+
             parent_id = self.root_folder_id
+            current_path = []
 
-            # Recursively ensure all folders exist
             for folder_name in folders:
-                logger.info("Ensuring folder '%s' under parent ID '%s'", folder_name, parent_id)
+                current_path.append(folder_name)
                 parent_id = self._ensure_folder(folder_name, parent_id)
+                logger.info("📂 Ensured path '%s' → %s", "/".join(current_path), parent_id)
 
-            # Upload file
-            media = MediaIoBaseUpload(
-                io.BytesIO(content.read()),
-                mimetype='application/octet-stream',
-                resumable=True
+            # Detect MIME type
+            mimetype, _ = mimetypes.guess_type(filename)
+            mimetype = mimetype or "application/octet-stream"
+
+            if hasattr(content, "seek"):
+                content.seek(0)
+                media_stream = content
+            else:
+                media_stream = io.BytesIO(content.read())
+
+            media = MediaIoBaseUpload(media_stream, mimetype=mimetype, resumable=True)
+            file_metadata = {"name": filename, "parents": [parent_id]}
+
+            file = (
+                self.service.files()
+                .create(body=file_metadata, media_body=media, fields="id, name, parents")
+                .execute()
             )
-            file_metadata = {'name': filename, 'parents': [parent_id]}
-            file = self.service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id, name, parents'
-            ).execute()
-            logger.info("File uploaded: '%s' (ID: %s) under parent: %s", relative_path, file.get('id'), parent_id)
-            return file.get('id')
+
+            logger.info(
+                "✅ File uploaded: '%s' (ID: %s) in folder ID: %s",
+                filename, file["id"], parent_id,
+            )
+            return file["id"]
 
         except Exception as e:
-            logger.error("Failed to upload file '%s': %s", relative_path, e)
+            logger.error("❌ Failed uploading file '%s': %s", relative_path, e, exc_info=True)
             raise
 
     def _open(self, file_id):
@@ -149,20 +196,20 @@ class GoogleDriveStorage:
             while not done:
                 _, done = downloader.next_chunk()
             file_stream.seek(0)
-            logger.info("Downloaded file from Drive (ID: %s)", file_id)
+            logger.info("⬇️ Downloaded file from Drive (ID: %s)", file_id)
             return file_stream
         except Exception as e:
-            logger.error("Failed to download file from Drive ID %s: %s", file_id, e)
+            logger.error("❌ Failed to download file from Drive ID %s: %s", file_id, e, exc_info=True)
             raise
 
     def delete(self, file_id):
         """Delete file from Drive"""
         try:
             self.service.files().delete(fileId=file_id).execute()
-            logger.info("Deleted file from Drive ID: %s", file_id)
+            logger.info("🗑️ Deleted file from Drive ID: %s", file_id)
             return True
         except Exception as e:
-            logger.error("Failed to delete file from Drive ID %s: %s", file_id, e)
+            logger.error("❌ Failed to delete file from Drive ID %s: %s", file_id, e, exc_info=True)
             return False
 
     def exists(self, file_id):
@@ -173,7 +220,7 @@ class GoogleDriveStorage:
         except HttpError as e:
             if e.resp.status == 404:
                 return False
-            logger.warning("Drive exists check failed for %s: %s", file_id, e)
+            logger.warning("⚠️ Drive exists check failed for %s: %s", file_id, e)
             return False
 
     def url(self, file_id):
@@ -289,41 +336,64 @@ class UnifiedStorage:
         """
         Decide storage and save.
         Returns: (relative_path, backend, drive_file_id_or_none)
-        Logs detailed info to trace why a file goes to Drive or local storage.
-        """
-        adapter = self._get_drive_adapter()
 
-        if adapter:
+        Logs detailed info to trace why a file goes to Drive or Local.
+        """
+        logger.info("📂 Starting save workflow for: %s", relative_path)
+
+        # Step 1: Try to initialize Drive
+        adapter = self._get_drive_adapter()
+        if not adapter:
+            logger.warning(
+                "🚫 Drive adapter unavailable. "
+                "File '%s' will NOT be uploaded to Drive. "
+                "Falling back to local storage.",
+                relative_path,
+            )
+        else:
+            logger.info("🔌 Drive adapter available, attempting Drive save...")
+
             try:
-                # Attempt to save to Drive
+                # Step 2: Attempt Drive upload
                 drive_id = adapter._save(relative_path, content)
                 logger.info(
-                    "✅ File saved to Drive successfully: '%s' (Drive ID: %s)",
+                    "✅ File saved to Google Drive: '%s' (Drive ID: %s)",
                     relative_path, drive_id
                 )
                 return relative_path, "drive", drive_id
+
             except Exception as e:
-                # Log reason why Drive save failed
+                # Step 3: Capture failure reason
                 logger.warning(
-                    "⚠️ Drive save failed for '%s': %s. Falling back to local storage.",
-                    relative_path, e
+                    "⚠️ Drive save failed for '%s': %s. "
+                    "Falling back to local storage.",
+                    relative_path, e,
+                    exc_info=True
                 )
 
-        # Fallback to local storage if Drive is unavailable or failed
+        # Step 4: Always attempt local fallback
         try:
             from django.core.files.storage import default_storage
+
+            logger.info("💾 Attempting local save for: %s", relative_path)
             default_storage.save(relative_path, content)
+
             logger.info(
-                "💾 File saved locally: '%s'. Reason: Drive unavailable or failed.",
+                "✅ File saved locally: '%s'. "
+                "Reason: Drive unavailable or failed.",
                 relative_path
             )
             return relative_path, "local", None
+
         except Exception as e:
+            # Step 5: Local also failed — log critically
             logger.error(
-                "❌ Local save failed for '%s': %s. File not saved.",
-                relative_path, e
+                "❌ Local save failed for '%s': %s. File was NOT saved anywhere!",
+                relative_path, e,
+                exc_info=True
             )
             return relative_path, "failed", None
+
 
 
 

@@ -188,8 +188,8 @@ def drive_oauth_callback(request):
         DriveOAuthToken.objects.update_or_create(
             user=request.user,
             defaults={
-                "refresh_token_encrypted": credential_service.encrypt_text(creds.refresh_token),
-                "access_token_encrypted": credential_service.encrypt_text(creds.token) if creds.token else None,
+                "refresh_token_encrypted": credential_service.encrypt(creds.refresh_token),
+                "access_token_encrypted": credential_service.encrypt(creds.token) if creds.token else None,
                 "token_expiry": creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry and creds.expiry.tzinfo is None else creds.expiry,
                 "scopes": ",".join(creds.scopes) if creds.scopes else "",
             }

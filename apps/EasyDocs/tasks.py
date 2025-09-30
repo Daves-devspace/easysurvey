@@ -13,7 +13,9 @@ from apps.EasyDocs.utils import update_pending_sms_logs_and_balance,MobileSasaAP
 from django.utils import timezone
 from datetime import datetime
 import time
+from .files.tasks import migrate_documents_to_drive_task
 
+__all__ = ["migrate_documents_to_drive_task"]
 
 # at the top of apps/EasyDocs/tasks.py
 import logging

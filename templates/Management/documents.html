@@ -54,8 +54,23 @@
     <button type="button" class="btn bg-green-200" data-bs-toggle="modal" data-bs-target="#documentModal">
         <i class="ti ti-circle-plus me-1"></i> Add Document
     </button>
+    <div>
+                <!-- Existing buttons -->
+                
+                <!-- Admin Migration Button -->
+                {% if user.is_superuser and site_settings.google_drive_enabled %}
+                <form method="POST" action="{% url 'migrate_all_docs_to_drive' %}" 
+                      style="display: inline;" 
+                      onsubmit="return confirm('Migrate ALL documents to Google Drive? This may take a while.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="ti ti-cloud-upload"></i> Migrate All to Drive
+                    </button>
+                </form>
+                {% endif %}
+            </div>
 
-    <!-- Search Form -->
+    {% comment %} <!-- Search Form -->
     <form method="get" action="{% url 'document_list' %}" class="d-flex" role="search">
       <input
         class="form-control me-2"
@@ -67,7 +82,7 @@
         <button class="btn btn-outline-success" type="submit">
             <i class="ti ti-search"></i>
         </button>
-    </form>
+    </form> {% endcomment %}
 
 </div>
 
@@ -106,7 +121,9 @@
                                             <td>{{ document.uploaded_at }}</td>
                                             <td>{{ document.storage_backend|storage_badge|safe }}</td>
                                             <td>
-                                                <a href="{{ document.file.url }}" class="btn btn-info" target="_blank">View</a>
+                                              {% if document.file_url %}
+                                                <a href="{{ document.file_url }}" class="btn btn-info" target="_blank">View</a>
+                                              {% endif %}
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -194,9 +211,9 @@
           </div>
 
           <div class="mb-3">
-            <label for="file" class="form-label">Upload Document</label>
-            <input type="file" class="form-control" id="file" name="file" required>
-          </div>
+            <label for="doc_file" class="form-label">Upload Document</label>
+            <input type="file" class="form-control" id="doc_file" name="doc_file" required>
+        </div>
 
 
           <button type="submit" class="btn btn-primary w-100">Save Document</button>
