@@ -7,7 +7,8 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.core.files.storage import default_storage
-
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.EasyDocs.models import DocType, ClientDoc, Document, Client, SiteSettings
 from apps.EasyDocs.forms import DocTypeForm
 from apps.EasyDocs.files.utils import get_drive_storage, log_audit
@@ -184,6 +185,7 @@ def delete_client_document(request, client_id, doc_id):
 # ----------------------------
 # OFFICE DOCUMENT VIEWS - REFINED
 # ----------------------------
+
 @require_POST
 def upload_office_document(request):
     doc_type_id = request.POST.get("doc_type")
@@ -235,7 +237,7 @@ def add_doctype(request):
         messages.error(request, 'Failed to add document type. Please check the form.')
     return redirect(request.META.get('HTTP_REFERER', '/'))
 
-
+@login_required
 def office_documents(request):
     query = request.GET.get('q', '')
     docs = Document.objects.all().order_by('-uploaded_at')

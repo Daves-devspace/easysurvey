@@ -69,7 +69,7 @@
                             </a>
                         </li>
                     {% endif %}
-                    {% if perms.easydocs.view_expense %}
+                    {% comment %} {% if perms.easydocs.view_expense %}
                         <li class="nav-item">
                             <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
                                role="tab"
@@ -77,7 +77,7 @@
                                 <i class="ti ti-file-text me-2"></i>Expenses
                             </a>
                         </li>
-                    {% endif %}
+                    {% endif %} {% endcomment %}
                     {% if request.user.is_superuser %}
                         <li class="nav-item">
                             <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
@@ -183,131 +183,7 @@
                             <div class="row">
                                 <div class="col-lg-12">
 
-                                    <div class="card">
-                                        <div class="card-header d-flex justify-content-between">
-
-                                            <h5>EXPENSES</h5>
-                                            <!-- Button to open modal -->
-                                            <!-- Button -->
-                                            {% if perms.easydocs.add_expense %}
-                                                <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
-                                                        data-bs-target="#expenseModal" id="add-expense-btn">
-                                                    <i class="fas fa-plus"></i> Add Expense
-                                                </button>
-                                            {% endif %}
-
-
-                                            <!-- Modal -->
-                                            <div class="modal fade" id="expenseModal" tabindex="-1"
-                                                 aria-labelledby="expenseModalLabel" aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <form method="POST"
-                                                              action="{% url 'submit_expense' %}"
-                                                              id="expenseForm">
-                                                            {% csrf_token %}
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title"
-                                                                    id="expenseModalLabel">
-                                                                    Add/Edit Expense</h5>
-                                                                <button type="button" class="btn-close"
-                                                                        data-bs-dismiss="modal"
-                                                                        aria-label="Close"></button>
-                                                            </div>
-
-                                                            <div class="modal-body">
-                                                                <input type="hidden" name="expense_id"
-                                                                       id="expense_id">
-                                                                {{ form.as_p }}
-                                                            </div>
-
-                                                            <div class="modal-footer">
-                                                                <button type="button"
-                                                                        class="btn btn-secondary"
-                                                                        data-bs-dismiss="modal">Cancel
-                                                                </button>
-                                                                <button type="submit"
-                                                                        class="btn btn-success">
-                                                                    Save
-                                                                </button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-
-                                        </div>
-
-
-                                        <div class="card-body table-card">
-                                            <div class="table-responsive mt-3">
-                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
-                                                    <thead class="table-success">
-                                                    <tr>
-                                                        <th>Date</th>
-
-                                                        <th>Amount</th>
-                                                        <th>Mode</th>
-                                                        <th>Handled By</th>
-                                                        <th>Approved By</th>
-                                                        {% if perms.easydocs.change_expense %}
-                                                            <th>Edit</th>
-                                                        {% endif %}
-                                                        {% if perms.easydocs.delete_expense %}
-                                                            <th>Delete</th>
-                                                        {% endif %}
-                                                    </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                    {% for exp in expenses %}
-                                                        <tr>
-                                                            <td>{{ exp.date }}</td>
-                                                            <td>{{ exp.amount }}</td>
-                                                            <td>{{ exp.get_payment_mode_display }}</td>
-                                                            <td>{{ exp.handled_by|default:"-" }}</td>
-                                                            <td>{{ exp.approved_by|default:"-" }}</td>
-
-                                                            {% if perms.easydocs.change_expense %}
-
-                                                                <td>
-                                                                    <button type="button"
-                                                                            class="btn btn-sm btn-warning edit-expense-btn"
-                                                                            data-exp-id="{{ exp.id }}"
-                                                                            data-amount="{{ exp.amount }}"
-                                                                            data-payment_mode="{{ exp.payment_mode }}"
-                                                                            data-handled_by="
-
-                                                                                    {% if exp.handled_by %}{{ exp.handled_by.id }}{% endif %}"
-                                                                            data-approved_by="
-
-                                                                                    {% if exp.approved_by %}{{ exp.approved_by.id }}{% endif %}"
-
-                                                                            data-description="{{ exp.description }}"
-                                                                            data-receipt_no="{{ exp.receipt_no }}">
-                                                                        <i class="fas fa-edit"></i> Edit
-                                                                    </button>
-
-
-                                                                </td>
-                                                            {% endif %}
-                                                            {% if perms.easydocs.delete_expense %}
-                                                                <td>
-                                                                    <button class=" btn bg-green-200"><i
-                                                                            class="ti ti-trash"></i>
-                                                                    </button>
-                                                                </td>
-                                                            {% endif %}
-                                                        </tr>
-
-                                                    {% endfor %}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-
-                                    </div>
+                                    
                                 </div>
 
 

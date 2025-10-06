@@ -46,8 +46,11 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'django_celery_beat',
     'djcelery_email',
+
     'apps.Employee',
     'apps.EasyDocs',
+    'apps.accounts',
+    
     'widget_tweaks',
     
 ]
@@ -156,15 +159,34 @@ CSRF_TRUSTED_ORIGINS = [
 CSRF_COOKIE_SECURE = False
 
 
+
+
 CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/0"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        }
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {'max_connections': 50},
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,  # Don't crash if Redis down
+        },
+        'KEY_PREFIX': 'easydocs',
+        'TIMEOUT': 3600,
     }
 }
+
+# Fallback to local memory if Redis not available
+if not os.getenv('REDIS_URL') and not os.path.exists('/usr/bin/redis-server'):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'easydocs-cache',
+        }
+    }
+
+
 
 # # ]
 # # CSRF_TRUSTED_ORIGINS = [
@@ -261,9 +283,36 @@ LOGGING = {
 
 
 
+# Performance
+CHUNK_SIZE = 40  # Questions per API call
+MAX_WORKERS = 4  # Parallel workers
+REQUEST_TIMEOUT = 12  # Seconds
+CACHE_TTL = 3600  # 1 hour
+
+# Accuracy
+SIMILARITY_MIN_SCORE = 0.30  # Minimum match threshold
+HIGH_CONFIDENCE_SCORE = 0.65  # When to refine
+
+# Features
+ENABLE_REFINEMENT = True  # Use OpenRouter for natural responses
+REFINE_HIGH_CONFIDENCE_ONLY = True  # Only refine good matches (save API calls)
+
+
+
+
+
+
+# ============================================================================
+# BOT CONFIGURATION
+# ============================================================================
+
+HF_API_KEY=os.getenv("HF_API_KEY", "your_huggingface_api_key_here") 
+OPENROUTER_KEY=os.getenv("OPENROUTER_KEY", "your_openrouter_key_here")
+
 # Bot / n8n settings
-N8N_BOT_WEBHOOK_URL = os.getenv("N8N_BOT_WEBHOOK_URL", "https://n8n.example.com/webhook/bot")
+#N8N_BOT_WEBHOOK_URL = os.getenv("N8N_BOT_WEBHOOK_URL", "https://n8n.example.com/webhook/bot")
 BOT_SECRET = os.getenv("BOT_SECRET", "replace-with-strong-secret")
+
 CLIENT_SECRET = os.getenv("CLIENT_SECRET", None)
 VERIFY_N8N_CERT =os.getenv("VERIFY_N8N_CERT", True)
 

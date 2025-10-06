@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, documents, accounts, reciepts, analytics, auth_views, bot
+from . import views, documents, accounts, reciepts, analytics, auth_views, bot_views
 from apps.EasyDocs.files import views as file_views
 from apps.EasyDocs.files import connection
 from apps.EasyDocs.accounts import accounts
@@ -14,33 +14,35 @@ from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, 
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
 from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
 
-from apps.EasyDocs.bot import views_enqueue, views_result, views_async, views_kb
+
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.bookings import BookingUpdateView, BookingCreateView
 from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
-
 from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback
 
 urlpatterns = [
     
-    #path('api/bot/forward/', bot.forward_to_n8n, name='bot_forward'),
+        # Main query endpoint - handles all bot queries
+    path('api/bot/query/', bot_views.bot_query, name='bot_query'),
+    
+    # Health check - verify bot is working
+    path('api/bot/health/', bot_views.bot_health, name='bot_health'),
+    
+    # Clear session - reset conversation history
+    path('api/bot/clear-session/', bot_views.clear_session, name='bot_clear_session'),
+    
+    # Get conversation history (optional)
+    path('api/bot/history/', bot_views.get_conversation_history, name='bot_history'),  
+    # Clear cache - refresh all cached responses
+    path('api/bot/clear-cache/', bot_views.clear_cache, name='bot_clear_cache'),
+    
+    
+    
     path("drive/oauth/start/", drive_oauth_start, name="drive_oauth_start"),
     path("drive/oauth/callback/", drive_oauth_callback, name="drive_oauth_callback"), 
     
-    path("api/kb/", views_kb.knowledge_base, name="knowledge_base"),
-        # Enqueue request → Celery task, returns 202 + poll_url
-    path("api/bot/enqueue/", views_enqueue.enqueue_forward, name="bot-enqueue"),
-
-    # Poll for result by request_id (returns 200 ready, 202 pending, 404 not found)
-    path("api/bot/result/<uuid:request_id>/", views_result.poll_result, name="bot-result"),
-    
-    path("api/bot/result/<uuid:request_id>/complete/", views_result.store_result, name="bot-result-complete"),
-
-
-    # Direct async forward (bypasses queue, runs via httpx.AsyncClient)
-    path("forward/", views_async.forward_to_n8n_async, name="bot-forward-async"),
     
     path('password-reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path(

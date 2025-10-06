@@ -32,7 +32,7 @@ Context Update (Optional)
 Respond to Webhook -> Django -> Frontend
 
 
-
+![alt text](image-2.png)
 <!-- 
 ### Company B (Main Branch)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/<your-username>/<GIST_ID>/raw/coverage-main.json) -->

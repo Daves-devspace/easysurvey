@@ -812,6 +812,19 @@ class ExpenseForm(forms.ModelForm):
         self.fields['approved_by'].queryset = User.objects.filter(
             employeeprofile__role=EmployeeProfile.RoleChoices.ADMIN
         )
+        
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if amount <= 0:
+            raise forms.ValidationError("Expense amount must be positive")
+
+        from apps.accounts.models import CashbookEntry
+        current_balance = CashbookEntry.current_balance()
+        if current_balance < amount:
+            raise forms.ValidationError(
+                f"Insufficient funds. Current balance: {current_balance}."
+            )
+        return amount
 
 
 class SmsProviderTokenForm(forms.ModelForm):
