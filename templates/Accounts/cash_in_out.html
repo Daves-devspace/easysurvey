@@ -1,0 +1,471 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Accounts</li>
+                    </ul>
+                </div>
+                <div class="col-md-12">
+                    <div class="page-header-title">
+                        <h2 class="mb-0">Accounts</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+<!-- [ breadcrumb ] end -->
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                    {% if perms.easydocs.view_payment %}
+                        <li class="nav-item">
+                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                               href="#profile-1"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-zoom-money me-2"></i>Cashbook
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-file-text me-2"></i>Expenses
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-id me-2"></i>Analytics
+                            </a>
+                        </li>
+                    {% endif %}
+
+
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    {% if perms.easydocs.view_payment %}
+                        <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                             aria-labelledby="profile-tab-1">
+                            <div class="row">
+
+                               <div class="col-lg-12 col-xxl-12">
+                                            <div class="card shadow-lg border-0">
+                                                <!-- Enhanced Card Header -->
+                                                <div class="card-header bg-gradient-primary text-white py-3">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="fas fa-book-open me-2 fs-4"></i>
+                                                                <div>
+                                                                    <h5 class="mb-0 fw-bold">Cashbook Transactions</h5>
+                                                                    <p class="mb-0">Track and manage all financial transactions</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap mt-2 mt-md-0">
+                                                                <!-- Date Picker for Filtering with HTMX -->
+                                                                <div class="input-group input-group-sm me-2" style="max-width: 200px;">
+                                                                    <span class="input-group-text bg-white text-dark border-end-0">
+                                                                        <i class="fas fa-calendar-alt"></i>
+                                                                    </span>
+                                                                    <input 
+                                                                        type="date" 
+                                                                        class="form-control border-start-0" 
+                                                                        id="dateFilter" 
+                                                                        value="{{ today|date:'Y-m-d' }}"
+                                                                        name="date"
+                                                                        hx-get="{% url 'cashbook_dashboard' %}"
+                                                                        hx-target="#cashbook-dashboard-content"
+                                                                        hx-trigger="change"
+                                                                        hx-indicator="#cashbook-indicator"
+                                                                    >
+                                                                    <div class="htmx-indicator" id="cashbook-indicator">
+                                                                        <div class="spinner-border spinner-border-sm text-light ms-2" role="status">
+                                                                            <span class="visually-hidden">Loading...</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <!-- Action Buttons -->
+                                                                {% if opening_summary.delta != 0 %}
+                                                                  <span class="text-warning">Opening out of sync! Delta: {{ summary.delta }}</span>
+                                                                  <form id="syncOpeningForm" method="post" action="{% url 'sync_opening_balance' %}">
+                                                                      {% csrf_token %}
+                                                                      <input type="hidden" name="date" value="{{ today }}">
+                                                                      <button type="submit" class="btn btn-primary">Sync Now</button>
+                                                                  </form>
+                                                                {% else %}
+                                                                  <span class="text-success">Opening in sync ✅</span>
+                                                                {% endif %}
+                                                                
+                                                                <!-- In Cashbook section -->
+                                                                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#openingBalanceModal">
+                                                                    Add Opening Balance
+                                                                    </button>
+
+                                                                
+
+                                                                <button class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#payoutModal">
+                                                                    <i class="fas fa-university me-1"></i> Record Payout
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- This content gets updated by HTMX -->
+                                                {% include "Accounts/partials/cashbook_dashboard_content.html" %}
+                                            </div>
+                                        </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <!--expenses-->
+                        <div class="tab-pane" id="profile-2" role="tabpanel"
+                             aria-labelledby="profile-tab-2">
+                            <div class="row">
+                                <div class="col-lg-12">
+
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between">
+
+                                            <h5>EXPENSES</h5>
+                                            <!-- Button to open modal -->
+                                            <!-- Button -->
+                                             <!-- In Expenses tab -->
+                                            {% if perms.easydocs.add_expense %}
+                                                <button class="btn bg-green-200 mb-3 add-expense-btn" data-bs-toggle="modal"
+                                                        data-bs-target="#expenseModal">
+                                                    <i class="fas fa-plus"></i> Add Expense
+                                                </button>
+                                            {% endif %}
+
+                                                <!-- Modal -->
+                                                <div class="modal fade" id="expenseModal" tabindex="-1"
+                                                    aria-labelledby="expenseModalLabel" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <form method="POST"
+                                                                action="{% url 'submit_expense' %}"
+                                                                id="expenseForm">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title"
+                                                                        id="expenseModalLabel">
+                                                                        Add/Edit Expense</h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+
+                                                                <div class="modal-body">
+                                                                    <input type="hidden" name="expense_id"
+                                                                        id="expense_id">
+                                                                    {{ form.as_p }}
+                                                                </div>
+
+                                                                <div class="modal-footer">
+                                                                    <button type="button"
+                                                                            class="btn btn-secondary"
+                                                                            data-bs-dismiss="modal">Cancel
+                                                                    </button>
+                                                                    <button type="submit"
+                                                                            class="btn btn-success">
+                                                                        Save
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+                                        </div>
+
+
+                                        <div class="card-body table-card">
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <thead class="table-success">
+                                                    <tr>
+                                                        <th>Date</th>
+
+                                                        <th>Amount</th>
+                                                        <th>Mode</th>
+                                                        <th>Handled By</th>
+                                                        <th>Approved By</th>
+                                                        {% if perms.easydocs.change_expense %}
+                                                            <th>Edit</th>
+                                                        {% endif %}
+                                                        {% if perms.easydocs.delete_expense %}
+                                                            <th>Delete</th>
+                                                        {% endif %}
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for exp in expenses %}
+                                                        <tr>
+                                                            <td>{{ exp.date }}</td>
+                                                            <td>{{ exp.amount }}</td>
+                                                            <td>{{ exp.get_payment_mode_display }}</td>
+                                                            <td>{{ exp.handled_by|default:"-" }}</td>
+                                                            <td>{{ exp.approved_by|default:"-" }}</td>
+
+                                                            {% if perms.easydocs.change_expense %}
+
+                                                                <td>
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-warning edit-expense-btn"
+                                                                            data-exp-id="{{ exp.id }}"
+                                                                            data-amount="{{ exp.amount }}"
+                                                                            data-payment_mode="{{ exp.payment_mode }}"
+                                                                            data-handled_by="
+
+                                                                                    {% if exp.handled_by %}{{ exp.handled_by.id }}{% endif %}"
+                                                                            data-approved_by="
+
+                                                                                    {% if exp.approved_by %}{{ exp.approved_by.id }}{% endif %}"
+
+                                                                            data-description="{{ exp.description }}"
+                                                                            data-receipt_no="{{ exp.receipt_no }}">
+                                                                        <i class="fas fa-edit"></i> Edit
+                                                                    </button>
+
+
+                                                                </td>
+                                                            {% endif %}
+                                                            {% if perms.easydocs.delete_expense %}
+                                                                <td>
+                                                                    <button class=" btn bg-green-200"><i
+                                                                            class="ti ti-trash"></i>
+                                                                    </button>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            <!-- [ sample-page ] end -->
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
+</div>
+</div>
+
+
+<!-- Modal -->
+<!-- Opening Balance Modal -->
+<!-- Opening Balance Modal -->
+<div class="modal fade" id="openingBalanceModal" tabindex="-1" aria-labelledby="openingBalanceLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="openingBalanceForm" method="post" action="{% url 'opening-balance' %}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="openingBalanceLabel">Opening Balance / Contributions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          {% csrf_token %}
+
+          
+
+          <!-- Opening balance form -->
+          <div class="mb-2">
+            <label for="id_date" class="form-label">Date</label>
+            {{ opening_balance_form.date }}
+            <div class="form-text">Opening balance applies to today only.</div>
+          </div>
+
+
+          <div class="mb-2">
+            <label for="id_amount" class="form-label">Amount</label>
+            {{ opening_balance_form.amount }}
+            <div class="form-text">
+              If an opening snapshot exists today, this will be added as a contribution.
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label for="id_description" class="form-label">Description (optional)</label>
+            {{ opening_balance_form.description }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+
+  <!-- Modal -->
+  <div class="modal fade" id="payoutModal" tabindex="-1" aria-labelledby="payoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="post" action="{% url 'record-institution-payout' %}">
+        {% csrf_token %}
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="payoutModalLabel">Record Institution Payout</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {{ payout_form.as_p }}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Record Payout</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+    <!-- [ Main Content ] end -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+
+{% endblock %}
+{% block scripts %}
+{# ------------ sync Modal script -------------- #}
+
+<script>
+document.getElementById("syncOpeningForm")?.addEventListener("submit", async function(e){
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const response = await fetch(form.action, {
+        method: "POST",
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    });
+
+    const data = await response.json();
+    alert(data.message || "Sync completed");
+    location.reload();  // refresh dashboard to show updated flagged balance
+});
+</script>
+
+
+{# ------------ Expense Modal script -------------- #}  
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("expenseForm");
+
+    const setField = (name, value) => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (input) input.value = value || "";
+    };
+
+    // Handle ALL Add Expense buttons using the class
+    document.querySelectorAll(".add-expense-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            form.reset();
+            setField("expense_id", "");
+            document.getElementById("expenseModalLabel").textContent = "Add Expense";
+        });
+    });
+
+    // Handle Edit buttons
+    document.querySelectorAll(".edit-expense-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            form.reset();
+            setField("expense_id", this.dataset.expId);
+            setField("description", this.dataset.description);
+            setField("amount", this.dataset.amount);
+            setField("payment_mode", this.dataset.payment_mode);
+            setField("handled_by", this.dataset.handled_by);
+            setField("approved_by", this.dataset.approved_by);
+            setField("receipt_no", this.dataset.receipt_no);
+
+            document.getElementById("expenseModalLabel").textContent = "Edit Expense";
+            
+            // Get modal instance and show it for edit buttons
+            const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+            expenseModal.show();
+        });
+    });
+});
+</script>
+
+{% endblock %}
+

@@ -231,7 +231,7 @@ class ClientServiceProcessAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('client_service', 'amount', 'payment_method', 'transaction_id', 'payment_date')
+    list_display = ('client_service', 'amount', 'payment_method', 'transaction_id', 'payment_date','institution_cost_snapshot','overridden_total_snapshot')
     list_filter = ('payment_method',)
 
 @admin.register(Document)

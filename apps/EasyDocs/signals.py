@@ -1,15 +1,19 @@
 from decimal import Decimal
 import logging
 
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
+from django.db import transaction   
+from django.core.exceptions import ObjectDoesNotExist   
 
 from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
-    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense
 )
+from apps.accounts.services.cashbook import record_cash_in, record_cash_out_expense
+  
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +22,35 @@ from functools import wraps
 
 _signal_lock = threading.local()
 
+
+@receiver(post_save, sender=Payment)
+def handle_payment_cashbook(sender, instance, created, **kwargs):
+    """
+    When a client payment is received, record a Cash IN.
+    """
+    if created:
+        user = getattr(instance, "received_by", None)  # optional, if you later add the field
+        record_cash_in(instance, user)
+
+@receiver(post_save, sender=Expense)
+def handle_expense_cashbook(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    user = getattr(instance, "created_by", None)
+    try:
+        record_cash_out_expense(instance.description, instance.amount, user)
+    except ValueError as e:
+        # Log for debugging / audit
+        logger.error(f"Cashbook entry not created for Expense[{instance.pk}]: {e}")
+        
+        # Optional: attach an error flag on the Expense (so frontend/admin can show it)
+        instance.cashbook_error = str(e)
+        Expense.objects.filter(pk=instance.pk).update(notes=f"Cashbook error: {e}")
+
+        
+        
+        
 def prevent_recursion(key_func=None):
     """
     Prevents recursive execution of a signal handler.

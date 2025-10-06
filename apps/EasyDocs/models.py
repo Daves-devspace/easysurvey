@@ -702,6 +702,13 @@ class Payment(models.Model):
     payment_date = models.DateTimeField(default=timezone.now)
     institution_cost_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     overridden_total_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="payments_received",
+        null=True, blank=True,
+        help_text="Staff user who received the payment"
+    )
 
     def __str__(self):
         return (
@@ -1018,7 +1025,19 @@ class AuditLog(models.Model):
         ('email_sent', 'Email Sent'),
         ('email_failed', 'Email Failed'),
         ('drive_sync', 'Drive Sync'),
-        ('drive_failed', 'Drive Sync Failed')
+        ('drive_failed', 'Drive Sync Failed'),
+        ('payment', 'Payment Made'),
+        ('payment_failed', 'Payment Failed'),
+        ('expense_recorded', 'Expense Recorded'),
+        ('expense_failed', 'Expense Recording Failed'),
+        ('document_accessed', 'Document Accessed'),
+        ('document_modified', 'Document Modified'),
+        ('login', 'User Login'),
+        ('logout', 'User Logout'),
+        ('data_export', 'Data Exported'),
+        ('data_import', 'Data Imported'),
+        ('config_change', 'Configuration Changed'),
+        ('other', 'Other'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

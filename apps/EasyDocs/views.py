@@ -685,7 +685,7 @@ def edit_client(request, client_id):
 
 
 
-class ClientServiceCreateView(CreateView):
+class ClientServiceCreateView(LoginRequiredMixin,CreateView):
     model = ClientService
     form_class = ClientServiceForm
 
@@ -848,7 +848,7 @@ def update_sms_token(request):
     return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
-class ManagementView(TemplateView):
+class ManagementView(LoginRequiredMixin,TemplateView):
     template_name = "Management/management.html"
 
     def get_context_data(self, **kwargs):

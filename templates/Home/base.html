@@ -87,16 +87,22 @@
     border-radius: 50%;
     object-fit: cover;
 }
-.sidebar-bottom {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-}
 .user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
     border: 2px solid #0a6c5e; /* brand color */
 }
 
+.sidebar-bottom {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
 </style>
+
+
 
 <!-- [Body] Start -->
 
@@ -109,26 +115,24 @@
 </div>
 <!-- [ Pre-loader ] End -->
 <!-- [ Sidebar Menu ] start -->
-<nav class="pc-sidebar">
-    <div class="navbar-wrapper">
-        <div class="m-header1" style="height: 60px; display: flex; align-items: center;">
-    <a href="{% url 'home' %}" class="b-brand text-primary d-flex align-items-center">
-        {% if site_settings.logo %}
-            <img
-                src="{{ site_settings.logo.url }}{% if logo_ts %}?v={{ logo_ts }}{% endif %}"
-                alt="{{ site_settings.company_name }} logo"
-                style="height: 45px; width: auto; object-fit: contain;"
-                class="logo-lg"
-            >
-        {% else %}
-            <span class="h5 mb-0">{{ site_settings.company_name }}</span>
-        {% endif %}
-    </a>
-</div>
+<nav class="pc-sidebar   d-flex flex-column vh-100">
+
+    <div class="navbar-wrapper bg-blue-100 ">
+        <div class="m-header1 d-flex align-items-center bg-blue-100 p-3">
+        <a href="{% url 'home' %}" class="b-brand text-primary bg-blue-100 d-flex align-items-center">
+            {% if site_settings.logo %}
+                <img src="{{ site_settings.logo.url }}{% if logo_ts %}?v={{ logo_ts }}{% endif %}" 
+                     alt="{{ site_settings.company_name }} logo"
+                     class="logo-lg" style="height:45px; object-fit: contain;">
+            {% else %}
+                <span class="h5 mb-0 ">{{ site_settings.company_name }}</span>
+            {% endif %}
+        </a>
+    </div>
 
 
 
-        <div class="navbar-content">
+        <div class="navbar-content bg-blue-100 flex-grow-1 overflow-auto">
 
             <ul class="pc-navbar">
                 <li class="pc-item">
@@ -193,6 +197,13 @@
                             <li class="pc-item"><a class="pc-link" href="{% url 'accounts_dashboard' %}">Payments</a>
                             </li>
                         {% endif %}
+
+                        {% if perms.easydocs.view_payment %}
+                            <li class="pc-item"><a class="pc-link" href="{% url 'cashbook_dashboard' %}">Cashbook</a>
+                            </li>
+                        {% endif %}
+
+
                         {% if perms.easydocs.view_clientsubservice %}
                             <li class="pc-item"><a class="pc-link" href="{% url 'subservices_status' %}">Legal
                                 Services</a>
@@ -250,30 +261,30 @@
 
             </ul>
             <!-- Sidebar Bottom User Section -->
-<!-- Bottom User Card -->
-    <div class="sidebar-bottom p-3">
-        <div class="card shadow-sm text-center">
-            <div class="card-body d-flex align-items-center justify-content-between p-2">
-                <div class="flex-shrink-0">
-                    <img src="{{ employee_avatar_url }}" 
-                         alt="{{ request.user.get_full_name|default:'User' }}" 
-                         class="rounded-circle user-avatar" style="width:48px;height:48px;object-fit:cover;"
-                         onerror="this.onerror=null;this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
-                </div>
-                <div class="flex-grow-1 ms-2 text-start">
-                    <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
-                    <small class="text-muted">{{ employee_role }}</small>
-                </div>
-                <div class="flex-shrink-0 ms-2">
-                    <a class="dropdown-toggle text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"></a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{% url 'employee-dashboard' %}">Profile</a></li>
-                        <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
+                <!-- Bottom User Card -->
+                    <div class="sidebar-bottom  bg-blue-100 p-3">
+                        <div class="card shadow-sm text-center">
+                            <div class="card-body d-flex align-items-center bg-blue-100 justify-content-between p-2">
+                                <div class="flex-shrink-0">
+                                    <img src="{{ employee_avatar_url }}" 
+                                        alt="{{ request.user.get_full_name|default:'User' }}" 
+                                        class="rounded-circle user-avatar" style="width:48px;height:48px;object-fit:cover;"
+                                        onerror="this.onerror=null;this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
+                                </div>
+                                <div class="flex-grow-1 ms-2 text-start bg-blue-100">
+                                    <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
+                                    <small class="text-muted">{{ employee_role }}</small>
+                                </div>
+                                <div class="flex-shrink-0 ms-2">
+                                    <a class="dropdown-toggle text-decoration-none" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"></a>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="{% url 'employee-dashboard' %}">Profile</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
             
         </div>
@@ -282,7 +293,7 @@
     </div>
 </nav>
 <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
-<header class="pc-header ">
+<header class="pc-header  ">
     <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
         <div class="me-auto pc-mob-drp">
             <ul class="list-unstyled">
@@ -446,7 +457,7 @@
 
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <h6 class="mb-1">{{ request.user.get_full_name }}</h6>
+                                    <h6 class="mb-1 badge-success">online</h6>
                                 
                                 </div>
                                 <a href="#!" class="pc-head-link bg-transparent"><i class="ti ti-power text-danger"></i></a>
@@ -532,7 +543,7 @@
 </header>
 <!-- [ Header ] end -->
 
-<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
+<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="dark">
 {% block body %}
 
 
@@ -546,21 +557,56 @@
     {#    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>#}
 {% endblock %}
 
-<div id="chatBotButton"><i class="fas fa-comment"></i></div>
-
-<div id="chatBotSidebar">
-  <div id="chatBotHeader">
-    <span><i class="fas fa-robot" style="margin-right: 8px;"></i>Assistant</span>
-    <button id="chatBotClose" class="btn btn-sm btn-light">&times;</button>
-  </div>
-  <div id="chatBotMessages">
-    <div class="bot-message">Hi! How can I help you today?</div>
-  </div>
-  <div id="chatBotInput">
-    <input type="text" id="chatInput" placeholder="Ask me anything about the system.." />
-    <button id="chatSend"><i class="fas fa-paper-plane"></i></button>
-  </div>
+<!-- Chat Button -->
+<div id="chatBotButton">
+  <i class="fas fa-comment"></i>
 </div>
+
+<!-- Chat Sidebar -->
+<div id="chatBotSidebar">
+  <!-- Header -->
+  <div id="chatBotHeader">
+    <div class="header-left">
+      <i class="fas fa-robot" style="margin-right: 8px;"></i>
+      <div class="header-info">
+        <span class="bot-title">Liorix</span>
+        <span class="bot-status">
+          <span class="status-indicator online"></span>
+          <span class="status-text">Online</span>
+        </span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="clearCacheBtn" class="icon-btn" title="Clear cache">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+      <button id="clearChatBtn" class="icon-btn" title="Clear history">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+      <button id="chatBotClose" class="icon-btn">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages Area -->
+  <div id="chatBotMessages">
+    <!-- Initial welcome message will be added by JS -->
+  </div>
+
+  <!-- Input Area -->
+  <div id="chatBotInput">
+    <input 
+      type="text" 
+      id="chatInput" 
+      placeholder="Ask me anything about the system..." 
+      autocomplete="off"
+    />
+    <button id="chatSend">
+      <i class="fas fa-paper-plane"></i>
+    </button>
+  </div>
+</div
 
 
 <footer class="pc-footer">
@@ -586,7 +632,10 @@
 </footer>
 
 
-
+<!-- Make username available to JavaScript -->
+<script>
+  window.currentUser = "{{ request.user.username|default:'guest' }}";
+</script>
 <!-- unit management -->
  <script src="{% static 'assets/js/unitManagement.js' %}"></script>
 <script src="{% static 'assets/js/lease-modal.js' %}" defer></script>
