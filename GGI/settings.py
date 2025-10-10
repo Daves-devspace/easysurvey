@@ -32,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 
-SITE_DOMAIN = "https://management.greatguardianinvestment.co.ke"  # or your production domain
+SITE_DOMAIN = os.getenv("SITE_DOMAIN","http://localhost:8080")  # or your production domain
 
 # Application definition
 

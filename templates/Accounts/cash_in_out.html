@@ -100,28 +100,36 @@
 
                                <div class="col-lg-12 col-xxl-12">
                                             <div class="card shadow-lg border-0">
+                                               <!-- Enhanced & Responsive Card Header -->
                                                 <!-- Enhanced Card Header -->
-                                                <div class="card-header bg-gradient-primary text-white py-3">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-md-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <i class="fas fa-book-open me-2 fs-4"></i>
+                                                <div class="card-header bg-gradient-primary text-white py-3 shadow-sm rounded-top">
+                                                    <div class="row align-items-center g-3 flex-wrap">
+                                                        
+                                                        <!-- Title Section -->
+                                                        <div class="col-12 col-md-6">
+                                                            <div class="d-flex align-items-center gap-3">
+                                                                <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                                    <i class="fas fa-book-open fs-5"></i>
+                                                                </div>
                                                                 <div>
-                                                                    <h5 class="mb-0 fw-bold">Cashbook Transactions</h5>
-                                                                    <p class="mb-0">Track and manage all financial transactions</p>
+                                                                    <h5 class="mb-1 fw-bold">Cashbook Transactions</h5>
+                                                                    <p class="mb-0 small text-dark opacity-85">Track and manage all financial transactions</p>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-6">
-                                                            <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap mt-2 mt-md-0">
-                                                                <!-- Date Picker for Filtering with HTMX -->
-                                                                <div class="input-group input-group-sm me-2" style="max-width: 200px;">
-                                                                    <span class="input-group-text bg-white text-dark border-end-0">
+
+                                                        <!-- Controls Section -->
+                                                        <div class="col-12 col-md-6">
+                                                            <div class="d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                                                                
+                                                                <!-- Date Picker -->
+                                                                <div class="input-group input-group-sm bg-white rounded shadow-sm" style="max-width: 220px;">
+                                                                    <span class="input-group-text bg-transparent border-0 text-primary">
                                                                         <i class="fas fa-calendar-alt"></i>
                                                                     </span>
                                                                     <input 
                                                                         type="date" 
-                                                                        class="form-control border-start-0" 
+                                                                        class="form-control border-0 ps-0" 
                                                                         id="dateFilter" 
                                                                         value="{{ today|date:'Y-m-d' }}"
                                                                         name="date"
@@ -131,38 +139,40 @@
                                                                         hx-indicator="#cashbook-indicator"
                                                                     >
                                                                     <div class="htmx-indicator" id="cashbook-indicator">
-                                                                        <div class="spinner-border spinner-border-sm text-light ms-2" role="status">
+                                                                        <div class="spinner-border spinner-border-sm text-primary ms-2" role="status">
                                                                             <span class="visually-hidden">Loading...</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                
-                                                                <!-- Action Buttons -->
+
+                                                                <!-- Sync Status -->
                                                                 {% if opening_summary.delta != 0 %}
-                                                                  <span class="text-warning">Opening out of sync! Delta: {{ summary.delta }}</span>
-                                                                  <form id="syncOpeningForm" method="post" action="{% url 'sync_opening_balance' %}">
-                                                                      {% csrf_token %}
-                                                                      <input type="hidden" name="date" value="{{ today }}">
-                                                                      <button type="submit" class="btn btn-primary">Sync Now</button>
-                                                                  </form>
+                                                                    <span class="text-warning small fw-semibold">⚠ Opening out of sync! Delta: {{ opening_summary.delta }}</span>
+                                                                    <form id="syncOpeningForm" method="post" action="{% url 'sync_opening_balance' %}" class="d-inline-flex">
+                                                                        {% csrf_token %}
+                                                                        <input type="hidden" name="date" value="{{ today }}">
+                                                                        <button type="submit" class="btn btn-sm btn-outline-light text-primary fw-semibold shadow-sm">
+                                                                            <i class="fas fa-sync-alt me-1"></i> Sync Now
+                                                                        </button>
+                                                                    </form>
                                                                 {% else %}
-                                                                  <span class="text-success">Opening in sync ✅</span>
+                                                                    <span class="text-success small fw-semibold">✅ Opening in sync</span>
                                                                 {% endif %}
-                                                                
-                                                                <!-- In Cashbook section -->
-                                                                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#openingBalanceModal">
-                                                                    Add Opening Balance
-                                                                    </button>
 
-                                                                
+                                                                <!-- Add Opening Balance Button -->
+                                                                <button type="button" class="btn btn-sm btn-outline-success text-primary fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#openingBalanceModal">
+                                                                    <i class="fas fa-plus me-1"></i>Opening Balance
+                                                                </button>
 
-                                                                <button class="btn btn-danger shadow-sm" data-bs-toggle="modal" data-bs-target="#payoutModal">
+                                                                <!-- Record Payout Button -->
+                                                                <button class="btn btn-sm btn-danger fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#institutionPayoutModal">
                                                                     <i class="fas fa-university me-1"></i> Record Payout
                                                                 </button>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
+
 
                                                 <!-- This content gets updated by HTMX -->
                                                 {% include "Accounts/partials/cashbook_dashboard_content.html" %}
@@ -372,10 +382,31 @@
 </div>
 
 
-
+<!-- Modal -->
+<!-- Institution Payout Modal -->
+<div class="modal fade" id="institutionPayoutModal" tabindex="-1" aria-labelledby="institutionPayoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="institutionPayoutForm" method="post" action="{% url 'record-institution-payout' %}">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="institutionPayoutModalLabel">Record Institution Payout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{ payout_form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Record Payout</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
   <!-- Modal -->
-  <div class="modal fade" id="payoutModal" tabindex="-1" aria-labelledby="payoutModalLabel" aria-hidden="true">
+  {% comment %} <div class="modal fade" id="payoutModal" tabindex="-1" aria-labelledby="payoutModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <form method="post" action="{% url 'record-institution-payout' %}">
         {% csrf_token %}
@@ -394,7 +425,7 @@
         </div>
       </form>
     </div>
-  </div>
+  </div> {% endcomment %}
     <!-- [ Main Content ] end -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
@@ -424,7 +455,14 @@ document.getElementById("syncOpeningForm")?.addEventListener("submit", async fun
 });
 </script>
 
-
+{% if open_payout_modal %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var modal = new bootstrap.Modal(document.getElementById('institutionPayoutModal'));
+        modal.show();
+    });
+</script>
+{% endif %}
 {# ------------ Expense Modal script -------------- #}  
 
 <script>

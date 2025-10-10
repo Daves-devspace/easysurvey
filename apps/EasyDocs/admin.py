@@ -1,32 +1,107 @@
 from django.contrib import admin
 
 from .forms import ClientServiceForm
-from .models import (Client, Service, Process, ClientService, ClientServiceProcess, Payment, Document, DocType,
+from .models import (Client, Service, Process, ClientService,ClientSubService, ClientServiceProcess, Payment, Document, DocType,
                      SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,DriveOAuthToken)
 
 
-
-
+from django.utils.timezone import now
+import logging
 from django.contrib import admin
 from .models import SiteSettings
 from .files.utils import get_connection_status
 from django.utils.html import format_html
+from apps.EasyDocs.files.utils import _build_service_from_oauth
+from django.urls import reverse
+from google.auth.exceptions import RefreshError
 
+
+logger = logging.getLogger(__name__)
 
 
 @admin.register(DriveOAuthToken)
 class DriveOAuthTokenAdmin(admin.ModelAdmin):
     list_display = (
-        "user",
-        "scopes",
+        "id",
+        "status_badge",
         "token_expiry",
+        "updated_at",
+        "refresh_token_button",
+    )
+    readonly_fields = (
+        "refresh_token_encrypted",
+        "access_token_encrypted",
+        "token_expiry",
+        "scopes",
         "created_at",
         "updated_at",
     )
-    readonly_fields = ("created_at", "updated_at")
-    search_fields = ("user__username",)
-    list_filter = ("token_expiry", "scopes")
-    ordering = ("-created_at",)
+
+    def status_badge(self, obj):
+        """
+        Display a small color-coded badge:
+        - Green = valid token
+        - Red = expired token
+        """
+        if obj.token_expiry and obj.token_expiry < now():
+            color = "red"
+            text = "Expired"
+        else:
+            color = "green"
+            text = "Valid"
+        return format_html('<span style="color: {};">● {}</span>', color, text)
+
+    status_badge.short_description = "Token Status"
+
+    def refresh_token_button(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Refresh Token</a>',
+            f"/admin/drive-oauth-token/refresh/{obj.id}/"
+        )
+    refresh_token_button.short_description = "Manual Refresh"
+    refresh_token_button.allow_tags = True
+
+
+# Admin view to refresh token
+from django.urls import path
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib.admin.views.decorators import staff_member_required
+
+@staff_member_required
+def refresh_drive_token(request, token_id):
+    """
+    Admin helper to manually refresh the single company OAuth token.
+    """
+    token_obj = get_object_or_404(DriveOAuthToken, pk=token_id)
+    try:
+        _, creds = _build_service_from_oauth()  # Will refresh automatically and update DB
+        messages.success(
+            request,
+            f"Company OAuth token refreshed successfully. Expiry: {creds.expiry}",
+        )
+        logger.info("Admin manually refreshed company OAuth token id=%s", token_id)
+    except RefreshError:
+        messages.error(request, "Token is expired or revoked — re-authorization required.")
+        logger.error(
+            "Admin attempted refresh but token is expired/revoked id=%s", token_id
+        )
+    except Exception as e:
+        messages.error(request, f"Failed to refresh token: {e}")
+        logger.exception(
+            "Unexpected error during manual token refresh id=%s", token_id
+        )
+
+    # Redirect back to the token list in admin
+    return redirect("/admin/apps/easydocs/driveoauthtoken/")
+
+# Register the URL with admin
+def get_admin_urls(urls):
+    my_urls = [
+        path("drive-oauth-token/refresh/<int:token_id>/", refresh_drive_token, name="refresh_drive_token"),
+    ]
+    return my_urls + urls
+
+admin.site.get_urls = lambda urls=admin.site.get_urls(): get_admin_urls(urls)
 
 
 
@@ -159,7 +234,59 @@ class ClientServiceInline(admin.TabularInline):
     extra = 0
     readonly_fields = ('service', 'requested_at', 'total_paid', 'total_balance')
     inlines = [ClientServiceProcessInline, PaymentInline]
+    
+    
+@admin.register(ClientSubService)
+class ClientSubServiceAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'client_service',
+        'sub_service',
+        'price',
+        'paid_amount',
+        'balance',
+        'is_paid_to_legal_office',
+        'paid_month',
+        'paid_at',
+        'added_on',
+    )
+    list_filter = (
+        'is_paid_to_legal_office',
+        'paid_month',
+        'added_on',
+        'sub_service',
+    )
+    search_fields = (
+        'client_service__id',
+        'client_service__client__name',  # assumes ClientService has FK to Client with "name"
+        'sub_service__name',
+    )
+    readonly_fields = (
+        'institution_cost_snapshot',
+        'overridden_price_snapshot',
+        'paid_at',
+        'added_on',
+    )
+    date_hierarchy = 'added_on'
 
+    fieldsets = (
+        ("Links", {
+            "fields": ("client_service", "sub_service"),
+        }),
+        ("Financials", {
+            "fields": ("overridden_price", "paid_amount", "institution_cost_snapshot", "overridden_price_snapshot"),
+        }),
+        ("Payout Tracking", {
+            "fields": ("is_paid_to_legal_office", "paid_month", "paid_at"),
+        }),
+        ("Metadata", {
+            "fields": ("added_on",),
+        }),
+    )
+    
+    
+    
+    
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
     list_display = ('first_name','last_name', 'email', 'phone')

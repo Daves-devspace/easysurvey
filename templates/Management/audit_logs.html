@@ -1,0 +1,124 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load document_tags %}
+
+
+
+{% block body %}
+
+
+    <section class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Auditlogs</a></li>
+                               
+                            </ul>
+                        </div>
+                    
+                    </div>
+                </div>
+            </div>
+            <div class="container-fluid col-lg-12">
+                <!-- [ Header ] end -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+            </div>
+            <!-- [ breadcrumb ] end -->
+
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- Config table start -->
+                <div class="col-sm-12">
+                    <div class="card card-table">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+                        <div class="card shadow-sm p-3 mb-3 bg-white rounded">
+                                <form hx-get="{% url 'audit_logs' %}" 
+                                    hx-target="#logs-table" 
+                                    hx-trigger="change delay:500ms"
+                                    class="row g-3 align-items-end">
+
+                                    <!-- Action dropdown -->
+                                    <div class="col-md-3">
+                                        <label for="action" class="form-label fw-bold">Action</label>
+                                        <select id="action" name="action" class="form-select">
+                                            <option value="">All</option>
+                                            {% for value, label in action_choices %}
+                                                <option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+
+                                    </div>
+
+                                    <!-- Start date -->
+                                    <div class="col-md-3">
+                                        <label for="start_date" class="form-label fw-bold">Start Date</label>
+                                        <input id="start_date" type="datetime-local" name="start_date" class="form-control">
+                                    </div>
+
+                                    <!-- End date -->
+                                    <div class="col-md-3">
+                                        <label for="end_date" class="form-label fw-bold">End Date</label>
+                                        <input id="end_date" type="datetime-local" name="end_date" class="form-control">
+                                    </div>
+
+                                    <!-- Submit button -->
+                                    <div class="col-md-3 d-grid">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="ti ti-filter"></i> Apply Filters
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+
+                        </div>
+
+                            <!-- Logs table -->
+                            <div id="logs-table" 
+                                hx-get="{% url 'audit_logs' %}" 
+                                hx-trigger="load">
+                                {% include "Management/partials/audit_logs_table.html" %}
+                            </div>
+
+
+                    </div>
+
+
+                       
+                   
+                </div>
+                <!-- Config table end -->
+
+
+                <!-- [ Main Content ] end -->
+            </div>
+        </div>
+    </section>
+
+
+
+
+    <!-- jQuery & Select2 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+{% endblock %}

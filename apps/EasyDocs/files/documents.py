@@ -149,38 +149,81 @@ def delete_document_from_storage(doc):
         logger.error(f"❌ Storage delete failed for document {doc.id}: {e}", exc_info=True)
         return False
 
+
+
+
+
 def migrate_document_to_drive(document_instance):
     """
-    Migrate local document to Drive
+    Migrate a single document to Google Drive if it is not fully on Drive.
+    Supports local and hybrid storage backends.
+
+    Returns:
+        (success: bool, message: str)
     """
+    from apps.EasyDocs.files.storage_backends import UnifiedStorage
+    storage = UnifiedStorage()
+
+    doc_name = getattr(document_instance, 'doc_file', None) and document_instance.doc_file.name or None
+    backend = getattr(document_instance, 'storage_backend', None)
+    drive_file_id = getattr(document_instance, 'drive_file_id', None)
+
+    logger.info(f"🚀 Attempting to migrate document {document_instance.id}: {doc_name}, current backend={backend}")
+
     try:
-        if document_instance.status != 'local' or not document_instance.doc_file:
-            return False, "Document not available for migration"
-        
-        content = download_document_content(document_instance)
-        if not content:
-            return False, "Could not read document content"
-        
-        from apps.EasyDocs.files.storage_backends import UnifiedStorage
-        storage = UnifiedStorage()
-        
-        # Save to Drive
-        drive_path = storage._save(
-            document_instance.doc_file.name,
-            content,
-            document_instance
-        )
-        
-        if drive_path.startswith('drive:'):
-            # Successfully migrated to Drive
-            document_instance.save()
+        # Skip if already fully on Drive
+        if backend == "drive":
+            return False, "Document already on Drive"
+
+        # Skip if hybrid and already has a valid Drive file
+        if backend == "hybrid" and drive_file_id:
+            return False, "Document already exists on Drive"
+
+        if not doc_name:
+            return False, "Document has no file attached"
+
+        # Ensure file exists locally
+        if not storage._local_exists(doc_name):
+            return False, "Local file not found"
+
+        # Read file content
+        try:
+            with storage.open(document_instance) as f:
+                content = f.read()
+        except Exception as e:
+            logger.error(f"❌ Failed to read content for document {document_instance.id}: {e}")
+            return False, "Failed to read local file content"
+
+        # Save using storage helper (tries Drive first, then local)
+        relative_path, new_backend, new_drive_file_id = storage.save_with_backend(doc_name, content)
+
+        if new_backend == "failed":
+            return False, "Migration failed: file not saved to any backend"
+
+        # Update document metadata
+        if new_backend == "drive":
+            document_instance.storage_backend = "drive"  # now fully on Drive
+            document_instance.drive_file_id = new_drive_file_id
+            document_instance.drive_url = storage.url(new_drive_file_id, backend="drive")
+            document_instance.status = "uploaded"
+            document_instance.save(update_fields=['storage_backend', 'drive_file_id', 'drive_url', 'status'])
+            logger.info(f"✅ Document {document_instance.id} successfully migrated to Drive")
             return True, "Successfully migrated to Drive"
-        else:
-            return False, "Migration failed"
-            
+
+        if new_backend == "local":
+            document_instance.status = "uploaded"
+            document_instance.save(update_fields=['status'])
+            logger.warning(f"⚠️ Document {document_instance.id} could not be migrated to Drive, saved locally")
+            return False, "Saved locally; Drive unavailable"
+
+        return False, "Unknown migration outcome"
+
     except Exception as e:
-        logger.error(f"Migration failed: {e}")
+        logger.exception(f"🔥 Unexpected error migrating document {document_instance.id}: {e}")
         return False, str(e)
+
+    
+    
     
     
     
@@ -243,33 +286,8 @@ def upload_to_drive(doc, folder_path=None):
         doc.save()
         raise
 
-def send_doc_email_to_client_helper(request, client_id, doc_id):
-    """
-    Legacy function to maintain URL compatibility
-    """
-    return send_document_email(request, client_id, doc_id)
 
-def get_document_download_url(doc, request=None):
-    """
-    Generate download URL for a document
-    """
-    from django.urls import reverse
-    
-    if isinstance(doc, ClientDoc):
-        return reverse('download_client_document', kwargs={'doc_id': doc.id})
-    else:
-        return reverse('download_office_document', kwargs={'doc_id': doc.id})
 
-def get_document_preview_url(doc, request=None):
-    """
-    Generate preview URL for a document
-    """
-    from django.urls import reverse
-    
-    if isinstance(doc, ClientDoc):
-        return reverse('preview_client_document', kwargs={'client_id': doc.client.id, 'doc_id': doc.id})
-    else:
-        return reverse('preview_office_document', kwargs={'doc_id': doc.id})
 
 def document_health_check():
     """

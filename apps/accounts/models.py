@@ -152,13 +152,32 @@ class CashbookEntry(models.Model):
         """
         Update flagged opening balance directly, bypassing save() audit restriction.
         Only allowed for is_opening_balance=True.
+
+        Updates the instance in memory and logs the change.
         """
         if not self.is_opening_balance:
             raise ValueError("Cannot force update non-flagged entries")
 
         old_balance = self.balance_after
-        # Direct DB update bypassing save()
+        # Direct DB update
         CashbookEntry.objects.filter(pk=self.pk).update(balance_after=new_balance)
+        
+        # Update instance in memory so templates see the correct value
+        self.balance_after = new_balance
+
+        # Optionally, update subsequent entries for the same date to maintain consistency
+        subsequent_entries = CashbookEntry.objects.filter(
+            entry_date=self.entry_date,
+            created_at__gt=self.created_at
+        ).order_by("created_at", "id")
+
+        running_balance = new_balance
+        for entry in subsequent_entries:
+            if entry.entry_type == "IN":
+                running_balance += entry.amount
+            elif entry.entry_type == "OUT":
+                running_balance -= entry.amount
+            CashbookEntry.objects.filter(pk=entry.pk).update(balance_after=running_balance)
 
         # Log audit
         desc = (
@@ -167,6 +186,7 @@ class CashbookEntry(models.Model):
         )
         from apps.accounts.services.opening_balance import log_audit
         log_audit(user=user, action="update", model_name="CashbookEntry", object_id=self.pk, description=desc)
+
 
     # --------------------------
     # Protect records (audit)
@@ -192,3 +212,7 @@ class CashbookEntry(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("Cashbook entries cannot be deleted (audit rule).")
+    
+    @property
+    def recorded_by_display(self):
+        return str(self.created_by) if self.created_by else "System / Auto Task"

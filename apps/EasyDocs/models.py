@@ -88,6 +88,8 @@ class DriveOAuthToken(models.Model):
     scopes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    needs_reauth = models.BooleanField(default=False)
+
     
     def __str__(self):
         return f"Drive OAuth - {self.user.username}"
@@ -581,6 +583,7 @@ class ClientSubService(models.Model):
 class SubService(models.Model):
     class RoleChoices(models.TextChoices):
         LEGAL = 'Legal', 'Legal'
+        OTHER = 'Other',  'Other'
 
     name = models.CharField(max_length=100)  # e.g. Legal stamp
     department = models.CharField(
