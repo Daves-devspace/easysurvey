@@ -2,9 +2,10 @@
 {# Expects in context: gdrive_form (GoogleDriveConfigForm), site_settings, connection_status, has_encrypted_key, service_account_email #}
 
 <div class="card" id="gdrive-card">
-  <div class="card-header d-flex justify-content-between align-items-center">
+ <div class="card-header d-flex justify-content-between align-items-center">
     <h5 class="mb-0">Google Drive — Document Storage</h5>
     <small id="gdrive-status" class="text-muted">
+
       {% if connection_status.status == 'connected' %}
         <span class="badge bg-success">Connected</span>
       {% elif connection_status.status == 'testing' %}
@@ -18,14 +19,31 @@
       {% else %}
         <span class="badge bg-warning">{{ connection_status.message }}</span>
       {% endif %}
+
       {% if connection_status.storage_mode_display %}
         <span class="badge bg-primary">{{ connection_status.storage_mode_display }}</span>
       {% else %}
         <span class="badge bg-secondary">Not configured</span>
       {% endif %}
 
+      {# Add expired token badge #}
+      {% if connection_status.needs_reauth %}
+          <span class="badge bg-danger">Token Invalid</span>
+          <a href="{% url 'drive_oauth_start' %}" class="btn btn-sm btn-primary ms-1">
+            Reconnect Google Drive
+          </a>
+      {% elif connection_status.expired_token %}
+          <span class="badge bg-warning">Token Expired</span>
+          <a href="{% url 'refresh_drive_token' %}" class="btn btn-sm btn-outline-danger ms-1">
+            Refresh Token
+          </a>
+      {% endif %}
+
+
+
+
     </small>
-  </div>
+</div>
 
   <div class="card-body">
     <div id="gdrive-messages"></div>

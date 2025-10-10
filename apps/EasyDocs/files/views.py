@@ -12,6 +12,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.EasyDocs.models import DocType, ClientDoc, Document, Client, SiteSettings
 from apps.EasyDocs.forms import DocTypeForm
 from apps.EasyDocs.files.utils import get_drive_storage, log_audit
+from django.contrib import messages
+from email.utils import formataddr, parseaddr
+from django.conf import settings
+from django.core.mail import EmailMessage
+import mimetypes
 from apps.EasyDocs.files.documents import (
     upload_document_with_strategy, 
     download_document_content,
@@ -257,26 +262,82 @@ def office_documents(request):
 
 
 
+
 @require_POST
 def email_client_document(request, client_id, doc_id):
     """
-    Send client document via email - handles both local and Drive storage
+    Send a client document via email (works for both local and Drive storage).
     """
-    from apps.EasyDocs.files.documents import send_document_email
-    
+    client = get_object_or_404(Client, id=client_id)
+    document = get_object_or_404(ClientDoc, id=doc_id)
+    site_settings = SiteSettings.objects.first()
+
+    # Determine redirect target
+    referer = request.META.get("HTTP_REFERER")
+    fallback = reverse("client_details", kwargs={"client_id": client_id})
+    redirect_to = referer or fallback
+
+    if not client.email:
+        messages.error(request, "This client does not have an email address.")
+        return redirect(redirect_to)
+
+    # Prepare From: header
+    raw_from = settings.DEFAULT_FROM_EMAIL or ""
+    env_name, env_addr = parseaddr(raw_from)
+    company_name = site_settings.company_name if site_settings else ""
+    display_name = company_name or env_name or ""
+    address = env_addr or env_name
+    from_email = formataddr((display_name, address))
+
+    # Prepare subject & body
+    subject = f"Your Document from {company_name or 'Our Company'}"
+    tagline = site_settings.tagline or ""
+    body_lines = [
+        f"Hello {client.first_name},",
+        "",
+        "Please find your document attached.",
+        tagline,
+        "",
+        "Best regards,",
+        company_name,
+    ]
+    body = "\n".join([line for line in body_lines if line.strip()])
+
+    email = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=from_email,
+        to=[client.email],
+    )
+
+    # Attach the document file
     try:
-        success, message = send_document_email(request, client_id, doc_id)
-        
-        if success:
-            messages.success(request, message)
-        else:
-            messages.error(request, message)
-            
+        file_content = document.get_file_content()
+        if not file_content:
+            messages.error(request, "Document file is unavailable for email (missing or not accessible).")
+            return redirect(redirect_to)
+
+        file_name = document.doc_name or "attachment"
+        mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
+        email.attach(file_name, file_content, mime_type)
+        logger.info(f"Attaching document {document.id} ({file_name}, {mime_type}) for client {client.id}")
+
     except Exception as e:
-        logger.error(f"Email document failed: {e}")
+        logger.exception(f"Failed to attach document {document.id} for client {client.id}")
+        messages.error(request, f"Could not attach the document file: {str(e)}")
+        return redirect(redirect_to)
+
+    # Send the email
+    try:
+        email.send(fail_silently=False)
+        messages.success(request, f"Document emailed successfully to {client.email}.")
+        logger.info(f"Document {document.id} sent to client {client.id} ({client.email})")
+    except Exception as e:
+        logger.exception(f"Failed to send email to client {client.id} for document {document.id}")
         messages.error(request, f"Failed to send email: {str(e)}")
-    
-    return redirect(reverse("client_details", kwargs={"client_id": client_id}))
+
+    return redirect(redirect_to)
+
 
 
 @require_POST

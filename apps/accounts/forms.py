@@ -33,6 +33,7 @@ class InstitutionPayoutForm(forms.Form):
     payout_date = forms.DateField(
         required=False,
         label="Date",
+        initial=timezone.now().date(),  # <-- sets today as default
         widget=forms.DateInput(
             attrs={"class": "form-control", "type": "date"}
         ),

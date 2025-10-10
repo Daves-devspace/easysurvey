@@ -164,38 +164,41 @@ def persist_flagged_opening(entry_date: _date = None, user=None) -> Tuple[Cashbo
 
 
 # ----------------- replace_flagged_snapshot (creates adjustment entry AND logs) -----------------
-def replace_flagged_snapshot(entry_date: _date, expected_carried: Decimal, user=None) -> Tuple[CashbookEntry, Decimal]:
+def replace_flagged_snapshot(entry_date, expected_carried: Decimal, user=None) -> Tuple[CashbookEntry, Decimal]:
     """
-    Update the flagged opening balance directly to match the expected_carried amount.
+    Update the flagged opening balance directly to match expected_carried.
     Returns (flagged_entry, delta).
 
-    ✅ No separate adjustment entries created
-    ✅ Delta is returned for logging / display
-    ✅ Logs detailed audit info for all changes or no-op
+    - Uses persist_flagged_opening(...) which returns (flagged, created, carried_balance).
+    - Uses CashbookEntry.force_update_flagged_balance(...) to bypass audit save() checks
+      but still records an AuditLog entry via log_audit.
     """
     with transaction.atomic():
         flagged = CashbookEntry.objects.select_for_update().filter(
             entry_date=entry_date, is_opening_balance=True
         ).first()
 
+        # If no flagged opening exists, create it (persist_flagged_opening returns 3 values)
         if not flagged:
-            flagged, _, _ = persist_flagged_opening(entry_date, user=user)
-            from apps.accounts.services.opening_balance import log_audit
+            flagged, created, carried_balance = persist_flagged_opening(entry_date, user=user)
+            logger.info("persist_flagged_opening created=%s carried_balance=%s for %s by %s",
+                        created, carried_balance, entry_date, getattr(user, "pk", None))
             log_audit(
                 user=user,
                 action="create",
                 model_name="CashbookEntry",
                 object_id=flagged.pk,
-                description=f"Created new flagged opening snapshot for {entry_date} with balance={expected_carried}"
+                description=f"Created new flagged opening snapshot for {entry_date} with balance={carried_balance}"
             )
 
         flagged_balance = Decimal(flagged.balance_after)
-        delta = Decimal(expected_carried) - flagged_balance
+        expected = Decimal(expected_carried)
+        delta = expected - flagged_balance
 
-        from apps.accounts.services.opening_balance import log_audit
-
-        if delta == 0:
+        if delta == Decimal("0.00"):
             # Already in sync → log info
+            logger.info("replace_flagged_snapshot: no-op for %s (flagged=%s expected=%s)",
+                        entry_date, flagged_balance, expected)
             log_audit(
                 user=user,
                 action="info",
@@ -204,8 +207,10 @@ def replace_flagged_snapshot(entry_date: _date, expected_carried: Decimal, user=
                 description=f"Flagged opening already in sync for {entry_date}. Balance={flagged_balance}"
             )
         else:
-            # Update balance directly and log
-            flagged.force_update_flagged_balance(expected_carried, user=user)
+            # Update flagged balance using the force-update helper (bypasses save() audit restriction)
+            logger.info("replace_flagged_snapshot: updating flagged for %s from %s -> %s (delta=%s) by user=%s",
+                        entry_date, flagged_balance, expected, delta, getattr(user, "pk", None))
+            flagged.force_update_flagged_balance(expected, user=user)
             log_audit(
                 user=user,
                 action="update",
@@ -213,7 +218,7 @@ def replace_flagged_snapshot(entry_date: _date, expected_carried: Decimal, user=
                 object_id=flagged.pk,
                 description=(
                     f"Flagged opening balance updated for {entry_date}: "
-                    f"old_balance={flagged_balance}, new_balance={expected_carried}, delta={delta}"
+                    f"old_balance={flagged_balance}, new_balance={expected}, delta={delta}"
                 )
             )
 

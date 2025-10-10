@@ -13,6 +13,7 @@ from apps.accounts.forms import OpeningBalanceForm, InstitutionPayoutForm
 from apps.accounts.models import CashbookEntry
 from apps.EasyDocs.forms import ExpenseForm
 from apps.EasyDocs.models import Expense
+from django.http import HttpResponse
 from apps.accounts.services.opening_balance import (
     get_opening_summary,
     persist_flagged_opening,
@@ -20,7 +21,7 @@ from apps.accounts.services.opening_balance import (
     replace_flagged_snapshot,
     log_audit
 )
-from apps.accounts.tasks import reconcile_flagged_opening_task  
+
 
 from apps.accounts.services.cashbook import record_cash_out_institution
 logger = logging.getLogger(__name__)
@@ -34,8 +35,8 @@ from apps.accounts.services.opening_balance import compute_latest_carried_balanc
 class SyncOpeningBalanceView(View):
     """
     POST endpoint to sync the flagged opening balance for a given date.
-    Updates the flagged entry directly using delta-based adjustment.
-    Returns a clean JSON with the current flagged balance and delta.
+    - If request is AJAX/JSON: return JSON payload.
+    - Else: redirect back to referer or fallback to cashbook_dashboard.
     """
 
     def post(self, request, *args, **kwargs):
@@ -43,20 +44,21 @@ class SyncOpeningBalanceView(View):
         date_str = request.POST.get("date")
 
         if not date_str:
-            return JsonResponse({"success": False, "message": "Missing date"}, status=400)
+            return self._respond(request, success=False, message="Missing date", status=400)
 
         try:
             entry_date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
         except Exception:
             entry_date = timezone.now().date()
 
-        # Compute expected carried balance
         expected = compute_latest_carried_balance(entry_date)
 
-        # Update flagged opening balance directly using delta-based adjustment
-        flagged, delta, _ = replace_flagged_snapshot(entry_date, Decimal(expected), user=user)
+        try:
+            flagged, delta = replace_flagged_snapshot(entry_date, Decimal(expected), user=user)
+        except Exception as exc:
+            logger.exception("Sync failed for %s by user=%s: %s", entry_date, getattr(user, "pk", None), exc)
+            return self._respond(request, success=False, message=f"Sync failed: {exc}", status=500)
 
-        # Build a clean response for AJAX/UI
         payload = {
             "success": True,
             "entry_date": entry_date.isoformat(),
@@ -64,10 +66,33 @@ class SyncOpeningBalanceView(View):
             "delta": float(delta),
             "message": "Opening balance synced successfully!" if delta != 0 else "Opening already in sync ✅",
         }
+        logger.info(
+            "SyncOpeningBalanceView result for %s: flagged=%s delta=%s by user=%s",
+            entry_date, flagged.balance_after, delta, getattr(user, "pk", None)
+        )
 
-        return JsonResponse(payload)
+        return self._respond(request, **payload)
 
+    # -------------------------
+    # Helper to decide response
+    # -------------------------
+    def _respond(self, request, success, message="", status=200, **extra):
+        """
+        If request is AJAX (or explicitly asks JSON), return JsonResponse.
+        Else redirect back to referer or fallback to cashbook_dashboard.
+        """
+        payload = {"success": success, "message": message, **extra}
 
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or request.content_type == "application/json":
+            return JsonResponse(payload, status=status)
+
+        # Non-AJAX → redirect to referer or fallback
+        referer = request.META.get("HTTP_REFERER")
+        fallback = reverse("cashbook_dashboard")
+        return HttpResponseRedirect(referer or fallback)
+    
+    
+    
 class CheckOpeningSyncView(View):
     """
     GET /api/check-opening-sync/?date=YYYY-MM-DD
@@ -139,23 +164,13 @@ class CashbookDashboardView(TemplateView):
         expenses = Expense.objects.all().order_by("-date")
 
         # 🔹 cashflow ratio
+        # Compute ratio safely
         cash_flow_ratio = None
         ratio_display = "N/A"
-        ratio_text = ""
         if today_out and today_out != 0:
             cash_flow_ratio = float(today_in) / float(today_out)
-            # Display as whole number if ratio >= 1, else show fraction or decimal
-            if cash_flow_ratio >= 1:
-                ratio_display = f"{int(round(cash_flow_ratio))}×"
-            else:
-                ratio_display = f"{cash_flow_ratio:.2f}×"
-            # Optional small text for more info
-            if cash_flow_ratio > 1:
-                ratio_text = f"Income is {ratio_display} of expenses"
-            elif cash_flow_ratio == 1:
-                ratio_text = "Income equals expenses"
-            else:
-                ratio_text = f"Income is only {ratio_display} of expenses"
+            # Round to nearest whole number for simplicity or keep one decimal
+            ratio_display = f"{round(cash_flow_ratio)}×"  # or f"{cash_flow_ratio:.1f}×"
 
 
         context.update({
@@ -183,19 +198,29 @@ class CashbookDashboardView(TemplateView):
 
 
 class RecordInstitutionPayoutView(View):
+    template_name = "Accounts/cash_in_out.html"
+
     def post(self, request, *args, **kwargs):
-        form = InstitutionPayoutForm(request.POST)
-        if form.is_valid():
-            amount = form.cleaned_data["amount"]
-            description = form.cleaned_data["description"] or "Institution payout (cash out)"
+        payout_form = InstitutionPayoutForm(request.POST)
+        if payout_form.is_valid():
+            amount = payout_form.cleaned_data["amount"]
+            description = payout_form.cleaned_data.get("description") or "Institution payout (cash out)"
             try:
                 record_cash_out_institution(amount, request.user, description)
                 messages.success(request, f"Institution payout of {amount} recorded.")
+                return redirect("cashbook_dashboard")
             except ValueError as e:
                 messages.error(request, str(e))
         else:
             messages.error(request, "Error recording payout. Please check the form.")
-        return redirect("cashbook_dashboard")
+
+        # Render dashboard with modal open for errors
+        from .views import CashbookDashboardView
+        dashboard_view = CashbookDashboardView()
+        context = dashboard_view.get_context_data(**kwargs)
+        context["payout_form"] = payout_form
+        context["open_payout_modal"] = True
+        return render(request, self.template_name, context)
 
 
 
@@ -242,9 +267,10 @@ class CheckOpeningBalanceView(View):
 
 class OpeningBalanceCreateView(View):
     """
-    Create opening contribution with optional immediate flagged snapshot adjustment
-    (Option A workflow: single adjustment + contribution).
+    Create opening contribution with optional immediate flagged snapshot adjustment.
+    Handles both AJAX and standard requests.
     """
+
     def post(self, request, *args, **kwargs):
         form = OpeningBalanceForm(request.POST)
         is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -273,7 +299,6 @@ class OpeningBalanceCreateView(View):
                 flagged, created, carried_balance = persist_flagged_opening(today, user=user)
 
                 # ✅ Detect mismatch and adjust immediately if needed
-                delta = Decimal(flagged.balance_after) - carried_balance
                 adjustment_entry = None
                 if Decimal(flagged.balance_after) != Decimal(carried_balance):
                     flagged, delta, adjustment_entry = replace_flagged_snapshot(today, carried_balance, user=user)
@@ -281,7 +306,7 @@ class OpeningBalanceCreateView(View):
                 # ✅ Add contribution on top of adjusted balance
                 contribution = add_opening_contribution(today, amount, description or None, user=user)
 
-                # Build response summary
+                # Build response summary safely
                 summary = get_opening_summary(today)
                 payload = {
                     "success": True,
@@ -289,17 +314,21 @@ class OpeningBalanceCreateView(View):
                     "entry_id": contribution.pk,
                     "entry_amount": float(contribution.amount),
                     "entry_balance_after": float(contribution.balance_after),
-                    "contributions_total": float(summary["contributions_total"]),
-                    "total_opening": float(summary["total_opening"]),
+                    "contributions_total": float(summary.get("contributions_total", 0)),  # safe default
+                    "total_opening": float(summary.get("total_opening", 0)),              # safe default
                     "message": f"Added {amount} to opening balance for {today}.",
                 }
+
                 if adjustment_entry:
                     payload["adjustment_id"] = adjustment_entry.pk
                     payload["adjustment_amount"] = float(adjustment_entry.amount)
-                    payload["adjustment_message"] = f"Adjustment of {adjustment_entry.amount} created to align flagged opening."
+                    payload["adjustment_message"] = (
+                        f"Adjustment of {adjustment_entry.amount} created to align flagged opening."
+                    )
 
                 if is_ajax:
                     return JsonResponse(payload)
+
                 messages.success(request, payload["message"])
                 return HttpResponseRedirect(request.META.get("HTTP_REFERER", reverse("cashbook_dashboard")))
 

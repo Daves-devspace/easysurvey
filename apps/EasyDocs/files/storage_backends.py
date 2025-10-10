@@ -337,65 +337,55 @@ class UnifiedStorage:
         Decide storage and save.
         Returns: (relative_path, backend, drive_file_id_or_none)
 
-        Logs detailed info to trace why a file goes to Drive or Local.
+        Workflow:
+        1. Attempt Drive upload.
+        2. If successful, delete local file automatically.
+        3. If Drive fails, fallback to local storage.
         """
         logger.info("📂 Starting save workflow for: %s", relative_path)
 
-        # Step 1: Try to initialize Drive
         adapter = self._get_drive_adapter()
-        if not adapter:
-            logger.warning(
-                "🚫 Drive adapter unavailable. "
-                "File '%s' will NOT be uploaded to Drive. "
-                "Falling back to local storage.",
-                relative_path,
-            )
-        else:
+        if adapter:
             logger.info("🔌 Drive adapter available, attempting Drive save...")
-
             try:
-                # Step 2: Attempt Drive upload
+                # Attempt Drive upload
                 drive_id = adapter._save(relative_path, content)
-                logger.info(
-                    "✅ File saved to Google Drive: '%s' (Drive ID: %s)",
-                    relative_path, drive_id
-                )
+                logger.info("✅ File saved to Google Drive: '%s' (Drive ID: %s)", relative_path, drive_id)
+
+                # Delete local file if it exists
+                from django.core.files.storage import default_storage
+                if default_storage.exists(relative_path):
+                    try:
+                        default_storage.delete(relative_path)
+                        logger.info("🗑️ Local file deleted after successful Drive upload: %s", relative_path)
+                    except Exception as e:
+                        logger.warning("⚠️ Failed to delete local file after Drive upload: %s", e)
+
                 return relative_path, "drive", drive_id
 
             except Exception as e:
-                # Step 3: Capture failure reason
                 logger.warning(
-                    "⚠️ Drive save failed for '%s': %s. "
-                    "Falling back to local storage.",
+                    "⚠️ Drive save failed for '%s': %s. Falling back to local storage.",
                     relative_path, e,
                     exc_info=True
                 )
 
-        # Step 4: Always attempt local fallback
+        # Drive unavailable or failed, fallback to local
         try:
             from django.core.files.storage import default_storage
-
             logger.info("💾 Attempting local save for: %s", relative_path)
             default_storage.save(relative_path, content)
-
-            logger.info(
-                "✅ File saved locally: '%s'. "
-                "Reason: Drive unavailable or failed.",
-                relative_path
-            )
+            logger.info("✅ File saved locally: '%s'. Reason: Drive unavailable or failed.", relative_path)
             return relative_path, "local", None
-
         except Exception as e:
-            # Step 5: Local also failed — log critically
             logger.error(
                 "❌ Local save failed for '%s': %s. File was NOT saved anywhere!",
                 relative_path, e,
                 exc_info=True
             )
             return relative_path, "failed", None
-
-
-
+        
+        
 
     # open: for docs we prefer to use drive_file_id when backend == drive
     def open(self, document_instance):

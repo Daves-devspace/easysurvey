@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, documents, accounts, reciepts, analytics, auth_views, bot_views
+from . import views, documents, accounts, reciepts, analytics, auth_views, bot_views,audit
 from apps.EasyDocs.files import views as file_views
 from apps.EasyDocs.files import connection
 from apps.EasyDocs.accounts import accounts
@@ -20,7 +20,7 @@ from .services.bookings import BookingManagementView, MarkBookingHandledView, As
 from .services.bookings import BookingUpdateView, BookingCreateView
 from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
-from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback
+from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback,RefreshDriveTokenView
 
 urlpatterns = [
     
@@ -182,6 +182,13 @@ urlpatterns = [
     path('generate-key/', connection.generate_deployment_key, name='generate_key'),
     path('debug-drive-config/', connection.debug_drive_config, name='debug_drive_config'),
     path('emergency-share-folder/', connection.emergency_share_folder, name='emergency_share_folder'),
+    path(
+        "oauth/refresh-token/",
+        RefreshDriveTokenView.as_view(),
+        name="refresh_drive_token",
+    ),
+    
+    path('system/audit-logs/',audit.AuditLogListView.as_view(),name='system_audit_logs'),
     
 
 ]

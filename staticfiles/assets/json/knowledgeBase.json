@@ -72,8 +72,116 @@
     "answer": "The Documents tab is your client's personal file cabinet! Store all their important documents here - contracts, IDs, certificates, survey reports, you name it. You can upload files, organize them by type, and even send documents directly to clients via WhatsApp or Email right from the system."
   },
   {
+    "question": "what is the office documents tab",
+    "answer": "The Office Documents tab is your central hub for all company-wide files. Keep templates, internal reports, official letters, and other shared documents here. Office staff can upload, categorize by document type, and track document upload status."
+  },
+  {
+    "question": "how do i upload a document",
+    "answer": "Uploading is simple! Navigate to either the Client Documents or Office Documents tab, click **Upload**, select the file, choose its document type, and confirm. The system will automatically decide where to store it: **System** (server), **Google Drive**, or **Hybrid** (both)."
+  },
+  {
+    "question": "what is hybrid storage",
+    "answer": "Hybrid storage means your document exists in both **System** storage (local server) and **Google Drive**. This ensures a backup is available, allows secure sharing with clients, and supports migration to full Google Drive storage if needed."
+  },
+  {
+    "question": "how does the system migrate documents to Google Drive",
+    "answer": "The system can automatically migrate documents from **System** storage to **Google Drive**. If a document is already in **Hybrid** mode and exists on Drive, it will not be uploaded again. Migration updates the document's storage badge, Drive file ID, and URL, ensuring all files are accessible and properly tracked."
+  },
+  {
     "question": "how do i send a document to a client",
-    "answer": "Easy peasy! Go to the client's **Documents** tab, find the document you want to share, then click either the **WhatsApp** or **Email** button next to it. The system will securely deliver it to your client - no need to leave the platform!"
+    "answer": "Easy peasy! Go to the client's **Documents** tab, find the document you want to share, then click either the **WhatsApp** or **Email** button next to it. The system will fetch the file from **System**, **Google Drive**, or **Hybrid** storage and securely deliver it to your client."
+  },
+  {
+    "question": "can i preview a document before sending",
+    "answer": "Yes! You can click the **Preview** button next to any document, whether it's in **System**, **Google Drive**, or **Hybrid** storage. The system safely fetches the file content and renders it for viewing without downloading it to your computer."
+  },
+  {
+    "question": "how is document security handled",
+    "answer": "Documents are secured at multiple levels:\n- **Storage Security:** Files in **Google Drive** are protected via OAuth and your company’s Drive policies. Files in **System** storage are stored in secured server directories.\n- **Access Control:** Only authorized users can view or send documents. Client access is controlled via the system.\n- **Audit Logging:** All uploads, downloads, email sends, and deletions are logged for accountability.\n- **Hybrid Safety:** Hybrid documents exist in both **System** and **Google Drive**, ensuring backup and reducing risk of accidental loss."
+  },
+  {
+    "question": "can i delete a document",
+    "answer": "Yes, but carefully! Deleting a document removes it from its storage backend (**System**, **Google Drive**, or **Hybrid**). The system logs all deletions for audit purposes. If you delete a **Hybrid** document, both copies are removed unless you override settings."
+  },
+  {
+    "question": "how do i check document health",
+    "answer": "The system provides a **Document Health Check** feature. It scans all Client and Office documents, checks for missing **System** or **Google Drive** files, failed uploads, and orphaned files, and generates a report to help you maintain document integrity."
+  },
+  {
+    "question": "how are document names managed",
+    "answer": "Documents are automatically named with a timestamp and their original filename to prevent conflicts. For example, `20251008_125339_report.pdf`. Office documents are stored under `office/<type>/`, and Client documents under `clients/client_<id>/<type>/`."
+  },
+  {
+    "question": "what is the difference between ClientDoc and Office Document",
+    "answer": "ClientDoc objects are linked to specific clients and are used for client-facing files. Office Documents are general internal files used by your organization. Both follow the same storage, migration, and security rules, but ClientDocs allow direct emailing to the client."
+  },
+  {
+    "question": "what if sending an email fails",
+    "answer": "If sending a document via email fails, the system logs the error and shows a clear message. You can retry sending, check the file availability, or migrate a **System** file to **Google Drive** for more reliable delivery."
+  },
+  {
+    "question": "can multiple documents be migrated or sent at once",
+    "answer": "Yes! The system supports batch migration to **Google Drive** and batch emailing via Celery tasks. Migration respects Drive API rate limits and avoids duplicating files already on Drive or in **Hybrid** mode."
+  },
+    {
+    "question": "how do i connect google drive in the system",
+    "answer": "Open **Settings → Google Drive** and click the green **Connect with Google** button. You (an admin) will be redirected to Google to sign in and grant permissions. After consenting you'll return to the site and see a Connected badge. Only users with deployment/admin rights can initiate the connection."
+  },
+  {
+    "question": "what do the buttons on the Google Drive tab do",
+    "answer": "Buttons on the tab:\n• **Connect with Google** — starts OAuth authorization (URL: drive_oauth_start). Use this to authorize the company Google account.\n• **Test Connection** — runs a server-side test that verifies the configured credentials can access the Drive folder (URL: test_google_drive_connection). Use this after changing settings.\n• **Refresh Token** — attempts to refresh the stored company OAuth token (URL: refresh_drive_token). Use this for expired-but-refreshable tokens.\n• **Reconnect Google Drive** — re-starts OAuth if the token is invalid and cannot be refreshed.\n• **Clear Key** — removes the stored service account JSON (URL: google_drive_config_clear_key)."
+  },
+  {
+    "question": "which permissions/scopes does the app request and why",
+    "answer": "The app requests these scopes:\n• `https://www.googleapis.com/auth/drive` — full Drive access needed to create folders and upload files.\n• `openid` — to verify identity via OIDC.\n• `https://www.googleapis.com/auth/userinfo.email` — to confirm the authorized email address.\nThese are the minimum required for a shared company Drive token and to reliably verify the account that was authorized."
+  },
+  {
+    "question": "how does the system ensure the right google account is authorised",
+    "answer": "If you set **Company email** in Site Settings, the OAuth flow uses `login_hint` and server-side verification (id_token or userinfo) to confirm the signed-in Google account matches that email. If the authenticated email differs, the callback rejects the auth and shows a clear message asking you to sign in with the company account."
+  },
+  {
+    "question": "what does the status badge mean on the Google Drive card",
+    "answer": "Badge meanings:\n• **Connected** (green) — a valid connection was verified and the system can upload to Drive.\n• **Testing** (blue) — a connection test is running or was recently run.\n• **Not Configured** (yellow) — OAuth client or tokens are missing.\n• **Disabled** (gray) — Drive integration is turned off.\n• **Error** (red) — the last connection test failed (click Test Connection to see details).\nYou will also see a storage mode badge (e.g. **Google Drive**, **System**, **Hybrid**) describing where files are stored."
+  },
+  {
+    "question": "what do the storage badges the user sees mean",
+    "answer": "The frontend uses friendly labels:\n• **System** — stored only on the server (local storage).\n• **Google Drive** — stored only on Google Drive.\n• **Hybrid** — copies exist both on the server and in Google Drive.\nThe AI assistant uses these names so your users won't be confused by technical terms like 'local'."
+  },
+  {
+    "question": "i see Token Expired or Token Invalid — what should i do",
+    "answer": "If you see **Token Expired** (yellow) click **Refresh Token** first. If refresh fails with “expired or revoked”, the system will set **Token Invalid** (red) and you must click **Reconnect Google Drive** to re-authorize. Steps:\n1. Click **Refresh Token**. If success: you’ll see Connected and new expiry.\n2. If refresh fails (invalid_grant), click **Reconnect Google Drive** and sign in with the company Google account.\n3. If reauthorization is blocked, check Site Settings → Company email and OAuth client id/secret are correct, then re-run connect."
+  },
+  {
+    "question": "test connection returns a quota or permission message",
+    "answer": "If **Test Connection** reports a quota/permission problem (common when using a standard Drive rather than a Shared Drive), you have two main options:\n• Authorize a company account (Connect with Google) that has quota/permissions.\n• Use a Google Workspace Shared Drive and grant the service account access there. The Test UI includes links and suggested next steps when this happens."
+  },
+  {
+    "question": "what if i get 'Scope has changed' or scope mismatch errors",
+    "answer": "Scope mismatch errors happen when the authorized token's scopes differ from what the app now requests. Fixes:\n1. Re-run **Connect with Google** and ensure you grant the requested scopes (Drive, openid, userinfo.email).\n2. If you previously authorized with a different scope set, re-authorize to get a refresh token with the updated scopes.\nThe UI will show a helpful message indicating the new required scopes."
+  },
+  {
+    "question": "what if refresh/save to DB fails with encryption or persistence errors",
+    "answer": "If token refresh succeeds but saving the refreshed token fails (encryption or DB error), the app will:\n• Log a clear error (e.g. 'Failed to persist refreshed OAuth token') and set SiteSettings to an error state.\n• Mark tokens as needing reauthorization to avoid retry loops.\nAction: check server logs for the inner exception (encryption key problem or DB permission issue). Ensure DEPLOYMENT_ENCRYPTION_KEY and database are healthy, then re-run Connect with Google."
+  },
+  {
+    "question": "who can perform Drive authorization and token refresh",
+    "answer": "Only users who pass the `is_deployment_manager` test (your admin/deployment managers) can start OAuth flows, refresh tokens, and clear the service account key. Regular users can upload and share documents but cannot change Drive configuration."
+  },
+  {
+    "question": "how does the service account key work and how is it shown",
+    "answer": "If you upload a service account JSON, the system encrypts it and only displays the service account email in the UI (so you know which service account is configured). The JSON key is stored encrypted; you can rotate it by uploading a new JSON. Use Service Account keys for server-side uploads or Shared Drive setups."
+  },
+  {
+    "question": "how do i safely disconnect google drive",
+    "answer": "Click **Disconnect** (or clear the key) on the Google Drive tab. The system will stop sending new files to Drive. Existing files in Drive remain unaffected — they live in Google Drive independently. If tokens are cleared, the UI will show Not Configured."
+  },
+  {
+    "question": "what should i do if the Test Connection UI returns HTML to re-render",
+    "answer": "Sometimes the Test Connection handler returns an updated card fragment (for example, to show newly detected service account email or a required change). If that happens the card will be replaced automatically. Follow any instructions shown in the card."
+  },
+  {
+    "question": "troubleshooting checklist for common errors",
+    "answer": "Quick checklist:\n1. Confirm OAuth Client ID & Secret are set in Settings.\n2. Verify Company email (Site Settings) matches the account you want to authorize.\n3. Click **Connect with Google** and accept the requested scopes (Drive, openid, userinfo.email).\n4. Run **Test Connection** to validate folder and permissions.\n5. If you see 'Token expired or revoked', click **Refresh Token**; if that fails, **Reconnect Google Drive**.\n6. If you see encryption/persistence errors, check DEPLOYMENT_ENCRYPTION_KEY and database write permissions and review logs for stack traces.\n7. For quota issues use a Shared Drive or an account with sufficient Drive quota and permissions."
   },
   {
     "question": "what is the accounts tab in client details",
@@ -566,5 +674,101 @@
   {
     "question": "can i integrate with other systems",
     "answer": "Integration capabilities depend on your specific system setup and available APIs. Common integrations include M-Pesa payment gateways, SMS providers, and accounting software. Check with your system administrator about available integrations and setup requirements."
-  }
+  },
+
+
+
+  
+  {
+      "question": "what is the cashbook",
+      "answer": "The Cashbook records all daily money in and out. Inflows include client payments, contributions, and opening balances. Outflows are split into Expenses (fuel, petty cash, office costs) and Payouts (cash paid to land offices). The system also generates a flagged Opening Balance each day."
+    },
+    {
+      "question": "how do i start the day in the cashbook",
+      "answer": "Check the Opening Balance on the dashboard. If it doesn’t match yesterday’s closing balance, click 'Sync Opening Balance' to auto-correct. This ensures consistency and logs the action in the audit trail."
+    },
+    {
+      "question": "how do i record cash inflows",
+      "answer": "When cash comes in, record it as either a Client Payment/Contribution (linked to a client) or as an Opening Balance if physical cash was introduced at the start of the day. Each inflow immediately increases the available balance."
+    },
+    {
+      "question": "how do i record cash outflows",
+      "answer": "When money goes out, select the correct type. Use the **Expenses** tab for things like fuel, office costs, and petty cash. Use **Record Cashout** for payouts to land offices. Both reduce the balance, but are tracked separately in reports."
+    },
+    {
+      "question": "how do adjustments work",
+      "answer": "If you make an error, don’t delete the entry. Use the Adjustments feature to add a correction entry. This keeps the audit trail transparent and avoids data loss."
+    },
+    {
+      "question": "how do i close the day",
+      "answer": "At day-end, confirm the Closing Balance. Formula: Closing Balance = Opening Balance + Inflows – (Expenses + Payouts). This Closing Balance is carried forward as the next day’s Opening Balance."
+    },
+    {
+      "question": "how do i generate reports",
+      "answer": "Generate daily reports in PDF/Excel. These include Opening, Inflows, Outflows (with Expenses vs Payouts split), Adjustments, and Closing Balance. KPIs like In/Out ratio and net cash flow are color-coded in PDFs. All actions are logged in Audit Logs."
+    },
+    {
+      "question": "what are the best practices for using the cashbook",
+      "answer": "Always record in real-time, classify outflows correctly, run Sync if balances mismatch, use Adjustments instead of deleting, and generate daily PDFs as proof of activity."
+    },
+    {
+      "question": "how do i view today’s cash activity",
+      "answer": "Go to the Cashbook dashboard. You’ll see inflows (client payments, contributions, opening balances), outflows (expenses, payouts), adjustments, and the running balance for the day."
+    },
+    {
+      "question": "what’s the difference between expenses and payouts",
+      "answer": "Expenses are company costs like fuel, petty cash, or office supplies. Payouts are direct money given to land offices for title deed processing. Both reduce balance, but are tracked separately in reports."
+    },
+    {
+      "question": "how do i add money to start the day",
+      "answer": "Use the Add Opening Balance option. This represents physical cash added at the start of the day and forms the base of that day’s transactions."
+    },
+    {
+      "question": "how do client payments get recorded",
+      "answer": "Use the Client Payment/Contribution entry. Each record links to a client, increases the cashbook balance, and is shown as an inflow in reports."
+    },
+    {
+      "question": "how do i correct a mistake in recording",
+      "answer": "Don’t delete entries. Use Adjustments to add a correction record. The system then re-aligns balances and keeps a clean audit history."
+    },
+    {
+      "question": "how do i check closing balance for a day",
+      "answer": "At the bottom of the Cashbook dashboard, the Closing Balance is shown. It equals Opening Balance + Inflows – (Expenses + Payouts)."
+    },
+    {
+      "question": "can i generate reports for a specific date",
+      "answer": "Yes! Use the 'Export PDF' or 'Export Excel' option on the Cashbook dashboard. Select the date to generate the report, which includes opening, inflows, outflows, adjustments, and closing balance."
+    },
+    {
+      "question": "what happens if the opening balance doesn’t match yesterday’s closing",
+      "answer": "Click 'Sync Opening Balance'. The system auto-adjusts using the flagged snapshot and logs the correction in Audit Logs for transparency."
+    },
+    {
+      "question": "why is my opening balance showing 0",
+      "answer": "The midnight task that creates the flagged opening balance might not have run, or yesterday had no closing balance. Click 'Sync Opening Balance' on the dashboard. This will auto-create or adjust the flagged balance based on the latest carried closing balance."
+    },
+    {
+      "question": "why is my pdf empty",
+      "answer": "No entries exist for the selected date. Sometimes entries are stored under 'entry_date' while others only have 'created_at'. Double-check the date filter. If you expect entries, try regenerating the report for the previous day or confirm transactions were actually saved under that date."
+    },
+    {
+      "question": "my closing balance looks wrong",
+      "answer": "An inflow or outflow may have been misclassified (e.g., payout entered as expense). Review today’s entries. Use 'Adjustments' to fix misclassified amounts. The system will re-align the closing balance automatically."
+    },
+    {
+      "question": "why do i see multiple opening balances for one day",
+      "answer": "A flagged opening and one or more adjustments were created due to mismatch or sync corrections. This is expected. Only one is the main opening; others are adjustments logged for audit transparency. No action needed unless you see duplicates with the same amounts."
+    },
+    {
+      "question": "why does the system ask me to sync opening frequently",
+      "answer": "If manual edits or late postings were made yesterday, today’s flagged opening may not align. Run 'Sync Opening Balance'. It’s safe—only adjustments are logged. For long-term fix, ensure daily closing balance is finalized before day-end."
+    }
+
+
+
+
+  
 ]
+
+
+

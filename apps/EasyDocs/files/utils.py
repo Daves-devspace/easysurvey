@@ -1,6 +1,7 @@
 # apps/EasyDocs/files/utils.py  (relevant parts)
 import json
 import logging
+from datetime import timezone, datetime
 from django.core.cache import cache
 from django.conf import settings
 from google.oauth2 import service_account
@@ -13,12 +14,20 @@ import io
 import os
 from django.db.models import Q
 from django.core.files.storage import default_storage   
+from google.auth.exceptions import RefreshError
 from apps.EasyDocs.files.security import credential_service
 from apps.EasyDocs.models import SiteSettings, DriveOAuthToken
+from django.utils import timezone as django_timezone
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
-DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive']
+DRIVE_SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email"
+]
+
 
 # --- DriveAdapter: unifies the API used by UnifiedStorage ---
 class DriveAdapter:
@@ -167,47 +176,177 @@ def _build_service_from_service_account(key_data, delegate_to=None):
 
 
 
-def _build_service_from_oauth(refresh_token, token_expiry=None, access_token=None):
+def _build_service_from_oauth():
     """
-    Build Drive service from OAuth tokens stored in DB.
-    Pulls client_id and client_secret via get_oauth_client_config (DB only).
+    Build a Google Drive service using the single shared company OAuth token.
+    Improved error handling for persisting refreshed tokens.
     """
-    from datetime import timezone
-    
     oauth_cfg = get_oauth_client_config()
     if not oauth_cfg:
+        logger.error("OAuth client configuration missing in SiteSettings")
         raise ValueError("OAuth client configuration missing in SiteSettings")
 
-    # CRITICAL: Google's auth library uses NAIVE datetimes internally
-    # Convert timezone-aware to naive UTC for compatibility
-    if token_expiry:
-        if token_expiry.tzinfo is not None:
-            logger.debug("Converting timezone-aware expiry to naive UTC for Google compatibility")
-            token_expiry = token_expiry.astimezone(timezone.utc).replace(tzinfo=None)
-    
-    logger.debug(f"Creating credentials with expiry: {token_expiry} (naive: {token_expiry.tzinfo is None if token_expiry else 'N/A'})")
+    token_obj = DriveOAuthToken.objects.first()
+    if not token_obj:
+        logger.error("No DriveOAuthToken found (company token missing)")
+        raise ValueError("No company OAuth token found; authorize first")
+
+    if getattr(token_obj, "needs_reauth", False) or not token_obj.refresh_token_encrypted:
+        logger.warning(
+            "Company OAuth token is missing or marked for re-auth (needs_reauth=%s).",
+            getattr(token_obj, "needs_reauth", False),
+        )
+        try:
+            token_obj.needs_reauth = True
+            token_obj.save(update_fields=["needs_reauth"])
+        except Exception:
+            logger.exception("Failed to mark DriveOAuthToken as needs_reauth")
+        raise ValueError("Company OAuth token missing or requires re-authorization")
+
+    # Decrypt tokens
+    try:
+        refresh_token = credential_service.decrypt(token_obj.refresh_token_encrypted)
+        access_token = (
+            credential_service.decrypt(token_obj.access_token_encrypted)
+            if token_obj.access_token_encrypted
+            else None
+        )
+    except Exception as e:
+        logger.exception("Failed to decrypt OAuth tokens: %s", e)
+        # Mark for reauth to avoid looping behavior (but don't clear refresh token here)
+        try:
+            token_obj.needs_reauth = True
+            token_obj.save(update_fields=["needs_reauth"])
+        except Exception:
+            logger.exception("Failed to mark DriveOAuthToken as needs_reauth after decrypt failure")
+        raise ValueError(f"Failed to decrypt stored OAuth tokens; re-authorization required ({e})") from e
+
+    # Prepare creds (expiry -> naive UTC)
+    expiry = token_obj.token_expiry
+    if expiry and expiry.tzinfo is not None:
+        expiry = expiry.astimezone(timezone.utc).replace(tzinfo=None)
 
     creds = Credentials(
         token=access_token,
         refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",  # REQUIRED for refresh
+        token_uri="https://oauth2.googleapis.com/token",
         client_id=oauth_cfg["client_id"],
         client_secret=oauth_cfg["client_secret"],
         scopes=DRIVE_SCOPES,
-        expiry=token_expiry
+        expiry=expiry,
     )
 
+    # Refresh if needed
     if not creds.valid and creds.refresh_token:
         try:
-            logger.info("Refreshing OAuth credentials...")
+            logger.info("Refreshing company OAuth credentials...")
             creds.refresh(Request())
+
+            # ENCRYPT first, so we catch encryption errors before touching DB
+            try:
+                encrypted_access = credential_service.encrypt(creds.token) if creds.token else None
+            except Exception as e_enc:
+                logger.exception("Failed to encrypt refreshed access token: %s", e_enc)
+                # Do not clear the refresh token: encryption failure likely environment/key problem.
+                # Update SiteSettings to surface the problem and raise an informative error.
+                try:
+                    site_settings = SiteSettings.objects.first()
+                    if site_settings:
+                        site_settings.drive_config_status = "error"
+                        site_settings.drive_last_test_status = f"Encryption failed when saving refreshed token: {e_enc}"
+                        site_settings.save(update_fields=["drive_config_status", "drive_last_test_status"])
+                except Exception:
+                    logger.exception("Failed to update SiteSettings after encryption failure")
+
+                raise ValueError(f"Failed to encrypt refreshed access token: {e_enc}") from e_enc
+
+            # Now persist the encrypted token and expiry
+            try:
+                # Ensure token_expiry stored as aware UTC or None
+                expiry_to_store = None
+                if creds.expiry:
+                    # convert to aware UTC if needed
+                    exp = creds.expiry
+                    if exp.tzinfo is None:
+                        # treat as UTC naive
+                        expiry_to_store = django_timezone.make_aware(exp, timezone=timezone.utc)
+                    else:
+                        expiry_to_store = exp.astimezone(django_timezone.utc)
+
+                token_obj.access_token_encrypted = encrypted_access
+                token_obj.token_expiry = expiry_to_store
+                token_obj.needs_reauth = False
+                token_obj.save(update_fields=["access_token_encrypted", "token_expiry", "needs_reauth"])
+                logger.info("Company OAuth token refreshed and persisted successfully")
+            except Exception as e_save:
+                logger.exception("Failed to persist refreshed OAuth token to DB: %s", e_save)
+                # If persisting fails, attempt to set SiteSettings and mark needs_reauth to avoid loops
+                try:
+                    with transaction.atomic():
+                        token_obj.needs_reauth = True
+                        token_obj.save(update_fields=["needs_reauth"])
+                except Exception:
+                    logger.exception("Failed to mark token_obj.needs_reauth after DB persist failure")
+
+                try:
+                    site_settings = SiteSettings.objects.first()
+                    if site_settings:
+                        site_settings.drive_config_status = "error"
+                        site_settings.drive_last_test_status = f"Failed to persist refreshed OAuth token: {e_save}"
+                        site_settings.save(update_fields=["drive_config_status", "drive_last_test_status"])
+                except Exception:
+                    logger.exception("Failed to update SiteSettings after DB persist failure")
+
+                # Provide the inner exception message for quicker debugging upstream
+                raise ValueError(f"Failed to persist refreshed OAuth token: {e_save}") from e_save
+
+        except RefreshError as e:
+            # Refresh token invalid/expired/revoked: clear credentials and mark reauth
+            logger.error("OAuth refresh failed: %s", e)
+            try:
+                with transaction.atomic():
+                    token_obj.refresh_token_encrypted = None
+                    token_obj.access_token_encrypted = None
+                    token_obj.token_expiry = None
+                    token_obj.scopes = ""
+                    token_obj.needs_reauth = True
+                    token_obj.save(
+                        update_fields=[
+                            "refresh_token_encrypted",
+                            "access_token_encrypted",
+                            "token_expiry",
+                            "scopes",
+                            "needs_reauth",
+                        ]
+                    )
+                    logger.info("Cleared invalid OAuth tokens and marked needs_reauth=True")
+            except Exception:
+                logger.exception("Failed to clear invalid OAuth tokens from DB after RefreshError")
+
+            try:
+                site_settings = SiteSettings.objects.first()
+                if site_settings:
+                    site_settings.drive_config_status = "error"
+                    site_settings.drive_last_test_status = "Company OAuth token expired or revoked; re-authorization required"
+                    site_settings.save(update_fields=["drive_config_status", "drive_last_test_status"])
+                    logger.info("Updated SiteSettings with OAuth error status")
+            except Exception:
+                logger.exception("Failed to update SiteSettings with OAuth error status")
+
+            raise ValueError("Company OAuth token expired or revoked; re-authorization required") from e
+
         except Exception as e:
-            logger.error("OAuth credential refresh failed: %s", e)
-            raise
+            logger.exception("Unexpected error while refreshing/persisting OAuth token: %s", e)
+            raise ValueError(f"Failed to persist refreshed OAuth token: {e}") from e
 
-    service = build('drive', 'v3', credentials=creds, cache_discovery=False)
-    return service, creds
-
+    # Build the Drive service (will work if creds valid or refresh succeeded)
+    try:
+        service = build("drive", "v3", credentials=creds, cache_discovery=False)
+        logger.debug("Built Google Drive service client successfully")
+        return service, creds
+    except Exception as e:
+        logger.exception("Failed to build Google Drive service client: %s", e)
+        raise ValueError("Failed to build Google Drive service client") from e
 
 
 def get_drive_storage():
@@ -257,11 +396,7 @@ def get_drive_storage():
                     logger.debug("Converting naive token_expiry to UTC in get_drive_storage")
                     token_expiry = token_expiry.replace(tzinfo=timezone.utc)
 
-                service, creds = _build_service_from_oauth(
-                    refresh_token=refresh_token,
-                    token_expiry=token_expiry,  # Now guaranteed to be timezone-aware
-                    access_token=access_token
-                )
+                service, creds = _build_service_from_oauth()
 
                 root_folder = site_settings.google_drive_root_folder_id if site_settings else None
                 adapter = DriveAdapter(
@@ -297,16 +432,9 @@ def get_default_storage_backend(prefer_drive=True):
 
 def get_connection_status(site_settings):
     """
-    Return a stable dict describing current Drive connection and available
-    storage *mode* options. Always returns keys:
-      - status: one of not_configured|disabled|connected|testing|error|unknown
-      - message: human message
-      - class: bootstrap class name (warning/success/error/...)
-      - storage_mode: one of service_account|oauth_authorized|oauth_configured|none
-      - storage_mode_display: human label for storage_mode
-      - quota_issue: bool (True if known quota problem detected during tests)
+    Return a stable dict describing Drive connection for the shared company OAuth token.
+    Includes expired/revoked token detection and explicit needs_reauth flag.
     """
-    # default response skeleton
     result = {
         "status": "not_configured",
         "message": "Site settings not configured",
@@ -314,86 +442,109 @@ def get_connection_status(site_settings):
         "storage_mode": "none",
         "storage_mode_display": "No Drive configured",
         "quota_issue": False,
+        "expired_token": False,
+        "needs_reauth": False,   # NEW: authoritative flag for re-authorization required
     }
 
-    # If no site_settings passed, return default
     if not site_settings:
         return result
 
-    # Basic checks
     if not site_settings.google_drive_enabled:
-        result.update({
+        return {
+            **result,
             "status": "disabled",
             "message": "Drive disabled",
             "class": "warning",
             "storage_mode": "none",
             "storage_mode_display": "Drive disabled",
-        })
-        return result
+        }
 
-    # We determine availability using the configs in DB (without initializing Drive API).
-    # service account configured?
+    # Service account configured?
     sa_configured = bool(site_settings.google_drive_service_account_key_encrypted)
-    # oauth client present (client id + secret stored)
+    # OAuth client configured?
     from apps.EasyDocs.files.utils import get_oauth_client_config
     oauth_cfg = get_oauth_client_config()
     oauth_configured = bool(oauth_cfg)
-    # OAuth token stored (an authorized account)
-    from apps.EasyDocs.models import DriveOAuthToken
-    oauth_token_exists = DriveOAuthToken.objects.exists()
 
-    # Choose the best storage_mode preference order:
-    # service_account > oauth_authorized > oauth_configured > none
+    # Single shared OAuth token
+    token_obj = DriveOAuthToken.objects.first()
+    token_exists = bool(token_obj and token_obj.refresh_token_encrypted)
+
+    # Detect expired token (based on expiry field)
+    now_utc = datetime.now(timezone.utc)
+    if token_exists and token_obj.token_expiry and token_obj.token_expiry < now_utc:
+        result["expired_token"] = True
+
+    # Detect explicit needs_reauth (set on RefreshError/decrypt failure)
+    if token_obj and getattr(token_obj, "needs_reauth", False):
+        result["needs_reauth"] = True
+
+    # Determine storage mode
     if sa_configured:
-        result["storage_mode"] = "service_account"
-        result["storage_mode_display"] = "Service Account"
-        # status remains unknown until a connection test runs; do not mark 'connected' here
-        result["status"] = "not_configured" if not site_settings.google_drive_service_account_key_encrypted else result["status"]
-        result["message"] = "Service Account configured"
-        result["class"] = "info"
-    elif oauth_token_exists and oauth_configured:
-        result["storage_mode"] = "oauth_authorized"
-        result["storage_mode_display"] = "Authorized Account (OAuth)"
-        result["status"] = "not_configured"
-        result["message"] = "OAuth client + authorized account available"
-        result["class"] = "info"
+        result.update({
+            "storage_mode": "service_account",
+            "storage_mode_display": "Service Account",
+            "status": "not_configured",
+            "message": "Service Account configured",
+            "class": "info",
+        })
+    elif token_exists and oauth_configured:
+        result.update({
+            "storage_mode": "oauth_authorized",
+            "storage_mode_display": "Authorized Company Account (OAuth)",
+            "status": "not_configured",
+            "message": "Company OAuth token available",
+            "class": "info",
+        })
     elif oauth_configured:
-        result["storage_mode"] = "oauth_configured"
-        result["storage_mode_display"] = "OAuth client configured (needs authorization)"
-        result["status"] = "not_configured"
-        result["message"] = "OAuth client configured; authorize a company account"
-        result["class"] = "warning"
+        result.update({
+            "storage_mode": "oauth_configured",
+            "storage_mode_display": "OAuth client configured (needs authorization)",
+            "status": "not_configured",
+            "message": "Authorize company account",
+            "class": "warning",
+        })
     else:
-        result["storage_mode"] = "none"
-        result["storage_mode_display"] = "No Drive credentials configured"
-        result["status"] = "not_configured"
-        result["message"] = "No service account or OAuth client configured"
-        result["class"] = "warning"
+        result.update({
+            "storage_mode": "none",
+            "storage_mode_display": "No Drive credentials configured",
+            "status": "not_configured",
+            "message": "No service account or OAuth client configured",
+            "class": "warning",
+        })
 
-    # If site_settings.drive_config_status has known states, include them
+    # Prioritize needs_reauth over expired_token in messaging and class
+    if result["needs_reauth"]:
+        # Use the site's last_test_status if available, else a clear default
+        reason = site_settings.drive_last_test_status or "OAuth token invalid or revoked"
+        result["message"] = f"{reason} (Re-authorization required)"
+        result["class"] = "danger"
+        # Ensure expired_token is True to show the same badge logic if you reuse that flag in templates
+        result["expired_token"] = True
+    elif result["expired_token"]:
+        result["message"] += " (OAuth token expired; refresh may be required)"
+        if result["class"] != "danger":
+            result["class"] = "warning"
+
+    # Respect site_settings known states
     cfg_state = site_settings.drive_config_status
     if cfg_state == "configured":
-        result["status"] = "connected"
-        result["message"] = "Drive configured"
-        result["class"] = "success"
+        result.update({"status": "connected", "message": "Drive configured", "class": "success"})
     elif cfg_state == "testing":
-        result["status"] = "testing"
-        result["message"] = "Testing..."
-        result["class"] = "info"
+        result.update({"status": "testing", "message": "Testing...", "class": "info"})
     elif cfg_state == "error":
-        result["status"] = "error"
-        result["message"] = site_settings.drive_last_test_status or "Configuration error"
-        result["class"] = "danger"
+        result.update({"status": "error", "message": site_settings.drive_last_test_status or "Configuration error", "class": "danger"})
 
-    # If last test mentions quota problems, surface that flag (helps UI)
+    # Quota issues
     last_status = (site_settings.drive_last_test_status or "").lower()
     if "quota" in last_status or "storagequota" in last_status or "storagequotaexceeded" in last_status:
         result["quota_issue"] = True
-        # prefer a visible message
         result["message"] = site_settings.drive_last_test_status or result["message"]
         result["class"] = "danger"
 
     return result
+
+
 
 
 def ensure_root_folder_exists(storage, site_settings, request_user=None):

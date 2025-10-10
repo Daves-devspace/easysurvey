@@ -21,6 +21,59 @@ import threading
 from functools import wraps
 
 _signal_lock = threading.local()
+# apps/EasyDocs/signals.py
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.apps import apps
+from crum import get_current_user  # handy for tracking the current user
+from apps.EasyDocs.models import AuditLog
+
+
+def get_user():
+    user = get_current_user()
+    if user and user.is_authenticated:
+        return user
+    return None
+
+
+@receiver(post_save)
+def log_model_save(sender, instance, created, **kwargs):
+    # Skip AuditLog itself (avoid infinite loop)
+    if sender == AuditLog:
+        return
+    
+    # Skip Django internal models if you want
+    if sender._meta.app_label in ["sessions", "admin", "contenttypes", "auth"]:
+        return
+    
+    AuditLog.objects.create(
+        user=get_user(),
+        action="create" if created else "update",
+        model_name=sender.__name__,
+        object_id=instance.pk,
+        description=f"{'Created' if created else 'Updated'} {sender.__name__} #{instance.pk}",
+    )
+
+
+@receiver(post_delete)
+def log_model_delete(sender, instance, **kwargs):
+    if sender == AuditLog:
+        return
+    
+    if sender._meta.app_label in ["sessions", "admin", "contenttypes", "auth"]:
+        return
+    
+    AuditLog.objects.create(
+        user=get_user(),
+        action="delete",
+        model_name=sender.__name__,
+        object_id=instance.pk,
+        description=f"Deleted {sender.__name__} #{instance.pk}",
+    )
+
+
+
+
 
 
 @receiver(post_save, sender=Payment)
@@ -242,7 +295,6 @@ def title_deed_collected_handler(sender, instance, created, **kwargs):
     reason = f"{svc.service.name} – deed collected"
     send_process_sms(svc, svc.client, svc.client.phone, msg, reason)
 
-
 @receiver(post_save, sender=Payment)
 def allocate_payment(sender, instance, created, **kwargs):
     if not created:
@@ -252,7 +304,7 @@ def allocate_payment(sender, instance, created, **kwargs):
     client_service = instance.client_service
     service = client_service.service
 
-    # Allocate to service processes (for TITLE services)
+    # 1️⃣ Allocate to service processes (only for TITLE services)
     if service.category == ServiceCategory.TITLE:
         for csp in client_service.service_processes.order_by('process__step_order'):
             if remaining <= 0:
@@ -270,8 +322,9 @@ def allocate_payment(sender, instance, created, **kwargs):
                     service_process=csp
                 )
 
-    # Allocate to sub-services (shared by both TITLE and GROUND)
-    for sub in client_service.sub_services.all():
+    # 2️⃣ Allocate to sub-services (latest ones first)
+    subs = client_service.sub_services.order_by('-id')  # newest first
+    for sub in subs:
         if remaining <= 0:
             break
         to_pay = min(remaining, sub.balance)
@@ -287,7 +340,7 @@ def allocate_payment(sender, instance, created, **kwargs):
                 sub_service=sub
             )
 
-    # Handle remaining balance for GROUND service (no processes or subs)
+    # 3️⃣ Handle remaining balance for GROUND service
     if remaining > 0 and service.category == ServiceCategory.GROUND:
         PaymentHistory.objects.create(
             payment=instance,
@@ -295,7 +348,4 @@ def allocate_payment(sender, instance, created, **kwargs):
             amount=remaining,
             reason="ground_service"
         )
-        # Optionally, store this directly on ClientService if needed
-        # (e.g. a `paid_amount` field if tracking is required)
-
-
+        # optionally update a paid_amount on ClientService

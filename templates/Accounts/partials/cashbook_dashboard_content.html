@@ -1,16 +1,31 @@
 <div class=" bg-light" id="cashbook-dashboard-content">
     <div class="container-fluid">
         <!-- Header Section -->
-        <div class="d-flex align-items-center mb-4">
-            <i class="fas fa-wallet text-primary fs-2 me-3"></i>
-            <div>
-                <h3 class="mb-0 fw-bold text-dark">Cashbook Dashboard</h3>
-                <p class="text-muted mb-0">
-                    <i class="fas fa-calendar-day me-1"></i>
-                    <span id="selectedDate">{{ today }}</span>
-                </p>
+        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 gap-3">
+            <!-- Icon + Title -->
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <i class="fas fa-calendar-day text-primary fs-2"></i>
+                <div>
+                    
+                    <p class="text-muted mb-0 d-flex align-items-center gap-1">
+                       
+                        <span id="selectedDate">{{ today }}</span>
+                    </p>
+                </div>
             </div>
+
+            <!-- PDF Button -->
+            
+                <div class="d-flex align-items-center mb-3">
+                        <!-- Button that opens modal -->
+                        <button id="openPdfBtn" type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#pdfModal">
+                        <i class="fas fa-file-pdf me-1"></i> View Day Audit PDF
+                        </button>
+
+
+                    </div>
         </div>
+
 
         <!-- Financial Summary Cards -->
         <div class="row g-3 mb-4">
@@ -149,17 +164,36 @@
                             <span class="text-purple">
                                 <i class="fas fa-percentage text-purple me-1"></i> In/Out Ratio
                             </span>
-                            <span class="badge rounded-pill {% if is_positive_flow %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-1">
-                                {{ ratio_display }}
+                            <span class="badge rounded-pill 
+                                {% if cash_flow_ratio is not None %}
+                                    {% if cash_flow_ratio > 1 %}bg-success-subtle text-success
+                                    {% elif cash_flow_ratio == 1 %}bg-warning-subtle text-warning
+                                    {% else %}bg-danger-subtle text-danger
+                                    {% endif %}
+                                {% else %}bg-secondary-subtle text-secondary{% endif %}
+                                px-2 py-1">
+                                {{ ratio_display|default:"N/A" }}
                             </span>
                         </div>
-                        <h4 class="mb-2 fw-bold text-purple">{{ ratio_display }}</h4>
+
+                        <h4 class="mb-2 fw-bold text-purple">{{ ratio_display|default:"N/A" }}</h4>
+
                         <p class="text-muted small mb-0">
-                            <i class="fas fa-scale-balanced me-1"></i> {{ ratio_text }}
+                            <i class="fas fa-scale-balanced me-1"></i>
+                            {% if today_out == 0 %}
+                                ℹ No expenses recorded today.
+                            {% elif cash_flow_ratio > 1 %}
+                                🚀 Great! Income is {{ ratio_display }} your expenses.
+                            {% elif cash_flow_ratio == 1 %}
+                                ⚖ Income roughly matches expenses.
+                            {% else %}
+                                ⚠ Alert! Income is only {{ ratio_display }} of expenses.
+                            {% endif %}
                         </p>
                     </div>
                 </div>
             </div>
+
 
         </div>
 
@@ -180,7 +214,7 @@
             <div class="card-body">
                 <div class="table-responsive  mt-3">
                     <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                        <thead class="bg-green-300 ">
+                        <thead class="bg-green-100 ">
                             <tr>
                                 <th>
                                     <div class="form-check">
@@ -197,9 +231,10 @@
                         <tbody>
                         {% for entry in recent_entries %}
                             <tr>
-                                <td> <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="select-all">
-                                            </div>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="select-all">
+                                    </div>
                                 </td>
                                 <td class="py-3">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
                                 <td class="py-3">
@@ -210,20 +245,80 @@
                                     {% endif %}
                                 </td>
                                 <td class="py-3">{{ entry.description }}</td>
-                                <td class="py-3 fw-bold">KES {{ entry.amount }}</td>
-                                <td class="py-3">{{ entry.created_by }}</td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    No transactions found for this date
+                                
+                                <td class="py-3 fw-bold">
+                                    {% if entry.is_opening_balance %}
+                                        KES {{ entry.balance_after }}
+                                    {% else %}
+                                        KES {{ entry.amount }}
+                                    {% endif %}
                                 </td>
+
+                                <td class="py-3">
+                                    {% if entry.recorded_by_display == "System / Auto Task" %}
+                                        <span class="badge bg-secondary">{{ entry.recorded_by_display }}</span>
+                                    {% else %}
+                                        {{ entry.recorded_by_display }}
+                                    {% endif %}
+                                </td>
+
                             </tr>
                         {% endfor %}
                         </tbody>
+
                     </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+
+
+
+
+<!-- PDF Modal -->
+
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Daily Cashbook Audit - <span id="pdfModalDateLabel">{{ today }}</span></h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="height:80vh;">
+        <iframe id="pdfIframe" src="{% url 'daily_cashbook_pdf' %}?date={{ today|date:'Y-m-d' }}" style="width:100%;height:100%;" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ensure iframe always uses the dashboard date-picker value (yyyy-mm-dd)
+  (function(){
+    const dateInput = document.getElementById("dateFilter"); // your dashboard date picker
+    const iframe = document.getElementById("pdfIframe");
+    const label = document.getElementById("pdfModalDateLabel");
+
+    // update iframe when date changes (HTMX already refreshes dashboard content)
+    if (dateInput) {
+      dateInput.addEventListener("change", () => {
+        const v = dateInput.value; // expected format YYYY-MM-DD
+        if (!v) return;
+        iframe.src = `{% url 'daily_cashbook_pdf' %}?date=` + encodeURIComponent(v);
+        if (label) label.textContent = v;
+      });
+
+      // when modal opens, ensure iframe is in sync
+      const pdfModal = document.getElementById("pdfModal");
+      if (pdfModal) {
+        pdfModal.addEventListener("show.bs.modal", () => {
+          const v = dateInput.value || "{{ today|date:'Y-m-d' }}";
+          iframe.src = `{% url 'daily_cashbook_pdf' %}?date=` + encodeURIComponent(v);
+          if (label) label.textContent = v;
+        });
+      }
+    }
+  })();
+</script>
+
