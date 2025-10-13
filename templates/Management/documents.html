@@ -123,7 +123,11 @@
                                             <td>
                                               {% if document.file_url %}
                                                 <a href="{{ document.file_url }}" class="btn btn-info" target="_blank">View</a>
-                                              {% endif %}
+                                              {% else %}
+                                              <span class="text-muted">No file</span>
+                                             {% endif %}
+
+                                              
                                             </td>
                                         </tr>
                                     {% endfor %}
