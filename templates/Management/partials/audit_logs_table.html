@@ -1,7 +1,5 @@
 
- <div class="card-body">
-                            <!-- Table -->
-   <div class="table-responsive mt-3">
+
                                 <table class="datatable display table table-striped table-hover dt-responsive nowrap">
                                     <thead class="bg-green-100 ">
                                       <tr>
@@ -16,63 +14,60 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-    {% for log in logs %}
-    <tr>
-        <!-- Timestamp badge -->
-        <td>{{ log.timestamp_badge|safe }}</td>
+                                        {% for log in logs %}
+                                        <tr>
+                                            <!-- Timestamp badge -->
+                                            <td>{{ log.timestamp_badge|safe }}</td>
 
-        <!-- User display -->
-        <td>
-            {% if log.user %}
-                {% if log.user.is_authenticated %}
-                    <span class="badge bg-primary">
-                        {{ log.user.username }}
-                    </span>
-                    <span class="text-muted small">
-                        {{ log.user.get_full_name }}
-                    </span>
-                {% else %}
-                    <span class="badge bg-dark">Anonymous</span>
-                {% endif %}
-            {% else %}
-                <span class="badge bg-secondary">System</span>
-            {% endif %}
-        </td>
+                                            <!-- User display -->
+                                            <td>
+                                                {% if log.user %}
+                                                    {% if log.user.is_authenticated %}
+                                                        <span class="badge bg-primary">
+                                                            {{ log.user.username }}
+                                                        </span>
+                                                        <span class="text-muted small">
+                                                            {{ log.user.get_full_name }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-dark">Anonymous</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="badge bg-secondary">System</span>
+                                                {% endif %}
+                                            </td>
 
-        <!-- Action badge -->
-        <td><span class="badge bg-info">{{ log.action }}</span></td>
+                                            <!-- Action badge -->
+                                            <td><span class="badge bg-info">{{ log.action }}</span></td>
 
-        <!-- Model badge -->
-        <td><span class="badge bg-light text-dark">{{ log.model }}</span></td>
+                                            <!-- Model badge -->
+                                            <td><span class="badge bg-light text-dark">{{ log.model }}</span></td>
 
-        <!-- Description (plain text, no badge to allow readability) -->
-        <td>{{ log.description }}</td>
+                                            <!-- Description (plain text, no badge to allow readability) -->
+                                            <td>{{ log.description }}</td>
 
-        <!-- IP badge -->
-        <td>
-            {% if log.ip %}
-                <span class="badge bg-secondary">{{ log.ip }}</span>
-            {% else %}
-                <span class="badge bg-light text-muted">-</span>
-            {% endif %}
-        </td>
+                                            <!-- IP badge -->
+                                            <td>
+                                                {% if log.ip %}
+                                                    <span class="badge bg-secondary">{{ log.ip }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-muted">-</span>
+                                                {% endif %}
+                                            </td>
 
-        <!-- User agent (shortened badge) -->
-        <td>
-            {% if log.agent %}
-                <span class="badge bg-warning text-dark">{{ log.agent|truncatechars:25 }}</span>
-            {% else %}
-                <span class="badge bg-light text-muted">-</span>
-            {% endif %}
-        </td>
-    </tr>
-   
-    {% endfor %}
-</tbody>
+                                            <!-- User agent (shortened badge) -->
+                                            <td>
+                                                {% if log.agent %}
+                                                    <span class="badge bg-warning text-dark">{{ log.agent|truncatechars:25 }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    
+                                        {% endfor %}
+                                    </tbody>
 
                                     </table>
 
-
-                            </div>
-                        </div>
-                                            
+                                   

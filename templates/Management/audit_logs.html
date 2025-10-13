@@ -2,7 +2,7 @@
 {% load static %}
 
 {% load document_tags %}
-
+{% load custom_tags %}
 
 
 {% block body %}
@@ -47,7 +47,7 @@
                         <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
 
                         <div class="card shadow-sm p-3 mb-3 bg-white rounded">
-                                <form hx-get="{% url 'audit_logs' %}" 
+                                <form hx-get="{% url 'system_audit_logs' %}" 
                                     hx-target="#logs-table" 
                                     hx-trigger="change delay:500ms"
                                     class="row g-3 align-items-end">
@@ -58,7 +58,7 @@
                                         <select id="action" name="action" class="form-select">
                                             <option value="">All</option>
                                             {% for value, label in action_choices %}
-                                                <option value="{{ value }}" {% if request.GET.action == value %}selected{% endif %}>
+                                                <option value="{{ value }}" {% if request.GET|get_item:'action' == value %}selected{% endif %}>
                                                     {{ label }}
                                                 </option>
                                             {% endfor %}
@@ -92,9 +92,16 @@
 
                             <!-- Logs table -->
                             <div id="logs-table" 
-                                hx-get="{% url 'audit_logs' %}" 
+                                hx-get="{% url 'system_audit_logs' %}" 
                                 hx-trigger="load">
-                                {% include "Management/partials/audit_logs_table.html" %}
+                                 <div class="card-body">
+                                     <!-- Table -->
+                                   <div class="table-responsive mt-3">
+                                    
+                                      {% include "Management/partials/audit_logs_table.html" %}
+                                   </div>
+                                </div>
+                                  
                             </div>
 
 
