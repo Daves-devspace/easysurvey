@@ -233,7 +233,7 @@ class AddClientSubserviceView(ClientActionView):
         css.client_service = get_object_or_404(
             ClientService, id=request.POST['client_service'], client=client
         )
-        css.overridden_price = form.cleaned_data.get('overridden_price')
+        css.overridden_price = form.cleaned_data.get('overridden_price') or None
         css.save()
         messages.success(request, "✅ SubService added successfully.")
 

@@ -1,14 +1,21 @@
+{% load custom_filters %}
 {# templates/partials/_all_bookings_table.html #}
 <h5 class="mt-4">All Bookings</h5>
-<div class="table-responsive">
-  <table class="table table-bordered table-sm align-middle">
-    <thead class="table-light">
+
+  <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+      <thead class="table-success">
       <tr>
-        <th>#</th>
+        <th>
+          <div class="form-check">
+               <input class="form-check-input" type="checkbox" id="select-all">
+          </div>
+        </th>
         <th>Service</th>
         <th>Scheduled Date</th>
         <th>Created At</th>
         <th>Dispatch Message</th>
+        <th>Assign</th>
+        <th>Handle</th>
         <th>Reschedule</th>
       </tr>
     </thead>
@@ -19,7 +26,11 @@
       {% for cs in all_services %}
         {% for gd in cs.ground_data %}
           <tr id="booking-row-{{ gd.id }}">
-            <td>{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+            <td>
+              <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="select-all">
+              </div>
+                                          </td>
             <td>{{ cs.service.name }}</td>
             <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
             <td>{{ gd.created_at|date:"M d, Y H:i"|default:"-" }}</td>
@@ -36,7 +47,27 @@
                 <em class="text-muted">No message</em>
               {% endif %}
             </td>
-            <td class="text-end">
+            <td>
+              <!-- Assign Surveyors Button -->
+              <button type="button"
+                      class="btn btn-outline-primary btn-sm"
+                      data-bs-toggle="modal"
+                      data-bs-target="#assignSurveyorsModal{{ gd.id }}">
+                       <i class="fas fa-edit">
+                Assign Surveyor
+                       </i>
+              </button>
+            </td>
+            <td>
+              <!-- Mark as Handled Button -->
+              <button type="button"
+                      class="btn btn-outline-success btn-sm"
+                      data-bs-toggle="modal"
+                      data-bs-target="#markHandledModal{{ gd.id }}">
+                Mark Handled
+              </button>
+            </td>
+            <td>
               <button
                 type="button"
                 class="btn btn-sm btn-outline-secondary open-booking-modal"
@@ -49,7 +80,7 @@
                 data-service-name="{{ cs.service.name }}"
                 data-service-id="{{ cs.id }}"
                 data-service-id-label="{{ cs.service.name }}">
-                <i class="fas fa-edit"></i> Edit
+                <i class="fas fa-edit">Edit</i> 
               </button>
             </td>
           </tr>
@@ -60,8 +91,28 @@
             No bookings found for this client.
           </td>
         </tr>
+
+         <!-- Assign Surveyors Modal -->
+          <div class="modal fade" id="assignSurveyorsModal{{ gd.id }}"
+               tabindex="-1"
+               aria-labelledby="assignSurveyorsLabel{{ gd.id }}"
+               aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              {% include 'Management/bookings/assign_surveyors_modal.html' with gd=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
+            </div>
+          </div>
+
+          <!-- Mark Booking as Handled Modal -->
+          <div class="modal fade" id="markHandledModal{{ gd.id }}"
+               tabindex="-1"
+               aria-labelledby="markHandledLabel{{ gd.id }}"
+               aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              {% include 'Management/bookings/mark_handled_modal.html' with gd=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
+            </div>
+          </div>
       {% endfor %}
     </tbody>
   </table>
-</div>
+
 
