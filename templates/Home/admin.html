@@ -246,6 +246,26 @@
                     </div>
                     </div>
 
+                    {% comment %}—— AI FORECAST ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <div class="card border-0 shadow-lg rounded-2">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-secondary">
+                                        <i class="fas fa-brain text-primary"></i> AI Forecast
+                                    </span>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0">
+                                        87%
+                                    </span>
+                                </div>
+                                <h4 class="mb-2 fw-bold">KES 2,450,000</h4>
+                                <p class="text-muted small mb-0">
+                                    <i class="fas fa-chart-line text-primary"></i> Projected for next quarter
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
 
 
                 <div class="row g-4">
@@ -315,13 +335,13 @@
                         <div class="card h-100">
                             <div class="card-header bg-green-100">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-    <label><input type="checkbox" id="toggle-handled" /> Show Handled</label>
-    <div id="viewSelector" class="d-none">
-      <button onclick="calendar.changeView('dayGridMonth')" class="btn btn-sm btn-light mb-1">Month</button>
-      <button onclick="calendar.changeView('timeGridWeek')" class="btn btn-sm btn-light mb-1">Week</button>
-      <button onclick="calendar.changeView('timeGridDay')" class="btn btn-sm btn-light">Day</button>
-    </div>
-  </div>
+                                    <label><input type="checkbox" id="toggle-handled" /> Show Handled</label>
+                                    <div id="viewSelector" class="d-none">
+                                    <button onclick="calendar.changeView('dayGridMonth')" class="btn btn-sm btn-light mb-1">Month</button>
+                                    <button onclick="calendar.changeView('timeGridWeek')" class="btn btn-sm btn-light mb-1">Week</button>
+                                    <button onclick="calendar.changeView('timeGridDay')" class="btn btn-sm btn-light">Day</button>
+                                    </div>
+                                </div>
 
                             </div>
                             <div class="card-body shadow-lg">
@@ -333,17 +353,17 @@
 
                                 <!-- Bootstrap Modal -->
                                 <!-- Modal -->
-<div class="modal fade" id="bookingModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Booking Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-    </div>
-  </div>
-</div>
+                                <div class="modal fade" id="bookingModal" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Booking Details</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body" id="modalBody"></div>
+                                        </div>
+                                    </div>
+                                </div>
 
 
                             </div>
@@ -352,7 +372,7 @@
                 </div>
 
 
-                <div class="col-md-12 col-xl-8">
+                <div class="col-md-12 col-xl-6">
 
                     <div class="card tbl-card shadow-lg mt-2">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -429,7 +449,7 @@
                 </div>
 
 
-                <div class="col-md-12 col-xl-4">
+                <div class="col-md-12 col-xl-6">
 
                     <div class="card shadow-lg">
                         <div class="card-header">

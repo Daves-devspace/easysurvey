@@ -570,6 +570,12 @@ class ClientSubService(models.Model):
 
     def __str__(self):
         return f"{self.client_service} → {self.sub_service.name}"
+    
+    def clean(self):
+        if self.overridden_price is not None and self.overridden_price < self.sub_service.price:
+            raise ValidationError(
+                f"Overridden price (Ksh {self.overridden_price}) cannot be less than base price (Ksh {self.sub_service.price})."
+            )
 
     @property
     def price(self):

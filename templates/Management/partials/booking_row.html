@@ -1,9 +1,13 @@
 {# templates/partials/booking_row.html #}
 <div class="table-responsive">
-  <table class="table table-bordered table-sm align-middle">
-    <thead class="table-light">
+   <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+      <thead class="table-success">
       <tr>
-        <th>#</th>
+        <th>
+          <div class="form-check">
+               <input class="form-check-input" type="checkbox" id="select-all">
+          </div>
+        </th>
         <th>Service</th>
         <th>Scheduled Date</th>
         <th>Dispatch Message</th>
@@ -14,7 +18,11 @@
       {% if bookings %}
         {% for gd in bookings %}
           <tr id="booking-row-{{ gd.id }}">
-            <td>{{ forloop.counter }}</td>
+            <td>
+              <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="select-all">
+              </div>
+            </td>
             <td>{{ cs.service.name }}</td>
             <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
             <td>

@@ -754,10 +754,16 @@ class ClientSubServiceForm(forms.ModelForm):
         }
 
     def clean_overridden_price(self):
-        price = self.cleaned_data.get('overridden_price')
-        if price is not None and price < 0:
-            raise forms.ValidationError("Price cannot be negative.")
+        price = self.cleaned_data.get("overridden_price")
+        sub = self.cleaned_data.get("sub_service")
+
+        if price:
+            if price < sub.price:
+                raise forms.ValidationError(
+                    f"Cannot set overridden price below default ({sub.price})"
+                )
         return price
+
 
 
 class ClientSubServiceEditForm(forms.ModelForm):

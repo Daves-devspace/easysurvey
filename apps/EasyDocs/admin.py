@@ -95,13 +95,16 @@ def refresh_drive_token(request, token_id):
     return redirect("/admin/apps/easydocs/driveoauthtoken/")
 
 # Register the URL with admin
-def get_admin_urls(urls):
+original_get_urls = admin.site.get_urls
+
+def get_admin_urls():
+    urls = original_get_urls()
     my_urls = [
         path("drive-oauth-token/refresh/<int:token_id>/", refresh_drive_token, name="refresh_drive_token"),
     ]
     return my_urls + urls
 
-admin.site.get_urls = lambda urls=admin.site.get_urls(): get_admin_urls(urls)
+admin.site.get_urls = get_admin_urls
 
 
 
