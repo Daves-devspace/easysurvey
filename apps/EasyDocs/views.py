@@ -87,11 +87,23 @@ from django.db.models.functions import TruncMonth, Coalesce
 from django.views.generic import TemplateView
 
 
-def pct_growth(current: Decimal, previous: Decimal) -> Decimal:
+def pct_growth(current, previous) -> Decimal:
     """
-    Calculate percentage growth, returns 100 if previous is zero.
+    Calculate percentage growth.
+    Returns 100.00 if previous is zero or missing.
+    Handles string inputs gracefully.
     """
-    if previous and previous > 0:
+    try:
+        current = Decimal(current)
+    except (InvalidOperation, TypeError):
+        current = Decimal('0')
+
+    try:
+        previous = Decimal(previous)
+    except (InvalidOperation, TypeError):
+        previous = Decimal('0')
+
+    if previous > 0:
         return ((current - previous) / previous * 100).quantize(Decimal('0.01'))
     return Decimal('100.00')
 
@@ -162,6 +174,7 @@ def monthly_series(source, date_field: str, agg_field: str, year: int):
 
 
 class DashboardView(TemplateView):
+    template_name = "dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -169,74 +182,70 @@ class DashboardView(TemplateView):
         current_year = today.year
         prev_year = current_year - 1
 
-        rev_cur_gross, rev_cur_net, rev_cur_inst = get_revenue_from_payments(current_year, up_to_date=today)
-        rev_prev_gross, rev_prev_net, rev_prev_inst = get_revenue_from_payments(prev_year, up_to_date=today)
-        
-        
+        # ─────────────────────────────────────────────
+        # Revenue Metrics
+        # ─────────────────────────────────────────────
+        rev_cur = get_revenue_from_payments(current_year, up_to_date=today)
+        rev_prev = get_revenue_from_payments(prev_year, up_to_date=today)
 
-        # Keep both gross and net in context
+        rev_cur_gross = rev_cur['gross_total']
+        rev_cur_net = rev_cur['company_total']
+        rev_cur_inst = rev_cur['inst_total']
+
+        rev_prev_gross = rev_prev['gross_total']
+        rev_prev_net = rev_prev['company_total']
+        rev_prev_inst = rev_prev['inst_total']
+
+        # Growth and difference (safe Decimal)
         context.update({
             'rev_cur_gross': rev_cur_gross,
             'rev_prev_gross': rev_prev_gross,
-            'rev_cur_net': rev_cur_net,        # company profit before general expenses
+            'rev_cur_net': rev_cur_net,
             'rev_prev_net': rev_prev_net,
-            'rev_cur_inst_paid': rev_cur_inst, # money passed to institutions
+            'rev_cur_inst_paid': rev_cur_inst,
             'rev_prev_inst_paid': rev_prev_inst,
+            'rev_growth_pct': pct_growth(rev_cur_net, rev_prev_net),
+            'rev_diff': (rev_cur_net - rev_prev_net).quantize(Decimal('0.01')),
         })
 
-        # Growth metrics (choose whether to compare gross or net)
-        context['rev_growth_pct'] = pct_growth(rev_cur_net, rev_prev_net)
-        context['rev_diff'] = rev_cur_net - rev_prev_net
+        # ─────────────────────────────────────────────
+        # Expenses
+        # ─────────────────────────────────────────────
+        payroll_cur = Payroll.objects.filter(
+            month__year=current_year, is_paid=True
+        ).aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
 
-        # ── EXPENSES YTD vs Last Year YTD ──────────────────────────────
-        # Payroll expenses
-        payroll_cur = (
-                Payroll.objects.filter(month__year=current_year, is_paid=True).aggregate(total=Sum('net_salary'))[
-                    'total'] or Decimal('0.00')
-        )
+        payroll_prev = Payroll.objects.filter(
+            month__year=prev_year,
+            month__month__lte=today.month,
+            month__day__lte=today.day,
+            is_paid=True
+        ).aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
 
-        payroll_prev = (
-                Payroll.objects.filter(
-                    month__year=prev_year,
-                    month__month__lte=today.month,
-                    month__day__lte=today.day,
-                    is_paid=True
-                )
-                .aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
-        )
+        ss_cur = ClientSubService.objects.annotate(
+            amt=Coalesce('overridden_price', F('sub_service__price'))
+        ).filter(
+            added_on__year=current_year
+        ).aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
 
-        # Sub‑services
-        ss_cur = (
-                ClientSubService.objects
-                .annotate(amt=Coalesce('overridden_price', F('sub_service__price')))
-                .filter(added_on__year=current_year)
-                .aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
-        )
-        ss_prev = (
-                ClientSubService.objects
-                .annotate(amt=Coalesce('overridden_price', F('sub_service__price')))
-                .filter(
-                    added_on__year=prev_year,
-                    added_on__month__lte=today.month,
-                    added_on__day__lte=today.day
-                )
-                .aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
-        )
-        # General expenses
-        ge_cur = (
-                Expense.objects
-                .filter(date__year=current_year)
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
-        ge_prev = (
-                Expense.objects
-                .filter(
-                    date__year=prev_year,
-                    date__month__lte=today.month,
-                    date__day__lte=today.day
-                )
-                .aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        )
+        ss_prev = ClientSubService.objects.annotate(
+            amt=Coalesce('overridden_price', F('sub_service__price'))
+        ).filter(
+            added_on__year=prev_year,
+            added_on__month__lte=today.month,
+            added_on__day__lte=today.day
+        ).aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
+
+        ge_cur = Expense.objects.filter(
+            date__year=current_year
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        ge_prev = Expense.objects.filter(
+            date__year=prev_year,
+            date__month__lte=today.month,
+            date__day__lte=today.day
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
         exp_cur = ge_cur + payroll_cur
         exp_prev = ge_prev + payroll_prev
 
@@ -251,77 +260,67 @@ class DashboardView(TemplateView):
             'exp_diff_abs': abs(exp_diff),
         })
 
-        # ── NET REVENUE YTD vs Last Year YTD ───────────────────────────
+        # ─────────────────────────────────────────────
+        # Net Profit & Institutional Cost
+        # ─────────────────────────────────────────────
         net_cur = rev_cur_net - exp_cur
         net_prev = rev_prev_net - exp_prev
-        net_growth = pct_growth(net_cur, net_prev)
-        net_diff = net_cur - net_prev
-        
-        # ── INSTITUTION COSTS (external payments) ───────────────────────────
-        inst_growth = pct_growth(rev_cur_inst, rev_prev_inst)
-        inst_diff = rev_cur_inst - rev_prev_inst
-        
-        # ── CLIENT PAYMENTS YTD vs Last Year YTD ─────────────────────────────
-        client_payments_growth = pct_growth(rev_cur_gross, rev_prev_gross)
-        client_payments_diff = rev_cur_gross - rev_prev_gross
 
         context.update({
             'net_cur': net_cur,
             'net_prev': net_prev,
-            'net_growth_pct': net_growth,
-            'net_diff': net_diff,
-            'net_diff_abs': abs(net_diff),
-            'inst_growth_pct': inst_growth,
-            'inst_diff': inst_diff,
-            'inst_diff_abs': abs(inst_diff),
+            'net_growth_pct': pct_growth(net_cur, net_prev),
+            'net_diff': net_cur - net_prev,
+            'net_diff_abs': abs(net_cur - net_prev),
+            'inst_growth_pct': pct_growth(rev_cur_inst, rev_prev_inst),
+            'inst_diff': rev_cur_inst - rev_prev_inst,
+            'inst_diff_abs': abs(rev_cur_inst - rev_prev_inst),
             'client_payments_cur': rev_cur_gross,
             'client_payments_prev': rev_prev_gross,
-            'client_payments_growth_pct': client_payments_growth,
-            'client_payments_diff': client_payments_diff,
-            'client_payments_diff_abs': abs(client_payments_diff),
+            'client_payments_growth_pct': pct_growth(rev_cur_gross, rev_prev_gross),
+            'client_payments_diff': rev_cur_gross - rev_prev_gross,
+            'client_payments_diff_abs': abs(rev_cur_gross - rev_prev_gross),
         })
 
-        # ── CLIENTS YTD vs Last Year YTD ──────────────────────────────
+        # ─────────────────────────────────────────────
+        # Clients & Titles Stats
+        # ─────────────────────────────────────────────
         clients_cur = Client.objects.filter(created_at__year=current_year).count()
         clients_prev = Client.objects.filter(
             created_at__year=prev_year,
             created_at__month__lte=today.month,
             created_at__day__lte=today.day
         ).count()
-        clients_growth = pct_growth(Decimal(clients_cur), Decimal(clients_prev))
-        clients_diff = clients_cur - clients_prev
 
         context.update({
             'clients_cur': clients_cur,
             'clients_prev': clients_prev,
-            'clients_growth_pct': clients_growth,
-            'clients_diff': clients_diff,
-            'clients_diff_abs': abs(clients_diff),
+            'clients_growth_pct': pct_growth(Decimal(clients_cur), Decimal(clients_prev)),
+            'clients_diff': clients_cur - clients_prev,
+            'clients_diff_abs': abs(clients_cur - clients_prev),
         })
 
-        # ── TITLE DEEDS YTD vs Last Year YTD ──────────────────────────
         titles_cur = TitleDeedCollection.objects.filter(collected_at__year=current_year).count()
         titles_prev = TitleDeedCollection.objects.filter(
             collected_at__year=prev_year,
             collected_at__month__lte=today.month,
             collected_at__day__lte=today.day
         ).count()
-        titles_growth = pct_growth(Decimal(titles_cur), Decimal(titles_prev))
-        titles_diff = titles_cur - titles_prev
 
         context.update({
             'titles_cur': titles_cur,
             'titles_prev': titles_prev,
-            'titles_growth_pct': titles_growth,
-            'titles_diff': titles_diff,
-            'titles_diff_abs': abs(titles_diff),
+            'titles_growth_pct': pct_growth(Decimal(titles_cur), Decimal(titles_prev)),
+            'titles_diff': titles_cur - titles_prev,
+            'titles_diff_abs': abs(titles_cur - titles_prev),
         })
 
-        # ── Monthly drill‑down series (current year Jan→Dec) ───────────
+        # ─────────────────────────────────────────────
+        # Monthly drill-downs
+        # ─────────────────────────────────────────────
         context['month_labels'] = list(OrderedDict((calendar.month_abbr[m], None) for m in range(1, 13)))
         context['clients_monthly'] = monthly_series(Client, 'created_at', 'id', current_year)
         context['titles_monthly'] = monthly_series(TitleDeedCollection, 'collected_at', 'id', current_year)
-        #context['revenue_monthly'] = monthly_series(Payment, 'payment_date', 'amount', current_year)
         context['revenue_monthly'] = monthly_company_revenue(current_year)
 
         ss_monthly = monthly_series(
@@ -331,8 +330,8 @@ class DashboardView(TemplateView):
         payroll_monthly = monthly_series(
             Payroll.objects.filter(is_paid=True), 'month', 'net_salary', current_year
         )
-
         ge_monthly = monthly_series(Expense, 'date', 'amount', current_year)
+
         context['expense_monthly'] = [
             ss_monthly[i] + ge_monthly[i] + payroll_monthly[i] for i in range(12)
         ]
@@ -341,16 +340,18 @@ class DashboardView(TemplateView):
             context['revenue_monthly'][i] - context['expense_monthly'][i] for i in range(12)
         ]
 
-        # ── Today’s unhandled bookings ─────────────────────────────────
+        # ─────────────────────────────────────────────
+        # Daily/Recent Activities
+        # ─────────────────────────────────────────────
         context['today_bookings'] = Booking.objects.filter(
-            scheduled_date__date=today,
-            handled=False
+            scheduled_date__date=today, handled=False
         )
-
-        # ── Recent payments (for detail list) ─────────────────────────
         context['recent_payments'] = get_all_payment_history()[:10]
 
         return context
+    
+    
+    
 
 
 class HomeView(LoginRequiredMixin, DashboardView):

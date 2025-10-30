@@ -170,15 +170,7 @@
                     </a>
                 </li>
                 
-                 <li class="pc-item">
-                    <a href="{% url 'projects' %}" class="pc-link" title="Projects">
-                        <span class="pc-micon">
-                            <img src="{% static 'assets/images/sign.png' %}" style="height: 24px; width: 24px;"
-                                alt="Projects" class="img-fluid">
-                        </span>
-                        <span class="pc-mtext">Projects</span>
-                    </a>
-                </li>
+                
                 
 
 
@@ -234,6 +226,26 @@
                     </a>
                 </li>
             {% endif %}
+
+            <li class="pc-item pc-caption">
+                <label>Extra</label>
+                <i class="ti ti-puzzle"></i>
+            </li>
+
+            <li class="pc-item pc-hasmenu">
+                <a href="#!" class="pc-link">
+                    <span class="pc-micon"><i class="ti ti-tool"></i></span>
+                    <span class="pc-mtext">Tools</span>
+                    <span class="pc-arrow"><i data-feather="chevron-right"></i></span>
+                </a>
+                <ul class="pc-submenu">
+                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Projects</a></li>
+                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Map Viewer</a></li>
+                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Mutation</a></li>
+                </ul>
+            </li>
+
+
 
               
 

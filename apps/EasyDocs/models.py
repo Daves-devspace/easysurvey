@@ -705,6 +705,13 @@ class Payment(models.Model):
         related_name='payments',
         on_delete=models.CASCADE
     )
+    applied_to_subservice = models.ForeignKey(
+        'ClientSubService',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        help_text="If set, apply this payment directly to the chosen client subservice"
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
@@ -734,21 +741,26 @@ class Payment(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        # validate first
         self.clean()
-
-        # populate snapshots only on first save (freeze historic values)
         if not self.pk:
-            svc = self.client_service
-            # snapshot the service institution cost (the external cost portion)
-            self.institution_cost_snapshot = getattr(svc.service, 'total_price', None)
-            # snapshot overridden_total_price if present otherwise full_total_price
-            self.overridden_total_snapshot = (
-                svc.overridden_total_price
-                if svc.overridden_total_price is not None
-                else svc.full_total_price
-            )
+            if self.applied_to_subservice:
+                # 🔹 Sub-service specific payment
+                css = self.applied_to_subservice
+                self.institution_cost_snapshot = css.sub_service.price
+                self.overridden_total_snapshot = (
+                    css.overridden_price or css.sub_service.price
+                )
+            else:
+                # 🔹 Regular service-level payment
+                svc = self.client_service
+                self.institution_cost_snapshot = getattr(svc.service, 'total_price', None)
+                self.overridden_total_snapshot = (
+                    svc.overridden_total_price
+                    if svc.overridden_total_price is not None
+                    else svc.full_total_price
+                )
         super().save(*args, **kwargs)
+
 
 
 

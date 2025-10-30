@@ -189,6 +189,7 @@ class CashbookDashboardView(TemplateView):
             "is_positive_flow": cash_flow_ratio and cash_flow_ratio >= 1 if cash_flow_ratio else True
         })
         return context
+        
 
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)

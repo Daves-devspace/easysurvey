@@ -2,7 +2,7 @@
 {% load static %}
 
 {% load custom_filters %}
-
+{% load custom_tags %}
 
 
 
@@ -80,7 +80,7 @@
                     {% endif %}
                     {% if request.user.is_superuser %}
                         <li class="nav-item">
-                            <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                            <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
                                role="tab"
                                aria-selected="true">
                                 <i class="ti ti-id me-2"></i>Analytics
@@ -315,6 +315,20 @@
 
 
                                     </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <!--expenses-->
+                        <div class="tab-pane" id="profile-3" role="tabpanel"
+                             aria-labelledby="profile-tab-3">
+                            <div class="row">
+                                <div class="col-lg-12">
+
+                                    {% include "Accounts/partials/revenue_tab_content.html" %}
                                 </div>
 
 

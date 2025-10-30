@@ -26,7 +26,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.apps import apps
 from crum import get_current_user  # handy for tracking the current user
-from apps.EasyDocs.models import AuditLog
+
 
 
 def get_user():
@@ -38,25 +38,66 @@ def get_user():
 
 @receiver(post_save)
 def log_model_save(sender, instance, created, **kwargs):
-    # Skip AuditLog itself (avoid infinite loop)
-    if sender == AuditLog:
+    """
+    Safe AuditLog writer that:
+    - Skips writing while DB/migrations are running (table not present),
+    - Avoids infinite loop without importing AuditLog at module import time,
+    - Defensively handles errors so migrations/tests don't fail.
+    """
+
+    # 1) Skip AuditLog itself (avoid infinite loop) by checking model_name/app_label
+    if getattr(sender, "_meta", None):
+        if sender._meta.app_label == "easydocs" and sender._meta.model_name == "auditlog":
+            return
+
+        # Skip Django internal models
+        if sender._meta.app_label in {"sessions", "admin", "contenttypes", "auth"}:
+            return
+
+    # 2) Quick DB readiness check: ensure audit table exists before attempting writes
+    try:
+        from django.db import connection, ProgrammingError, OperationalError
+        tables = connection.introspection.table_names()
+    except (ProgrammingError, OperationalError, Exception) as e:
+        logger.debug("Skipping AuditLog write: DB not ready (%s).", e)
         return
-    
-    # Skip Django internal models if you want
-    if sender._meta.app_label in ["sessions", "admin", "contenttypes", "auth"]:
+
+    audit_table_name = "easydocs_auditlog"
+    if audit_table_name not in tables:
+        logger.debug("Skipping AuditLog write: table %s not present yet.", audit_table_name)
         return
-    
-    AuditLog.objects.create(
-        user=get_user(),
-        action="create" if created else "update",
-        model_name=sender.__name__,
-        object_id=instance.pk,
-        description=f"{'Created' if created else 'Updated'} {sender.__name__} #{instance.pk}",
-    )
+
+    # 3) Safe local import of AuditLog and write the record
+    try:
+        from .models import AuditLog  # local import to avoid import-time side-effects
+    except Exception as e:
+        logger.warning("Could not import AuditLog model; skipping audit write (%s).", e)
+        return
+
+    # 4) Resolve user safely (get_user may raise or be unavailable in this context)
+    try:
+        user = get_user()
+    except Exception:
+        user = None
+
+    # 5) Create audit entry inside try/except so any DB race doesn't break migrations/tests
+    try:
+        AuditLog.objects.create(
+            user=user,
+            action="create" if created else "update",
+            model_name=sender.__name__ if hasattr(sender, "__name__") else str(sender),
+            object_id=getattr(instance, "pk", None),
+            description=f"{'Created' if created else 'Updated'} {sender.__name__ if hasattr(sender, '__name__') else sender} #{getattr(instance, 'pk', None)}",
+        )
+    except (ProgrammingError, OperationalError) as db_err:
+        logger.warning("Failed to write AuditLog due to DB error (possibly race during migrations): %s", db_err)
+    except Exception as exc:
+        logger.exception("Unexpected error while writing AuditLog (skipping). %s", exc)
 
 
 @receiver(post_delete)
 def log_model_delete(sender, instance, **kwargs):
+    from .models import AuditLog  # local import to avoid import-time side-effects
     if sender == AuditLog:
         return
     
@@ -295,57 +336,155 @@ def title_deed_collected_handler(sender, instance, created, **kwargs):
     reason = f"{svc.service.name} – deed collected"
     send_process_sms(svc, svc.client, svc.client.phone, msg, reason)
 
+
+
+
 @receiver(post_save, sender=Payment)
 def allocate_payment(sender, instance, created, **kwargs):
+    """
+    Triggered when a Payment is created.
+    Allocation priority:
+      1️⃣ Settle ClientService processes first (by process__step_order)
+      2️⃣ Then subservices (by added_on oldest first)
+    Each subservice calculates profit independently from its base and overridden prices.
+    """
     if not created:
         return
 
-    remaining = Decimal(str(instance.amount))
-    client_service = instance.client_service
-    service = client_service.service
+    try:
+        with transaction.atomic():
+            logger.info(f"💰 Payment #{instance.id} received: KES {instance.amount} for ClientService #{instance.client_service_id}")
 
-    # 1️⃣ Allocate to service processes (only for TITLE services)
-    if service.category == ServiceCategory.TITLE:
-        for csp in client_service.service_processes.order_by('process__step_order'):
-            if remaining <= 0:
-                break
-            to_pay = min(remaining, csp.pending_amount)
-            if to_pay > 0:
-                csp.paid_amount += to_pay
-                csp.save(update_fields=['paid_amount'])
-                remaining -= to_pay
-                PaymentHistory.objects.create(
-                    payment=instance,
-                    client_service=client_service,
-                    amount=to_pay,
-                    reason="service_step",
-                    service_process=csp
-                )
+            # Lock the parent ClientService
+            cs = (
+                ClientService.objects
+                .select_for_update()
+                .select_related('service')
+                .get(pk=instance.client_service_id)
+            )
+            logger.info(f"🔒 Locked ClientService #{cs.id} ({cs.service.name}) for allocation")
 
-    # 2️⃣ Allocate to sub-services (latest ones first)
-    subs = client_service.sub_services.order_by('-id')  # newest first
-    for sub in subs:
-        if remaining <= 0:
-            break
-        to_pay = min(remaining, sub.balance)
-        if to_pay > 0:
-            sub.paid_amount += to_pay
-            sub.save(update_fields=['paid_amount'])
-            remaining -= to_pay
-            PaymentHistory.objects.create(
-                payment=instance,
-                client_service=client_service,
-                amount=to_pay,
-                reason="sub_service",
-                sub_service=sub
+            # Lock related processes & subservices
+            s_processes = list(
+                ClientServiceProcess.objects
+                .filter(client_service=cs)
+                .select_for_update()
+                .order_by('process__step_order')
+            )
+            subs = list(
+                ClientSubService.objects
+                .filter(client_service=cs)
+                .select_for_update()
+                .order_by('added_on')  # oldest first
             )
 
-    # 3️⃣ Handle remaining balance for GROUND service
-    if remaining > 0 and service.category == ServiceCategory.GROUND:
-        PaymentHistory.objects.create(
-            payment=instance,
-            client_service=client_service,
-            amount=remaining,
-            reason="ground_service"
-        )
-        # optionally update a paid_amount on ClientService
+            logger.info(f"📦 Found {len(s_processes)} processes and {len(subs)} subservices for ClientService #{cs.id}")
+
+            from apps.EasyDocs.accounts.allocations import allocate_payment_shares
+
+            allocations = allocate_payment_shares(
+                instance, 
+                service_processes=s_processes, 
+                sub_services=subs
+            )
+
+            if not allocations:
+                logger.warning(f"⚠️ No allocations returned for Payment #{instance.id}")
+                return
+
+            logger.info(f"📊 Generated {len(allocations)} allocations for Payment #{instance.id}")
+
+            # Apply allocations and create PaymentHistory entries
+            for alloc in allocations:
+                target = alloc["target"]
+                gross = Decimal(alloc["gross"])
+                target_type = alloc["target_type"]
+
+                logger.info(
+                    f"→ Allocating {gross} KES to {target_type} "
+                    f"({getattr(target, 'id', 'N/A')}) — "
+                    f"Institution: {alloc.get('institution')} | Company: {alloc.get('company')}"
+                )
+
+                if target_type == "service_step":
+                    target.paid_amount = (target.paid_amount or Decimal("0.00")) + gross
+                    target.save(update_fields=["paid_amount"])
+                    PaymentHistory.objects.create(
+                        payment=instance,
+                        client_service=cs,
+                        amount=gross,
+                        reason="service_step",
+                        service_process=target,
+                    )
+
+                elif target_type == "subservice":
+                    target.paid_amount = (target.paid_amount or Decimal("0.00")) + gross
+                    target.save(update_fields=["paid_amount"])
+                    PaymentHistory.objects.create(
+                        payment=instance,
+                        client_service=cs,
+                        amount=gross,
+                        reason="sub_service",
+                        sub_service=target,
+                    )
+
+            logger.info(f"✅ Payment #{instance.id} allocation complete. Total: {instance.amount} KES")
+
+    except Exception as exc:
+        logger.exception(f"❌ Allocation error for Payment #{instance.pk}: {exc}")
+        raise
+
+# @receiver(post_save, sender=Payment)
+# def allocate_payment(sender, instance, created, **kwargs):
+#     if not created:
+#         return
+
+#     remaining = Decimal(str(instance.amount))
+#     client_service = instance.client_service
+#     service = client_service.service
+
+#     # 1️⃣ Allocate to service processes (only for TITLE services)
+#     if service.category == ServiceCategory.TITLE:
+#         for csp in client_service.service_processes.order_by('process__step_order'):
+#             if remaining <= 0:
+#                 break
+#             to_pay = min(remaining, csp.pending_amount)
+#             if to_pay > 0:
+#                 csp.paid_amount += to_pay
+#                 csp.save(update_fields=['paid_amount'])
+#                 remaining -= to_pay
+#                 PaymentHistory.objects.create(
+#                     payment=instance,
+#                     client_service=client_service,
+#                     amount=to_pay,
+#                     reason="service_step",
+#                     service_process=csp
+#                 )
+
+#     # 2️⃣ Allocate to sub-services (latest ones first)
+#     subs = client_service.sub_services.order_by('-id')  # newest first
+#     for sub in subs:
+#         if remaining <= 0:
+#             break
+#         to_pay = min(remaining, sub.balance)
+#         if to_pay > 0:
+#             sub.paid_amount += to_pay
+#             sub.save(update_fields=['paid_amount'])
+#             remaining -= to_pay
+#             PaymentHistory.objects.create(
+#                 payment=instance,
+#                 client_service=client_service,
+#                 amount=to_pay,
+#                 reason="sub_service",
+#                 sub_service=sub
+#             )
+
+#     # 3️⃣ Handle remaining balance for GROUND service
+#     if remaining > 0 and service.category == ServiceCategory.GROUND:
+#         PaymentHistory.objects.create(
+#             payment=instance,
+#             client_service=client_service,
+#             amount=remaining,
+#             reason="ground_service"
+#         )
+#         # optionally update a paid_amount on ClientService
