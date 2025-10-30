@@ -1,0 +1,83 @@
+{% comment %} {% load custom_tags %}
+<!-- Accounts/partials/revenue_tab_content.html -->
+<div class="revenue-tab">
+
+  <!-- 🔹 Filter Form -->
+  <form id="revenue-filter-form" hx-get="{% url 'cashbook_dashboard' %}" hx-target="#revenue-table-container" hx-swap="innerHTML" class="flex gap-2 mb-4">
+    <input type="hidden" name="tab" value="revenue">
+    
+    <label for="rev_year">Year:</label>
+    <select name="rev_year" id="rev_year" class="border rounded px-2 py-1">
+      {% for y in 2020|make_range:current_year %}
+        <option value="{{ y }}" {% if y == revenue_year %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="rev_month">Month:</label>
+    <select name="rev_month" id="rev_month" class="border rounded px-2 py-1">
+      <option value="">All</option>
+      {% for m in 1|make_range:12 %}
+        <option value="{{ m }}" {% if m == revenue_month %}selected{% endif %}>{{ m|date:"F" }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Filter</button>
+  </form>
+
+  <!-- 🔹 Revenue Table -->
+  <div id="revenue-table-container">
+    <table class="w-full border-collapse border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="border px-2 py-1 text-left">Category</th>
+          <th class="border px-2 py-1 text-right">Gross Revenue</th>
+          <th class="border px-2 py-1 text-right">Company Revenue</th>
+          <th class="border px-2 py-1 text-right">Institution Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border px-2 py-1 font-semibold">Main Services</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.main_services.gross_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.main_services.company_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.main_services.inst_total|default:"0.00" }}</td>
+        </tr>
+        <tr>
+          <td class="border px-2 py-1 font-semibold">Subservices</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.subservices.gross_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.subservices.company_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.subservices.inst_total|default:"0.00" }}</td>
+        </tr>
+        <tr class="bg-gray-100 font-bold">
+          <td class="border px-2 py-1">TOTAL</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.gross_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.company_total|default:"0.00" }}</td>
+          <td class="border px-2 py-1 text-right">{{ revenue_totals.inst_total|default:"0.00" }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 🔹 PDF Download Modal Trigger -->
+  <div class="mt-4">
+    <button class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            hx-get="{% url 'revenue_pdf' %}?year={{ revenue_year }}{% if revenue_month %}&month={{ revenue_month }}{% endif %}"
+            hx-target="#pdf-modal-content"
+            hx-trigger="click"
+            hx-swap="innerHTML"
+            _="on htmx:afterRequest add .show to #pdf-modal">
+      Preview / Download PDF
+    </button>
+  </div>
+
+  <!-- 🔹 PDF Modal -->
+  <div id="pdf-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50">
+    <div class="bg-white rounded shadow-lg w-4/5 max-w-4xl p-4 relative">
+      <button class="absolute top-2 right-2 text-gray-700" _="on click remove .show from #pdf-modal">✖</button>
+      <div id="pdf-modal-content">
+        <p class="text-gray-600 text-center py-4">Loading PDF preview...</p>
+      </div>
+    </div>
+  </div>
+
+</div> {% endcomment %}

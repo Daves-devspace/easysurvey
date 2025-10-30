@@ -56,12 +56,12 @@
             </td>
           </tr>
         {% endfor %}
-      {% else %}
+      {% comment %} {% else %}
         <tr>
           <td colspan="5" class="text-center text-muted py-3">
             No bookings scheduled for {{ cs.service.name }}.
           </td>
-        </tr>
+        </tr> {% endcomment %}
       {% endif %}
     </tbody>
   </table>

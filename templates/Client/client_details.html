@@ -529,13 +529,13 @@
                                                                                     <td>{{ sp.completed_at|date:"M d, Y" }}</td>
                                                                                 </tr>
                                                                             {% endfor %}
-                                                                        {% else %}
+                                                                        {% comment %} {% else %}
                                                                             <tr>
                                                                                 <td colspan="9"
                                                                                     class="text-center text-muted py-3">
                                                                                     No processes available.
                                                                                 </td>
-                                                                            </tr>
+                                                                            </tr> {% endcomment %}
                                                                         {% endif %}
                                                                         </tbody>
                                                                     </table>
@@ -629,13 +629,13 @@
                                                                                 {% endif %}
                                                                             </tr>
                                                                         {% endfor %}
-                                                                    {% else %}
+                                                                    {% comment %} {% else %}
                                                                         <tr>
                                                                             <td colspan="8"
                                                                                 class="text-center text-muted py-3">
                                                                                 No sub-services used yet.
                                                                             </td>
-                                                                        </tr>
+                                                                        </tr> {% endcomment %}
                                                                     {% endif %}
                                                                     </tbody>
                                                                 </table>

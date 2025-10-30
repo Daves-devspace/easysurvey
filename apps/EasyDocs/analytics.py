@@ -2,44 +2,77 @@ from calendar import month_abbr
 from django.views.decorators.http import require_GET
 from django.db.models import Sum, F, Q, Value, Case, When, DecimalField, ExpressionWrapper
 from django.db.models.functions import Coalesce, TruncMonth, Greatest
+from django.utils.timezone import now
 from decimal import Decimal
 from collections import OrderedDict, defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from django.http import JsonResponse
 from django.utils import timezone
 
 from .models import Payment, Client, Service  # adjust to your model
 from .models import Expense
-from .models import ClientSubService, ServiceCategory, ClientService
+from .models import ClientSubService, ServiceCategory, ClientService, PaymentHistory
 from ..Employee.models import Payroll
 
 # Reasonable precision for aggregates (adjust if needed)
 DEC_FIELD = DecimalField(max_digits=18, decimal_places=2)
 SMALL_DEC_FIELD = DecimalField(max_digits=18, decimal_places=6)  # for intermediate calc precision
 
+from django.db.models import Q
+import logging
+logger = logging.getLogger(__name__)    
 
 def get_revenue_from_payments(year, up_to_date=None):
     """
-    Returns a 3-tuple of totals for a given year (optionally up to a date):
-      - gross_revenue: total client payments collected
-      - company_revenue: net retained revenue (profit)
-      - institution_share_paid: amounts due/paid out to institutions (external parties)
-    
-    ⚡ Includes both:
-      - Payments from Services (ClientService)
-      - Virtualized payments from SubServices (ClientSubService)
-    
-    Notes:
-      - Uses snapshot fields when available to freeze historical logic.
-      - Uses a safe divisor to avoid division-by-zero.
+    Production-grade unified revenue computation with detailed logging.
+    Preserves original expression semantics while adding timezone-safe
+    up_to_date handling and robust (non-field-assuming) subservice discovery.
+    Returns:
+        {
+            'gross_total': Decimal,
+            'company_total': Decimal,
+            'inst_total': Decimal
+        }
     """
-    # =============================
-    # 1. Filter main payments (Services)
-    # =============================
-    qs = Payment.objects.filter(payment_date__year=year).select_related('client_service__service')
+    logger.info("Starting revenue computation for year=%s, up_to_date=%s", year, up_to_date)
 
-    # Prefer snapshots when available, otherwise fallback to current denormalized fields.
+
+    # -----------------------------
+    # Payments allocated to subservices (PaymentHistory)
+    # -----------------------------
+    subservice_payment_ids = list(
+        PaymentHistory.objects.filter(
+            reason='sub_service',
+            payment__payment_date__year=year
+        ).values_list('payment_id', flat=True)
+    )
+    logger.debug("Found %d payments allocated to subservices (ids): %s", len(subservice_payment_ids), subservice_payment_ids)
+
+    # -----------------------------
+    # MAIN SERVICE PAYMENTS (exclude those allocated to subservices)
+    # -----------------------------
+    qs = (Payment.objects
+          .filter(payment_date__year=year)
+          .exclude(id__in=subservice_payment_ids)
+          .select_related('client_service__service'))
+
+    # Make up_to_date timezone-aware end-of-day if provided
+    up_to_dt = None
+    if up_to_date:
+        tz = timezone.get_current_timezone()
+        if isinstance(up_to_date, datetime):
+            date_part = up_to_date.date()
+        else:
+            date_part = up_to_date  # assume it's a date
+        up_to_dt = datetime.combine(date_part, time(23, 59, 59))
+        up_to_dt = timezone.make_aware(up_to_dt, timezone=tz)
+        qs = qs.filter(payment_date__lte=up_to_dt)
+        logger.info("Filtered payments up to %s, remaining payments: %d", up_to_dt, qs.count())
+    else:
+        logger.info("No up_to_date provided; processing full year for payments.")
+
+    # Annotate payment sources for institution cost calculations
     qs = qs.annotate(
         inst_cost_src=Coalesce(
             'institution_cost_snapshot',
@@ -54,45 +87,36 @@ def get_revenue_from_payments(year, up_to_date=None):
             output_field=DEC_FIELD
         )
     )
+    logger.debug("Annotated payment sources for institution and overridden totals.")
 
-    # Safe divisor to avoid division by zero when doing proportional splits
     safe_divisor = Case(
         When(overridden_total_src__gt=Value(Decimal('0.00')), then=F('overridden_total_src')),
         default=Value(Decimal('1.00'), output_field=DEC_FIELD),
         output_field=DEC_FIELD
     )
 
-    # company keeps: amount - (amount * inst_cost_src / overridden_total_src)
     proportional_expr = ExpressionWrapper(
         F('amount') - (F('amount') * F('inst_cost_src') / safe_divisor),
         output_field=SMALL_DEC_FIELD
     )
 
-    # Apply up_to_date cutoff if requested (end of day)
-    if up_to_date:
-        tz = timezone.get_current_timezone()
-        up_to_dt = datetime(year, up_to_date.month, up_to_date.day, 23, 59, 59, tzinfo=tz)
-        qs = qs.filter(payment_date__lte=up_to_dt)
-
-    # Calculate company revenue on each payment row using snapshot-aware fields
     company_rev_case = Case(
-        # TITLE with a valid overridden_total_src -> proportional split using snapshot fields
+        # TITLE service proportional split
         When(
             Q(client_service__service__category=ServiceCategory.TITLE) &
             Q(overridden_total_src__gt=Value(Decimal('0.00'))),
             then=proportional_expr
         ),
-        # TITLE but no overridden_total_src -> fallback subtract inst_cost_src
+        # TITLE fallback
         When(
             Q(client_service__service__category=ServiceCategory.TITLE),
             then=ExpressionWrapper(F('amount') - F('inst_cost_src'), output_field=SMALL_DEC_FIELD)
         ),
-        # Non-title -> company gets full payment
+        # Non-title = full company take
         default=F('amount'),
         output_field=SMALL_DEC_FIELD
     )
 
-    # Prevent negative company revenue per payment
     company_rev_nonneg = Greatest(company_rev_case, Value(Decimal('0.00')), output_field=SMALL_DEC_FIELD)
 
     annotated = qs.annotate(
@@ -101,50 +125,99 @@ def get_revenue_from_payments(year, up_to_date=None):
         institution_share=ExpressionWrapper(F('amount') - company_rev_nonneg, output_field=SMALL_DEC_FIELD)
     )
 
+    logger.info("Annotated main payments with gross, company_revenue, and institution_share (rows=%d).", annotated.count())
+
     aggs_services = annotated.aggregate(
         gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
         company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
         inst_total=Coalesce(Sum('institution_share'), Value(Decimal('0.00')), output_field=DEC_FIELD),
     )
+    logger.debug("Aggregated main service payments: %s", aggs_services)
 
-    # =============================
-    # 2. Virtual SubService Flows (use the filtered queryset, then annotate)
-    # =============================
+    # -----------------------------
+    # SUBSERVICE REVENUE
+    # -----------------------------
+    # We'll base discovery of subservices on ClientSubService rows (by client_service.requested_at)
+    # and log PaymentHistory counts for sub_service to help diagnose orphaned histories.
+    ph_count = PaymentHistory.objects.filter(reason='sub_service', payment__payment_date__year=year).count()
+    logger.info("PaymentHistory: total sub_service entries for year %s = %d", year, ph_count)
+
+    # Build subservice queryset from ClientSubService rows whose client_service.requested_at falls in year
     sub_qs = ClientSubService.objects.filter(client_service__requested_at__year=year)
+    logger.info("Initial ClientSubService rows for year %s = %d", year, sub_qs.count())
 
-    if up_to_date:
-        sub_qs = sub_qs.filter(added_on__lte=up_to_date)
+    # If up_to_dt is set, apply the same timezone-aware cutoff to added_on
+    if up_to_dt:
+        sub_qs = sub_qs.filter(added_on__lte=up_to_dt)
+        logger.info("Filtered subservices up to %s, remaining subservices: %d", up_to_dt, sub_qs.count())
+    else:
+        logger.info("No up_to_date provided; processing full year for subservices (rows=%d).", sub_qs.count())
 
-    # annotate once (do not drop filters)
+    # Annotate subservices exactly as original
     sub_qs = sub_qs.annotate(
-        inst_cost_src=Coalesce('institution_cost_snapshot', 'sub_service__price', Value(Decimal('0.00')), output_field=DEC_FIELD),
-        overridden_src=Coalesce('overridden_price_snapshot', 'overridden_price', 'sub_service__price', Value(Decimal('0.00')), output_field=DEC_FIELD),
-    )
-
-    # compute gross and company revenue for subservices (company profit = overridden - inst_cost)
-    sub_qs = sub_qs.annotate(
-        gross=Coalesce(F('overridden_price'), F('sub_service__price')),
-        institution_cost=F('sub_service__price'),
-        company_revenue=ExpressionWrapper(
-            Coalesce(F('overridden_price'), F('sub_service__price')) - F('sub_service__price'),
-            output_field=SMALL_DEC_FIELD
+        base_price=Coalesce(F('sub_service__price'), Value(Decimal('0.00'))),
+        effective_price=Coalesce(F('overridden_price'), F('sub_service__price')),
+        gross=F('paid_amount'),
+        institution_cost=Case(
+            When(paid_amount=Value(Decimal('0.00')), then=Value(Decimal('0.00'))),
+            When(
+                effective_price__gt=Value(Decimal('0.00')),
+                then=ExpressionWrapper(
+                    F('paid_amount') * F('base_price') / F('effective_price'),
+                    output_field=DEC_FIELD
+                )
+            ),
+            default=F('paid_amount')
+        ),
+        company_revenue=Case(
+            When(paid_amount=Value(Decimal('0.00')), then=Value(Decimal('0.00'))),
+            When(
+                effective_price__gt=Value(Decimal('0.00')),
+                then=Greatest(
+                    ExpressionWrapper(
+                        F('paid_amount') - (F('paid_amount') * F('base_price') / F('effective_price')),
+                        output_field=DEC_FIELD
+                    ),
+                    Value(Decimal('0.00'))
+                )
+            ),
+            default=Value(Decimal('0.00'))
         )
     )
+    logger.debug("Annotated subservices with computed shares (rows=%d).", sub_qs.count())
 
     aggs_sub = sub_qs.aggregate(
         gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
         company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
         inst_total=Coalesce(Sum('institution_cost'), Value(Decimal('0.00')), output_field=DEC_FIELD),
     )
+    logger.debug("Aggregated subservice revenue: %s", aggs_sub)
 
-    # =============================
-    # 3. Combine Service + SubService and return totals
-    # =============================
-    total_gross = (Decimal(aggs_services['gross_total']) + Decimal(aggs_sub['gross_total'])).quantize(Decimal('0.01'))
-    total_company = (Decimal(aggs_services['company_total']) + Decimal(aggs_sub['company_total'])).quantize(Decimal('0.01'))
-    total_inst = (Decimal(aggs_services['inst_total']) + Decimal(aggs_sub['inst_total'])).quantize(Decimal('0.01'))
+    # -----------------------------
+    # COMBINE TOTALS
+    # -----------------------------
+    gross_total = (aggs_services['gross_total'] + aggs_sub['gross_total']).quantize(Decimal('0.01'))
+    company_total = (aggs_services['company_total'] + aggs_sub['company_total']).quantize(Decimal('0.01'))
+    inst_total = (aggs_services['inst_total'] + aggs_sub['inst_total']).quantize(Decimal('0.01'))
 
-    return (total_gross, total_company, total_inst)
+    logger.info("Final totals - Gross: %s, Company: %s, Institution: %s", gross_total, company_total, inst_total)
+
+    # Helpful debugging tip in logs for orphaned histories
+    if ph_count and sub_qs.count() == 0:
+        logger.warning(
+            "Found %d PaymentHistory entries marked as sub_service for year %s but 0 ClientSubService rows "
+            "matched client_service.requested_at__year=%s after filtering. Investigate PaymentHistory <-> "
+            "ClientSubService linkage or added_on/up_to_date timezone filters.",
+            ph_count, year, year
+        )
+
+    return {
+        'gross_total': gross_total,
+        'company_total': company_total,
+        'inst_total': inst_total,
+    }
+    
+    
 
 
 def monthly_company_revenue(year):
@@ -248,88 +321,129 @@ def monthly_company_revenue(year):
 
 def get_yearly_revenue_data(year=None):
     """
-    Produce monthly (Jan→Dec) aggregates:
-      - revenue: company retained revenue (service payments net of institution share + subservice profit)
-      - expenses: general expenses + payroll + subservice institution payouts (only when paid to legal)
-      - net_profit: revenue - expenses
+    Produce monthly (Jan→Dec) aggregates of company finances.
 
-    Key rules:
-      - For TITLE services: split institution cost proportionally across payments using snapshots.
-      - For SubServices:
-          * company_profit = (overridden_price or sub_service.price) - sub_service.price
-          * institution_cost (sub_service.price) is counted in expenses only when is_paid_to_legal_office=True
-            and grouped by paid_at (actual payout timestamp).
-      - All monetary values are handled as Decimal and quantized to 2dp at the end.
+    Breakdown:
+      - revenue:
+          * Service payments (client services) net of institution share.
+          * Subservice profit (overridden - base).
+      - expenses:
+          * General expenses.
+          * Payroll payouts.
+          * Institution payouts (subservices with is_paid_to_legal_office=True).
+      - net_profit = revenue - expenses
+
+    Rules:
+      * For ClientService payments:
+          - Use snapshot prices for proportional split between company & institution.
+      * For SubServices:
+          - company_profit = overridden_price - base_price
+          - institution_cost (base_price) only counted in expenses when actually paid.
+      * All numeric values stored as Decimals and rounded to 2dp.
     """
     if not year:
         year = date.today().year
 
-    # initialize months 1..12 using Decimal for money (zero-filled so charts open)
+    # -------------------------------------------
+    # Initialize months (1–12) with Decimal zeros
+    # -------------------------------------------
     months = OrderedDict(
-        (m, {'revenue': Decimal('0.00'), 'expenses': Decimal('0.00'), 'net_profit': Decimal('0.00')})
+        (m, {'revenue': Decimal('0.00'),
+             'expenses': Decimal('0.00'),
+             'net_profit': Decimal('0.00')})
         for m in range(1, 13)
     )
 
-    # -------------------------
-    # 1) SERVICE PAYMENTS -> company revenue per payment (snapshot-aware)
-    # -------------------------
-    payments_qs = Payment.objects.filter(payment_date__year=year).select_related('client_service__service')
-
-    payments_qs = payments_qs.annotate(
-        inst_cost_src=Coalesce('institution_cost_snapshot', 'client_service__service__total_price', Value(Decimal('0.00')), output_field=DEC_FIELD),
-        overridden_total_src=Coalesce('overridden_total_snapshot', 'client_service__full_total_price', Value(Decimal('0.00')), output_field=DEC_FIELD),
+    # ================================================================
+    # 1️⃣ SERVICE PAYMENTS → COMPANY REVENUE (snapshot-aware proportional split)
+    # ================================================================
+    payments_qs = (
+        Payment.objects
+        .filter(payment_date__year=year)
+        .select_related('client_service__service')
     )
 
+    # Safely pull cost and overridden totals from snapshots or fallbacks
+    payments_qs = payments_qs.annotate(
+        inst_cost_src=Coalesce(
+            'institution_cost_snapshot',
+            'client_service__service__total_price',
+            Value(Decimal('0.00')),
+            output_field=DEC_FIELD
+        ),
+        overridden_total_src=Coalesce(
+            'overridden_total_snapshot',
+            'client_service__full_total_price',
+            Value(Decimal('0.00')),
+            output_field=DEC_FIELD
+        ),
+    )
+
+    # Avoid division by zero — use 1 as safe fallback
     safe_divisor = Case(
         When(overridden_total_src__gt=Value(Decimal('0.00')), then=F('overridden_total_src')),
         default=Value(Decimal('1.00'), output_field=DEC_FIELD),
-        output_field=DEC_FIELD
+        output_field=DEC_FIELD,
     )
 
+    # Proportional formula: company = amount - (amount * institution_cost / overridden_total)
     proportional_expr = ExpressionWrapper(
         F('amount') - (F('amount') * F('inst_cost_src') / safe_divisor),
-        output_field=SMALL_DEC_FIELD
+        output_field=SMALL_DEC_FIELD,
     )
 
+    # Fallback formula when no overridden total — subtract directly
     fallback_expr = ExpressionWrapper(
         F('amount') - F('inst_cost_src'),
-        output_field=SMALL_DEC_FIELD
+        output_field=SMALL_DEC_FIELD,
     )
 
+    # Choose correct logic per service type
     payment_company_case = Case(
+        # TITLE services → proportional logic
         When(
             Q(client_service__service__category=ServiceCategory.TITLE) &
             Q(overridden_total_src__gt=Value(Decimal('0.00'))),
             then=proportional_expr
         ),
+        # TITLE fallback
         When(
             Q(client_service__service__category=ServiceCategory.TITLE),
             then=fallback_expr
         ),
+        # Others → assume full company revenue
         default=F('amount'),
-        output_field=SMALL_DEC_FIELD
+        output_field=SMALL_DEC_FIELD,
     )
 
+    # Ensure non-negative
     payment_company_nonneg = Greatest(payment_company_case, Value(Decimal('0.00')), output_field=SMALL_DEC_FIELD)
 
+    # Aggregate by month
     payments_monthly = (
         payments_qs
         .annotate(month_trunc=TruncMonth('payment_date'))
         .values('month_trunc')
-        .annotate(total_revenue=Coalesce(Sum(payment_company_nonneg), Value(Decimal('0.00')), output_field=DEC_FIELD))
+        .annotate(
+            total_revenue=Coalesce(Sum(payment_company_nonneg), Value(Decimal('0.00')), output_field=DEC_FIELD)
+        )
         .order_by('month_trunc')
     )
 
+    # Fill months with revenue
     for row in payments_monthly:
-        if not row.get('month_trunc'):
-            continue
-        m = row['month_trunc'].month
-        months[m]['revenue'] += Decimal(row['total_revenue'] or Decimal('0.00'))
+        if row.get('month_trunc'):
+            m = row['month_trunc'].month
+            months[m]['revenue'] += Decimal(row['total_revenue'] or 0)
 
-    # -------------------------
-    # 2) SUBSERVICE CONTRIBUTIONS -> company profit (not expense)
-    # -------------------------
-    sub_qs = ClientSubService.objects.filter(client_service__requested_at__year=year).select_related('sub_service')
+    # ================================================================
+    # 2️⃣ SUBSERVICES → COMPANY PROFIT (overridden - base)
+    # ================================================================
+    sub_qs = (
+        ClientSubService.objects
+        .filter(client_service__requested_at__year=year)
+        .select_related('sub_service')
+    )
 
     sub_monthly = (
         sub_qs
@@ -339,51 +453,52 @@ def get_yearly_revenue_data(year=None):
             institution_cost=F('sub_service__price'),
             company_profit=ExpressionWrapper(
                 Coalesce(F('overridden_price'), F('sub_service__price')) - F('sub_service__price'),
-                output_field=SMALL_DEC_FIELD
-            )
+                output_field=SMALL_DEC_FIELD,
+            ),
         )
         .values('month_trunc')
-        .annotate(total_profit=Coalesce(Sum('company_profit'), Value(Decimal('0.00')), output_field=DEC_FIELD))
+        .annotate(
+            total_profit=Coalesce(Sum('company_profit'), Value(Decimal('0.00')), output_field=DEC_FIELD)
+        )
         .order_by('month_trunc')
     )
 
     for row in sub_monthly:
-        if not row.get('month_trunc'):
-            continue
-        m = row['month_trunc'].month
-        months[m]['revenue'] += Decimal(row['total_profit'] or Decimal('0.00'))
+        if row.get('month_trunc'):
+            m = row['month_trunc'].month
+            months[m]['revenue'] += Decimal(row['total_profit'] or 0)
 
-    # -------------------------
-    # 3) EXPENSES: General + Payroll + SUBSERVICE PAYOUTS (only when paid to legal)
-    # -------------------------
-    # General expenses (by Expense.date)
+    # ================================================================
+    # 3️⃣ EXPENSES → General + Payroll + Subservice Institution Payouts
+    # ================================================================
+
+    # --- a) General expenses ---
     gen_q = (
-        Expense.objects.filter(date__year=year)
+        Expense.objects
+        .filter(date__year=year)
         .annotate(month_trunc=TruncMonth('date'))
         .values('month_trunc')
         .annotate(total=Coalesce(Sum('amount'), Value(Decimal('0.00')), output_field=DEC_FIELD))
     )
     for row in gen_q:
-        if not row.get('month_trunc'):
-            continue
-        m = row['month_trunc'].month
-        months[m]['expenses'] += Decimal(row['total'] or Decimal('0.00'))
+        if row.get('month_trunc'):
+            m = row['month_trunc'].month
+            months[m]['expenses'] += Decimal(row['total'] or 0)
 
-    # Payroll (by Payroll.month) - only include paid payrolls
+    # --- b) Payroll (only paid payrolls) ---
     payroll_q = (
-        Payroll.objects.filter(is_paid=True, month__year=year)
+        Payroll.objects
+        .filter(is_paid=True, month__year=year)
         .annotate(month_trunc=TruncMonth('month'))
         .values('month_trunc')
         .annotate(total=Coalesce(Sum('net_salary'), Value(Decimal('0.00')), output_field=DEC_FIELD))
     )
     for row in payroll_q:
-        if not row.get('month_trunc'):
-            continue
-        m = row['month_trunc'].month
-        months[m]['expenses'] += Decimal(row['total'] or Decimal('0.00'))
+        if row.get('month_trunc'):
+            m = row['month_trunc'].month
+            months[m]['expenses'] += Decimal(row['total'] or 0)
 
-    # SubService institution payouts: count sub_service.price only when is_paid_to_legal_office=True
-    # Grouped by paid_at (actual payment timestamp)
+    # --- c) Subservice institution payouts (only when actually paid to legal) ---
     sub_payout_q = (
         ClientSubService.objects
         .filter(client_service__requested_at__year=year, is_paid_to_legal_office=True)
@@ -392,18 +507,19 @@ def get_yearly_revenue_data(year=None):
         .annotate(total=Coalesce(Sum('sub_service__price'), Value(Decimal('0.00')), output_field=DEC_FIELD))
     )
     for row in sub_payout_q:
-        if not row.get('month_trunc'):
-            continue
-        m = row['month_trunc'].month
-        months[m]['expenses'] += Decimal(row['total'] or Decimal('0.00'))
+        if row.get('month_trunc'):
+            m = row['month_trunc'].month
+            months[m]['expenses'] += Decimal(row['total'] or 0)
 
-    # -------------------------
-    # 4) NET profit per month (revenue - expenses)
-    # -------------------------
+    # ================================================================
+    # 4️⃣ COMPUTE NET PROFIT PER MONTH
+    # ================================================================
     for m in months:
         months[m]['net_profit'] = (months[m]['revenue'] - months[m]['expenses']).quantize(Decimal('0.01'))
 
-    # Prepare arrays (keep Decimal for backend; convert to floats if your chart lib requires floats)
+    # ================================================================
+    # 5️⃣ OUTPUT STRUCTURE FOR FRONTEND (CHARTS / ANALYTICS)
+    # ================================================================
     labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     revenue_arr = [months[m]['revenue'].quantize(Decimal('0.01')) for m in months]
     expenses_arr = [months[m]['expenses'].quantize(Decimal('0.01')) for m in months]
@@ -413,9 +529,8 @@ def get_yearly_revenue_data(year=None):
         'labels': labels,
         'revenue': revenue_arr,
         'expenses': expenses_arr,
-        'net_profit': net_arr
+        'net_profit': net_arr,
     }
-
 
 def get_available_years():
     years = Payment.objects.dates('payment_date', 'year', order='DESC')
