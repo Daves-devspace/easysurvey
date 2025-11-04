@@ -32,9 +32,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Runtime-only dependencies
+# Runtime-only dependencies (added gettext-base for envsubst)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 libmariadb3 libjpeg62-turbo zlib1g libmagic1 netcat-openbsd \
+    libpq5 libmariadb3 libjpeg62-turbo zlib1g libmagic1 netcat-openbsd gettext-base \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder

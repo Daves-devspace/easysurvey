@@ -292,9 +292,15 @@ class ClientSubServiceAdmin(admin.ModelAdmin):
     
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('first_name','last_name', 'email', 'phone')
-    search_fields = ('first_name','last_name', 'email', 'phone')
-    inlines = [ClientServiceInline]
+    list_display = ('first_name', 'last_name', 'email', 'phone', 'avatar_preview', 'created_at')
+    search_fields = ('first_name', 'last_name', 'email', 'phone')
+    readonly_fields = ('avatar_preview',)
+
+    def avatar_preview(self, obj):
+        if obj.profile_pic:
+            return format_html('<img src="{}" style="width:50px;height:50px;border-radius:50%;" />', obj.profile_pic.url)
+        return '(no avatar)'
+    avatar_preview.short_description = 'Avatar'
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
@@ -431,3 +437,7 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
     list_display = ("task_name", "scheduled_time", "status", "created_at")
     readonly_fields = ("task_id", "task_name", "scheduled_time", "created_at")
     list_filter = ("status",)
+
+
+
+

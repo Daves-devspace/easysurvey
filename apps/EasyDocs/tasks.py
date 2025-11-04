@@ -9,9 +9,13 @@ from django.utils import timezone
 from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask
 from apps.EasyDocs.utils import update_pending_sms_logs_and_balance,MobileSasaAPI, personalize
 
-
+from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import datetime
+from django.conf import settings
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from datetime import datetime, timedelta
 import time
 from .files.tasks import migrate_documents_to_drive_task
 
@@ -20,6 +24,12 @@ __all__ = ["migrate_documents_to_drive_task"]
 # at the top of apps/EasyDocs/tasks.py
 import logging
 logger = logging.getLogger(__name__)
+
+
+
+
+
+
 
 @shared_task
 def update_sms_delivery_and_balance():

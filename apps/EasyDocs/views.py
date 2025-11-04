@@ -30,7 +30,8 @@ from .clients.client_views import get_client_service_summary
 from .services.services import apply_client_service_logic
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
-
+from types import SimpleNamespace
+from django.contrib import messages
 from apps.Employee.utils.mixins import RolePermissionRequiredMixin
 
 import logging
@@ -540,6 +541,7 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
                 ] if prefetched_bookings else []  # Ensure it's always a list
 
             context['all_services'] = services_qs
+            
 
             # optional focus on one service
             service_id = self.request.GET.get('service_id')
@@ -584,6 +586,28 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
             'add_client_form': ClientForm(),
             'client_sms_form': ClientSmsForm(),
         })
+        
+        # ------------------ SURVEYORS & ASSIGNED IDS ------------------
+        try:
+            # all available surveyors
+            from apps.Employee.models import User
+            surveyors = User.objects.filter(
+            employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR
+         )
+            context['surveyors'] = surveyors
+
+            # map of booking_id → assigned surveyor ids
+            assigned_ids_map = {}
+            bookings = Booking.objects.filter(client_service__client=client).prefetch_related('surveyors')
+            for booking in bookings:
+                assigned_ids_map[booking.id] = list(booking.surveyors.values_list('id', flat=True))
+
+            context['assigned_ids_map'] = assigned_ids_map
+
+        except Exception as e:
+            messages.error(self.request, f"Error loading surveyor assignments: {e}")
+            context['surveyors'] = []
+            context['assigned_ids_map'] = {}
 
         return context
 
@@ -849,14 +873,16 @@ def update_sms_token(request):
     return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
-class ManagementView(LoginRequiredMixin,TemplateView):
+
+
+class ManagementView(LoginRequiredMixin, TemplateView):
     template_name = "Management/management.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from .forms import GoogleDriveConfigForm
 
-        # Data fetching with error handling
+        # Data fetching
         context['services'] = Service.objects.prefetch_related('processes').all()
         context['subservices'] = SubService.objects.all()
 
@@ -870,49 +896,62 @@ class ManagementView(LoginRequiredMixin,TemplateView):
             'edit_subservice_form': SubServiceForm(),
         })
 
-        # Ensure `settings` key is always present
+        # --- SiteSettings Safe Fallback ---
         try:
             site_settings = SiteSettings.objects.get(singleton_enforcer=True)
-            context['settings'] = site_settings
             context['settings_form'] = SiteSettingsForm(instance=site_settings)
         except SiteSettings.DoesNotExist:
-            site_settings = None  # fallback
-            context['settings'] = site_settings  # <-- always define this
+            site_settings = SimpleNamespace(
+                logo=None,
+                company_name='',
+                company_email='',
+                company_phone='',
+                tagline='',
+                google_drive_enabled=False,
+                google_drive_root_folder_id='',
+                google_oauth_client_id='',
+                google_drive_service_account_email='',
+                google_drive_service_account_key_encrypted=None,
+                drive_auto_folder_creation=True,
+                drive_file_naming_pattern='{client_id}/{year}/{month}/{filename}',
+                stamp_signature=None,
+            )
             context['settings_form'] = SiteSettingsForm()
-            messages.warning(self.request, "Site settings not found. You can create new settings.")
-            
-          # --- NEW: Ensure Drive flags are always in context ---
+            messages.warning(self.request, "No site settings found. You can create new settings.")
+
+        context['settings'] = site_settings
+
+        # --- Google Drive Form (always safe) ---
         gdrive_initial = {
             'google_drive_enabled': bool(getattr(site_settings, 'google_drive_enabled', False)),
             'google_drive_root_folder_id': getattr(site_settings, 'google_drive_root_folder_id', '') or '',
             'google_oauth_client_id': getattr(site_settings, 'google_oauth_client_id', '') or '',
-            'google_oauth_client_secret': '',  # Always keep blank for security
+            'google_oauth_client_secret': '',  # security
             'drive_auto_folder_creation': bool(getattr(site_settings, 'drive_auto_folder_creation', True)),
             'drive_file_naming_pattern': getattr(site_settings, 'drive_file_naming_pattern', '{client_id}/{year}/{month}/{filename}'),
         }
         context['gdrive_form'] = GoogleDriveConfigForm(initial=gdrive_initial)
 
-        # expose the flags that the partial expects
+        # --- Additional context flags ---
         context['site_settings'] = site_settings
-        # the boolean whether an encrypted key exists
         context['has_encrypted_key'] = bool(getattr(site_settings, 'google_drive_service_account_key_encrypted', None))
         context['service_account_email'] = getattr(site_settings, 'google_drive_service_account_email', None)
-        # connection_status computed with helper (returns dict)
+
+        # Connection status (safe to call even with dummy)
         from apps.EasyDocs.files.utils import get_connection_status
         context['connection_status'] = get_connection_status(site_settings)
-        
-        
-        # Ensure `sms_token` key is always present
+
+        # --- SMS Token Safe Fallback ---
         try:
             sms_token, _ = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)
             context['sms_token'] = sms_token
             context['sms_token_form'] = SmsProviderTokenForm(instance=sms_token)
         except Exception as e:
-            context['sms_token'] = None  # fallback
+            context['sms_token'] = None
             context['sms_token_form'] = SmsProviderTokenForm()
             messages.error(self.request, f"SMS provider token error: {e}")
 
-        # Editing forms based on GET params
+        # --- Editing Forms ---
         for key, model, form_key, form_class in [
             ('edit_service', Service, 'edit_service_form', ServiceForm),
             ('edit_process', Process, 'edit_process_form', ProcessForm),
@@ -927,6 +966,7 @@ class ManagementView(LoginRequiredMixin,TemplateView):
                     messages.error(self.request, f"Error loading {key.replace('edit_', '')}: {e}")
 
         return context
+
 
     def post(self, request, *args, **kwargs):
         handlers = {

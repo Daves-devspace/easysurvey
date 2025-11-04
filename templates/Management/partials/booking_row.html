@@ -1,20 +1,6 @@
 {# templates/partials/booking_row.html #}
-<div class="table-responsive">
-   <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-      <thead class="table-success">
-      <tr>
-        <th>
-          <div class="form-check">
-               <input class="form-check-input" type="checkbox" id="select-all">
-          </div>
-        </th>
-        <th>Service</th>
-        <th>Scheduled Date</th>
-        <th>Dispatch Message</th>
-        <th>Reschedule</th>
-      </tr>
-    </thead>
-    <tbody>
+
+
       {% if bookings %}
         {% for gd in bookings %}
           <tr id="booking-row-{{ gd.id }}">
@@ -38,6 +24,14 @@
                 <em class="text-muted">No message</em>
               {% endif %}
             </td>
+             <td>
+              {% if gd.handled %}
+              <span class="badge bg-primary">Handled</span>
+              {% else %}
+              <span class="badge bg-secondary">Unhandled</span>
+              {% endif %}
+            </td>
+            
             <td class="text-end">
             <button
               type="button"
@@ -63,6 +57,3 @@
           </td>
         </tr> {% endcomment %}
       {% endif %}
-    </tbody>
-  </table>
-</div>

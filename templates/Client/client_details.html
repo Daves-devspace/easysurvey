@@ -63,7 +63,7 @@
     <div class="col-sm-12">
         <div class="card">
             <div class="card-header pb-0">
-                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap" id="myTab" role="tablist">
                     <li class="nav-item">
                         <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
                            href="#profile-1"
@@ -109,107 +109,112 @@
                     <div class="tab-pane show active" id="profile-1" role="tabpanel"
                          aria-labelledby="profile-tab-1">
                         <div class="row">
-                            <div class="col-lg-4 col-xxl-3">
-                                <div class="card">
-                                    <div class="card-body position-relative">
-                                        <div class="position-absolute end-0 top-0 p-3">
-                                            <span class="badge"><button class="btn btn-sm bg-orange-400"
-                                                                                   data-bs-toggle="modal"
-                                                                                   data-bs-target="#editClientModal{{ client.id }}">
-                                                            <i class="ti ti-edit-circle"> Edit</i>
-                                                        </button></span>
-                                        </div>
-                                        <div class="text-center mt-3">
-                                            <div class="chat-avtar d-inline-flex mx-auto">
-                                                <img class="rounded-circle img-fluid wid-70"
-                                                     src="{% static 'assets/images/user/avatar-5.jpg' %}"
-                                                     alt="User image">
-                                            </div>
-                                            <h5 class="mb-0">{{ client.first_name }} {{ client.last_name }}</h5>
-                                            <p class="text-muted text-sm">client</p>
-                                            <hr class="my-3">
-                                            <div class="row g-3">
-                                                <div class="col-4">
-                                                    <h5 class="mb-0">{{ client_service_summary.active_services }}</h5>
-                                                    <small class="text-muted">Active Services</small>
-                                                </div>
-                                                <div class="col-4 border border-top-0 border-bottom-0">
-                                                    <h5 class="mb-0">{{ client_service_summary.completed_services }}</h5>
-                                                    <small class="text-muted">Completed Services</small>
-                                                </div>
-                                                <div class="col-4">
-                                                    <h5 class="mb-0">{{ client_service_summary.total_balance }}</h5>
-                                                    <small class="text-muted">Total Balance</small>
-                                                </div>
-                                            </div>
-                                            <hr class="my-3">
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-mail"></i>
-                                                <p class="mb-0">{{ client.email }}</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-phone"></i>
-                                                <p class="mb-0">{{ client.phone }}</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100 mb-3">
-                                                <i class="ti ti-map-pin"></i>
-                                                <p class="mb-0">Location</p>
-                                            </div>
-                                            <div class="d-inline-flex align-items-center justify-content-between w-100">
-                                                <i class="ti ti-link"></i>
-                                                <a href="#" class="link-primary">
-                                                    <p class="mb-0">Active</p>
-                                                </a>
-                                            </div>
+<div class="col-lg-4 col-xxl-3">
+  <div class="card">
+    <div class="card-body position-relative">
+      <div class="profile-card">
+        <!-- HEADER: background image area -->
+        <div class="profile-header text-white position-relative">
+          <!-- Header text -->
+          <div class="header-text">
+            <h5 class="mb-0 text-white">{{ client.first_name }} {{ client.last_name }}</h5>
+            <p class="text-white-50 text-sm mb-0">Client</p>
+          </div>
 
-                                            <div class="modal fade" id="editClientModal{{ client.id }}"
-                                                 tabindex="-1"
-                                                 aria-labelledby="editClientModalLabel{{ client.id }}"
-                                                 aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
+          <!-- Fading overlay -->
+          <div class="fade-overlay"></div>
+        </div>
 
-                                                        <form method="POST"
-                                                              action="{% url 'edit_client' client.id %}"
-                                                              class="edit-client-form">
-                                                            {% csrf_token %}
-                                                            <div class="modal-header bg-orange-400">
-                                                                <h5 class="modal-title"
-                                                                    id="editClientModalLabel{{ client.id }}">
-                                                                    Edit Client
-                                                                </h5>
-                                                                <button type="button" class="btn-close"
-                                                                        data-bs-dismiss="modal"
-                                                                        aria-label="Close"></button>
-                                                            </div>
-                                                            <div class="modal-body">
+        <!-- Avatar with Edit Button -->
+        <div class="avatar-wrapper">
+          <div class="chat-avatar">
+            <img
+              class="rounded-circle img-fluid avatar-img"
+              src="{% if client.profile_pic %}{{ client.get_profile_pic_url }}{% else %}{% static 'assets/images/user/avatar-5.jpg' %}{% endif %}"
+              alt="{{ client.first_name }} {{ client.last_name }}">
+            
+            <!-- Edit button on avatar -->
+            <button class="btn btn-sm avatar-edit-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editClientModal{{ client.id }}"
+                    aria-label="Edit Client">
+              <i class="ti ti-pencil"></i>
+            </button>
+          </div>
+        </div>
 
+        <!-- FIRST hr (separates header from details) -->
+        <hr class="my-3">
 
-                                                                {% get_client_form client as form %}
-                                                                {{ form.as_p }}
+        <!-- Stats row -->
+        <div class="row g-3 px-3">
+          <div class="col-4 text-center">
+            <h5 class="mb-0 fw-bold">{{ client_service_summary.active_services }}</h5>
+            <small class="text-muted">Active</small>
+          </div>
+          <div class="col-4 text-center border-start border-end">
+            <h5 class="mb-0 fw-bold">{{ client_service_summary.completed_services }}</h5>
+            <small class="text-muted">Completed</small>
+          </div>
+          <div class="col-4 text-center">
+            <h5 class="mb-0 fw-bold">{{ client_service_summary.total_balance }}</h5>
+            <small class="text-muted">Balance</small>
+          </div>
+        </div>
 
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="submit" class="btn btn-primary">Save
-                                                                    Changes
-                                                                </button>
-                                                                <button type="button" class="btn btn-secondary"
-                                                                        data-bs-dismiss="modal">Cancel
-                                                                </button>
-                                                            </div>
-                                                        </form>
+        <hr class="my-3">
 
-                                                    </div>
-                                                </div>
-                                            </div>
+        <!-- Contact Info -->
+        <div class="px-3 pb-2">
+          <div class="contact-item">
+            <i class="ti ti-mail text-muted"></i>
+            <p class="mb-0 text-truncate">{{ client.email }}</p>
+          </div>
+          <div class="contact-item">
+            <i class="ti ti-phone text-muted"></i>
+            <p class="mb-0">{{ client.phone }}</p>
+          </div>
+          <div class="contact-item">
+            <i class="ti ti-map-pin text-muted"></i>
+            <p class="mb-0">Location</p>
+          </div>
+          <div class="contact-item">
+            <i class="ti ti-link text-muted"></i>
+            <a href="#" class="link-primary text-decoration-none">
+              <p class="mb-0">Active</p>
+            </a>
+          </div>
+        </div>
 
+        <!-- Modal -->
+        <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
+             aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <form method="POST" action="{% url 'edit_client' client.id %}" class="edit-client-form">
+                {% csrf_token %}
+                <div class="modal-header bg-orange-400 text-white">
+                  <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">Edit Client</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                          aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  {% get_client_form client as form %}
+                  {{ form.as_p }}
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
 
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                            </div>
+      </div>
+    </div>
+  </div>
+</div>
 
                             <div class="col-lg-8 col-xxl-9">
 
@@ -390,14 +395,14 @@
                                                         </div>
 
 
-                                                        <div class="card shadow p-3 mb-5 bg-white rounded">
+                                                        <div class="mt-2">
                                                             {# —————————————————————— #}
                                                             {#     Processes Table       #}
                                                             {# —————————————————————— #}
                                                             {% if cs.service.category == "title" %}
                                                                 <h6 class="mt-4 text-orange-800">Processes:</h6>
                                                                 <div class="table-responsive">
-                                                                     <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                     <table class=" display table table-striped table-hover dt-responsive nowrap">
                                                                        <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -540,12 +545,33 @@
                                                                         </tbody>
                                                                     </table>
                                                                 </div>
-                                                            {% endif %}
-                                                {# —————————————————————— #}
-                                                {#     Bookings Table      #}
-                                                {# —————————————————————— #}
-                                                <h6 class="mt-4 text-orange-800">Booking Schedule:</h6>
-                                                {% include 'Management/partials/booking_row.html' with bookings=cs.ground_data cs=cs %}
+                                                             {% endif %}
+                                                                {# —————————————————————— #}
+                                                                {#     Bookings Table      #}
+                                                                {# —————————————————————— #}
+                                                                <h6 class="mt-4 text-orange-800">Booking Schedule:</h6>
+                                                                <div class="table-responsive">
+                                                                       <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                        <thead class="table-success">
+                                                                        <tr>
+                                                                            <th>
+                                                                            <div class="form-check">
+                                                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                                                            </div>
+                                                                            </th>
+                                                                            <th>Service</th>
+                                                                            <th>Scheduled Date</th>
+                                                                            <th>Dispatch Message</th>
+                                                                            <th>Status</th>
+                                                                            <th>Reschedule</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                         {% include 'Management/partials/booking_row.html' with bookings=cs.ground_data cs=cs %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                
 
 
 
@@ -555,8 +581,10 @@
                                                             {#   Sub-Services Table     #}
                                                             {# —————————————————————— #}
                                                             <h6 class="mt-4 text-orange-800">Sub-Service Details:</h6>
+
                                                             <div class="table-responsive">
-                                                                 <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                           
+                                                                 <table class=" display table table-striped table-hover dt-responsive nowrap">
                                                                    <thead class="table-success">
                                                                     <tr>
                                                                         <th>
@@ -640,6 +668,7 @@
                                                                     </tbody>
                                                                 </table>
                                                             </div>
+                                                           
                                                         </div>
 
                                                     </div>
@@ -1412,7 +1441,9 @@
                                 <i class="fas fa-calendar-alt me-2"></i> Client Bookings
                             </div>
                             <div class="card-body">
-                                {% include "Management/partials/all_bookings_table.html" with all_services=all_services %}
+                                <div class="table-responsive">
+                                  {% include "Management/partials/all_bookings_table.html" with all_services=all_services %}
+                                </div>
                             </div>
                             </div>
 
