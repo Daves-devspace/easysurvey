@@ -22,6 +22,7 @@ from .views import ManagementView, ClientDetailView, ClientServiceCreateView, Ho
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback,RefreshDriveTokenView
 
+
 urlpatterns = [
     
         # Main query endpoint - handles all bot queries
@@ -189,6 +190,7 @@ urlpatterns = [
     ),
     
     path('system/audit-logs/',audit.AuditLogListView.as_view(),name='system_audit_logs'),
+    
     
 
 ]

@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
+import firebase_admin
+from firebase_admin import credentials
 
 load_dotenv()
 
@@ -37,6 +39,7 @@ SITE_DOMAIN = os.getenv("SITE_DOMAIN","http://localhost:8080")  # or your produc
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -46,10 +49,11 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'django_celery_beat',
     'djcelery_email',
-
+    'channels',
     'apps.Employee',
     'apps.EasyDocs',
     'apps.accounts',
+    'apps.notifications',
     
     'widget_tweaks',
     
@@ -92,12 +96,17 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'apps.EasyDocs.context_processors.site_settings',
                 'apps.EasyDocs.context_processors.employee_profile_context',
+                "apps.notifications.core.context_processors.firebase_config",
             ],
         },
     },
 ]
 
 WSGI_APPLICATION = 'GGI.wsgi.application'
+ASGI_APPLICATION = 'GGI.asgi.application'
+
+
+
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
@@ -158,33 +167,85 @@ CSRF_TRUSTED_ORIGINS = [
 #change to True in production
 CSRF_COOKIE_SECURE = False
 
-
-
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {'max_connections': 50},
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,  # Don't crash if Redis down
-        },
-        'KEY_PREFIX': 'easydocs',
-        'TIMEOUT': 3600,
-    }
+# --- Firebase configuration
+# -------------------------------------------------------------------
+# Firebase setup (Admin SDK)
+# -------------------------------------------------------------------
+# --- Firebase Frontend Config ---
+FIREBASE_CONFIG = {
+    "apiKey": os.getenv("FIREBASE_API_KEY"),
+    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.getenv("FIREBASE_APP_ID"),
+    "vapidKey": os.getenv("FIREBASE_VAPID_KEY"),
 }
 
-# Fallback to local memory if Redis not available
-if not os.getenv('REDIS_URL') and not os.path.exists('/usr/bin/redis-server'):
+# --- Firebase Admin SDK ---
+FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH")
+if FIREBASE_CREDENTIALS_PATH and os.path.exists(FIREBASE_CREDENTIALS_PATH):
+    try:
+        cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase Admin initialized successfully.")
+    except Exception as e:
+        print(f"⚠️ Firebase initialization error: {e}")
+else:
+    print("⚠️ Firebase credentials file not found or invalid.")
+
+
+# =========================================
+# REDIS & CHANNELS CONFIGURATION
+# =========================================
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis' if os.getenv('DOCKER_ENV') else 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+
+# Cache configuration (with fallback)
+try:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {'max_connections': 50},
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+                'IGNORE_EXCEPTIONS': True,
+            },
+            'KEY_PREFIX': 'easydocs',
+            'TIMEOUT': 3600,
+        }
+    }
+except Exception:
+    # Fallback to local memory if Redis is unavailable
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'easydocs-cache',
+            'LOCATION': 'fallback-cache',
         }
     }
+
+# Channels layer
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(REDIS_HOST, REDIS_PORT)],
+        },
+    },
+}
+
+# Fallback to local memory if Redis not available
+# if not os.getenv('REDIS_URL') and not os.path.exists('/usr/bin/redis-server'):
+#     CACHES = {
+#         'default': {
+#             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+#             'LOCATION': 'easydocs-cache',
+#         }
+#     }
 
 
 

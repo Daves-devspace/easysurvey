@@ -11,7 +11,9 @@ services:
   web:
     build: .
     entrypoint: ["/app/entrypoint.sh"]
-    command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
+    #command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
+    #command: daphne -b 0.0.0.0 -p 8000 GGI.asgi:application
+    command: bash -c "daphne -b 0.0.0.0 -p 8000 GGI.asgi:application"
     volumes:
       - .:/app                      # dev code bind (hot reload if enabled)
       - ./static:/app/static

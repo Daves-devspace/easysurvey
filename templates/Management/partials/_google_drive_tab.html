@@ -49,25 +49,26 @@
     <div id="gdrive-messages"></div>
 
     <!-- Folder Information -->
-    {% if site_settings.google_drive_root_folder_id %}
-    <div class="alert alert-info mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <strong>📁 Google Drive Folder</strong><br>
-                <small>
-                    ID: <code>{{ site_settings.google_drive_root_folder_id }}</code><br>
-                    {% if site_settings.company_email %}
-                    Shared with company: <strong>{{ site_settings.company_email }}</strong>
-                    {% endif %}
-                </small>
-            </div>
-            <a href="https://drive.google.com/drive/folders/{{ site_settings.google_drive_root_folder_id }}" 
-               target="_blank" class="btn btn-sm btn-outline-primary">
-                Open in Drive
-            </a>
-        </div>
-    </div>
+    {% if site_settings and site_settings.google_drive_root_folder_id %}
+      <div class="alert alert-info mb-3">
+          <div class="d-flex justify-content-between align-items-center">
+              <div>
+                  <strong>📁 Google Drive Folder</strong><br>
+                  <small>
+                      ID: <code>{{ site_settings.google_drive_root_folder_id }}</code><br>
+                      {% if site_settings.company_email %}
+                      Shared with company: <strong>{{ site_settings.company_email }}</strong>
+                      {% endif %}
+                  </small>
+              </div>
+              <a href="https://drive.google.com/drive/folders/{{ site_settings.google_drive_root_folder_id }}" 
+                target="_blank" class="btn btn-sm btn-outline-primary">
+                  Open in Drive
+              </a>
+          </div>
+      </div>
     {% endif %}
+
 
     <form id="gdrive-config-form" enctype="multipart/form-data" novalidate>
       {% csrf_token %}

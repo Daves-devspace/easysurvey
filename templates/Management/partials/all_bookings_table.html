@@ -60,12 +60,19 @@
             </td>
             <td>
               <!-- Mark as Handled Button -->
-              <button type="button"
+                
+              {% if gd.handled %}
+              <span class="badge bg-primary">Handled</span>
+              {% else %}
+               <button type="button"
                       class="btn btn-outline-success btn-sm"
                       data-bs-toggle="modal"
                       data-bs-target="#markHandledModal{{ gd.id }}">
                 Mark Handled
               </button>
+              {% endif %}
+            
+             
             </td>
             <td>
               <button
@@ -84,21 +91,14 @@
               </button>
             </td>
           </tr>
-        {% endfor %}
-      {% empty %}
-        <tr>
-          <td colspan="6" class="text-center text-muted py-3">
-            No bookings found for this client.
-          </td>
-        </tr>
 
-         <!-- Assign Surveyors Modal -->
+          <!-- Assign Surveyors Modal -->
           <div class="modal fade" id="assignSurveyorsModal{{ gd.id }}"
                tabindex="-1"
                aria-labelledby="assignSurveyorsLabel{{ gd.id }}"
                aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
-              {% include 'Management/bookings/assign_surveyors_modal.html' with gd=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
+              {% include 'Management/bookings/assign_surveyors_modal.html' with booking=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
             </div>
           </div>
 
@@ -108,9 +108,11 @@
                aria-labelledby="markHandledLabel{{ gd.id }}"
                aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
-              {% include 'Management/bookings/mark_handled_modal.html' with gd=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
+              {% include 'Management/bookings/mark_handled_modal.html' with booking=gd surveyors=surveyors assigned_ids=assigned_ids_map|get_item:gd.id %}
             </div>
           </div>
+        {% endfor %}
+
       {% endfor %}
     </tbody>
   </table>

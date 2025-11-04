@@ -34,6 +34,38 @@ if ! python manage.py check --database default; then
   exit 1
 fi
 
+# -------------------------
+# Firebase Service Worker Generation
+# -------------------------
+log "🚀 Preparing container startup..."
+
+STATIC_ROOT=${STATIC_ROOT:-/app/staticfiles}
+TEMPLATE_PATH=${TEMPLATE_PATH:-static/assets/js/utils/firebase-messaging-sw.js}
+OUTPUT_PATH="${STATIC_ROOT}/firebase-messaging-sw.js"
+
+# Ensure static directory exists
+mkdir -p "$STATIC_ROOT"
+
+# Validate and generate Firebase SW if template exists
+if [ -f "$TEMPLATE_PATH" ]; then
+  : "${FIREBASE_API_KEY:?FIREBASE_API_KEY missing}"
+  : "${FIREBASE_PROJECT_ID:?FIREBASE_PROJECT_ID missing}"
+  : "${FIREBASE_AUTH_DOMAIN:=${FIREBASE_PROJECT_ID}.firebaseapp.com}"
+  : "${FIREBASE_STORAGE_BUCKET:=${FIREBASE_PROJECT_ID}.appspot.com}"
+  : "${FIREBASE_MESSAGING_SENDER_ID:?FIREBASE_MESSAGING_SENDER_ID missing}"
+  : "${FIREBASE_APP_ID:?FIREBASE_APP_ID missing}"
+
+  log "📝 Rendering firebase-messaging-sw.js from template..."
+  envsubst < "$TEMPLATE_PATH" > "$OUTPUT_PATH"
+  chmod 644 "$OUTPUT_PATH"
+  log "✅ firebase-messaging-sw.js written to ${OUTPUT_PATH}"
+else
+  log "⚠️ No firebase SW template found at ${TEMPLATE_PATH}"
+fi
+
+# -------------------------
+# Run migrations
+# -------------------------
 PENDING=$(python manage.py showmigrations --plan | grep '\[ \]' || true)
 if [ -n "$PENDING" ]; then
   log "Applying pending migrations..."

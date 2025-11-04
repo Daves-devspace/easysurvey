@@ -100,6 +100,274 @@
     padding-top: 1rem;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
+/* header area that uses a static background image */
+
+/* Profile Header */
+.profile-header {
+  background: url("{% static 'assets/images/boundary.png' %}") center/cover no-repeat;
+  position: relative;
+  border-radius: 10px 10px 0 0;
+  min-height: 140px;
+  display: flex;
+  align-items: flex-end;
+  color: #fff;
+  overflow: hidden;
+  padding: 1rem 1.25rem 1rem 1.25rem;
+}
+
+/* Smooth fading overlay */
+.profile-header .fade-overlay {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Header text */
+.header-text {
+  position: relative;
+  z-index: 2;
+  padding-bottom: 0.5rem;
+}
+
+.header-text h5 {
+  color: #fff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.header-text p {
+  color: rgba(255,255,255,0.85) !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  font-size: 0.875rem;
+}
+
+/* Avatar wrapper and positioning */
+.avatar-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -40px;
+  padding-right: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.chat-avatar {
+  position: relative;
+  z-index: 3;
+}
+
+.avatar-img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-radius: 50%;
+  display: block;
+}
+
+/* Edit button on avatar */
+.avatar-edit-btn {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fb923c;
+  border: 2px solid #fff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  cursor: pointer;
+  z-index: 4;
+}
+
+.avatar-edit-btn:hover {
+  background: #f97316;
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+}
+
+.avatar-edit-btn:active {
+  transform: scale(0.95);
+}
+
+.avatar-edit-btn i {
+  font-size: 0.75rem;
+}
+
+/* Contact items */
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.contact-item i {
+  font-size: 1.125rem;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.contact-item p {
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+/* Stats styling */
+.row.g-3 h5 {
+  color: #1f2937;
+  font-size: 1.5rem;
+}
+
+.row.g-3 small {
+  font-size: 0.75rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+/* Card styling */
+.profile-card .card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Horizontal rules */
+.profile-card hr {
+  margin: 1rem 1.25rem;
+  opacity: 0.15;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .avatar-img {
+    width: 70px;
+    height: 70px;
+    border: 3px solid #fff;
+  }
+  
+  .avatar-wrapper {
+    margin-top: -35px;
+    padding-right: 1rem;
+  }
+  
+  .avatar-edit-btn {
+    width: 26px;
+    height: 26px;
+    bottom: 0;
+    right: 0;
+  }
+  
+  .avatar-edit-btn i {
+    font-size: 0.7rem;
+  }
+  
+  .profile-header {
+    min-height: 120px;
+    padding: 1rem;
+  }
+  
+  .header-text h5 {
+    font-size: 1.1rem;
+  }
+  
+  .row.g-3 h5 {
+    font-size: 1.25rem;
+  }
+  
+  .row.g-3 small {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .avatar-img {
+    width: 65px;
+    height: 65px;
+  }
+  
+  .avatar-wrapper {
+    margin-top: -32px;
+  }
+  
+  .avatar-edit-btn {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .avatar-edit-btn i {
+    font-size: 0.65rem;
+  }
+  
+  .profile-header {
+    min-height: 110px;
+    padding: 0.875rem;
+  }
+  
+  .header-text h5 {
+    font-size: 1rem;
+  }
+  
+  .header-text p {
+    font-size: 0.8rem;
+  }
+  
+  .contact-item {
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+  }
+  
+  .contact-item i {
+    font-size: 1rem;
+  }
+  
+  .contact-item p {
+    font-size: 0.85rem;
+  }
+  
+  .row.g-3 {
+    gap: 0.75rem !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .avatar-edit-btn {
+    display: none;
+  }
+}
+.notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background-color: #dc3545; /* Bootstrap danger color */
+  border-radius: 50%; /* perfectly round */
+  border: 2px solid #fff; /* optional: creates a nice border separation */
+  box-shadow: 0 0 4px rgba(0,0,0,0.2); /* subtle shadow for depth */
+  transform: translate(50%, -50%); /* positions above the icon */
+  pointer-events: none; /* so the badge doesn't block clicks */
+}
+
 </style>
 
 
@@ -366,60 +634,50 @@
             <ul class="list-unstyled">
                 <li class="dropdown pc-h-item">
                     <a
-                            class="pc-head-link dropdown-toggle arrow-none me-0"
-                            data-bs-toggle="dropdown"
-                            href="#"
-                            role="button"
-                            aria-haspopup="false"
-                            aria-expanded="false"
+                        class="pc-head-link dropdown-toggle arrow-none me-0"
+                        data-bs-toggle="dropdown"
+                        href="#"
+                        role="button"
+                        aria-haspopup="false"
+                        aria-expanded="false"
                     >
-                        <i class="ti ti-mail"></i>
+                        <i class="ti ti-mail position-relative">
+                        <!-- 🔔 Dynamic badge for unread count -->
+                      <span class="notification-badge position-absolute top-0 start-100 translate-middle">
+                      </span>
+
+                        </i>
                     </a>
+
                     <div class="dropdown-menu dropdown-notification dropdown-menu-end pc-h-dropdown">
                         <div class="dropdown-header d-flex align-items-center justify-content-between">
-                            <h5 class="m-0">Message</h5>
-                            <a href="#!" class="pc-head-link bg-transparent"><i class="ti ti-x text-danger"></i></a>
+                        <h5 class="m-0">Messages</h5>
+                        <a href="#!" id="markAllRead" class="small text-primary">Mark all as read</a>
                         </div>
+
                         <div class="dropdown-divider"></div>
-                        <div class="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
-                             style="max-height: calc(100vh - 215px)">
-                            <div class="list-group list-group-flush w-100">
-                                <a class="list-group-item list-group-item-action">
-                                    <div class="d-flex">
-                                        <div class="flex-shrink-0">
-                                            <img src="{% static 'assets/images/user/avatar-2.jpg' %}" alt="user-image"
-                                                 class="user-avtar">
-                                        </div>
-                                        <div class="flex-grow-1 ms-1">
-                                            <span class="float-end text-muted">10:00 AM</span>
-                                            <p class="text-body mb-1">Plot <b>345/Laikipia</b> Title Deed collected.</p>
-                                            <span class="text-muted">2 min ago</span>
-                                        </div>
-                                    </div>
-                                </a>
-                                
-                                
-                                <a class="list-group-item list-group-item-action">
-                                    <div class="d-flex">
-                                        <div class="flex-shrink-0">
-                                            <img src="{% static 'assets/images/user/avatar-4.jpg' %}" alt="user-image"
-                                                 class="user-avtar">
-                                        </div>
-                                        <div class="flex-grow-1 ms-1">
-                                            <span class="float-end text-muted">10:00 AM</span>
-                                            <p class="text-body mb-1">Plot <b>345/Laikipia</b> Title Deed collected.</p>
-                                            <span class="text-muted">2 min ago</span>
-                                        </div>
-                                    </div>
-                                </a>
-                            </div>
+
+                        <div
+                        class="dropdown-header px-0 text-wrap header-notification-scroll position-relative"
+                        style="max-height: calc(100vh - 215px)"
+                        >
+                        <div class="list-group list-group-flush w-100 notification-list">
+                            <!-- Notifications dynamically inserted here -->
                         </div>
+                        </div>
+
                         <div class="dropdown-divider"></div>
+
                         <div class="text-center py-2">
-                            <a href="#!" class="link-primary">View all</a>
+                          <a href="#" id="viewAllNotifications" class="text-primary">
+                            <i class="bi bi-bell-fill"></i> View All Notifications
+                          </a>
                         </div>
+
+
                     </div>
                 </li>
+
                 <li class="dropdown pc-h-item header-user-profile">
                     <a
                             class="pc-head-link dropdown-toggle arrow-none me-0"
@@ -653,6 +911,51 @@
 </footer>
 
 
+
+<!-- Notifications Table Modal -->
+<div id="notificationsModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">All Notifications</h5>
+      </div>
+      <div class="modal-body">
+        <table id="notificationsTable" class="table table-striped">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>User</th>
+              <th>Created At</th>
+              <th>Status</th>
+              <th>Preview</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal in your base template -->
+<div class="modal fade" id="notificationPreviewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="notificationTitle">Notification Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="notificationBody">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- Make username available to JavaScript -->
 <script>
   window.currentUser = "{{ request.user.username|default:'guest' }}";
@@ -688,7 +991,105 @@
 </script>
 
 <!-- bot -->
-<script src="{% static 'assets/js/utils/bot.js' %}"></script
+<script src="{% static 'assets/js/utils/bot.js' %}"></script>
+
+    
+<!-- notification JS -->
+<script src="{% static 'assets/js/utils/notifications.js' %}"></script>
+
+{% comment %} <script type="module">
+  import { initFCM } from "{% static 'assets/js/utils/firebase.js' %}";
+
+  const firebaseConfig = {
+    apiKey: "{{ firebase_config.apiKey }}",
+    authDomain: "{{ firebase_config.authDomain }}",
+    projectId: "{{ firebase_config.projectId }}",
+    storageBucket: "{{ firebase_config.storageBucket }}",
+    messagingSenderId: "{{ firebase_config.messagingSenderId }}",
+    appId: "{{ firebase_config.appId }}",
+  };
+  const vapidKey = "{{ firebase_config.vapidKey }}";
+  
+
+  initFCM(firebaseConfig, vapidKey);
+</script> {% endcomment %}
+
+<script type="module">
+  import { initFCM } from "{% static 'assets/js/utils/firebase.js' %}";
+
+  // expose function and config to window
+  window.firebaseConfig = {
+    apiKey: "{{ firebase_config.apiKey }}",
+    authDomain: "{{ firebase_config.authDomain }}",
+    projectId: "{{ firebase_config.projectId }}",
+    storageBucket: "{{ firebase_config.storageBucket }}",
+    messagingSenderId: "{{ firebase_config.messagingSenderId }}",
+    appId: "{{ firebase_config.appId }}",
+  };
+
+  window.vapidKey = "{{ firebase_config.vapidKey }}";
+  window.initFCM = initFCM;
+
+  // call it immediately
+  initFCM(window.firebaseConfig, window.vapidKey);
+</script>
+
+<script>
+document.getElementById('viewAllNotifications').addEventListener('click', function(e) {
+  e.preventDefault(); // prevent page navigation
+  const modal = new bootstrap.Modal(document.getElementById('notificationsModal'));
+  modal.show();
+
+  $('#notificationsTable').DataTable({
+    ajax: { url: '/notifications/all/', dataSrc: 'data' },
+    destroy: true,
+    columns: [
+      { data: 'id' },
+      { data: 'title' },
+      { data: 'user.username', defaultContent: '—' },
+      { data: 'created_at' },
+      { 
+        data: 'is_read',
+        render: function(data) {
+          return data ? '<span class="badge bg-success">Read</span>' :
+                        '<span class="badge bg-warning">Unread</span>';
+        }
+      },
+      {
+        data: null,
+        render: function(row) {
+          return `<button class="btn btn-sm btn-outline-primary" onclick="previewNotification(${row.id})">Preview</button>`;
+        }
+      }
+    ]
+  });
+});
+
+
+function previewNotification(id) {
+  fetch(`/notifications/all/?id=${id}`)
+    .then(res => res.json())
+    .then(response => {
+      // Extract the notification details (assuming response.data[0] contains your notification)
+      const notification = response.data[0];
+
+      // Populate modal content
+      document.getElementById('notificationTitle').innerText = notification.title || 'Notification Details';
+      document.getElementById('notificationBody').innerHTML = `
+        <p><strong>Message:</strong> ${notification.message || 'N/A'}</p>
+        <p><strong>User:</strong> ${notification.user?.username || 'N/A'}</p>
+        <p><strong>Created At:</strong> ${notification.created_at || 'N/A'}</p>
+        <p><strong>Status:</strong> ${notification.is_read ? 'Read' : 'Unread'}</p>
+      `;
+
+      // Show the modal
+      const modal = new bootstrap.Modal(document.getElementById('notificationPreviewModal'));
+      modal.show();
+    });
+}
+
+</script>
+
 
 <!--modal-->
 <!-- jQuery -->
@@ -727,6 +1128,7 @@ $(document).ready(function () {
     });
 });
 </script>
+
 
 
 

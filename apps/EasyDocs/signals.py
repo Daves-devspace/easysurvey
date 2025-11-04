@@ -12,8 +12,10 @@ from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
     Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense
 )
+
+from apps.notifications.models import Notification
 from apps.accounts.services.cashbook import record_cash_in, record_cash_out_expense
-  
+from crum import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,40 @@ _signal_lock = threading.local()
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.apps import apps
-from crum import get_current_user  # handy for tracking the current user
+#from crum import get_current_user  # handy for tracking the current user
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from apps.notifications.serializers import NotificationSerializer 
 
 
+@receiver(post_save, sender=Notification)
+def broadcast_notification(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    channel_layer = get_channel_layer()
+
+    # Serialize notification for transport
+    serializer = NotificationSerializer(instance)
+    data = serializer.data
+
+    # Send to target user group
+    async_to_sync(channel_layer.group_send)(
+        f"user_{instance.user.id}",
+        {
+            "type": "send_notification",
+            "data": data
+        }
+    )
+
+    # Also send to superuser group (for monitoring)
+    async_to_sync(channel_layer.group_send)(
+        "superusers",
+        {
+            "type": "send_notification",
+            "data": {**data, "superuser_view": True}
+        }
+    )
 
 def get_user():
     user = get_current_user()

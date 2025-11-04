@@ -184,11 +184,28 @@ class Client(models.Model):
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
     email = models.EmailField(unique=True, blank=True, null=True, db_index=True)
-    phone = models.CharField(max_length=15, unique=True, db_index=True)  # <-- Add unique=True
+    phone = models.CharField(max_length=15, unique=True, db_index=True)
+    profile_pic = models.ImageField(
+        upload_to='clients/avatars/',
+        blank=True,
+        null=True,
+        help_text="Client profile picture (optional)"
+    )
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return self.first_name
+        return f"{self.first_name} {self.last_name}"
+
+    def get_profile_pic_url(self):
+        """
+        Returns the URL to the profile pic or a static fallback path.
+        Use this in templates to avoid checking existence everywhere.
+        """
+        if self.profile_pic and hasattr(self.profile_pic, 'url'):
+            return self.profile_pic.url
+        # change this path to match your static fallback image
+        from django.templatetags.static import static
+        return static('assets/images/user/avatar-5.jpg')
 
 
 # Service Model
@@ -430,6 +447,9 @@ class Booking(models.Model):
         limit_choices_to={'groups__name': 'Surveyor'},
         help_text="Which surveyors were allocated"
     )
+    
+    class Meta:
+        ordering = ['-created_at']  # 👈 Most recent first
 
     def generate_default_message(self):
         scheduled_local = timezone.localtime(self.scheduled_date)
@@ -1072,3 +1092,6 @@ class AuditLog(models.Model):
     
     def __str__(self):
         return f"{self.action} - {self.model_name} {self.object_id}"
+
+
+
