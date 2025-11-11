@@ -25,7 +25,9 @@ from apps.accounts.services.opening_balance import (
 
 from apps.accounts.services.cashbook import record_cash_out_institution
 logger = logging.getLogger(__name__)
-
+from datetime import datetime
+import calendar
+from django.shortcuts import render
 from django.views import View
 from django.http import JsonResponse
 from django.utils import timezone
@@ -127,13 +129,92 @@ class CheckOpeningSyncView(View):
         })
 
 
+# class CashbookDashboardView(TemplateView):
+#     template_name = "Accounts/cash_in_out.html"
+
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+
+#         # allow date switching from query param
+#         date_str = self.request.GET.get("date")
+#         if date_str:
+#             try:
+#                 selected_date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
+#             except (ValueError, TypeError):
+#                 selected_date = timezone.now().date()
+#         else:
+#             selected_date = timezone.now().date()
+
+#         # 🔹 opening summary (flagged + contributions + total)
+#         opening_summary = get_opening_summary(selected_date)
+
+#         # 🔹 daily in/out
+#         today_in = (
+#             CashbookEntry.objects.filter(entry_type="IN", created_at__date=selected_date)
+#             .aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+#         )
+#         today_out = (
+#             CashbookEntry.objects.filter(entry_type="OUT", created_at__date=selected_date)
+#             .aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
+#         )
+
+#         # 🔹 closing balance (total opening + inflows - outflows)
+#         closing_balance = opening_summary["flagged"] + today_in - today_out
+
+#         # 🔹 extra info
+#         recent_entries = CashbookEntry.objects.filter(created_at__date=selected_date).order_by("-created_at")
+#         expenses = Expense.objects.all().order_by("-date")
+
+#         # 🔹 cashflow ratio
+#         # Compute ratio safely
+#         cash_flow_ratio = None
+#         ratio_display = "N/A"
+#         if today_out and today_out != 0:
+#             cash_flow_ratio = float(today_in) / float(today_out)
+#             # Round to nearest whole number for simplicity or keep one decimal
+#             ratio_display = f"{round(cash_flow_ratio)}×"  # or f"{cash_flow_ratio:.1f}×"
+
+
+#         context.update({
+#             "today": selected_date,
+#             "opening_summary": opening_summary,   # ✅ one dict with all opening info
+#             "today_in": today_in,
+#             "today_out": today_out,
+#             "closing_balance": closing_balance,
+#             "recent_entries": recent_entries,
+#             "expenses": expenses,
+#             "form": ExpenseForm(),
+#             "payout_form": InstitutionPayoutForm(),
+#             "opening_balance_form": OpeningBalanceForm(initial={"date": selected_date}),
+#             "cash_flow_ratio": cash_flow_ratio,
+#             "ratio_display": ratio_display,
+#             "is_positive_flow": cash_flow_ratio and cash_flow_ratio >= 1 if cash_flow_ratio else True
+#         })
+#         return context
+        
+
+#     def get(self, request, *args, **kwargs):
+#         context = self.get_context_data(**kwargs)
+#         if request.headers.get("HX-Request"):
+#             return render(request, "Accounts/partials/cashbook_dashboard_content.html", context)
+#         return self.render_to_response(context)
+
+
+
+
+
+
+
 class CashbookDashboardView(TemplateView):
+    """
+    Main cashbook dashboard view.
+    Handles both cashbook and revenue tabs with separation of concerns.
+    """
     template_name = "Accounts/cash_in_out.html"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # allow date switching from query param
+    def get_cashbook_context(self):
+        """Get context data for cashbook tab."""
+        # Handle selected date
         date_str = self.request.GET.get("date")
         if date_str:
             try:
@@ -143,10 +224,8 @@ class CashbookDashboardView(TemplateView):
         else:
             selected_date = timezone.now().date()
 
-        # 🔹 opening summary (flagged + contributions + total)
+        # Daily cash summary
         opening_summary = get_opening_summary(selected_date)
-
-        # 🔹 daily in/out
         today_in = (
             CashbookEntry.objects.filter(entry_type="IN", created_at__date=selected_date)
             .aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
@@ -155,27 +234,24 @@ class CashbookDashboardView(TemplateView):
             CashbookEntry.objects.filter(entry_type="OUT", created_at__date=selected_date)
             .aggregate(Sum("amount"))["amount__sum"] or Decimal("0.00")
         )
-
-        # 🔹 closing balance (total opening + inflows - outflows)
         closing_balance = opening_summary["flagged"] + today_in - today_out
 
-        # 🔹 extra info
-        recent_entries = CashbookEntry.objects.filter(created_at__date=selected_date).order_by("-created_at")
+        # Extra info
+        recent_entries = CashbookEntry.objects.filter(
+            created_at__date=selected_date
+        ).order_by("-created_at")
         expenses = Expense.objects.all().order_by("-date")
 
-        # 🔹 cashflow ratio
-        # Compute ratio safely
+        # Cash flow ratio
         cash_flow_ratio = None
         ratio_display = "N/A"
         if today_out and today_out != 0:
             cash_flow_ratio = float(today_in) / float(today_out)
-            # Round to nearest whole number for simplicity or keep one decimal
-            ratio_display = f"{round(cash_flow_ratio)}×"  # or f"{cash_flow_ratio:.1f}×"
+            ratio_display = f"{round(cash_flow_ratio)}×"
 
-
-        context.update({
+        return {
             "today": selected_date,
-            "opening_summary": opening_summary,   # ✅ one dict with all opening info
+            "opening_summary": opening_summary,
             "today_in": today_in,
             "today_out": today_out,
             "closing_balance": closing_balance,
@@ -186,16 +262,76 @@ class CashbookDashboardView(TemplateView):
             "opening_balance_form": OpeningBalanceForm(initial={"date": selected_date}),
             "cash_flow_ratio": cash_flow_ratio,
             "ratio_display": ratio_display,
-            "is_positive_flow": cash_flow_ratio and cash_flow_ratio >= 1 if cash_flow_ratio else True
-        })
-        return context
+            "is_positive_flow": cash_flow_ratio and cash_flow_ratio >= 1 if cash_flow_ratio else True,
+        }
+
+    def get_context_data(self, **kwargs):
+        """Combine all context data."""
+        context = super().get_context_data(**kwargs)
         
+        # Add cashbook context
+        context.update(self.get_cashbook_context())
+        
+        # Add revenue context
+        from apps.EasyDocs.accounts.revenue import get_revenue_context
+        context.update(get_revenue_context(self.request))
+        
+        return context
 
     def get(self, request, *args, **kwargs):
+        """Handle GET requests with HTMX support."""
         context = self.get_context_data(**kwargs)
+
+        # Check if this is an HTMX request
         if request.headers.get("HX-Request"):
+            tab = request.GET.get('tab')
+            
+            # Revenue tab - return ONLY content (no filter form)
+            if tab == 'revenue':
+                return render(request, "Accounts/partials/revenue_tab_content.html", context)
+            
+            # Other tabs
             return render(request, "Accounts/partials/cashbook_dashboard_content.html", context)
+
+        # Full page render
         return self.render_to_response(context)
+    
+     
+# ---------------------------------------------------------
+# ✅ REVENUE REPORT FILTER (for HTMX dropdowns)
+# ---------------------------------------------------------
+class RevenueReportView(View):
+    """Handles dynamic filtering of revenue by year/month via HTMX."""
+    
+    def get(self, request, *args, **kwargs):
+        year = int(request.GET.get('year', timezone.now().year))
+        month = request.GET.get('month')
+        month = int(month) if month else None
+
+        # Compute up_to_date cutoff
+        up_to_date = None
+        if month:
+            import calendar
+            day = calendar.monthrange(year, month)[1]
+            up_to_date = timezone.datetime(
+                year, month, day, 23, 59, 59,
+                tzinfo=timezone.get_current_timezone()
+            )
+
+        # Fetch using the ONE source of truth
+        from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
+        revenue_data = get_revenue_from_payments(year, up_to_date=up_to_date)
+
+        context = {
+            "revenue_totals": revenue_data,
+            "revenue_year": year,
+            "revenue_month": month,
+        }
+
+        return render(request, "Accounts/partials/revenue_tab_content.html", context) 
+    
+    
+
 
 
 class RecordInstitutionPayoutView(View):

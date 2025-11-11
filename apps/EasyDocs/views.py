@@ -25,7 +25,8 @@ from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
 
 from apps.EasyDocs.accounts.accounts import get_client_payment_history, get_all_payment_history
-from .analytics import get_yearly_revenue_data, get_available_years, monthly_company_revenue,get_revenue_from_payments
+from .analytics import get_yearly_revenue_data, get_available_years, monthly_company_revenue
+from .accounts.revenue import get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
 from .services.services import apply_client_service_logic
 from .models import Service, Process
@@ -186,8 +187,9 @@ class DashboardView(TemplateView):
         # ─────────────────────────────────────────────
         # Revenue Metrics
         # ─────────────────────────────────────────────
-        rev_cur = get_revenue_from_payments(current_year, up_to_date=today)
-        rev_prev = get_revenue_from_payments(prev_year, up_to_date=today)
+        rev_cur = get_revenue_from_payments(year=current_year, up_to_date=today)
+        rev_prev = get_revenue_from_payments(year=prev_year, up_to_date=today)
+
 
         rev_cur_gross = rev_cur['gross_total']
         rev_cur_net = rev_cur['company_total']
@@ -616,13 +618,12 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
 
 
 
-
 def client_list(request):
     services = Service.objects.all()
     add_form = ClientForm()
     client_service_form = ClientServiceForm()
 
-    # Prefetch latest services
+    # Prefetch latest services for performance
     clients = Client.objects.prefetch_related(
         Prefetch(
             'client_services',
@@ -634,22 +635,18 @@ def client_list(request):
     client_data = []
     for client in clients:
         form = ClientForm(instance=client)
-        client_service = client.latest_services[0] if hasattr(client,
-                                                              'latest_services') and client.latest_services else None
+        client_service = client.latest_services[0] if hasattr(client, 'latest_services') and client.latest_services else None
         current_process = None
 
         if client_service:
-            processes = client_service.service_processes.select_related('process') \
-                .order_by('-completed_at', '-id')
+            processes = client_service.service_processes.select_related('process').order_by('-completed_at', '-id')
 
-            # Prefer in_progress
-            current_process = processes.filter(status='in_progress').first()
-            if not current_process:
-                # Prefer collected
-                current_process = processes.filter(status='collected').first()
-            if not current_process:
-                # Then completed
-                current_process = processes.filter(status='completed').first()
+            # Pick priority process status
+            current_process = (
+                processes.filter(status='in_progress').first() or
+                processes.filter(status='collected').first() or
+                processes.filter(status='completed').first()
+            )
 
         client_data.append({
             'client': client,
@@ -662,51 +659,77 @@ def client_list(request):
         'client_data': client_data,
         'add_form': add_form,
         'client_service_form': client_service_form,
-        'services': services
+        'services': services,
     }
 
     return render(request, 'Client/client_list.html', context)
 
-
-# Add Client
 def add_client(request):
-    if request.method == 'POST':
-        form = ClientForm(request.POST)
+    form = ClientForm(request.POST or None, request.FILES or None)
+
+    # 🟢 AJAX submission (via modal)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        if form.is_valid():
+            client = form.save()
+            return JsonResponse({
+                "success": True,
+                "message": "✅ Client added successfully.",
+                "client_id": client.id
+            })
+        # Return errors only — no rendering
+        errors = {
+            field: [{"message": err} for err in errs]
+            for field, errs in form.errors.items()
+        }
+        return JsonResponse({
+            "success": False,
+            "errors": errors,
+            "message": "⚠️ Please correct the highlighted errors."
+        }, status=400)
+
+    # 🟠 Normal non-AJAX fallback (you can keep this for safety)
+    else:
         if form.is_valid():
             form.save()
-            messages.success(request, 'Client added successfully.')
-            return redirect('clients')
-        else:
-            messages.error(request, 'Failed to add client. Please check the form.')
-    else:
-        form = ClientForm()
+            messages.success(request, "✅ Client added successfully.")
+            return redirect("clients")
 
-    return redirect('clients')
+        messages.error(request, "⚠️ Please correct the highlighted errors.")
+        return redirect("clients")  # just reload — no rendering
+
+
 
 
 # Edit Client
-
-
 def edit_client(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
     if request.method == 'POST':
-        form = ClientForm(request.POST, instance=client)
+        form = ClientForm(request.POST, request.FILES, instance=client)  # include request.FILES
         if form.is_valid():
-            form.save()
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                return JsonResponse({'message': 'Client updated successfully.'})
-            messages.success(request, 'Client updated successfully.')
+            try:
+                form.save()
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'message': 'Client updated successfully.'})
+                messages.success(request, 'Client updated successfully.')
+            except Exception as exc:
+                logger.exception("Unexpected error when updating client id=%s", client_id)
+                user_msg = f"Failed to update client: {str(exc)}"
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'error': 'Failed to update client', 'details': str(exc)}, status=500)
+                messages.error(request, user_msg)
         else:
+            errors_text = form.errors.as_text()
+            errors_json = form.errors.get_json_data()
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                return JsonResponse({'errors': form.errors}, status=400)
-            messages.error(request, 'Failed to update client. Please check the form.')
+                return JsonResponse({'errors': errors_json}, status=400)
+            messages.error(request, f"Failed to update client: {errors_text}")
 
+    # preserve referer behavior
     referer = request.META.get('HTTP_REFERER')
     if referer:
         return redirect(referer)
     return redirect(reverse('client_details', kwargs={'client_id': client_id}))
-
 
 
 

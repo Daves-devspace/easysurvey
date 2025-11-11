@@ -34,6 +34,14 @@ class EmployeeProfile(models.Model):
             except Exception:
                 pass
         return None
+    
+    @property
+    def display_name(self):
+        """Returns full name with username for transparency, e.g. "John Doe (jdoe)" or "jdoe"""
+        full_name = f"{self.user.first_name} {self.user.last_name}".strip()
+        return f"{full_name} ({self.user.username})" if full_name else self.user.username
+
+    
 
     def latest_payroll(self):
         payrolls = getattr(self, 'latest_payrolls', None)
@@ -54,7 +62,7 @@ class EmployeeProfile(models.Model):
         return sum(d.amount for d in payroll.deduction_snapshots.all()) if payroll else 0
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        return self.display_name
 
 
 # --------------------------

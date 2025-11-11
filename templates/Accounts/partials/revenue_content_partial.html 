@@ -1,0 +1,258 @@
+{% load humanize %}
+<!-- templates/Accounts/partials/revenue_content_partial.html -->
+<!-- This partial contains ONLY the content that gets swapped via HTMX -->
+
+<!-- ============================================
+     STATISTICS CARDS - 4 Cards
+============================================= -->
+<div class="row g-3 mb-4">
+  
+  <!-- Card 1: Client Payments -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+              <i class="bi bi-cash-stack fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Client Payments</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.gross_total|floatformat:2|intcomma }}</h3>
+            <small class="text-success">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Institution Share -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
+              <i class="bi bi-building fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Institution Share</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.inst_total|floatformat:2|intcomma }}</h3>
+            <small class="text-primary">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Expenses -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-3">
+              <i class="bi bi-arrow-down-circle fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Expenses</h6>
+            <h3 class="mb-0 fw-bold">{{ stat_cards.expenses|floatformat:2|intcomma }}</h3>
+            <small class="text-danger">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Company Revenue -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+              <i class="bi bi-graph-up-arrow fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Company Revenue</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.company_total|floatformat:2|intcomma }}</h3>
+            <small class="text-success">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================
+     REVENUE RECORDS TABLE
+============================================= -->
+<div class="card shadow-sm">
+  <div class="card-header bg-white py-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Revenue Records</h5>
+        <small class="text-muted">Detailed breakdown of all revenue-generating transactions</small>
+      </div>
+      <div class="col-auto">
+        <button 
+          class="btn btn-sm btn-outline-primary"
+          hx-get="{% url 'revenue_pdf' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}"
+          hx-target="#pdf-modal-body"
+          data-bs-toggle="modal"
+          data-bs-target="#pdfModal"
+        >
+          <i class="bi bi-file-earmark-pdf"></i> Export PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+      <table class="table table-hover table-striped mb-0">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th class="text-center" style="width: 5%;">#</th>
+            <th style="width: 20%;">Client Details</th>
+            <th style="width: 25%;">Service Details</th>
+            <th class="text-end" style="width: 12%;">Client Charge</th>
+            <th class="text-end" style="width: 12%;">Institution Cost</th>
+            <th class="text-end" style="width: 12%;">Company Profit</th>
+            <th class="text-end" style="width: 8%;">Margin %</th>
+            <th class="text-center" style="width: 6%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if revenue_records %}
+            {% for record in revenue_records %}
+              <tr>
+                <!-- Row Number -->
+                <td class="text-center text-muted">{{ forloop.counter }}</td>
+
+                <!-- Client Details -->
+                <td>
+                  <div>
+                    <strong class="d-block">{{ record.client.first_name }} {{ record.client.last_name }}</strong>
+                    <small class="text-muted">
+                      <i class="bi bi-credit-card"></i> {{ record.client.id_number|default:"-" }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- Service Details -->
+                <td>
+                  <div>
+                    <strong class="d-block">{{ record.service.name }}</strong>
+                    <small class="text-muted">
+                      <i class="bi bi-calendar-event"></i> {{ record.requested_at|date:"d M Y" }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- Client Charge -->
+                <td class="text-end">
+                  <span class="badge bg-light text-dark border px-3 py-2">
+                    KES {{ record.client_charge|floatformat:2|intcomma }}
+                  </span>
+                </td>
+
+                <!-- Institution Cost -->
+                <td class="text-end">
+                  <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
+                    KES {{ record.inst_cost|floatformat:2|intcomma }}
+                  </span>
+                </td>
+
+                <!-- Company Profit -->
+                <td class="text-end">
+                  <span class="badge {% if record.profit_amount > 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if record.profit_amount > 0 %}text-success{% else %}text-danger{% endif %} px-3 py-2">
+                    KES {{ record.profit_amount|floatformat:2|intcomma }}
+                  </span>
+                </td>
+
+                <!-- Profit Margin % -->
+                <td class="text-end">
+                  <strong class="
+                    {% if record.profit_percent >= 50 %}text-success
+                    {% elif record.profit_percent >= 30 %}text-warning
+                    {% else %}text-danger{% endif %}
+                  ">
+                    {{ record.profit_percent|floatformat:1 }}%
+                  </strong>
+                </td>
+
+                <!-- Status -->
+                <td class="text-center">
+                  {% if record.status == "completed" %}
+                    <span class="badge bg-success"><i class="bi bi-check-circle"></i></span>
+                  {% elif record.status == "pending" %}
+                    <span class="badge bg-warning"><i class="bi bi-clock"></i></span>
+                  {% elif record.status == "processing" %}
+                    <span class="badge bg-info"><i class="bi bi-arrow-repeat"></i></span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ record.status }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-5">
+                <div class="text-muted">
+                  <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                  <h5>No Revenue Records Found</h5>
+                  <p>No transactions found for the selected period: <strong>{{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</strong></p>
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+
+        <!-- Table Footer with Totals -->
+        {% if revenue_records %}
+          <tfoot class="table-secondary fw-bold">
+            <tr>
+              <td colspan="3" class="text-end">TOTALS:</td>
+              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">KES {{ revenue_totals.inst_total|floatformat:2|intcomma }}</td>
+              <td class="text-end text-success">KES {{ revenue_totals.company_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">
+                {% if revenue_totals.gross_total > 0 %}
+                  {% widthratio revenue_totals.company_total revenue_totals.gross_total 100 %}%
+                {% else %}
+                  0%
+                {% endif %}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- Card Footer with Summary -->
+  <div class="card-footer bg-light">
+    <div class="row text-center">
+      <div class="col-md-4">
+        <small class="text-muted d-block">Main Services</small>
+        <strong class="text-success">KES {{ revenue_totals.main_services.company_total|floatformat:2|intcomma }}</strong>
+      </div>
+      <div class="col-md-4">
+        <small class="text-muted d-block">Sub Services</small>
+        <strong class="text-success">KES {{ revenue_totals.subservices.company_total|floatformat:2|intcomma }}</strong>
+      </div>
+      <div class="col-md-4">
+        <small class="text-muted d-block">Total Records</small>
+        <strong class="text-primary">{{ revenue_records|length }}</strong>
+      </div>
+    </div>
+  </div>
+
+</div>

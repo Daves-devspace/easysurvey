@@ -21,203 +21,133 @@ SMALL_DEC_FIELD = DecimalField(max_digits=18, decimal_places=6)  # for intermedi
 
 from django.db.models import Q
 import logging
-logger = logging.getLogger(__name__)    
+logger = logging.getLogger(__name__)  
+  
+# def get_revenue_from_payments(year, up_to_date=None):
+#     """
+#     Unified revenue computation.
 
-def get_revenue_from_payments(year, up_to_date=None):
-    """
-    Production-grade unified revenue computation with detailed logging.
-    Preserves original expression semantics while adding timezone-safe
-    up_to_date handling and robust (non-field-assuming) subservice discovery.
-    Returns:
-        {
-            'gross_total': Decimal,
-            'company_total': Decimal,
-            'inst_total': Decimal
-        }
-    """
-    logger.info("Starting revenue computation for year=%s, up_to_date=%s", year, up_to_date)
+#     ✅ Respects snapshot values (institution_cost_snapshot & overridden_total_snapshot)
+#     ✅ Filters payments safely up to 'up_to_date'
+#     ✅ Separates ClientService vs SubService revenues
+#     ✅ Quantizes to 2 decimals for accuracy
+#     """
+#     logger.info("▶️ Computing revenue for year=%s up_to_date=%s", year, up_to_date)
 
+#     # --- Discover payments applied to subservices
+#     subservice_payment_ids = list(
+#         PaymentHistory.objects.filter(
+#             reason='sub_service',
+#             payment__payment_date__year=year
+#         ).values_list('payment_id', flat=True)
+#     )
 
-    # -----------------------------
-    # Payments allocated to subservices (PaymentHistory)
-    # -----------------------------
-    subservice_payment_ids = list(
-        PaymentHistory.objects.filter(
-            reason='sub_service',
-            payment__payment_date__year=year
-        ).values_list('payment_id', flat=True)
-    )
-    logger.debug("Found %d payments allocated to subservices (ids): %s", len(subservice_payment_ids), subservice_payment_ids)
+#     # --- Prepare base queryset for ClientService-level payments
+#     qs = (
+#         Payment.objects
+#         .filter(payment_date__year=year)
+#         .exclude(id__in=subservice_payment_ids)
+#         .select_related('client_service__service')
+#     )
 
-    # -----------------------------
-    # MAIN SERVICE PAYMENTS (exclude those allocated to subservices)
-    # -----------------------------
-    qs = (Payment.objects
-          .filter(payment_date__year=year)
-          .exclude(id__in=subservice_payment_ids)
-          .select_related('client_service__service'))
+#     # --- Time filter
+#     up_to_dt = None
+#     if up_to_date:
+#         tz = timezone.get_current_timezone()
+#         date_part = up_to_date.date() if isinstance(up_to_date, datetime) else up_to_date
+#         up_to_dt = timezone.make_aware(datetime.combine(date_part, time(23, 59, 59)), timezone=tz)
+#         qs = qs.filter(payment_date__lte=up_to_dt)
+#     logger.info("Filtered main payments count=%d", qs.count())
 
-    # Make up_to_date timezone-aware end-of-day if provided
-    up_to_dt = None
-    if up_to_date:
-        tz = timezone.get_current_timezone()
-        if isinstance(up_to_date, datetime):
-            date_part = up_to_date.date()
-        else:
-            date_part = up_to_date  # assume it's a date
-        up_to_dt = datetime.combine(date_part, time(23, 59, 59))
-        up_to_dt = timezone.make_aware(up_to_dt, timezone=tz)
-        qs = qs.filter(payment_date__lte=up_to_dt)
-        logger.info("Filtered payments up to %s, remaining payments: %d", up_to_dt, qs.count())
-    else:
-        logger.info("No up_to_date provided; processing full year for payments.")
+#     # --- Annotate payment fields safely
+#     qs = qs.annotate(
+#         inst_cost_src=Coalesce('institution_cost_snapshot',
+#                                'client_service__service__total_price',
+#                                Value(Decimal('0.00')), output_field=DEC_FIELD),
+#         overridden_total_src=Coalesce('overridden_total_snapshot',
+#                                       'client_service__full_total_price',
+#                                       Value(Decimal('0.00')), output_field=DEC_FIELD)
+#     )
 
-    # Annotate payment sources for institution cost calculations
-    qs = qs.annotate(
-        inst_cost_src=Coalesce(
-            'institution_cost_snapshot',
-            'client_service__service__total_price',
-            Value(Decimal('0.00')),
-            output_field=DEC_FIELD
-        ),
-        overridden_total_src=Coalesce(
-            'overridden_total_snapshot',
-            'client_service__full_total_price',
-            Value(Decimal('0.00')),
-            output_field=DEC_FIELD
-        )
-    )
-    logger.debug("Annotated payment sources for institution and overridden totals.")
+#     safe_divisor = Case(
+#         When(overridden_total_src__gt=0, then=F('overridden_total_src')),
+#         default=Value(Decimal('1.00')), output_field=DEC_FIELD
+#     )
 
-    safe_divisor = Case(
-        When(overridden_total_src__gt=Value(Decimal('0.00')), then=F('overridden_total_src')),
-        default=Value(Decimal('1.00'), output_field=DEC_FIELD),
-        output_field=DEC_FIELD
-    )
+#     # --- Compute company share for main service
+#     proportional_expr = ExpressionWrapper(
+#         F('amount') - (F('amount') * F('inst_cost_src') / safe_divisor),
+#         output_field=SMALL_DEC_FIELD
+#     )
 
-    proportional_expr = ExpressionWrapper(
-        F('amount') - (F('amount') * F('inst_cost_src') / safe_divisor),
-        output_field=SMALL_DEC_FIELD
-    )
+#     company_rev = Case(
+#         When(
+#             Q(client_service__service__category=ServiceCategory.TITLE)
+#             & Q(overridden_total_src__gt=0),
+#             then=proportional_expr
+#         ),
+#         When(client_service__service__category=ServiceCategory.TITLE,
+#              then=ExpressionWrapper(F('amount') - F('inst_cost_src'), output_field=SMALL_DEC_FIELD)),
+#         default=F('amount'),
+#         output_field=SMALL_DEC_FIELD
+#     )
 
-    company_rev_case = Case(
-        # TITLE service proportional split
-        When(
-            Q(client_service__service__category=ServiceCategory.TITLE) &
-            Q(overridden_total_src__gt=Value(Decimal('0.00'))),
-            then=proportional_expr
-        ),
-        # TITLE fallback
-        When(
-            Q(client_service__service__category=ServiceCategory.TITLE),
-            then=ExpressionWrapper(F('amount') - F('inst_cost_src'), output_field=SMALL_DEC_FIELD)
-        ),
-        # Non-title = full company take
-        default=F('amount'),
-        output_field=SMALL_DEC_FIELD
-    )
+#     annotated = qs.annotate(
+#         gross=F('amount'),
+#         company_revenue=Greatest(company_rev, Value(Decimal('0.00')), output_field=SMALL_DEC_FIELD),
+#         institution_share=ExpressionWrapper(F('amount') - F('company_revenue'), output_field=SMALL_DEC_FIELD)
+#     )
 
-    company_rev_nonneg = Greatest(company_rev_case, Value(Decimal('0.00')), output_field=SMALL_DEC_FIELD)
+#     aggs_services = annotated.aggregate(
+#         gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#         company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#         inst_total=Coalesce(Sum('institution_share'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#     )
 
-    annotated = qs.annotate(
-        gross=F('amount'),
-        company_revenue=company_rev_nonneg,
-        institution_share=ExpressionWrapper(F('amount') - company_rev_nonneg, output_field=SMALL_DEC_FIELD)
-    )
+#     # --- Subservice side
+#     sub_qs = ClientSubService.objects.filter(client_service__requested_at__year=year)
+#     if up_to_dt:
+#         sub_qs = sub_qs.filter(added_on__lte=up_to_dt)
 
-    logger.info("Annotated main payments with gross, company_revenue, and institution_share (rows=%d).", annotated.count())
+#     sub_qs = sub_qs.annotate(
+#         base_price=Coalesce(F('sub_service__price'), Value(Decimal('0.00'))),
+#         effective_price=Coalesce(F('overridden_price'), F('sub_service__price')),
+#         gross=F('paid_amount'),
+#         institution_cost=Case(
+#             When(effective_price__gt=0,
+#                  then=ExpressionWrapper(F('paid_amount') * F('base_price') / F('effective_price'),
+#                                         output_field=DEC_FIELD)),
+#             default=Value(Decimal('0.00')),
+#             output_field=DEC_FIELD
+#         ),
+#         company_revenue=Greatest(
+#             ExpressionWrapper(
+#                 F('paid_amount') - (F('paid_amount') * F('base_price') / F('effective_price')),
+#                 output_field=DEC_FIELD
+#             ),
+#             Value(Decimal('0.00'))
+#         )
+#     )
 
-    aggs_services = annotated.aggregate(
-        gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-        company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-        inst_total=Coalesce(Sum('institution_share'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-    )
-    logger.debug("Aggregated main service payments: %s", aggs_services)
+#     aggs_sub = sub_qs.aggregate(
+#         gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#         company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#         inst_total=Coalesce(Sum('institution_cost'), Value(Decimal('0.00')), output_field=DEC_FIELD),
+#     )
 
-    # -----------------------------
-    # SUBSERVICE REVENUE
-    # -----------------------------
-    # We'll base discovery of subservices on ClientSubService rows (by client_service.requested_at)
-    # and log PaymentHistory counts for sub_service to help diagnose orphaned histories.
-    ph_count = PaymentHistory.objects.filter(reason='sub_service', payment__payment_date__year=year).count()
-    logger.info("PaymentHistory: total sub_service entries for year %s = %d", year, ph_count)
+#     # --- Final combined totals
+#     gross_total = (aggs_services['gross_total'] + aggs_sub['gross_total']).quantize(Decimal('0.01'))
+#     company_total = (aggs_services['company_total'] + aggs_sub['company_total']).quantize(Decimal('0.01'))
+#     inst_total = (aggs_services['inst_total'] + aggs_sub['inst_total']).quantize(Decimal('0.01'))
 
-    # Build subservice queryset from ClientSubService rows whose client_service.requested_at falls in year
-    sub_qs = ClientSubService.objects.filter(client_service__requested_at__year=year)
-    logger.info("Initial ClientSubService rows for year %s = %d", year, sub_qs.count())
+#     logger.info("✅ Revenue done → Gross=%s, Company=%s, Institution=%s", gross_total, company_total, inst_total)
 
-    # If up_to_dt is set, apply the same timezone-aware cutoff to added_on
-    if up_to_dt:
-        sub_qs = sub_qs.filter(added_on__lte=up_to_dt)
-        logger.info("Filtered subservices up to %s, remaining subservices: %d", up_to_dt, sub_qs.count())
-    else:
-        logger.info("No up_to_date provided; processing full year for subservices (rows=%d).", sub_qs.count())
-
-    # Annotate subservices exactly as original
-    sub_qs = sub_qs.annotate(
-        base_price=Coalesce(F('sub_service__price'), Value(Decimal('0.00'))),
-        effective_price=Coalesce(F('overridden_price'), F('sub_service__price')),
-        gross=F('paid_amount'),
-        institution_cost=Case(
-            When(paid_amount=Value(Decimal('0.00')), then=Value(Decimal('0.00'))),
-            When(
-                effective_price__gt=Value(Decimal('0.00')),
-                then=ExpressionWrapper(
-                    F('paid_amount') * F('base_price') / F('effective_price'),
-                    output_field=DEC_FIELD
-                )
-            ),
-            default=F('paid_amount')
-        ),
-        company_revenue=Case(
-            When(paid_amount=Value(Decimal('0.00')), then=Value(Decimal('0.00'))),
-            When(
-                effective_price__gt=Value(Decimal('0.00')),
-                then=Greatest(
-                    ExpressionWrapper(
-                        F('paid_amount') - (F('paid_amount') * F('base_price') / F('effective_price')),
-                        output_field=DEC_FIELD
-                    ),
-                    Value(Decimal('0.00'))
-                )
-            ),
-            default=Value(Decimal('0.00'))
-        )
-    )
-    logger.debug("Annotated subservices with computed shares (rows=%d).", sub_qs.count())
-
-    aggs_sub = sub_qs.aggregate(
-        gross_total=Coalesce(Sum('gross'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-        company_total=Coalesce(Sum('company_revenue'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-        inst_total=Coalesce(Sum('institution_cost'), Value(Decimal('0.00')), output_field=DEC_FIELD),
-    )
-    logger.debug("Aggregated subservice revenue: %s", aggs_sub)
-
-    # -----------------------------
-    # COMBINE TOTALS
-    # -----------------------------
-    gross_total = (aggs_services['gross_total'] + aggs_sub['gross_total']).quantize(Decimal('0.01'))
-    company_total = (aggs_services['company_total'] + aggs_sub['company_total']).quantize(Decimal('0.01'))
-    inst_total = (aggs_services['inst_total'] + aggs_sub['inst_total']).quantize(Decimal('0.01'))
-
-    logger.info("Final totals - Gross: %s, Company: %s, Institution: %s", gross_total, company_total, inst_total)
-
-    # Helpful debugging tip in logs for orphaned histories
-    if ph_count and sub_qs.count() == 0:
-        logger.warning(
-            "Found %d PaymentHistory entries marked as sub_service for year %s but 0 ClientSubService rows "
-            "matched client_service.requested_at__year=%s after filtering. Investigate PaymentHistory <-> "
-            "ClientSubService linkage or added_on/up_to_date timezone filters.",
-            ph_count, year, year
-        )
-
-    return {
-        'gross_total': gross_total,
-        'company_total': company_total,
-        'inst_total': inst_total,
-    }
-    
-    
+#     return {
+#         'gross_total': gross_total,
+#         'company_total': company_total,
+#         'inst_total': inst_total,
+#     }
+ 
 
 
 def monthly_company_revenue(year):

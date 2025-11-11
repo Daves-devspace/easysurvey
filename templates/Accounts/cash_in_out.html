@@ -248,7 +248,7 @@
 
 
                                         <div class="card-body table-card">
-                                            <div class="table-responsive mt-3">
+                                            <div class="table-responsive mt-3"  style="max-height: 600px; overflow-y: auto;">
                                                 <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
                                                     <thead class="table-success">
                                                     <tr>
@@ -328,13 +328,123 @@
                             <div class="row">
                                 <div class="col-lg-12">
 
-                                    {% include "Accounts/partials/revenue_tab_content.html" %}
+                                     <!-- FILTER SECTION (Stays on page, never swapped) -->
+                                    <div class="card mb-4 shadow-sm">
+                                        <div class="card-body">
+                                            <form 
+                                                id="revenue-filter-form"
+                                                hx-get="{% url 'cashbook_dashboard' %}"
+                                                hx-target="#revenue-content-area"
+                                                hx-swap="innerHTML"
+                                                hx-indicator="#loading-spinner"
+                                            >
+                                                <input type="hidden" name="tab" value="revenue">
+                                                
+                                                <div class="row g-3 align-items-end">
+                                                    
+                                                    <!-- Filter Type Selector -->
+                                                    <div class="col-md-2">
+                                                        <label for="filter-type" class="form-label fw-semibold text-muted small">FILTER BY</label>
+                                                        <select id="filter-type" class="form-select">
+                                                            <option value="month" {% if filter_type == 'month' %}selected{% endif %}>Month</option>
+                                                            <option value="range" {% if filter_type == 'range' %}selected{% endif %}>Date Range</option>
+                                                            <option value="year" {% if filter_type == 'year' %}selected{% endif %}>Year</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Month Picker -->
+                                                    <div class="col-md-3" id="month-picker-group" {% if filter_type != 'month' %}style="display: none;"{% endif %}>
+                                                        <label for="month-input" class="form-label fw-semibold text-muted small">SELECT MONTH</label>
+                                                        <input 
+                                                            type="month" 
+                                                            id="month-input" 
+                                                            class="form-control"
+                                                            value="{% if revenue_year and revenue_month %}{{ revenue_year }}-{{ revenue_month|stringformat:'02d' }}{% else %}{{ current_year }}-{{ current_month|stringformat:'02d' }}{% endif %}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Date Range Pickers -->
+                                                    <div class="col-md-3" id="start-date-group" {% if filter_type != 'range' %}style="display: none;"{% endif %}>
+                                                        <label for="start-date-input" class="form-label fw-semibold text-muted small">START DATE</label>
+                                                        <input 
+                                                            type="date" 
+                                                            id="start-date-input" 
+                                                            class="form-control"
+                                                            value="{{ start_date|date:'Y-m-d' }}"
+                                                        >
+                                                    </div>
+
+                                                    <div class="col-md-3" id="end-date-group" {% if filter_type != 'range' %}style="display: none;"{% endif %}>
+                                                        <label for="end-date-input" class="form-label fw-semibold text-muted small">END DATE</label>
+                                                        <input 
+                                                            type="date" 
+                                                            id="end-date-input" 
+                                                            class="form-control"
+                                                            value="{{ end_date|date:'Y-m-d' }}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Year Picker -->
+                                                    <div class="col-md-2" id="year-picker-group" {% if filter_type != 'year' %}style="display: none;"{% endif %}>
+                                                        <label for="year-input" class="form-label fw-semibold text-muted small">SELECT YEAR</label>
+                                                        <input 
+                                                            type="number" 
+                                                            id="year-input" 
+                                                            class="form-control"
+                                                            min="2020"
+                                                            max="{{ current_year|add:1 }}"
+                                                            value="{{ revenue_year|default:current_year }}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Action Buttons -->
+                                                    <div class="col-md-2">
+                                                        <button type="submit" class="btn btn-primary w-100">
+                                                            <i class="bi bi-funnel-fill"></i> Apply
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="col-md-2">
+                                                        <button type="button" id="reset-btn" class="btn btn-outline-secondary w-100">
+                                                            <i class="bi bi-arrow-clockwise"></i> Reset
+                                                        </button>
+                                                    </div>
+
+                                                </div>
+
+                                                <!-- Date Range Display -->
+                                                <div class="row mt-3">
+                                                    <div class="col-12">
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-calendar-range"></i> 
+                                                            Viewing: <strong>{{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</strong>
+                                                        </small>
+                                                    </div>
+                                                </div>
+
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <!-- Loading Spinner -->
+                                    <div id="loading-spinner" class="text-center my-4" style="display: none;">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">Loading revenue data...</p>
+                                    </div>
+
+                                    <!-- CONTENT AREA (Gets swapped by HTMX) -->
+                                    <div id="revenue-content-area">
+                                        {% include 'Accounts/partials/revenue_tab_content.html' %}
+                                    </div>
                                 </div>
 
 
                             </div>
                         </div>
                     {% endif %}
+                    
 
                 </div>
             </div>
@@ -518,6 +628,240 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
+
+
+
+<!-- Revenue Filter JavaScript -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Element refs
+    const filterTypeEl = document.getElementById('filter-type');
+    const monthGroup = document.getElementById('month-picker-group');
+    const startGroup = document.getElementById('start-date-group');
+    const endGroup = document.getElementById('end-date-group');
+    const yearGroup = document.getElementById('year-picker-group');
+    const form = document.getElementById('revenue-filter-form');
+    const resetBtn = document.getElementById('reset-btn');
+    const loadingIndicatorSelector = '#loading-spinner';
+
+    // Inputs
+    const monthInput = document.getElementById('month-input');
+    const startDateInput = document.getElementById('start-date-input');
+    const endDateInput = document.getElementById('end-date-input');
+    const yearInput = document.getElementById('year-input');
+
+    // Safety: bail if core elements missing
+    if (!filterTypeEl || !form) return;
+
+    // Capture initial state (so Reset can restore server-provided values)
+    const initialState = {
+        filterType: filterTypeEl.value,
+        monthValue: monthInput ? monthInput.value : '',
+        startValue: startDateInput ? startDateInput.value : '',
+        endValue: endDateInput ? endDateInput.value : '',
+        yearValue: yearInput ? yearInput.value : ''
+    };
+
+    // Helper: show/hide groups and toggle required attributes
+    function updateVisibility(current) {
+        const type = current || filterTypeEl.value;
+
+        // Hide all
+        monthGroup.style.display = 'none';
+        startGroup.style.display = 'none';
+        endGroup.style.display = 'none';
+        yearGroup.style.display = 'none';
+
+        // Clear required flags
+        if (monthInput) monthInput.required = false;
+        if (startDateInput) startDateInput.required = false;
+        if (endDateInput) endDateInput.required = false;
+        if (yearInput) yearInput.required = false;
+
+        // Show selected and set required
+        if (type === 'month') {
+            monthGroup.style.display = 'block';
+            if (monthInput) monthInput.required = true;
+        } else if (type === 'range') {
+            startGroup.style.display = 'block';
+            endGroup.style.display = 'block';
+            if (startDateInput) startDateInput.required = true;
+            if (endDateInput) endDateInput.required = true;
+        } else if (type === 'year') {
+            yearGroup.style.display = 'block';
+            if (yearInput) yearInput.required = true;
+        }
+    }
+
+    // Ensure initial visibility matches server-rendered selection
+    updateVisibility(initialState.filterType);
+
+    // Wire up change on filter type
+    filterTypeEl.addEventListener('change', () => updateVisibility());
+
+    // Validate/sanitize date range (if end earlier than start, swap them)
+    function normalizeDateRange() {
+        if (!startDateInput || !endDateInput) return;
+        const a = startDateInput.value;
+        const b = endDateInput.value;
+        if (!a || !b) return;
+
+        const da = new Date(a);
+        const db = new Date(b);
+        if (isNaN(da) || isNaN(db)) return;
+
+        if (db < da) {
+            // swap values so backend always gets start <= end
+            startDateInput.value = b;
+            endDateInput.value = a;
+        }
+    }
+
+    // Build params and send request (using HTMX if available)
+    async function submitFilter() {
+        const params = new URLSearchParams();
+        params.append('tab', 'revenue');
+
+        // include filter type so backend knows which mode to use
+        const type = filterTypeEl.value;
+        params.append('filter_type', type);
+
+        if (type === 'month' && monthInput && monthInput.value) {
+            const [y, m] = monthInput.value.split('-');
+            if (y) params.append('rev_year', y);
+            if (m) params.append('rev_month', String(parseInt(m, 10)));
+        } else if (type === 'range') {
+            normalizeDateRange();
+            if (startDateInput && startDateInput.value) params.append('start_date', startDateInput.value);
+            if (endDateInput && endDateInput.value) params.append('end_date', endDateInput.value);
+        } else if (type === 'year' && yearInput && yearInput.value) {
+            params.append('rev_year', String(parseInt(yearInput.value, 10)));
+        }
+
+        const baseUrl = form.getAttribute('hx-get') || form.action || window.location.href.split('?')[0];
+        const url = baseUrl + '?' + params.toString();
+
+        // Show indicator if HTMX present (HTMX handles indicator automatically if using htmx.ajax)
+        if (window.htmx && typeof window.htmx.ajax === 'function') {
+            window.htmx.ajax('GET', url, {
+                target: '#revenue-content-area',
+                swap: 'innerHTML',
+                indicator: loadingIndicatorSelector
+            });
+        } else {
+            // Fallback: fetch and replace innerHTML
+            try {
+                const indicator = document.querySelector(loadingIndicatorSelector);
+                if (indicator) indicator.style.display = 'block';
+
+                const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!res.ok) throw new Error('Network response was not ok');
+
+                const text = await res.text();
+                const target = document.querySelector('#revenue-content-area');
+                if (target) target.innerHTML = text;
+            } catch (err) {
+                console.error('Filter request failed:', err);
+                // Optionally show user-visible error
+            } finally {
+                const indicator = document.querySelector(loadingIndicatorSelector);
+                if (indicator) indicator.style.display = 'none';
+            }
+        }
+    }
+
+    // Intercept form submit
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        submitFilter();
+    });
+
+    // Reset button behavior - restores initial server-provided values (robust)
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            // Restore initial values captured on load
+            filterTypeEl.value = initialState.filterType || 'month';
+
+            if (monthInput) monthInput.value = initialState.monthValue || (() => {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            })();
+
+            if (startDateInput) startDateInput.value = initialState.startValue || (() => {
+                const d = new Date();
+                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            })();
+
+            if (endDateInput) endDateInput.value = initialState.endValue || startDateInput.value;
+            if (yearInput) yearInput.value = initialState.yearValue || (new Date()).getFullYear();
+
+            // Update UI and re-submit filter
+            updateVisibility();
+            submitFilter();
+        });
+    }
+
+    // Optional: submit on Enter for inputs (nice UX)
+    [monthInput, startDateInput, endDateInput, yearInput].forEach(inp => {
+        if (!inp) return;
+        inp.addEventListener('keydown', function (evt) {
+            if (evt.key === 'Enter') {
+                evt.preventDefault();
+                submitFilter();
+            }
+        });
+    });
+
+    // Trigger an initial request if you want to auto-load / refresh content on page open
+    // (comment out if server already rendered the #revenue-content-area)
+    // submitFilter();
+});
+</script>
+
+
+<style>
+/* Sticky table header */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+}
+
+.sticky-bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 9;
+    background-color: #e9ecef;
+}
+
+/* Card hover effect */
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+/* Table row hover */
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Smooth transitions */
+#revenue-content-area {
+    transition: opacity 0.3s ease;
+}
+
+.htmx-swapping #revenue-content-area {
+    opacity: 0.5;
+}
+
+/* Loading spinner */
+#loading-spinner.htmx-request {
+    display: block !important;
+}
+</style>
+
 
 {% endblock %}
 

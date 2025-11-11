@@ -10,14 +10,10 @@ from rest_framework.permissions import IsAuthenticated
 
 class CombinedNotificationFeedView(APIView):
     """
-    Returns a combined payload the frontend expects:
-      - `personal`: unread notifications belonging to the current user
-      - `monitoring`: (superusers only) unseen notifications from other users
-      - `user`: small user context block (is_superuser, username, id)
-      - counts are included to make it easy for the frontend to render badges
-
-    Note: we intentionally return only *unread/unseen* items for each list so the
-    frontend can decide how to display and paginate them.
+    Returns:
+      - personal: unread notifications for current user (latest 20)
+      - monitoring: (superusers only) unseen notifications from other users (latest 20)
+      - counts and small user context
     """
     permission_classes = [IsAuthenticated]
 
@@ -38,16 +34,21 @@ class CombinedNotificationFeedView(APIView):
             monitoring_data = NotificationSerializer(monitor_qs, many=True).data
             monitoring_count = Notification.objects.filter(seen_by_admin=False).exclude(user=user).count()
 
-            # add a bit of helpful metadata used by the frontend
+            # mark each item as viewed through superuser context (no extra DB queries)
             for n in monitoring_data:
                 n["superuser_view"] = True
-                try:
-                    notification_obj = Notification.objects.get(id=n['id'])
-                    n["target_user"] = notification_obj.user.username
-                except Notification.DoesNotExist:
+                # target_user is already provided by the serializer (display_name or fallback)
+                if "target_user" not in n or n["target_user"] is None:
+                    # defensive fallback - should rarely be needed
                     n["target_user"] = None
 
-        # Return merged payload + counts so frontend doesn't have to re-request
+        # include current user small context with display name for better frontend UX
+        current_profile = getattr(user, 'employeeprofile', None)
+        if current_profile:
+            display = current_profile.display_name if not callable(current_profile.display_name) else current_profile.display_name()
+        else:
+            display = f"{user.first_name} {user.last_name}".strip() or user.username
+
         return Response(
             {
                 "personal": personal_data,
@@ -61,6 +62,7 @@ class CombinedNotificationFeedView(APIView):
                     "is_superuser": user.is_superuser,
                     "username": user.username,
                     "id": user.id,
+                    "display_name": display,
                 },
             },
             status=status.HTTP_200_OK,

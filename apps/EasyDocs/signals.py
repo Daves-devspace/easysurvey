@@ -1,7 +1,7 @@
 from decimal import Decimal
 import logging
 
-from django.db.models.signals import post_save, post_delete, pre_delete
+from django.db.models.signals import post_save, post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import transaction   
@@ -467,57 +467,52 @@ def allocate_payment(sender, instance, created, **kwargs):
         logger.exception(f"❌ Allocation error for Payment #{instance.pk}: {exc}")
         raise
 
-# @receiver(post_save, sender=Payment)
-# def allocate_payment(sender, instance, created, **kwargs):
-#     if not created:
-#         return
 
-#     remaining = Decimal(str(instance.amount))
-#     client_service = instance.client_service
-#     service = client_service.service
 
-#     # 1️⃣ Allocate to service processes (only for TITLE services)
-#     if service.category == ServiceCategory.TITLE:
-#         for csp in client_service.service_processes.order_by('process__step_order'):
-#             if remaining <= 0:
-#                 break
-#             to_pay = min(remaining, csp.pending_amount)
-#             if to_pay > 0:
-#                 csp.paid_amount += to_pay
-#                 csp.save(update_fields=['paid_amount'])
-#                 remaining -= to_pay
-#                 PaymentHistory.objects.create(
-#                     payment=instance,
-#                     client_service=client_service,
-#                     amount=to_pay,
-#                     reason="service_step",
-#                     service_process=csp
-#                 )
 
-#     # 2️⃣ Allocate to sub-services (latest ones first)
-#     subs = client_service.sub_services.order_by('-id')  # newest first
-#     for sub in subs:
-#         if remaining <= 0:
-#             break
-#         to_pay = min(remaining, sub.balance)
-#         if to_pay > 0:
-#             sub.paid_amount += to_pay
-#             sub.save(update_fields=['paid_amount'])
-#             remaining -= to_pay
-#             PaymentHistory.objects.create(
-#                 payment=instance,
-#                 client_service=client_service,
-#                 amount=to_pay,
-#                 reason="sub_service",
-#                 sub_service=sub
-#             )
+@receiver(pre_save, sender=Payment)
+def snapshot_institution_cost(sender, instance, **kwargs):
+    """
+    Ensure consistent snapshot logic:
+      - If previous payment exists, reuse its snapshot
+      - Otherwise (first payment), use current service/sub-service cost
+    """
+    # Skip updates to existing rows
+    if instance.pk:
+        return
 
-#     # 3️⃣ Handle remaining balance for GROUND service
-#     if remaining > 0 and service.category == ServiceCategory.GROUND:
-#         PaymentHistory.objects.create(
-#             payment=instance,
-#             client_service=client_service,
-#             amount=remaining,
-#             reason="ground_service"
-#         )
-#         # optionally update a paid_amount on ClientService
+    # If already manually filled (e.g., via admin import), skip
+    if instance.institution_cost_snapshot and instance.overridden_total_snapshot:
+        return
+
+    # 🧭 Case 1: If the payment is tied to a sub-service
+    if instance.applied_to_subservice:
+        css = instance.applied_to_subservice
+        instance.institution_cost_snapshot = css.sub_service.price
+        instance.overridden_total_snapshot = (
+            css.overridden_price or css.sub_service.price
+        )
+        return
+
+    # 🧭 Case 2: Regular ClientService-level payment
+    cs = instance.client_service
+
+    # Look for previous payments for this ClientService
+    first_payment = (
+        Payment.objects.filter(client_service=cs)
+        .order_by("created_at")
+        .first()
+    )
+
+    if first_payment:
+        # ✅ Reuse snapshot from the first payment
+        instance.institution_cost_snapshot = first_payment.institution_cost_snapshot
+        instance.overridden_total_snapshot = first_payment.overridden_total_snapshot
+    else:
+        # ✅ No previous payment → snapshot current cost
+        instance.institution_cost_snapshot = getattr(cs.service, "total_price", 0)
+        instance.overridden_total_snapshot = (
+            cs.overridden_total_price
+            if cs.overridden_total_price is not None
+            else cs.full_total_price
+        )

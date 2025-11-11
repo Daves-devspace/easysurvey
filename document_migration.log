@@ -1,0 +1,12 @@
+2025-11-11 16:05:40,622 - INFO - Starting migration of old documents...
+2025-11-11 16:06:18,520 - INFO - Starting migration of old documents...
+2025-11-11 16:06:18,568 - INFO - Migration completed. Total migrated: 0, Failed: 0
+[INFO] 2025-11-11 16:35:24,433 document_migration Starting migration from filesystem.
+[INFO] 2025-11-11 16:35:24,433 document_migration Scanning office folder: /app/media/office_documents
+[INFO] 2025-11-11 16:35:24,446 document_migration Created DocType 'report'.
+[INFO] 2025-11-11 16:35:24,459 document_migration ✅ Migrated office: documents/office/report/2025/07/report_cards_1.pdf (DocType: report)
+[INFO] 2025-11-11 16:35:24,469 document_migration ✅ Migrated office: documents/office/report/2025/07/report_cards_2.pdf (DocType: report)
+[INFO] 2025-11-11 16:35:24,480 document_migration ✅ Migrated office: documents/office/report/2025/07/report_cards_1_2RqZVCe.pdf (DocType: report)
+[INFO] 2025-11-11 16:35:24,489 document_migration ✅ Migrated office: documents/office/report/2025/07/report_cards.pdf (DocType: report)
+[WARNING] 2025-11-11 16:35:24,490 document_migration Client folder not found: /app/media/client_docs
+[INFO] 2025-11-11 16:35:24,490 document_migration Migration completed. Total migrated: 4, Failed: 0
