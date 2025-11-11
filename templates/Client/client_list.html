@@ -28,7 +28,7 @@
                     </div>
                 </div>
             </div>
-            <div class="container-fluid col-lg-12">
+            <div id="message-container" class="container-fluid col-lg-12">
                 {% if messages %}
                     {% for message in messages %}
                         {% if message.tags == 'error' %}
@@ -164,7 +164,9 @@
                                                     <div class="modal-dialog">
                                                         <div class="modal-content">
                                                             <form method="POST"
-                                                                  action="{% url 'edit_client' client.id %}">
+                                                            action="{% url 'edit_client' client.id %}"
+                                                            enctype="multipart/form-data"
+                                                            class="client-form">
                                                                 {% csrf_token %}
                                                                 <div class="modal-header bg-warning">
                                                                     <h5 class="modal-title"
@@ -213,11 +215,13 @@
 
 
 
+<!-- Add Client Modal -->
+
     <!-- Add Client Modal -->
     <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{% url 'add_client' %}">
+                <form method="POST" action="{% url 'add_client' %}" class="client_service_form" id="client_service_form" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="addClientModalLabel">Add Client</h5>

@@ -2,22 +2,24 @@
 <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="POST" action="{% url 'add_client' %}">
-        {% csrf_token %}
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="addClientModalLabel">Add Client</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
+    <!-- Add Client Modal -->
+    <form method="POST" action="{% url 'add_client' %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="addClientModalLabel">Add Client</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
 
-        <div class="modal-body">
-          {{ form.as_p }}
-        </div>
+      <div class="modal-body">
+        {{ form.as_p }}
+      </div>
 
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-success">Add Client</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        </div>
-      </form>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Add Client</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+
     </div>
   </div>
 </div>

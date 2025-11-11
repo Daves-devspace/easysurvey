@@ -736,6 +736,7 @@ class Payment(models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     payment_date = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
     institution_cost_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     overridden_total_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     received_by = models.ForeignKey(
@@ -762,24 +763,8 @@ class Payment(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
-        if not self.pk:
-            if self.applied_to_subservice:
-                # 🔹 Sub-service specific payment
-                css = self.applied_to_subservice
-                self.institution_cost_snapshot = css.sub_service.price
-                self.overridden_total_snapshot = (
-                    css.overridden_price or css.sub_service.price
-                )
-            else:
-                # 🔹 Regular service-level payment
-                svc = self.client_service
-                self.institution_cost_snapshot = getattr(svc.service, 'total_price', None)
-                self.overridden_total_snapshot = (
-                    svc.overridden_total_price
-                    if svc.overridden_total_price is not None
-                    else svc.full_total_price
-                )
         super().save(*args, **kwargs)
+
 
 
 

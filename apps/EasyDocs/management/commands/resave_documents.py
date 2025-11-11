@@ -1,172 +1,246 @@
+# apps/EasyDocs/management/commands/migrate_files_to_unified.py
 import os
+import shutil
 import logging
-from django.core.management.base import BaseCommand
-from django.core.files.base import ContentFile
-from django.db import transaction
-from apps.EasyDocs.models import Document, ClientDoc
-from apps.EasyDocs.files.storage_backends import UnifiedStorage
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.utils import timezone
+from django.core.files import File
+
+from django.contrib.auth import get_user_model
+
+# Models from your app
+from apps.EasyDocs.models import Document, ClientDoc, DocType, Client
+
+logger = logging.getLogger("document_migration")
+
+# Configure logging: console + file
+if not logger.handlers:
+    logger.setLevel(logging.INFO)
+    console_h = logging.StreamHandler()
+    file_h = logging.FileHandler(os.path.join(settings.BASE_DIR, "document_migration.log"))
+    fmt = logging.Formatter("[%(levelname)s] %(asctime)s %(name)s %(message)s")
+    console_h.setFormatter(fmt)
+    file_h.setFormatter(fmt)
+    logger.addHandler(console_h)
+    logger.addHandler(file_h)
+
 
 class Command(BaseCommand):
-    help = 'Re-save documents through unified storage with detailed reporting'
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--document-type',
-            choices=['office', 'client', 'all'],
-            default='all',
-            help='Which documents to process'
-        )
-        parser.add_argument(
-            '--ids',
-            nargs='+',
-            type=int,
-            help='Specific document IDs to process'
-        )
-        parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='Simulate without saving'
-        )
-        parser.add_argument(
-            '--skip-errors',
-            action='store_true',
-            help='Continue processing even if some documents fail'
-        )
+    help = "Migrate files in media/office_documents and media/client_docs into new Document/ClientDoc unified layout"
 
     def handle(self, *args, **options):
-        self.storage = UnifiedStorage()
-        self.dry_run = options['dry_run']
-        self.skip_errors = options['skip_errors']
-        
-        results = {
-            'office': {'success': 0, 'error': 0, 'skipped': 0},
-            'client': {'success': 0, 'error': 0, 'skipped': 0}
-        }
+        self.migrated = 0
+        self.failed = 0
 
-        # Process documents based on type
-        doc_type = options['document_type']
-        document_ids = options['ids']
+        media_root = Path(settings.MEDIA_ROOT)
+        old_office = media_root / "office_documents"
+        old_client = media_root / "client_docs"
 
-        if doc_type in ['office', 'all']:
-            results['office'] = self.process_document_type(
-                Document, 'Office Document', document_ids
-            )
+        # Defaults
+        User = get_user_model()
+        default_user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+        if not default_user:
+            logger.error("No user found in DB to assign as uploaded_by. Create at least one user and retry.")
+            return
 
-        if doc_type in ['client', 'all']:
-            results['client'] = self.process_document_type(
-                ClientDoc, 'Client Document', document_ids
-            )
+        default_client = Client.objects.first()
+        if not default_client:
+            logger.warning("No Client found — client-docs will be assigned to the first client when available (or skipped).")
 
-        # Final summary
-        self.print_final_summary(results)
+        logger.info("Starting migration from filesystem.")
+        # Office files
+        self._migrate_office_folder(old_office, media_root, default_user)
+        # Client files
+        self._migrate_client_folder(old_client, media_root, default_user, default_client)
 
-    def process_document_type(self, model, type_name, document_ids):
-        """Process a specific type of documents"""
-        self.stdout.write(f"\n🎯 Processing {type_name}s...")
-        
-        queryset = model.objects.all()
-        if document_ids:
-            queryset = queryset.filter(id__in=document_ids)
-        
-        total = queryset.count()
-        results = {'success': 0, 'error': 0, 'skipped': 0}
+        logger.info(f"Migration completed. Total migrated: {self.migrated}, Failed: {self.failed}")
 
-        for i, doc in enumerate(queryset, 1):
-            self.stdout.write(f"  [{i}/{total}] {doc.doc_name}...", ending=' ')
-            
+    def _iter_files_recursive(self, folder: Path):
+        """Yield Path objects for files inside folder (recursive)."""
+        if not folder.exists():
+            return
+        for p in folder.rglob("*"):
+            if p.is_file():
+                yield p
+
+    def _safe_get_or_create_doctype(self, candidate_name: str):
+        name = (candidate_name or "").strip()
+        if not name:
+            name = "Migrated"
+        doc_type, created = DocType.objects.get_or_create(name=name)
+        if created:
+            logger.info(f"Created DocType '{name}'.")
+        return doc_type
+
+    def _migrate_office_folder(self, old_office: Path, media_root: Path, default_user):
+        if not old_office.exists():
+            logger.warning(f"Office folder not found: {old_office}")
+            return
+
+        logger.info(f"Scanning office folder: {old_office}")
+        for file_path in self._iter_files_recursive(old_office):
             try:
-                success = self.process_single_document(doc, type_name)
-                if success:
-                    results['success'] += 1
-                    self.stdout.write(self.style.SUCCESS("✅"))
+                # Infer doc_type from immediate subfolder under office_documents (if any)
+                rel = file_path.relative_to(old_office)
+                parts = rel.parts  # ('invoices', '2023', 'file.pdf') or ('file.pdf',)
+                doc_type_name = None
+                if len(parts) > 1:
+                    # treat first child folder as doc_type
+                    doc_type_name = parts[0]
                 else:
-                    results['skipped'] += 1
-                    self.stdout.write(self.style.WARNING("⚠️"))
-                    
-            except Exception as e:
-                results['error'] += 1
-                self.stdout.write(self.style.ERROR("❌"))
-                if not self.skip_errors:
-                    raise
-                logger.error(f"Error processing {type_name} {doc.id}: {e}")
+                    # attempt infer from filename prefix before first underscore
+                    fname = file_path.name
+                    if "_" in fname:
+                        doc_type_name = fname.split("_", 1)[0]
 
-        return results
+                doc_type = self._safe_get_or_create_doctype(doc_type_name)
 
-    def process_single_document(self, doc, type_name):
-        """Process a single document"""
-        if self.dry_run:
-            return True
+                # preserve timestamp from file mtime
+                uploaded_at = timezone.datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.get_current_timezone())
 
-        # Check if file exists and is accessible
-        if not doc.doc_file or not doc.doc_file.name:
-            self.stdout.write(f"(no file)", ending=' ')
-            return False
+                # new folder: documents/office/<doc_type>/<YYYY>/<MM>
+                year = uploaded_at.year
+                month = f"{uploaded_at.month:02d}"
+                safe_doc_type = doc_type.name.replace(" ", "_").lower()
+                dest_folder = media_root / "documents" / "office" / safe_doc_type / str(year) / month
+                dest_folder.mkdir(parents=True, exist_ok=True)
 
-        try:
-            # Read file content
-            with doc.doc_file.open('rb') as f:
-                content = f.read()
+                dest_file_name = file_path.name
+                dest_path = dest_folder / dest_file_name
 
-            # Generate new path
-            new_path = self.generate_document_path(doc, type_name)
-            
-            # Save through unified storage
-            relative_path, backend, drive_file_id = self.storage.save_with_backend(
-                new_path, ContentFile(content, name=os.path.basename(doc.doc_file.name))
-            )
+                # Avoid overwriting - add suffix if exists
+                dest_path = self._unique_path(dest_path)
 
-            # Update document
-            with transaction.atomic():
-                doc.storage_backend = backend
-                doc.drive_file_id = drive_file_id
-                doc.local_path = relative_path
-                doc.status = 'uploaded'
-                
-                if relative_path != doc.doc_file.name:
-                    doc.doc_file.name = relative_path
-                
-                doc.save()
+                # move file (preserves inode timestamp when possible)
+                shutil.move(str(file_path), str(dest_path))
 
-            self.stdout.write(f"({backend})", ending=' ')
-            return True
+                relative_path = os.path.relpath(dest_path, settings.MEDIA_ROOT)
 
-        except Exception as e:
-            self.stdout.write(f"(error: {str(e)})", ending=' ')
-            return False
-
-    def generate_document_path(self, doc, type_name):
-        """Generate appropriate path for document"""
-        if hasattr(doc, 'get_full_drive_path'):
-            return doc.get_full_drive_path()
-        
-        # Fallback path generation
-        timestamp = doc.uploaded_at.strftime('%Y%m%d_%H%M%S')
-        safe_name = f"{timestamp}_{doc.doc_name}"
-        
-        if type_name == 'Client Document':
-            return f"clients/{doc.client.id}/{doc.doc_type.name}/{safe_name}"
-        else:
-            return f"office/{doc.doc_type.name}/{safe_name}"
-
-    def print_final_summary(self, results):
-        """Print final summary of processing"""
-        self.stdout.write("\n" + "="*60)
-        self.stdout.write("📊 FINAL MIGRATION SUMMARY")
-        self.stdout.write("="*60)
-        
-        for doc_type, stats in results.items():
-            total = sum(stats.values())
-            if total > 0:
-                self.stdout.write(
-                    f"{doc_type.title()} Documents: "
-                    f"✅ {stats['success']} successful, "
-                    f"⚠️ {stats['skipped']} skipped, "
-                    f"❌ {stats['error']} failed"
+                # Create new Document instance
+                doc = Document(
+                    doc_name=os.path.splitext(dest_file_name)[0],
+                    doc_file=relative_path,
+                    doc_type=doc_type,
+                    uploaded_by=default_user,
+                    location="Office",
+                    reference="MIGRATED",
+                    storage_backend="local",
+                    status="uploaded",
+                    uploaded_at=uploaded_at
                 )
-        
-        if self.dry_run:
-            self.stdout.write(
-                self.style.WARNING("\n💡 This was a DRY RUN - no changes were made")
-            )
+
+                # Save (the file already exists at that path)
+                doc.save()
+                self.migrated += 1
+                logger.info(f"✅ Migrated office: {relative_path} (DocType: {doc_type.name})")
+
+            except Exception as e:
+                self.failed += 1
+                logger.error(f"❌ Failed to migrate office file {file_path}: {e}", exc_info=False)
+
+    def _migrate_client_folder(self, old_client: Path, media_root: Path, default_user, default_client):
+        if not old_client.exists():
+            logger.warning(f"Client folder not found: {old_client}")
+            return
+
+        logger.info(f"Scanning client folder: {old_client}")
+        for file_path in self._iter_files_recursive(old_client):
+            try:
+                # Determine client from parent folders if present.
+                # Expectation examples:
+                # media/client_docs/<client_id>/<...>/file.pdf
+                # media/client_docs/client_<id>/file.pdf
+                rel = file_path.relative_to(old_client)
+                parts = rel.parts
+                client_obj = None
+                candidate = None
+                if len(parts) > 1:
+                    candidate = parts[0]
+                else:
+                    # maybe file directly under client_docs - try filename prefixes
+                    fname = file_path.name
+                    if fname.lower().startswith("client_") and "_" in fname:
+                        candidate = fname.split("_", 1)[0]  # client_123
+
+                if candidate:
+                    # try to parse numeric id
+                    try:
+                        if candidate.startswith("client_"):
+                            cid = int(candidate.split("_", 1)[1])
+                        else:
+                            cid = int(candidate)
+                        client_obj = Client.objects.filter(pk=cid).first()
+                    except Exception:
+                        # try lookup by phone or name
+                        client_obj = Client.objects.filter(first_name__iexact=candidate).first()
+
+                if not client_obj:
+                    client_obj = default_client
+
+                if not client_obj:
+                    logger.error(f"No client resolved for {file_path}; skipping.")
+                    self.failed += 1
+                    continue
+
+                # infer doc type same as office (first subfolder under client folder after client id)
+                doc_type_name = None
+                if len(parts) > 2:
+                    doc_type_name = parts[1]
+                else:
+                    # fallback to file prefix
+                    fname = file_path.name
+                    if "_" in fname:
+                        doc_type_name = fname.split("_", 1)[0]
+
+                doc_type = self._safe_get_or_create_doctype(doc_type_name)
+
+                uploaded_at = timezone.datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.get_current_timezone())
+
+                # new folder: documents/clients/<client_id>/<doc_type>/<YYYY>/<MM>
+                year = uploaded_at.year
+                month = f"{uploaded_at.month:02d}"
+                safe_doc_type = doc_type.name.replace(" ", "_").lower()
+                dest_folder = media_root / "documents" / "clients" / str(client_obj.id) / safe_doc_type / str(year) / month
+                dest_folder.mkdir(parents=True, exist_ok=True)
+
+                dest_file_name = file_path.name
+                dest_path = dest_folder / dest_file_name
+                dest_path = self._unique_path(dest_path)
+
+                shutil.move(str(file_path), str(dest_path))
+                relative_path = os.path.relpath(dest_path, settings.MEDIA_ROOT)
+
+                client_doc = ClientDoc(
+                    client=client_obj,
+                    doc_name=os.path.splitext(dest_file_name)[0],
+                    doc_file=relative_path,
+                    doc_type=doc_type,
+                    uploaded_by=default_user,
+                    storage_backend="local",
+                    status="uploaded",
+                    uploaded_at=uploaded_at
+                )
+                client_doc.save()
+                self.migrated += 1
+                logger.info(f"✅ Migrated client: {relative_path} (Client: {client_obj}, DocType: {doc_type.name})")
+
+            except Exception as e:
+                self.failed += 1
+                logger.error(f"❌ Failed to migrate client file {file_path}: {e}", exc_info=False)
+
+    def _unique_path(self, p: Path) -> Path:
+        """If p exists, append a numeric suffix before extension until unique."""
+        if not p.exists():
+            return p
+        base = p.stem
+        suffix = p.suffix
+        parent = p.parent
+        counter = 1
+        while True:
+            candidate = parent / f"{base}_{counter}{suffix}"
+            if not candidate.exists():
+                return candidate
+            counter += 1

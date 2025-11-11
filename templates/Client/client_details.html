@@ -149,15 +149,15 @@
         <!-- Stats row -->
         <div class="row g-3 px-3">
           <div class="col-4 text-center">
-            <h5 class="mb-0 fw-bold">{{ client_service_summary.active_services }}</h5>
+            <h5 class="mb-0 fw-bold text-sm">{{ client_service_summary.active_services }}</h5>
             <small class="text-muted">Active</small>
           </div>
           <div class="col-4 text-center border-start border-end">
-            <h5 class="mb-0 fw-bold">{{ client_service_summary.completed_services }}</h5>
+            <h5 class="mb-0 fw-bold text-sm">{{ client_service_summary.completed_services }}</h5>
             <small class="text-muted">Completed</small>
           </div>
           <div class="col-4 text-center">
-            <h5 class="mb-0 fw-bold">{{ client_service_summary.total_balance }}</h5>
+            <h5 class="mb-0 fw-bold text-sm">{{ client_service_summary.total_balance }}</h5>
             <small class="text-muted">Balance</small>
           </div>
         </div>
@@ -191,22 +191,31 @@
              aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-              <form method="POST" action="{% url 'edit_client' client.id %}" class="edit-client-form">
-                {% csrf_token %}
-                <div class="modal-header bg-orange-400 text-white">
-                  <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">Edit Client</h5>
-                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                          aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  {% get_client_form client as form %}
-                  {{ form.as_p }}
-                </div>
-                <div class="modal-footer">
-                  <button type="submit" class="btn btn-primary">Save Changes</button>
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                </div>
-              </form>
+              <!-- Edit Modal for a client -->
+                    <form method="POST" action="{% url 'edit_client' client.id %}" class="edit-client-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header bg-orange-400 text-white">
+                        <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">Edit Client</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        {% get_client_form client as form %}
+                        <!-- show current avatar if available -->
+                        {% if client.profile_pic %}
+                        <div class="mb-2 text-center">
+                            <img src="{{ client.profile_pic.url }}" alt="avatar" class="img-thumbnail" style="max-width:120px;">
+                        </div>
+                        {% endif %}
+                        {{ form.as_p }}
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                    </form>
+
             </div>
           </div>
         </div>

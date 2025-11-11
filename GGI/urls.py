@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.shortcuts import render
 from django.urls import path, include
+from django.http import HttpResponseNotFound
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,6 +33,14 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    
+def ignore_well_known(request, *args, **kwargs):
+    # Return 404 silently to stop Chrome/.well-known probes from hitting debug tracebacks
+    return HttpResponseNotFound()
+# Prevent Chrome's .well-known lookups from cluttering your logs
+urlpatterns += [
+    path(".well-known/<path:any>/", ignore_well_known),
+]
 
 
 def custom_400(request, exception):

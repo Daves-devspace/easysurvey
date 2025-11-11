@@ -54,233 +54,305 @@
                     <!-- Config table start -->
                     <div class="col-sm-12">
                         <div class="card card-table">
-                            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
 
 
-                                <div class="container mt-4">
+                                <div class="card-header pb-0">
+                                    <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                                        <li class="nav-item">
+                                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                                            href="#profile-1"
+                                            role="tab"
+                                            aria-selected="true">
+                                                <i class="ti ti-briefcase me-2"></i>MessageLogs
+                                            </a>
+                                        </li>
 
 
-                                    <div class="container py-4">
-                                        <div class="row gx-4">
-                                            <div class="col-lg-6 mb-4">
-                                                <div class="card shadow-sm">
-                                                    <div class="card-header bg-green-100 text-white">
-                                                        <h5 class="mb-0">Broadcast SMS to All Clients</h5>
-                                                    </div>
-                                                    <div class="card-body">
-                                                        <form method="post">
-                                                            {% csrf_token %}
-                                                            <div class="mb-3">
-                                                                {{ form.message.label_tag }}
-                                                                {{ form.message }}
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                <small class="text-muted">Insert
-                                                                    placeholder:</small><br>
-                                                                <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary me-2 placeholder-btn"
-                                                                        data-token="{client_first_name}">First Name
-                                                                </button>
-                                                                <button type="button"
-                                                                        class="btn btn-sm btn-outline-secondary placeholder-btn"
-                                                                        data-token="{client_last_name}">Last Name
-                                                                </button>
-                                                            </div>
-                                                            <div class="mb-3">
-                                                                {{ form.scheduled_date.label_tag }}
-                                                                {{ form.scheduled_date }}
-                                                            </div>
-                                                            <div class="d-flex justify-content-between">
-                                                                <button type="submit" name="preview"
-                                                                        class="btn btn-outline-primary">Preview
-                                                                </button>
-                                                                <button type="submit" name="send"
-                                                                        class="btn btn-primary">Send
-                                                                </button>
-                                                            </div>
-                                                        </form>
-
-                                                        {% if previews %}
-                                                            <hr>
-                                                            <h6>Preview (first 5 clients)</h6>
-                                                            <table class="table table-sm">
-                                                                <thead>
-                                                                <tr>
-                                                                    <th>Client</th>
-                                                                    <th>Message</th>
-                                                                    <th>Send At</th>
-                                                                </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                {% for p in previews %}
-                                                                    <tr>
-                                                                        <td>{{ p.client }}</td>
-                                                                        <td>{{ p.message }}</td>
-                                                                        <td>{{ p.send_at }}</td>
-                                                                    </tr>
-                                                                {% endfor %}
-                                                                </tbody>
-                                                            </table>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-lg-6 mb-4">
-                                                <div class="accordion mb-4" id="smsAccordion">
-
-                                                    <!-- SMS Summary Accordion Item -->
-                                                    <div class="accordion-item">
-                                                        <h2 class="accordion-header" id="headingSummary">
-                                                            <button class="accordion-button" type="button"
-                                                                    data-bs-toggle="collapse"
-                                                                    data-bs-target="#collapseSummary"
-                                                                    aria-expanded="true"
-                                                                    aria-controls="collapseSummary">
-                                                                📊 Bulk SMS Summary
-                                                            </button>
-                                                        </h2>
-                                                        <div id="collapseSummary"
-                                                             class="accordion-collapse collapse show"
-                                                             aria-labelledby="headingSummary"
-                                                             data-bs-parent="#smsAccordion">
-                                                            <div class="accordion-body">
-                                                                <p><strong>Total messages:</strong> {{ total_messages }}
-                                                                </p>
-                                                                <p><strong>Sent
-                                                                    successfully:</strong> {{ success_count }}</p>
-                                                                <p><strong>Failed to send:</strong> {{ failed_count }}
-                                                                </p>
-
-                                                                {% if failed_logs %}
-                                                                    <h5>❌ Failed Messages</h5>
-                                                                    <div class="table-responsive mt-3">
-                                                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                                            <thead class="bg-green-100 ">
-                                                                            <tr>
-                                                                                <th>Client Name</th>
-                                                                                <th>Phone</th>
-                                                                                <th>Error</th>
-                                                                                <th>Retry</th>
-                                                                            </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                            {% for log in failed_logs %}
-                                                                                <tr>
-                                                                                    <td>{{ log.client.first_name }} {{ log.client.last_name }}</td>
-                                                                                    <td>{{ log.phone }}</td>
-                                                                                    <td>{{ log.error_details|default:"Unknown error" }}</td>
-                                                                                    <td>
-                                                                                        <form method="post"
-                                                                                              class="d-inline">
-                                                                                            {% csrf_token %}
-                                                                                            <input type="hidden"
-                                                                                                   name="retry_log_id"
-                                                                                                   value="{{ log.id }}">
-                                                                                            <button type="submit"
-                                                                                                    class="btn btn-sm btn-outline-primary">
-                                                                                                Retry
-                                                                                            </button>
-                                                                                        </form>
-                                                                                    </td>
-                                                                                </tr>
-                                                                            {% endfor %}
-                                                                            </tbody>
-                                                                        </table>
-                                                                    </div>
-                                                                {% endif %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Scheduled Messages Accordion Item -->
-                                                    <div class="accordion-item">
-                                                        <h2 class="accordion-header" id="headingScheduled">
-                                                            <button class="accordion-button collapsed" type="button"
-                                                                    data-bs-toggle="collapse"
-                                                                    data-bs-target="#collapseScheduled"
-                                                                    aria-expanded="false"
-                                                                    aria-controls="collapseScheduled">
-                                                                ⏰ Scheduled Messages
-                                                            </button>
-                                                        </h2>
-                                                        <div id="collapseScheduled" class="accordion-collapse collapse"
-                                                             aria-labelledby="headingScheduled"
-                                                             data-bs-parent="#smsAccordion">
-                                                            <div class="accordion-body">
-                                                                {% for task in scheduled_tasks %}
-                                                                    <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                                        <div>
-                                                                            {{ task.task_name }}<br>
-                                                                            {{ task.message_preview|truncatechars:60 }}
-                                                                        </div>
-                                                                        <div class="text-end">
-                                                                            <small class="text-muted d-block">
-                                                                                Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}<br>
-                                                                                Status: {{ task.status }}
-                                                                            </small>
-                                                                            <form method="post" class="d-inline">
-                                                                                {% csrf_token %}
-                                                                                <input type="hidden" name="log_id"
-                                                                                       value="{{ task.task_id }}">
-                                                                                <button type="submit" name="cancel"
-                                                                                        class="btn btn-sm btn-outline-danger mt-1">
-                                                                                    Cancel
-                                                                                </button>
-                                                                            </form>
-                                                                        </div>
-                                                                    </li>
-                                                                {% endfor %}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-
+                                        <li class="nav-item">
+                                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                                            role="tab"
+                                            aria-selected="true">
+                                                <i class="ti ti-settings me-2"></i>Summary
+                                            </a>
+                                        </li>
+                                        
+                                    </ul>
                                 </div>
 
-                            </div>
 
 
                         </div>
 
                         <div class="card-body">
-                            <!-- Table -->
-                            <div class="table-responsive mt-3">
-                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                    <thead class="bg-green-100 ">
-                                    <tr>
-                                        <th>Client</th>
-                                        <th>Phone</th>
-                                        <th>Message</th>
-                                        <th>Reason</th>
-                                        <th>Send Status</th>
-                                        <th>Delivery Status</th>
-                                        <th>Timestamp</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {% for log in logs %}
+                            <div class="tab-content">
+                                <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                    aria-labelledby="profile-tab-1">
+
+                                    <div class="row">
+                                       <div class="col-md-6">
+                                            <div class="container py-4">
+                                                <div class="row gx-4">
+                                                <!-- Card: Broadcast SMS form + preview -->
+                                                <div class="col-12 mb-4">
+                                                    <div class="card shadow-sm">
+                                                    <div class="card-header bg-green-100 text-white">
+                                                        <h5 class="mb-0">Broadcast SMS to All Clients</h5>
+                                                    </div>
+
+                                                    <div class="card-body">
+                                                        <form method="post">
+                                                        {% csrf_token %}
+                                                        <div class="mb-3">
+                                                            {{ form.message.label_tag }}
+                                                            {{ form.message }}
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            <small class="text-muted">Insert placeholder:</small><br>
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-secondary me-2 placeholder-btn"
+                                                                    data-token="{client_first_name}">First Name
+                                                            </button>
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-secondary placeholder-btn"
+                                                                    data-token="{client_last_name}">Last Name
+                                                            </button>
+                                                        </div>
+
+                                                        <div class="mb-3">
+                                                            {{ form.scheduled_date.label_tag }}
+                                                            {{ form.scheduled_date }}
+                                                        </div>
+
+                                                        <div class="d-flex justify-content-between">
+                                                            <button type="submit" name="preview" class="btn btn-outline-primary">Preview</button>
+                                                            <button type="submit" name="send" class="btn btn-primary">Send</button>
+                                                        </div>
+                                                        </form>
+
+                                                        {% if previews %}
+                                                        <hr class="my-3">
+                                                        <h6 class="mb-2">Preview (first 5 clients)</h6>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                <th>Client</th>
+                                                                <th>Message</th>
+                                                                <th>Send At</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for p in previews %}
+                                                                <tr>
+                                                                    <td>{{ p.client }}</td>
+                                                                    <td>{{ p.message }}</td>
+                                                                    <td>{{ p.send_at }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                            </table>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div> <!-- /.card-body -->
+                                                    </div> <!-- /.card -->
+                                                </div> <!-- /.col-12 -->
+
+                                                <!-- Accordion: Scheduled Messages — placed AFTER the card -->
+                                                <div class="col-12">
+                                                    <div class="accordion mt-3" id="smsAccordion">
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header" id="headingScheduled">
+                                                        <button class="accordion-button collapsed" type="button"
+                                                                data-bs-toggle="collapse"
+                                                                data-bs-target="#collapseScheduled"
+                                                                aria-expanded="false"
+                                                                aria-controls="collapseScheduled">
+                                                            ⏰ Scheduled Messages
+                                                        </button>
+                                                        </h2>
+
+                                                        <div id="collapseScheduled" class="accordion-collapse collapse"
+                                                            aria-labelledby="headingScheduled" data-bs-parent="#smsAccordion">
+                                                        <div class="accordion-body p-0">
+                                                            <!-- use list-group for consistent spacing -->
+                                                            <ul class="list-group list-group-flush">
+                                                            {% for task in scheduled_tasks %}
+                                                                <li class="list-group-item d-flex justify-content-between align-items-start py-3">
+                                                                <div class="me-3">
+                                                                    <strong>{{ task.task_name }}</strong><br>
+                                                                    <small class="text-muted">{{ task.message_preview|truncatechars:60 }}</small>
+                                                                </div>
+
+                                                                <div class="text-end">
+                                                                    <small class="text-muted d-block">
+                                                                    Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}<br>
+                                                                    Status: {{ task.status }}
+                                                                    </small>
+
+                                                                    <form method="post" class="d-inline mt-2">
+                                                                    {% csrf_token %}
+                                                                    <input type="hidden" name="log_id" value="{{ task.task_id }}">
+                                                                    <button type="submit" name="cancel" class="btn btn-sm btn-outline-danger">
+                                                                        Cancel
+                                                                    </button>
+                                                                    </form>
+                                                                </div>
+                                                                </li>
+                                                            {% empty %}
+                                                                <li class="list-group-item text-center text-muted py-3">No scheduled messages.</li>
+                                                            {% endfor %}
+                                                            </ul>
+                                                        </div>
+                                                        </div>
+                                                    </div>
+                                                    </div> <!-- /.accordion -->
+                                                </div> <!-- /.col-12 -->
+
+                                                </div> <!-- /.row -->
+                                            </div> <!-- /.container -->
+                                        </div> <!-- /.col-md-6 -->
+
+                                        
+                                        <div class="col-md-6">
+                                            <!-- Table -->
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                    <thead class="bg-green-100 ">
+                                                    <tr>
+                                                        <th>Client</th>
+                                                        <th>Phone</th>
+                                                        <th>Message</th>
+                                                        <th>Reason</th>
+                                                        <th>Send Status</th>
+                                                        <th>Delivery Status</th>
+                                                        <th>Timestamp</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for log in logs %}
+                                                        <tr>
+                                                            <td>{{ log.client }}</td>
+                                                            <td>{{ log.phone }}</td>
+                                                            <td>{{ log.message|truncatechars:50 }}</td>
+                                                            <td>{{ log.reason }}</td>
+                                                            <td>{{ log.send_status }}</td>
+                                                            <td>{{ log.delivery_status }}</td>
+                                                            <td>{{ log.timestamp }}</td>
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+
+                                                </table>
+
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+
+                              
+
+                                <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                                <!-- Stats row -->
+                                <div class="stat-grid mb-3">
+                                    <!-- Total messages -->
+                                    <div class="stat-card border-green">
+                                    <div class="meta">
+                                        <div class="icon bg-light text-success">
+                                        <!-- you can use an icon font (Bootstrap icons) or emoji -->
+                                        📬
+                                        </div>
+                                        <div>
+                                        <p class="label mb-0">Total messages</p>
+                                        <p class="value mb-0">{{ total_messages }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-light text-muted small-badge">All</span>
+                                    </div>
+                                    </div>
+
+                                    <!-- Sent successfully -->
+                                    <div class="stat-card border-blue">
+                                    <div class="meta">
+                                        <div class="icon bg-light text-primary">
+                                        ✅
+                                        </div>
+                                        <div>
+                                        <p class="label mb-0">Sent successfully</p>
+                                        <p class="value mb-0">{{ success_count }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-light text-muted small-badge">Delivered</span>
+                                    </div>
+                                    </div>
+
+                                    <!-- Failed to send -->
+                                    <div class="stat-card border-red">
+                                    <div class="meta">
+                                        <div class="icon bg-light text-danger">
+                                        ❌
+                                        </div>
+                                        <div>
+                                        <p class="label mb-0">Failed to send</p>
+                                        <p class="value mb-0">{{ failed_count }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-light text-muted small-badge">Action required</span>
+                                    </div>
+                                    </div>
+                                </div>
+
+                                <!-- Failed messages table (keeps your existing markup, slightly wrapped for spacing) -->
+                                {% if failed_logs %}
+                                    
+                                    <div class="table-responsive mt-2">
+                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+                                        <thead class="bg-green-100">
                                         <tr>
-                                            <td>{{ log.client }}</td>
-                                            <td>{{ log.phone }}</td>
-                                            <td>{{ log.message|truncatechars:50 }}</td>
-                                            <td>{{ log.reason }}</td>
-                                            <td>{{ log.send_status }}</td>
-                                            <td>{{ log.delivery_status }}</td>
-                                            <td>{{ log.timestamp }}</td>
+                                            <th>Client Name</th>
+                                            <th>Phone</th>
+                                            <th>message</th>
+                                            <th>Error</th>
+                                            <th>Retry</th>
                                         </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for log in failed_logs %}
+                                            <tr>
+                                            <td>{{ log.client.first_name }} {{ log.client.last_name }}</td>
+                                            <td>{{ log.phone }}</td>
+                                            <td title="{{ log.message|escape }}">{{ log.message|truncatechars:50 }}</td>
+                                            <td>{{ log.error_details|default:"Unknown error" }}</td>
+                                            <td>
+                                                <form method="post" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="retry_log_id" value="{{ log.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">Retry</button>
+                                                </form>
+                                            </td>
+                                            </tr>
+                                        {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-light text-center mt-2">No failed messages.</div>
+                                {% endif %}
+                                </div>
 
-                                    {% endfor %}
-                                    </tbody>
 
-                                </table>
+                                
 
-
+                             
                             </div>
+                                    
                         </div>
                     </div>
                 </div>
