@@ -1,0 +1,297 @@
+{% extends "Home/base.html" %}
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Survey</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Projects</li>
+                            </ul>
+                        </div>
+                      
+                    </div>
+                </div>
+            </div>
+        <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+           
+
+                  
+            <div class="container">
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="card tools-card shadow-sm">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title mb-0">Mutation / Subdivision</h5>
+                        <div>
+                          <button id="btnFullscreenMut" class="btn btn-outline-secondary btn-sm"><i class="ti ti-maximize"></i></button>
+                        </div>
+                      </div>
+
+                      <div class="row g-3">
+                        <div class="col-lg-8">
+                          <div id="mutMap" style="height:58vh; min-height:320px;"></div>
+                        </div>
+
+                        <div class="col-lg-4">
+                          <div class="card mb-3">
+                            <div class="card-body">
+                              <h6>Subdivide Parcel</h6>
+                              <p class="small text-muted">Enter desired plot size or type instructions.</p>
+
+                              <div class="mb-2">
+                                <label class="form-label">Plot Width</label>
+                                <input id="plotWidth" class="form-control" type="number" value="15.24" />
+                              </div>
+
+                              <div class="mb-2">
+                                <label class="form-label">Plot Length</label>
+                                <input id="plotLength" class="form-control" type="number" value="30.48" />
+                              </div>
+
+                              <div class="mb-2">
+                                <label class="form-label">Units</label>
+                                <select id="unitSel" class="form-select">
+                                  <option value="meters" selected>meters (m)</option>
+                                  <option value="feet">feet (ft)</option>
+                                </select>
+                              </div>
+
+                              <div class="mb-2">
+                                <label class="form-label">Setback (meters)</label>
+                                <input id="setback" class="form-control" type="number" value="6" />
+                              </div>
+
+                              <div class="mb-2">
+                                <label class="form-label">Instructions</label>
+                                <textarea id="instr" class="form-control" rows="2" placeholder="E.g. plots facing east road"></textarea>
+                              </div>
+
+                              <div class="d-grid gap-2">
+                                <button id="btnAutoSub" class="btn btn-primary">Auto Subdivide</button>
+                                <button id="btnClear" class="btn btn-outline-secondary">Clear Results</button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div id="mutMsg" class="alert alert-info d-none"></div>
+
+                          <div class="card">
+                            <div class="card-body">
+                              <h6 class="card-title">Accepted Plots</h6>
+                              <p class="small text-muted">Click a generated plot on the map to accept. Accepted plots will appear below.</p>
+                              <div id="acceptedList"></div>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+
+                      <small class="text-muted">Demo client-side subdivision uses Turf.js; swap this with server AI/subdivide endpoint for production.</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+      </div>
+    </div>
+
+<!-- Modal: Subdivide Options when not all requested plots fit -->
+<div class="modal fade" id="subdivideChoicesModal" tabindex="-1" aria-labelledby="subdivideChoicesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="subdivideChoicesLabel">Subdivision Options</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="subdivideChoicesText"></p>
+        <div class="d-grid gap-2">
+          <button id="optExtract" class="btn btn-primary">Extract Fitting Plots</button>
+          <button id="optEqualSplit" class="btn btn-outline-secondary">Divide Equally</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* mutation demo logic - uses Leaflet + Turf (base includes them) */
+
+// demo parent parcel (replace in production)
+const demoParcel = {
+  id: 'demo-1',
+  name: 'Thika 0123',
+  coords: [
+    [-1.0365, 37.0875],
+    [-1.0365, 37.0940],
+    [-1.0440, 37.0940],
+    [-1.0440, 37.0875]
+  ]
+};
+
+const mutMap = L.map('mutMap').setView([-1.04, 37.09], 14);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mutMap);
+let baseGroup = L.layerGroup().addTo(mutMap);
+let generatedGroup = L.layerGroup().addTo(mutMap);
+let acceptedGroup = L.layerGroup().addTo(mutMap);
+
+function drawParent() {
+  baseGroup.clearLayers();
+  const poly = L.polygon(demoParcel.coords, { color: '#0a6c5e', weight: 2, fillOpacity:0.08 }).addTo(baseGroup);
+  mutMap.fitBounds(poly.getBounds(), { padding: [20,20] });
+}
+drawParent();
+
+document.getElementById('btnFullscreenMut').addEventListener('click', () => {
+  const el = document.getElementById('mutMap');
+  if (!document.fullscreenElement) el.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+});
+
+function toMeters(val, unit) { return unit === 'feet' ? val * 0.3048 : val; }
+
+function autoSubdivide(polygonCoords, plotWidthM, plotLengthM, setbackM) {
+  generatedGroup.clearLayers();
+  acceptedGroup.clearLayers();
+  document.getElementById('acceptedList').innerHTML = '';
+
+  // build turf polygon (lng,lat)
+  const poly = turf.polygon([[ ...polygonCoords.map(c=>[c[1], c[0]]) ]]);
+  const usable = turf.buffer(poly, -setbackM, { units: 'meters' });
+
+  if (!usable || usable.geometry.coordinates.length === 0) {
+    showMutMsg('Usable area empty after setback.', 'danger');
+    return [];
+  }
+
+  // bounding box & grid approximations
+  const bbox = turf.bbox(usable);
+  const widthMeters = turf.distance(turf.point([bbox[0], bbox[1]]), turf.point([bbox[2], bbox[1]]), {units:'meters'});
+  const heightMeters = turf.distance(turf.point([bbox[0], bbox[1]]), turf.point([bbox[0], bbox[3]]), {units:'meters'});
+  const nx = Math.max(0, Math.floor(widthMeters / plotWidthM));
+  const ny = Math.max(0, Math.floor(heightMeters / plotLengthM));
+
+  if (nx * ny === 0) {
+    // open modal asking user what to do
+    document.getElementById('subdivideChoicesText').textContent = 'Requested plots do not fit the usable area. Would you like to extract any full plots that fit, or divide the parent equally?';
+    new bootstrap.Modal(document.getElementById('subdivideChoicesModal')).show();
+    return [];
+  }
+
+  const parts = [];
+  for (let iy = 0; iy < ny; iy++) {
+    for (let ix = 0; ix < nx; ix++) {
+      // compute rectangle using turf.destination trick
+      const sw = turf.destination(turf.point([bbox[0], bbox[1]]), iy*plotLengthM, 0, {units:'meters'}).geometry.coordinates;
+      const sw2 = turf.destination(turf.point(sw), ix*plotWidthM, 90, {units:'meters'}).geometry.coordinates;
+      const swLngLat = sw2; // [lng,lat]
+      // build corners
+      const swPt = swLngLat;
+      const se = turf.destination(turf.point(swPt), plotWidthM, 90, {units:'meters'}).geometry.coordinates;
+      const nw = turf.destination(turf.point(swPt), plotLengthM, 0, {units:'meters'}).geometry.coordinates;
+      const ne = turf.destination(turf.point(se), plotLengthM, 0, {units:'meters'}).geometry.coordinates;
+      const rect = turf.polygon([[swPt, se, ne, nw, swPt]]);
+      const inter = turf.intersect(rect, usable);
+      if (inter) {
+        const area = turf.area(inter);
+        if (area >= 0.6 * (plotWidthM * plotLengthM)) {
+          const leafletCoords = inter.geometry.coordinates[0].map(pt => [pt[1], pt[0]]);
+          parts.push({ geometry: inter, leafletCoords, area });
+        }
+      }
+    }
+  }
+
+  parts.forEach((p, idx) => {
+    const poly = L.polygon(p.leafletCoords, { color: '#ff7800', weight: 1.5, fillOpacity: 0.25 })
+      .addTo(generatedGroup)
+      .bindTooltip(`Plot ${idx+1} — ${Math.round(p.area)} m²`);
+    poly.on('click', () => acceptPlot(idx, p, poly));
+  });
+
+  showMutMsg(`Generated ${parts.length} candidate plots. Click a plot to accept.`, 'info');
+  return parts;
+}
+
+function showMutMsg(text, level='info') {
+  const el = document.getElementById('mutMsg');
+  el.className = `alert alert-${level}`;
+  el.textContent = text;
+  el.classList.remove('d-none');
+}
+
+function acceptPlot(idx, part, leafletPoly) {
+  generatedGroup.removeLayer(leafletPoly);
+  const acceptedPoly = L.polygon(part.leafletCoords, { color: '#0a6c5e', weight: 1.8, fillOpacity: 0.35 }).addTo(acceptedGroup);
+  const beaconList = part.leafletCoords.map((c, i) => `<li>Beacon ${i+1}: ${c[0].toFixed(6)}, ${c[1].toFixed(6)}</li>`).join('');
+  const container = document.getElementById('acceptedList');
+  const card = document.createElement('div');
+  card.className = 'card mb-2';
+  card.innerHTML = `
+    <div class="card-body p-2">
+      <div class="d-flex justify-content-between align-items-start">
+        <div><strong>Accepted Plot</strong><div class="small text-muted">${Math.round(part.area)} m²</div></div>
+        <div><button class="btn btn-sm btn-outline-secondary btn-remove">Remove</button></div>
+      </div>
+      <ul class="mb-0 mt-2 small">${beaconList}</ul>
+    </div>`;
+  container.appendChild(card);
+  card.querySelector('.btn-remove').addEventListener('click', () => {
+    acceptedGroup.removeLayer(acceptedPoly);
+    card.remove();
+  });
+}
+
+// hooks
+document.getElementById('btnAutoSub').addEventListener('click', () => {
+  const w = parseFloat(document.getElementById('plotWidth').value) || 0;
+  const h = parseFloat(document.getElementById('plotLength').value) || 0;
+  const unit = document.getElementById('unitSel').value;
+  const setback = parseFloat(document.getElementById('setback').value) || 0;
+  const wM = toMeters(w, unit);
+  const hM = toMeters(h, unit);
+  autoSubdivide(demoParcel.coords, wM, hM, setback);
+});
+
+document.getElementById('optExtract').addEventListener('click', () => {
+  // simulate extracting any full plots (simple demo)
+  document.getElementById('subdivideChoicesModal').querySelector('.btn-close').click();
+  showMutMsg('Extracted full plots (demo).', 'success');
+});
+document.getElementById('optEqualSplit').addEventListener('click', () => {
+  document.getElementById('subdivideChoicesModal').querySelector('.btn-close').click();
+  showMutMsg('Equal-split applied (demo).', 'success');
+});
+</script>
+{% endblock %}

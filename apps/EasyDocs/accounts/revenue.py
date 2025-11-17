@@ -406,6 +406,9 @@ def get_revenue_context(request):
     """
     # Parse filters
     filters = parse_revenue_filters(request)
+
+    # Parse status filter (default = completed)
+    status_filter = request.GET.get('status', 'completed').lower()
     
     # Get revenue data
     revenue_data = get_revenue_from_payments(
@@ -413,7 +416,20 @@ def get_revenue_context(request):
         end_date=filters['end_date'],
         profit_mode="auto"
     )
-    
+
+    # Get detailed records
+    revenue_records = revenue_data.get('revenue_qs', None)
+
+    # ✅ Filter by completion status
+    if revenue_records is not None:
+        if status_filter == "completed":
+            revenue_records = revenue_records.filter(status="completed")
+        elif status_filter == "all":
+            pass  # no filter
+        else:
+            # optional: handle unknown status value
+            revenue_records = revenue_records.filter(status="completed")
+
     # Prepare totals
     revenue_totals = {
         'main_services': {
@@ -430,19 +446,14 @@ def get_revenue_context(request):
         'company_total': revenue_data.get('company_total', Decimal('0.00')),
         'inst_total': revenue_data.get('inst_total', Decimal('0.00')),
     }
-    
-    # Stat cards (expenses should be calculated separately if needed)
+
     stat_cards = {
         'client_payments': revenue_data.get('gross_total', Decimal('0.00')),
         'inst_payment': revenue_data.get('inst_total', Decimal('0.00')),
-        'expenses': Decimal('0.00'),  # Calculate from Expense model if needed
+        'expenses': Decimal('0.00'),
         'revenue': revenue_data.get('company_total', Decimal('0.00')),
     }
-    
-    # Get detailed records
-    revenue_records = revenue_data.get('revenue_qs', None)
-    
-    # Return complete context
+
     return {
         'current_year': filters['current_year'],
         'current_month': filters['current_month'],
@@ -454,4 +465,5 @@ def get_revenue_context(request):
         'revenue_totals': revenue_totals,
         'stat_cards': stat_cards,
         'revenue_records': revenue_records,
+        'status_filter': status_filter,  # 👈 include for frontend toggle
     }

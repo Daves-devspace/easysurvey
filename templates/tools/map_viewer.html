@@ -1,0 +1,490 @@
+{% extends "Home/base.html" %}
+{% load static %}
+
+{% block body %}
+
+<div class="pc-container">
+  <div class="pc-content">
+    <!-- breadcrumb -->
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+              <li class="breadcrumb-item"><a href="javascript: void(0)">Survey</a></li>
+              <li class="breadcrumb-item" aria-current="page">Map Viewer</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid col-lg-12">
+      {% if messages %}
+        {% for message in messages %}
+          {% if message.tags == 'error' %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          {% elif message.tags == 'success' %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+          {% elif message.tags == 'warning' %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+          {% elif message.tags == 'info' %}
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+          {% else %}
+            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+          {% endif %}
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+
+    <div class="col-sm-12">
+      <div class="card tools-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-0">Map Viewer</h5>
+            <small class="text-muted d-block">Type to search parcels (dynamic). Hover parcels/vertices to view points & coordinates.</small>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button id="btnSatellite" class="btn btn-outline-secondary btn-sm" title="Toggle Satellite">
+              <i class="ti ti-world"></i> Satellite
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="toggleFullscreen('#map-card')" title="Fullscreen">
+              <i class="ti ti-maximize"></i> Fullscreen
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body" id="map-card">
+          <!-- search -->
+          <div class="row g-2 mb-3">
+            <div class="col-md-6 position-relative">
+              <input id="searchParcel" class="form-control" placeholder="Type parcel name (e.g. Thika/0123 or Nyahururu/123)"/>
+              <div id="suggestions" class="list-group position-absolute" style="z-index:2000; width:100%; display:none;"></div>
+            </div>
+
+            <div class="col-md-6 d-flex align-items-center">
+              <div id="resultMessage" class="me-2 flex-grow-1"></div>
+              <div class="text-end small text-muted">Demo dataset — replace with API.</div>
+            </div>
+          </div>
+
+          <!-- map -->
+          <div id="map" style="height:72vh; min-height:380px;"></div>
+
+          <!-- Parcel Modal -->
+          <div class="modal fade" id="parcelInfoModal" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Parcel Information</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="parcelInfoBody"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Beacon Modal -->
+          <div class="modal fade" id="beaconModal" tabindex="-1" aria-labelledby="beaconModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h6 class="modal-title" id="beaconModalLabel">Beacon Info</h6>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p id="beaconId" class="mb-1"><strong>ID:</strong> <span></span></p>
+                  <p id="beaconCoords" class="mb-1"><strong>Coordinates:</strong> <span></span></p>
+                  <div class="d-grid">
+                    <button id="copyBeaconCoords" class="btn btn-sm btn-outline-primary">Copy Coordinates</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div> <!-- end card-body -->
+      </div><!-- end card -->
+    </div><!-- col-sm-12 -->
+
+  </div><!-- pc-content -->
+</div><!-- pc-container -->
+
+<style>
+  /* suggestion item styling */
+  #suggestions .list-group-item { cursor:pointer; }
+  .vertex-marker { opacity: 0; } /* invisible markers; used for hover coordinate tooltips */
+  .parcel-label { pointer-events:none; }
+</style>
+
+<script>
+/* Demo enhanced Map Viewer
+   - Dynamic search-as-you-type (debounced)
+   - Two demo parcels: Thika/0123 and Nyahururu/123 (main + subplots)
+   - Hover parcel: highlights + reveals beacon points
+   - Hover vertices: shows coordinates
+   - Click beacons: modal with coords + copy
+   - Replace client-side demo filtering with `fetch('/api/plots/?q=...')` in production
+*/
+
+// ----- Demo parcels (replace these with API responses / context variable) -----
+// Important: GeoJSON geometry coordinates are [lng, lat]
+// Thika/0123 simple square
+const demoParcels = {
+  "thika/0123": {
+    properties: { name: "Thika/0123" },
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [37.082001, -1.040000],
+        [37.083200, -1.040200],
+        [37.083000, -1.041500],
+        [37.081900, -1.041300],
+        [37.082001, -1.040000]
+      ]]
+    },
+    // beacons: array of {id, coords:[lat,lng]}
+    beacons: [
+      { id: "T-BP1", coords: [-1.040000, 37.082001] },
+      { id: "T-BP2", coords: [-1.040200, 37.083200] },
+      { id: "T-BP3", coords: [-1.041500, 37.083000] },
+      { id: "T-BP4", coords: [-1.041300, 37.081900] }
+    ]
+  },
+
+  // Nyahururu main parcel (1 acre approx) + derived subplots inside (50m x 100m)
+  "nyahururu/123": {
+    properties: { name: "Nyahururu/123 (Main Parcel, ~1 acre)" },
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [36.9540, -0.0250],
+        [36.9560, -0.0250],
+        [36.9560, -0.0270],
+        [36.9540, -0.0270],
+        [36.9540, -0.0250]
+      ]]
+      // this is a simple rectangle roughly; in production supply accurate coordinates
+    },
+    // Beacons for main parcel
+    beacons: [
+      { id: "N-BP1", coords: [-0.0250, 36.9540] },
+      { id: "N-BP2", coords: [-0.0250, 36.9560] },
+      { id: "N-BP3", coords: [-0.0270, 36.9560] },
+      { id: "N-BP4", coords: [-0.0270, 36.9540] }
+    ],
+    // Derived plots inside main parcel (hardcoded demo subplots created as 50x100 approx)
+    subplots: [
+      {
+        id: "P1",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [36.95405, -0.02505],
+            [36.95455, -0.02505],
+            [36.95455, -0.02605],
+            [36.95405, -0.02605],
+            [36.95405, -0.02505]
+          ]]
+        },
+        beacons: [
+          { id: "P1-B1", coords: [-0.02505, 36.95405]},
+          { id: "P1-B2", coords: [-0.02505, 36.95455]},
+          { id: "P1-B3", coords: [-0.02605, 36.95455]},
+          { id: "P1-B4", coords: [-0.02605, 36.95405]}
+        ]
+      },
+      {
+        id: "P2",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [36.95460, -0.02505],
+            [36.95510, -0.02505],
+            [36.95510, -0.02605],
+            [36.95460, -0.02605],
+            [36.95460, -0.02505]
+          ]]
+        },
+        beacons: [
+          { id: "P2-B1", coords: [-0.02505, 36.95460]},
+          { id: "P2-B2", coords: [-0.02505, 36.95510]},
+          { id: "P2-B3", coords: [-0.02605, 36.95510]},
+          { id: "P2-B4", coords: [-0.02605, 36.95460]}
+        ]
+      },
+      {
+        id: "P3",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [36.95515, -0.02505],
+            [36.95565, -0.02505],
+            [36.95565, -0.02605],
+            [36.95515, -0.02605],
+            [36.95515, -0.02505]
+          ]]
+        },
+        beacons: [
+          { id: "P3-B1", coords: [-0.02505, 36.95515]},
+          { id: "P3-B2", coords: [-0.02505, 36.95565]},
+          { id: "P3-B3", coords: [-0.02605, 36.95565]},
+          { id: "P3-B4", coords: [-0.02605, 36.95515]}
+        ]
+      }
+      // Add more subdivided plots as needed
+    ]
+  }
+};
+
+// ----- Map init -----
+const map = L.map('map', { zoomControl: true }).setView([-1.04, 37.09], 13);
+
+// Basemaps
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OSM' }).addTo(map);
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Esri Imagery' });
+
+// layer groups
+let currentGroup = L.layerGroup().addTo(map);
+let vertexMarkers = []; // invisible markers for vertex hover
+let activePopup; // to keep track of open popups
+
+// utility: convert demo "geometry" polygon (coords are [lng,lat]) to leaflet latlng array
+function geoToLatLngs(geo) {
+  return geo.coordinates[0].map(pt => [pt[1], pt[0]]);
+}
+
+// render a parcel (main) and optionally its subplots
+function renderDemoParcel(key) {
+  const entry = demoParcels[key];
+  if (!entry) return;
+
+  // clear
+  currentGroup.clearLayers();
+  vertexMarkers.forEach(m => map.removeLayer(m));
+  vertexMarkers = [];
+
+  // draw main parcel
+  const mainCoords = geoToLatLngs(entry.geometry);
+  const mainPoly = L.polygon(mainCoords, { color:'#0a6c5e', weight: 2, fillOpacity:0.06 }).addTo(currentGroup);
+
+  // label at center
+  const name = entry.properties.name || key.toUpperCase();
+  const center = mainPoly.getBounds().getCenter();
+  L.marker(center, {
+    icon: L.divIcon({
+      className: 'parcel-label',
+      html: `<div style="background:rgba(10,108,94,0.9); color:#fff; padding:3px 8px; border-radius:4px; font-size:12px;">${name}</div>`,
+      iconSize: [120,26],
+      iconAnchor: [60,13]
+    }),
+    interactive:false
+  }).addTo(currentGroup);
+
+  // show main beacons but keep them hidden until hover; create marker objects and store in array
+  const mainBeacons = entry.beacons.map(b => {
+    const mk = L.circleMarker([b.coords[0], b.coords[1]], { radius:5, color:'red', fillOpacity:0.9 });
+    mk.bindPopup(`<b>${b.id}</b><br>Lat: ${b.coords[0].toFixed(6)}<br>Lng: ${b.coords[1].toFixed(6)}`);
+    return mk;
+  });
+
+  // vertex markers (invisible) to display coords on hover
+  mainCoords.forEach((latlng,i) => {
+    const vm = L.circleMarker(latlng, { radius:6, opacity:0, fillOpacity:0, className:'vertex-marker' }).addTo(currentGroup);
+    vm.on('mouseover', () => {
+      vm.bindTooltip(`V${i+1}: ${latlng[0].toFixed(6)}, ${latlng[1].toFixed(6)}`, {permanent:false}).openTooltip();
+    });
+    vertexMarkers.push(vm);
+  });
+
+  // parcel hover behavior: show/hide beacons & highlight
+  mainPoly.on('mouseover', () => {
+    mainPoly.setStyle({ weight:3, color:'#ff7800', fillOpacity:0.12 });
+    mainBeacons.forEach(mk => mk.addTo(currentGroup));
+  });
+  mainPoly.on('mouseout', () => {
+    mainPoly.setStyle({ weight:2, color:'#0a6c5e', fillOpacity:0.06 });
+    mainBeacons.forEach(mk => {
+      if (currentGroup.hasLayer(mk)) currentGroup.removeLayer(mk);
+    });
+  });
+
+  // clicking parcel opens modal with details & lists beacons + subplots
+  mainPoly.on('click', () => {
+    showParcelModal(entry);
+  });
+
+  // also allow click on beacon markers (added on hover) to open modal with copy
+  mainBeacons.forEach(mk => {
+    mk.on('click', (e) => {
+      const content = mk.getPopup().getContent();
+      // parse id and coords from popup content or use stored b
+      new bootstrap.Modal(document.getElementById('beaconModal')).show();
+      // set values in modal
+      // find b by matching latlng
+      const lat = e.latlng.lat, lng = e.latlng.lng;
+      const found = entry.beacons.find(b => Math.abs(b.coords[0]-lat) < 1e-6 && Math.abs(b.coords[1]-lng) < 1e-6);
+      if (found) openBeaconModal(found);
+    });
+  });
+
+  // render subplots if any
+  if (entry.subplots && entry.subplots.length) {
+    entry.subplots.forEach((sp, idx) => {
+      const scoords = geoToLatLngs(sp.geometry);
+      const sPoly = L.polygon(scoords, { color:'#ff7800', weight:1.2, fillOpacity:0.14 }).addTo(currentGroup);
+      sPoly.bindTooltip(sp.id, { permanent:false, direction:'center' });
+      // show small label
+      const sCenter = sPoly.getBounds().getCenter();
+      L.marker(sCenter, {
+        icon: L.divIcon({
+          className: 'subplot-label',
+          html: `<div style="background:rgba(255,120,0,0.9); color:#fff; padding:2px 6px; border-radius:4px; font-size:11px;">${sp.id}</div>`,
+          iconSize:[70,22],
+          iconAnchor:[35,11]
+        }),
+        interactive:false
+      }).addTo(currentGroup);
+
+      // subplot beacons (always visible for demo) and clickable
+      sp.beacons.forEach(b => {
+        const mk = L.circleMarker([b.coords[0], b.coords[1]], { radius:4, color:'#b30000', fillOpacity:0.95 })
+          .addTo(currentGroup)
+          .bindTooltip(b.id);
+        mk.on('click', () => openBeaconModal(b));
+      });
+
+      sPoly.on('mouseover', () => sPoly.setStyle({ weight:2.2 }));
+      sPoly.on('mouseout', () => sPoly.setStyle({ weight:1.2 }));
+      sPoly.on('click', () => {
+        // show small modal for subplot info
+        const body = document.getElementById('parcelInfoBody');
+        body.innerHTML = `<h6><strong>Subplot:</strong> ${sp.id}</h6>
+          <p>Approx area (demo): ${Math.round(turf.area(sp.geometry))} m²</p>
+          <h6>Beacons</h6>
+          <ul>${sp.beacons.map(b=>`<li><b>${b.id}</b> — ${b.coords[0].toFixed(6)}, ${b.coords[1].toFixed(6)}</li>`).join('')}</ul>`;
+        new bootstrap.Modal(document.getElementById('parcelInfoModal')).show();
+      });
+    });
+  }
+
+  // fit to main parcel
+  map.fitBounds(mainPoly.getBounds(), { padding:[20,20] });
+}
+
+// show parcel modal (main)
+function showParcelModal(entry) {
+  const body = document.getElementById('parcelInfoBody');
+  const beacons = entry.beacons || [];
+  const subplotsHtml = (entry.subplots || []).map(sp => `<li>${sp.id} — subplots</li>`).join('');
+  body.innerHTML = `
+    <h6><strong>Parcel:</strong> ${entry.properties.name}</h6>
+    <h6><strong>Total Beacons:</strong> ${beacons.length}</h6>
+    <hr>
+    <h6>Beacon Points:</h6>
+    <ul>${beacons.map(b=>`<li><b>${b.id}</b> — ${b.coords[0].toFixed(6)}, ${b.coords[1].toFixed(6)}</li>`).join('')}</ul>
+    ${entry.subplots ? `<hr><h6>Derived Plots:</h6><ul>${(entry.subplots).map(sp=>`<li>${sp.id}</li>`).join('')}</ul>` : ''}
+  `;
+  new bootstrap.Modal(document.getElementById('parcelInfoModal')).show();
+}
+
+// beacon modal setter
+function openBeaconModal(beacon) {
+  document.querySelector('#beaconModal #beaconId span').textContent = beacon.id;
+  document.querySelector('#beaconModal #beaconCoords span').textContent = `${beacon.coords[0].toFixed(6)}, ${beacon.coords[1].toFixed(6)}`;
+  document.getElementById('copyBeaconCoords').onclick = () => {
+    navigator.clipboard.writeText(`${beacon.coords[0].toFixed(6)}, ${beacon.coords[1].toFixed(6)}`).catch(()=>{});
+  };
+  new bootstrap.Modal(document.getElementById('beaconModal')).show();
+}
+
+// ----- search-as-you-type (debounce) and suggestions -----
+const searchInput = document.getElementById('searchParcel');
+const suggestions = document.getElementById('suggestions');
+let debounceTimer = null;
+
+searchInput.addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => performSearchSuggestions(q), 300);
+});
+
+function performSearchSuggestions(q) {
+  // For demo: client-side filter of demoParcels keys.
+  // In production: replace with fetch(`/api/plots/?q=${encodeURIComponent(q)}`) and render results.
+  suggestions.innerHTML = '';
+  if (!q) { suggestions.style.display = 'none'; return; }
+  const keys = Object.keys(demoParcels);
+  const matches = keys.filter(k => k.includes(q) || demoParcels[k].properties.name.toLowerCase().includes(q));
+  if (matches.length === 0) {
+    suggestions.style.display = 'none';
+    return;
+  }
+  matches.forEach(k => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'list-group-item list-group-item-action';
+    item.textContent = demoParcels[k].properties.name || k;
+    item.onclick = () => {
+      searchInput.value = demoParcels[k].properties.name || k;
+      suggestions.style.display = 'none';
+      // render the selected parcel
+      renderDemoParcel(k);
+      showMessage(`Parcel "${demoParcels[k].properties.name}" rendered.`, 'success');
+    };
+    suggestions.appendChild(item);
+  });
+  suggestions.style.display = 'block';
+}
+
+function showMessage(text, type='info') {
+  const el = document.getElementById('resultMessage');
+  el.className = `alert alert-${type} mb-0`;
+  el.textContent = text;
+  setTimeout(()=> { el.className=''; el.textContent=''; }, 4500);
+}
+
+// Optional: allow Enter to perform immediate render based on exact match
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const q = searchInput.value.trim().toLowerCase();
+    if (demoParcels[q]) {
+      renderDemoParcel(q);
+      showMessage(`Parcel "${demoParcels[q].properties.name}" rendered.`, 'success');
+    } else {
+      showMessage('No exact match found (demo). Use suggestions or full name.', 'warning');
+    }
+    suggestions.style.display = 'none';
+  }
+});
+
+// Satellite toggle
+document.getElementById('btnSatellite').addEventListener('click', () => {
+  if (map.hasLayer(sat)) map.removeLayer(sat);
+  else sat.addTo(map);
+});
+
+// Fullscreen helper
+function toggleFullscreen(selector) {
+  const el = document.querySelector(selector);
+  if (!document.fullscreenElement) {
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } else {
+    if (document.exitFullscreen) document.exitFullscreen();
+  }
+}
+
+// --- Optionally pre-render one parcel on load (uncomment) ---
+// renderDemoParcel('thika/0123');
+// renderDemoParcel('nyahururu/123');
+
+</script>
+
+{% endblock %}

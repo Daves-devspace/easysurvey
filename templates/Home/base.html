@@ -60,11 +60,23 @@
     <!-- Select2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
 
-     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+     {% comment %} #<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/> {% endcomment %}
 
 
 
     <!-- [plugin for searching] end -->
+
+      <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
+  <style>
+    /* card-wrapped layout to drop into existing base template block content */
+    .tools-card { margin-top: 1rem; }
+    #map { height: 70vh; min-height: 350px; border-radius: .35rem; }
+    .map-toolbar { gap: .5rem; }
+  </style>
 
 </head>
 <!-- [Head] end -->
@@ -199,17 +211,35 @@
             </li>
 
             <li class="pc-item pc-hasmenu">
-                <a href="#!" class="pc-link">
-                    <span class="pc-micon"><i class="ti ti-tool"></i></span>
-                    <span class="pc-mtext">Tools</span>
-                    <span class="pc-arrow"><i data-feather="chevron-right"></i></span>
-                </a>
-                <ul class="pc-submenu">
-                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Projects</a></li>
-                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Map Viewer</a></li>
-                    <li class="pc-item"><a class="pc-link" href="{% url 'projects' %}">Mutation</a></li>
-                </ul>
+            <a href="#!" class="pc-link">
+                <span class="pc-micon"><i class="ti ti-tool"></i></span>
+                <span class="pc-mtext">Tools</span>
+                <span class="pc-arrow"><i data-feather="chevron-right"></i></span>
+            </a>
+
+            <ul class="pc-submenu">
+                <li class="pc-item">
+                <a class="pc-link" href="{% url 'sessions' %}">Survey Sessions</a>
+                </li>
+
+                <li class="pc-item">
+                <a class="pc-link" href="{% url 'file_uploads' %}">File Uploads</a>
+                </li>
+
+                <li class="pc-item">
+                <a class="pc-link" href="{% url 'map_view' %}">Map Viewer</a>
+                </li>
+
+                <li class="pc-item">
+                <a class="pc-link" href="{% url 'mutation_view' %}">Mutation Tool</a>
+                </li>
+
+                <li class="pc-item">
+                <a class="pc-link" href="{% url 'mutation_export' %}">Mutation Export</a>
+                </li>
+            </ul>
             </li>
+
 
 
 
@@ -809,6 +839,13 @@ function previewNotification(id) {
 <script src="{% static 'assets/js/modals/dashboardAnalytics.js' %}"></script>
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 
+
+
+  <!--survey map Libraries -->
+  {% comment %} <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script> {% endcomment %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
 
 <script>

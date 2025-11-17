@@ -1,0 +1,157 @@
+{% extends "Home/base.html" %}
+{% block body %}
+
+    <!-- [ Main Content ] start -->
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Survey</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Projects</li>
+                            </ul>
+                        </div>
+                       
+                    </div>
+                </div>
+            </div>
+        <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+
+
+<div class="container">
+  <div class="row">
+    <div class="col-sm-12">
+      <div class="card tools-card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Mutation Export</h5>
+            <div>
+              <button id="btnExportGeo" class="btn btn-outline-primary btn-sm me-2"><i class="ti ti-download"></i> GeoJSON</button>
+              <button id="btnExportCSV" class="btn btn-outline-success btn-sm"><i class="ti ti-file"></i> CSV</button>
+            </div>
+          </div>
+
+          <p class="small text-muted">Demo uses the accepted plots produced in Mutation. Use server-side exports for heavy docs.</p>
+
+          <div class="row">
+            <div class="col-lg-6 mb-3">
+              <h6>GeoJSON Preview</h6>
+              <pre id="geoPreview" class="p-2 bg-light small" style="max-height:260px;overflow:auto;">{ "type": "FeatureCollection", "features": [] }</pre>
+            </div>
+
+            <div class="col-lg-6 mb-3">
+              <h6>Beacon CSV Preview</h6>
+              <pre id="csvPreview" class="p-2 bg-light small" style="max-height:260px;overflow:auto;">plot,beacon_index,lat,lng
+P1,1,-1.0365,37.0875
+...</pre>
+            </div>
+          </div>
+
+          <div id="toastArea" class="position-fixed bottom-0 end-0 p-3" style="z-index:9999"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+    <!-- [ Main Content ] end -->
+
+<!-- Export Confirmation Modal -->
+<div class="modal fade" id="exportConfirmModal" tabindex="-1" aria-labelledby="exportConfirmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="exportConfirmLabel">Confirm Export</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p id="exportConfirmText">Download the selected format now?</p>
+        <div class="d-grid">
+          <button id="confirmExportBtn" class="btn btn-primary">Yes, download</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* mutation_export demo script */
+const demoGeo = {
+  "type":"FeatureCollection",
+  "features":[
+    {
+      "type":"Feature",
+      "properties": {"plot":"P1"},
+      "geometry":{"type":"Polygon","coordinates":[[[37.0875,-1.0365],[37.0940,-1.0365],[37.0940,-1.0440],[37.0875,-1.0440],[37.0875,-1.0365]]]}
+    }
+  ]
+};
+const demoCSV = `plot,beacon_index,lat,lng
+P1,1,-1.0365,37.0875
+P1,2,-1.0365,37.0940
+P1,3,-1.0440,37.0940
+P1,4,-1.0440,37.0875
+`;
+document.getElementById('geoPreview').innerText = JSON.stringify(demoGeo, null, 2);
+document.getElementById('csvPreview').innerText = demoCSV;
+
+function download(filename, content, mime='application/octet-stream') {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(()=> { URL.revokeObjectURL(url); a.remove(); }, 200);
+}
+function showToast(msg, color='success') {
+  const toastArea = document.getElementById('toastArea');
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `<div class="toast align-items-center text-bg-${color} border-0 show" role="alert"><div class="d-flex"><div class="toast-body">${msg}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>`;
+  toastArea.appendChild(wrapper); setTimeout(()=> wrapper.remove(), 3500);
+}
+
+document.getElementById('btnExportGeo').addEventListener('click', () => {
+  new bootstrap.Modal(document.getElementById('exportConfirmModal')).show();
+  document.getElementById('confirmExportBtn').onclick = () => {
+    download('mutation_parcels.geojson', JSON.stringify(demoGeo, null, 2), 'application/geo+json');
+    showToast('GeoJSON downloaded', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('exportConfirmModal')).hide();
+  };
+});
+
+document.getElementById('btnExportCSV').addEventListener('click', () => {
+  new bootstrap.Modal(document.getElementById('exportConfirmModal')).show();
+  document.getElementById('confirmExportBtn').onclick = () => {
+    download('beacons.csv', demoCSV, 'text/csv');
+    showToast('CSV downloaded', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('exportConfirmModal')).hide();
+  };
+});
+</script>
+{% endblock %}

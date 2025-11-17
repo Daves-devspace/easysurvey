@@ -1,15 +1,51 @@
 {% load humanize %}
 {% load custom_tags %}
-<!-- Accounts/partials/revenue_tab_content.html -->
-{% load humanize %}
-<!-- templates/Accounts/partials/revenue_content_only.html -->
-<!-- This partial contains ONLY the content that gets swapped via HTMX (NO FILTER FORM) -->
+
+<!-- ============================================
+     STATUS FILTER (All / Completed)
+============================================= -->
+{# Use only status_filter (provided by context) and default to "completed" #}
+{% with s=status_filter|default:"completed" %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-bar-chart"></i> Revenue Overview</h5>
+    <small class="text-muted">Summary for the selected period</small>
+  </div>
+
+  <div>
+    <div class="btn-group" role="group" aria-label="Revenue Status Filter">
+      {# All button (HTMX + fallback href) #}
+      <a
+        class="btn btn-sm {% if s == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+        href="{% url 'cashbook_dashboard' %}?tab=revenue&status=all{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-get="{% url 'cashbook_dashboard' %}?tab=revenue&status=all{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-target="#revenue-content-area"
+        hx-swap="innerHTML"
+        hx-indicator="#loading-spinner"
+      >
+        All
+      </a>
+
+      {# Completed button (HTMX + fallback href) #}
+      <a
+        class="btn btn-sm {% if s == 'completed' %}btn-primary{% else %}btn-outline-success{% endif %}"
+        href="{% url 'cashbook_dashboard' %}?tab=revenue&status=completed{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-get="{% url 'cashbook_dashboard' %}?tab=revenue&status=completed{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-target="#revenue-content-area"
+        hx-swap="innerHTML"
+        hx-indicator="#loading-spinner"
+      >
+        Completed
+      </a>
+    </div>
+  </div>
+</div>
+{% endwith %}
 
 <!-- ============================================
      STATISTICS CARDS
 ============================================= -->
 <div class="row g-3 mb-4">
-  
   <!-- Card 1: Client Payments -->
   <div class="col-lg-3 col-md-6">
     <div class="card border-0 shadow-sm h-100">
@@ -89,7 +125,6 @@
       </div>
     </div>
   </div>
-
 </div>
 
 <!-- Date Range Info (Updated after filter) -->
@@ -108,22 +143,42 @@
         <h5 class="mb-0"><i class="bi bi-table"></i> Revenue Records</h5>
         <small class="text-muted">Detailed breakdown of all revenue-generating transactions</small>
       </div>
-      <div class="col-auto">
-        <a 
-          href="{% url 'revenue_pdf' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}"
-          class="btn btn-sm btn-outline-primary"
-          target="_blank"
-        >
-          <i class="bi bi-file-earmark-pdf"></i> Export PDF
-        </a>
+
+      {# Export dropdown - preserve current status and date filters #}
+     <div class="col-auto position-relative dropdown">
+        {% with current_status=status_filter|default:"completed" %}
+        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-printer"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown">
+          <li>
+            <a
+              class="dropdown-item"
+              href="{% url 'revenue_pdf' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&status={{ current_status }}"
+              target="_blank"
+            >
+              <i class="bi bi-file-earmark-pdf text-danger"></i> Export PDF
+            </a>
+          </li>
+          <li>
+            <a
+              class="dropdown-item"
+              href="{% url 'revenue_excel' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&status={{ current_status }}"
+            >
+              <i class="bi bi-file-earmark-excel text-success"></i> Export Excel
+            </a>
+          </li>
+        </ul>
+        {% endwith %}
       </div>
+
+
     </div>
   </div>
 
   <div class="card-body p-0">
-    <div class="table-responsive  mt-3" style="max-height: 600px; overflow-y: auto;">
-     
-       <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+    <div class="table-responsive mt-3" style="max-height: 600px; overflow-y: auto;">
+      <table class="datatable display table table-striped table-hover dt-responsive nowrap">
         <thead class="table-light sticky-top">
           <tr>
             <th class="text-center" style="width: 5%;">#</th>
@@ -140,10 +195,7 @@
           {% if revenue_records %}
             {% for record in revenue_records %}
               <tr>
-                <!-- Row Number -->
                 <td class="text-center text-muted small">{{ forloop.counter }}</td>
-
-                <!-- Client Details -->
                 <td>
                   <div>
                     <strong class="d-block text-dark">{{ record.client.first_name }} {{ record.client.last_name }}</strong>
@@ -152,8 +204,6 @@
                     </small>
                   </div>
                 </td>
-
-                <!-- Service Details -->
                 <td>
                   <div>
                     <strong class="d-block text-dark">{{ record.service.name }}</strong>
@@ -162,29 +212,21 @@
                     </small>
                   </div>
                 </td>
-
-                <!-- Client Charge -->
                 <td class="text-end">
                   <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
                     KES {{ record.client_charge|floatformat:2|intcomma }}
                   </span>
                 </td>
-
-                <!-- Institution Cost -->
                 <td class="text-end">
                   <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-normal">
                     KES {{ record.inst_cost|floatformat:2|intcomma }}
                   </span>
                 </td>
-
-                <!-- Company Profit -->
                 <td class="text-end">
                   <span class="badge {% if record.profit_amount > 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if record.profit_amount > 0 %}text-success{% else %}text-danger{% endif %} px-3 py-2 fw-normal">
                     KES {{ record.profit_amount|floatformat:2|intcomma }}
                   </span>
                 </td>
-
-                <!-- Profit Margin % -->
                 <td class="text-end">
                   <strong class="
                     {% if record.profit_percent >= 50 %}text-success
@@ -194,8 +236,6 @@
                     {{ record.profit_percent|floatformat:1 }}%
                   </strong>
                 </td>
-
-                <!-- Status -->
                 <td class="text-center">
                   {% if record.status == "completed" %}
                     <span class="badge bg-success rounded-pill">
@@ -230,7 +270,6 @@
           {% endif %}
         </tbody>
 
-        <!-- Table Footer with Totals -->
         {% if revenue_records %}
           <tfoot class="table-secondary fw-bold sticky-bottom">
             <tr>
@@ -253,7 +292,6 @@
     </div>
   </div>
 
-  <!-- Card Footer with Summary -->
   {% if revenue_records %}
     <div class="card-footer bg-light border-top">
       <div class="row text-center py-2">

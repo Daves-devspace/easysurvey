@@ -286,7 +286,7 @@ class CashbookDashboardView(TemplateView):
         if request.headers.get("HX-Request"):
             tab = request.GET.get('tab')
             
-            # Revenue tab - return ONLY content (no filter form)
+            # Revenue tab - return content partial
             if tab == 'revenue':
                 return render(request, "Accounts/partials/revenue_tab_content.html", context)
             
@@ -295,6 +295,8 @@ class CashbookDashboardView(TemplateView):
 
         # Full page render
         return self.render_to_response(context)
+    
+    
     
      
 # ---------------------------------------------------------

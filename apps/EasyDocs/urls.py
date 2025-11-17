@@ -173,7 +173,7 @@ urlpatterns = [
     path('api/calendar/bookings/', BookingCalendarJSON.as_view(), name='booking-calendar-json'),
     
     
-    path('projects/', views.projects_view, name='projects'),
+    
     
     path('google-drive/config/', connection.google_drive_deployment_config, name='google_drive_config'),
     path('google-drive/config/update/', connection.google_drive_config_update_ajax, name='google_drive_config_update_ajax'),
@@ -190,6 +190,17 @@ urlpatterns = [
     ),
     
     path('system/audit-logs/',audit.AuditLogListView.as_view(),name='system_audit_logs'),
+    
+    path('sessions/', views.sessions, name='sessions'),                 # list & search survey sessions
+    path('files/upload/', views.file_upload, name='file_uploads'),      # upload CSV/DXF files
+    path('map/', views.map_viewer, name='map_view'),                    # map viewer (search + render)
+    path('mutation/', views.mutation_tool, name='mutation_view'),       # subdivision / mutation UI
+    path('mutation/export/', views.mutation_export, name='mutation_export'),  # exports & downloads
+
+    
+    
+     
+    
     
     
 

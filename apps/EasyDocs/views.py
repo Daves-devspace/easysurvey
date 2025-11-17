@@ -47,8 +47,24 @@ from ..Employee.models import EmployeeProfile, Payroll
 
 logger = logging.getLogger(__name__)
 
-def projects_view(request):
-    return render(request, 'application/surveyor.html')
+
+
+
+def sessions(request):
+    return render(request, "tools/sessions.html")
+
+def map_viewer(request):
+    return render(request, "tools/map_viewer.html")
+
+def mutation_tool(request):
+    return render(request, "tools/mutation.html")
+
+
+def mutation_export(request):
+    return render(request, "tools/mutation_export.html")
+
+def file_upload(request):
+    return render(request, "tools/file_upload.html")
 
 # Create your views here.
 # utils.py (or wherever your function lives)
