@@ -1,0 +1,136 @@
+{% extends "Home/base.html" %}
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Survey</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Projects</li>
+                            </ul>
+                        </div>
+                      
+                    </div>
+                </div>
+            </div>
+        <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+          
+
+
+            <div class="container">
+              <div class="row">
+                <div class="col-sm-12">
+                  <div class="card tools-card shadow-sm">
+                    <div class="card-body">
+                      <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Survey Sessions</h5>
+                        <small class="text-muted">Demo list — replace with /api/sessions/</small>
+                      </div>
+
+                      <div class="table-responsive">
+                        <table class="table table-striped align-middle">
+                          <thead>
+                            <tr><th>Session ID</th><th>Client</th><th>Land description</th><th>Status</th><th>Actions</th></tr>
+                          </thead>
+                          <tbody id="sessionBody"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+<!-- Session Detail Modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1" aria-labelledby="sessionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="sessionModalLabel">Session Details</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="sessionDetail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* sessions demo */
+const demoSessions = [
+  { id: 'S-001', client: 'Jane Doe', land_description: 'Thika 0123', status: 'draft' },
+  { id: 'S-002', client: 'ACME Ltd', land_description: 'Nyeri 045', status: 'in_progress' },
+  { id: 'S-003', client: 'John K', land_description: 'Nairobi 789', status: 'ready_for_export' }
+];
+
+function buildRow(s) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${s.id}</td>
+    <td>${s.client}</td>
+    <td>${s.land_description}</td>
+    <td><span class="badge bg-secondary">${s.status}</span></td>
+    <td>
+      <div class="btn-group btn-group-sm" role="group">
+        <a href="{% url 'map_view' %}?plot=${encodeURIComponent(s.land_description)}" class="btn btn-outline-primary">Open Map</a>
+        <button class="btn btn-outline-warning btn-view-mutation">View Mutation</button>
+        <button class="btn btn-outline-secondary btn-upload-file">Upload File</button>
+        <button class="btn btn-outline-info btn-session-detail">Details</button>
+      </div>
+    </td>`;
+  // attach handlers later
+  return tr;
+}
+
+const tbody = document.getElementById('sessionBody');
+demoSessions.forEach(s => {
+  const r = buildRow(s);
+  tbody.appendChild(r);
+  // wire row buttons
+  const btnDetails = r.querySelector('.btn-session-detail');
+  btnDetails.addEventListener('click', () => {
+    document.getElementById('sessionDetail').innerHTML = `<p><strong>Session:</strong> ${s.id}</p>
+      <p><strong>Client:</strong> ${s.client}</p><p><strong>Land:</strong> ${s.land_description}</p><p><strong>Status:</strong> ${s.status}</p>`;
+    new bootstrap.Modal(document.getElementById('sessionModal')).show();
+  });
+  r.querySelector('.btn-view-mutation').addEventListener('click', () => {
+    window.location.href = "{% url 'mutation_view' %}";
+  });
+  r.querySelector('.btn-upload-file').addEventListener('click', () => {
+    window.location.href = "{% url 'file_uploads' %}";
+  });
+});
+</script>
+{% endblock %}

@@ -17,7 +17,7 @@ env/
 venv/
 media/
 
-static/
+
 tests/
 
 # Git

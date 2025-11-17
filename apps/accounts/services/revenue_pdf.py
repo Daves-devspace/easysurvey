@@ -8,6 +8,14 @@ from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
 from decimal import Decimal
 from django.http import HttpResponse
 import tempfile
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from django.http import HttpResponse
+from django.utils import timezone
+from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
+import tempfile
+
 
 
 def generate_revenue_pdf(filename, start_date, end_date):
@@ -123,4 +131,147 @@ def revenue_pdf_view(request):
 
     response = HttpResponse(pdf_data, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="revenue_{start_date}_{end_date}.pdf"'
+    return response
+
+
+
+
+
+def generate_revenue_excel(start_date, end_date):
+    """Generate a clean, well-formatted Excel revenue report."""
+    revenue_data = get_revenue_from_payments(
+        start_date=start_date,
+        end_date=end_date,
+        profit_mode="auto"
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Revenue Report"
+
+    # --- Styles ---
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4F81BD", fill_type="solid")
+    total_fill = PatternFill(start_color="D9E1F2", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # --- Title ---
+    ws.merge_cells('A1:G1')
+    ws['A1'] = f"Revenue Report: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = Alignment(horizontal='center')
+
+    ws.append([])
+
+    # --- Totals Section ---
+    ws.append(["Category", "Gross Revenue (KES)", "Company Revenue (KES)", "Institution Revenue (KES)"])
+    for cell in ws[ws.max_row]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = border
+
+    totals = [
+        ["Main Services",
+         revenue_data['main_services']['gross_total'],
+         revenue_data['main_services']['company_total'],
+         revenue_data['main_services']['inst_total']],
+        ["Sub Services",
+         revenue_data['subservices']['gross_total'],
+         revenue_data['subservices']['company_total'],
+         revenue_data['subservices']['inst_total']],
+        ["TOTAL",
+         revenue_data['gross_total'],
+         revenue_data['company_total'],
+         revenue_data['inst_total']]
+    ]
+
+    for row in totals:
+        ws.append(row)
+        for cell in ws[ws.max_row]:
+            cell.border = border
+            if row[0] == "TOTAL":
+                cell.font = Font(bold=True)
+                cell.fill = total_fill
+
+    ws.append([])
+
+    # --- Detailed Records ---
+    ws.append(["#", "Client", "Service", "Client Charge", "Inst. Cost", "Profit", "Margin %"])
+    for cell in ws[ws.max_row]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = border
+
+    records = revenue_data.get('revenue_qs', [])
+    if not records:
+        ws.append(["No records found", "", "", "", "", "", ""])
+    else:
+        for idx, record in enumerate(records, 1):
+            row = [
+                idx,
+                f"{record.client.first_name} {record.client.last_name}",
+                record.service.name,
+                float(record.client_charge),
+                float(record.inst_cost),
+                float(record.profit_amount),
+                f"{record.profit_percent:.1f}%"
+            ]
+            ws.append(row)
+            for cell in ws[ws.max_row]:
+                cell.border = border
+                if isinstance(cell.value, (int, float)):
+                    cell.alignment = Alignment(horizontal='right')
+
+    # --- Safe Auto Width Adjustment ---
+    for i, col_cells in enumerate(ws.columns, 1):
+        column_letter = get_column_letter(i)
+        max_length = 0
+        for cell in col_cells:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except Exception:
+                pass
+        ws.column_dimensions[column_letter].width = max_length + 2
+
+    # --- Save to Temporary File ---
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    wb.save(tmp_file.name)
+    return tmp_file.name
+
+
+
+
+
+
+
+
+def revenue_excel_view(request):
+    """Serve the Excel file as a download."""
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    try:
+        start_date = timezone.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = timezone.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        start_date = timezone.now().date().replace(month=1, day=1)
+        end_date = timezone.now().date()
+
+    file_path = generate_revenue_excel(start_date, end_date)
+    with open(file_path, 'rb') as f:
+        file_data = f.read()
+
+    response = HttpResponse(
+        file_data,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="revenue_{start_date}_{end_date}.xlsx"'
     return response

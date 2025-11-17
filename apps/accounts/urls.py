@@ -12,6 +12,8 @@ urlpatterns = [
     path("sync-opening-balance/", SyncOpeningBalanceView.as_view(), name="sync_opening_balance"),
     path("daily-cashbook-pdf/", DailyCashbookPDFView.as_view(), name="daily_cashbook_pdf"),
     path('revenue/pdf/', pdf_views.revenue_pdf_view, name='revenue_pdf'),
+    path('revenue/excel/', pdf_views.revenue_excel_view, name='revenue_excel'),
+
     path('revenue', RevenueReportView.as_view(), name='revenue-report'),    
     
     
