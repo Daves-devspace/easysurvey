@@ -1,1 +1,13 @@
 .env
+# Python
+__pycache__/
+*.pyc
+
+# Django
+media/
+staticfiles/
+logs/
+*.log
+
+# PDFs and generated files
+*.pdf
