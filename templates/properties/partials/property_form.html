@@ -1,0 +1,15 @@
+<form method="post" action="{% if form.instance.pk %}{% url 'property-edit' form.instance.pk %}{% else %}{% url 'property-create' %}{% endif %}">
+
+    {% csrf_token %}
+    <div class="modal-header">
+        <h5 class="modal-title">{% if form.instance.pk %}Edit{% else %}Add{% endif %} Property</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        {{ form.as_p }}
+    </div>
+    <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    </div>
+</form>

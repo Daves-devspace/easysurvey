@@ -1,0 +1,97 @@
+
+
+<!-- leases/lease_form.html -->
+<div class="modal fade" id="leaseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <form 
+        method="post" 
+        id="leaseModalForm"
+        hx-post="."
+        hx-target="#leaseModal .modal-content"
+        hx-swap="outerHTML"
+        class="needs-validation"
+        novalidate
+      >
+        {% csrf_token %}
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="leaseModalTitle">
+            {% if form.instance.pk %} Update Lease {% else %} Create Lease {% endif %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row">
+            <!-- Left: search + form -->
+            <div class="col-lg-8">
+              <div class="mb-3">
+                <label class="form-label">Tenant</label>
+                <input type="text" value="{{ tenant.full_name }}" class="form-control" readonly>
+              </div>
+
+              <!-- Unit search (custom JS hooks) -->
+              <div class="mb-3">
+                <label class="form-label">Search available unit</label>
+                <input id="leaseModalSearch" class="form-control" type="search" placeholder="Type unit number, meter, or property…" autocomplete="off">
+                <div id="leaseModalResults" class="list-group mt-2" style="max-height:300px; overflow:auto;"></div>
+                <div class="form-text">Use ↑↓ to navigate, Enter to select.</div>
+              </div>
+
+              <!-- Django form fields -->
+              <div class="row g-3 mt-3">
+                <div class="col-md-6">
+                    <label for="{{ form.start_date.id_for_label }}" class="form-label">Start date</label>
+                    {{ form.start_date }}
+                    {{ form.start_date.errors }}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="{{ form.deposit_amount.id_for_label }}" class="form-label">Deposit</label>
+                    {{ form.deposit_amount }}
+                    {{ form.deposit_amount.errors }}
+                </div>
+                </div>
+
+
+              {{ form.unit }} {# Hidden when unit_id is passed, but still needed for binding #}
+
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger mt-3">
+                  {{ form.non_field_errors }}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Right: unit details -->
+            <div class="col-lg-4">
+              <div class="card">
+                <div class="card-body">
+                  <h6 class="card-title">Unit details</h6>
+                  <dl class="row">
+                    <dt class="col-5">Unit</dt><dd id="detailUnit" class="col-7">—</dd>
+                    <dt class="col-5">Property</dt><dd id="detailProperty" class="col-7">—</dd>
+                    <dt class="col-5">Rent</dt><dd id="detailRent" class="col-7">—</dd>
+                    <dt class="col-5">Meter</dt><dd id="detailMeter" class="col-7">—</dd>
+                  </dl>
+                  <p id="detailNote" class="small text-muted">Select a unit to view details.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div><!-- modal-body -->
+
+        <div class="modal-footer">
+          <div class="me-auto">
+            <small class="text-muted" id="leaseModalHelp"></small>
+          </div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button id="leaseModalSubmit" type="submit" class="btn btn-success">
+            {% if form.instance.pk %} Update {% else %} Assign {% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<!-- tenant_form.html -->
+<form method="post" action="{% if form.instance.pk %}{% url 'tenant_edit' property.id form.instance.id %}{% else %}{% url 'tenant_create' property.id %}{% endif %}">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="mb-3">
+    {{ form.full_name.label_tag }}
+    {{ form.full_name }}
+    {{ form.full_name.errors }}
+  </div>
+  <div class="mb-3">
+    {{ form.phone_number.label_tag }}
+    {{ form.phone_number }}
+    {{ form.phone_number.errors }}
+  </div>
+  <div class="mb-3">
+    {{ form.email.label_tag }}
+    {{ form.email }}
+    {{ form.email.errors }}
+  </div>
+  <div class="mb-3">
+    {{ form.national_id.label_tag }}
+    {{ form.national_id }}
+    {{ form.national_id.errors }}
+  </div> 
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+
+</form>

@@ -1,0 +1,21 @@
+
+
+<div class="table-responsive">
+  <table class="datatable table table-striped table-hover nowrap w-100">
+    <thead class="table-success">
+      <tr>
+        <th>Unit</th><th>Tenant</th><th>Meter Number</th>
+        <th>Previous Reading</th><th>Current Reading</th>
+        <th>Consumption</th><th>Rate</th><th>Amount</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="meterReadingsBody">
+      {% for item in meter_readings %}
+        {% include 'meter_readings/partials/reading_row.html' with item=item %}
+      {% empty %}
+        <tr><td colspan="9">No units found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

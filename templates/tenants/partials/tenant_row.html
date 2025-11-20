@@ -1,0 +1,38 @@
+<tr id="tenant-row-{{ row.tenant.id }}" class="{% if row.unleased %}table-warning{% endif %}">
+  <td>{{ row.tenant.full_name }}</td>
+  <td>
+    {% if row.unit %}
+      {{ row.unit.unit_number }}
+    {% else %}
+      &mdash;
+    {% endif %}
+  </td>
+  <td>{% if row.rent_amount %}Ksh {{ row.rent_amount }}{% else %}&mdash;{% endif %}</td>
+  <td>{% if row.balance is not None %}Ksh {{ row.balance }}{% else %}&mdash;{% endif %}</td>
+  <td>{% if row.current_meter %}{{ row.current_meter }}{% else %}&mdash;{% endif %}</td>
+  <td>
+    {% if row.lease_start %}
+      {{ row.lease_start }} - {{ row.lease_end|default:"ongoing" }}
+    {% else %}
+      &mdash;
+    {% endif %}
+  </td>
+  <td>
+    <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+
+    <button class="btn btn-sm btn-outline-primary"
+        data-crud-action="edit"
+        data-crud-url="{% url 'tenant_edit' property_obj.id row.tenant.id %}"
+        data-title="Edit Tenant">
+    Edit
+</button>
+
+    <button class="btn btn-sm btn-outline-danger"
+        data-crud-action="delete"
+        data-crud-url="{% url 'tenant_delete' property_id=property_obj.id pk=row.tenant.id %}">
+    Delete
+   </button>
+
+
+  </td>
+</tr>

@@ -1,0 +1,76 @@
+{% load unit_extras %}
+{# properties/partials/unit_row.html #}
+{% with unit|get_lease as lease %}
+{% with unit|get_tenant as tenant %}
+<tr id="unit-row-{{ unit.id }}">
+  <td>{{ unit.unit_number }}</td>
+  <td>{{ unit.rent_amount }}</td>
+  <td>{{ unit.meter_number }}</td>
+  <td>
+    {% if unit.is_occupied and tenant %}
+      {{ tenant.full_name }}
+    {% elif unit.is_occupied %}
+      Occupied (No Tenant Info)
+    {% else %}
+      Vacant
+    {% endif %}
+  </td>
+
+  <td>
+    {% if lease %}
+      <span class="badge bg-success">Active</span><br>
+      <small>Started: {{ lease.start_date|date:"M d, Y" }}</small>
+    {% else %}
+      <span class="badge bg-secondary">No Lease</span>
+    {% endif %}
+  </td>
+
+  <td>
+    <div class="btn-group btn-group-sm" role="group">
+      {% if not unit.is_occupied and property_obj and property_obj.id %}
+        <button
+          type="button"
+          class="btn btn-sm btn-primary btn-add-tenant"
+          data-url="{% url 'tenant_lease_create' property_obj.id unit.id %}"
+          data-unit-id="{{ unit.id }}"
+          data-unit-number="{{ unit.unit_number }}">
+          Add Tenant & Lease
+        </button>
+      {% else %}
+        <button class="btn btn-sm btn-primary disabled" title="Unavailable">Add Tenant & Lease</button>
+      {% endif %}
+
+      {# Edit and Delete dropdown #}
+      <button type="button"
+              class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+              data-bs-toggle="dropdown">
+        <span class="visually-hidden">Toggle</span>
+      </button>
+      <ul class="dropdown-menu">
+        {% if property_obj and property_obj.id %}
+          <li>
+            <button class="dropdown-item"
+                    data-crud-action="edit"
+                    data-crud-url="{% url 'unit_edit' property_obj.id unit.id %}"
+                    data-title="Edit Unit {{ unit.unit_number }}">
+              Edit Unit
+            </button>
+          </li>
+          <li>
+            <button class="dropdown-item text-danger"
+                    data-crud-action="delete"
+                    data-crud-url="{% url 'unit_delete' pk=property_obj.id unit_pk=unit.id %}"
+                    data-title="Delete Unit {{ unit.unit_number }}">
+              Delete Unit
+            </button>
+          </li>
+        {% else %}
+          <li><span class="dropdown-item disabled">Edit (unavailable)</span></li>
+          <li><span class="dropdown-item disabled">Delete (unavailable)</span></li>
+        {% endif %}
+      </ul>
+    </div>
+  </td>
+</tr>
+{% endwith %}
+{% endwith %}
