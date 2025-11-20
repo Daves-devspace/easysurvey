@@ -1,0 +1,31 @@
+{# templates/meter_readings/partials/reading_row.html #}
+<tr id="reading-row-{{ item.unit.id }}">
+  <td>{{ item.unit.unit_number }}</td>
+  <td>{% if item.tenant %}{{ item.tenant.full_name }}{% else %}Vacant{% endif %}</td>
+  <td>{{ item.unit.meter_number|default:"-" }}</td>
+  <td>{{ item.previous_current }}</td>
+  <td>{% if item.reading %}{{ item.reading.current_reading }}{% else %}-{% endif %}</td>
+  <td>{% if item.usage is not None %}{{ item.usage }}{% else %}-{% endif %}</td>
+  <td>{% if item.rate is not None %}{{ item.rate }}{% else %}-{% endif %}</td>
+  <td>{% if item.amount is not None %}{{ item.amount }}{% else %}-{% endif %}</td>
+  
+  <td>
+    {% if item.reading %}
+      {% if item.tenant %}
+        <button type="button" class="btn btn-sm btn-primary open-meter-modal"
+                data-url="{% url 'meter_readings_update' item.reading.id %}"
+                data-title="Update Reading">Update</button>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-warning open-meter-modal"
+                data-url="{% url 'meter_readings_update' item.reading.id %}"
+                data-title="Update Baseline"
+                title="No active lease - baseline only">Baseline</button>
+      {% endif %}
+    {% else %}
+      <button type="button" class="btn btn-sm btn-success open-meter-modal"
+              data-url="{% url 'meter_readings_add' item.unit.id %}"
+              data-title="Add Starting Reading">Add</button>
+    {% endif %}
+  </td>
+  
+</tr>

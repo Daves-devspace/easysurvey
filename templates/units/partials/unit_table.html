@@ -1,0 +1,21 @@
+
+                                                          
+    <table data-table-type="units" id="units-table" class="datatable  table table-striped table-hover  nowrap  w-100">
+        <thead>
+            <tr>
+                <th>Unit Number</th>
+                <th>RentAmount</th>
+                <th>Meter Number</th>
+                <th>Tenant</th>
+                <th>Status</th>
+                <th>Manage</th>
+                
+            </tr>
+        </thead>
+        <tbody id="unitTableBody">
+            {% for unit in units %}
+                {% include 'units/partials/unit_row.html' %}
+            
+            {% endfor %}
+        </tbody>
+    </table>

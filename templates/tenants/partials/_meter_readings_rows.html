@@ -1,0 +1,24 @@
+<!-- tenants/partials/_meter_readings_rows.html -->
+{% for reading in meter_readings %}
+<tr class="hover:bg-gray-50 transition-colors">
+    <td class="px-3 py-2 text-sm text-gray-900">{{ reading.reading_date|date:"M d, Y" }}</td>
+    <td class="px-3 py-2 text-sm text-gray-900">{{ reading.unit.property.name }}</td>
+    <td class="px-3 py-2 text-sm text-gray-900">{{ reading.unit.unit_number }}</td>
+    <td class="px-3 py-2 text-sm text-gray-900 text-end">
+        {% if reading.previous_reading %}{{ reading.previous_reading|floatformat:2 }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+    </td>
+    <td class="px-3 py-2 text-sm text-gray-900 text-end">
+        {% if reading.current_reading %}{{ reading.current_reading|floatformat:2 }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+    </td>
+    <td class="px-3 py-2 text-sm text-blue-600 text-end">
+        {% if reading.usage %}{{ reading.usage|floatformat:2 }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+    </td>
+    <td class="px-3 py-2 text-sm text-gray-900 text-end">
+        {% if reading.rate_per_cubic_meter %}KES {{ reading.rate_per_cubic_meter|floatformat:2 }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+    </td>
+    <td class="px-3 py-2 text-sm text-green-600 text-end font-semibold">
+        {% if reading.amount %}KES {{ reading.amount|floatformat:2 }}{% else %}<span class="text-gray-400">-</span>{% endif %}
+    </td>
+</tr>
+
+{% endfor %}
