@@ -1,0 +1,314 @@
+{% load humanize %}
+{% load custom_tags %}
+
+<!-- ============================================
+     STATUS FILTER (All / Completed)
+============================================= -->
+{# Use only status_filter (provided by context) and default to "completed" #}
+{% with s=status_filter|default:"completed" %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-bar-chart"></i> Revenue Overview</h5>
+    <small class="text-muted">Summary for the selected period</small>
+  </div>
+
+  <div>
+    <div class="btn-group" role="group" aria-label="Revenue Status Filter">
+      {# All button (HTMX + fallback href) #}
+      <a
+        class="btn btn-sm {% if s == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+        href="{% url 'cashbook_dashboard' %}?tab=revenue&status=all{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-get="{% url 'cashbook_dashboard' %}?tab=revenue&status=all{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-target="#revenue-content-area"
+        hx-swap="innerHTML"
+        hx-indicator="#loading-spinner"
+      >
+        All
+      </a>
+
+      {# Completed button (HTMX + fallback href) #}
+      <a
+        class="btn btn-sm {% if s == 'completed' %}btn-primary{% else %}btn-outline-success{% endif %}"
+        href="{% url 'cashbook_dashboard' %}?tab=revenue&status=completed{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-get="{% url 'cashbook_dashboard' %}?tab=revenue&status=completed{% if start_date %}&start_date={{ start_date|date:'Y-m-d' }}{% endif %}{% if end_date %}&end_date={{ end_date|date:'Y-m-d' }}{% endif %}{% if filter_type %}&filter_type={{ filter_type }}{% endif %}{% if revenue_year %}&rev_year={{ revenue_year }}{% endif %}{% if revenue_month %}&rev_month={{ revenue_month }}{% endif %}"
+        hx-target="#revenue-content-area"
+        hx-swap="innerHTML"
+        hx-indicator="#loading-spinner"
+      >
+        Completed
+      </a>
+    </div>
+  </div>
+</div>
+{% endwith %}
+
+<!-- ============================================
+     STATISTICS CARDS
+============================================= -->
+<div class="row g-3 mb-4">
+  <!-- Card 1: Client Payments -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+              <i class="bi bi-cash-stack fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Client Payments</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.gross_total|floatformat:2|intcomma }}</h3>
+            <small class="text-success">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Institution Share -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
+              <i class="bi bi-building fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Institution Share</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.inst_total|floatformat:2|intcomma }}</h3>
+            <small class="text-primary">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Expenses -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-3">
+              <i class="bi bi-arrow-down-circle fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Expenses</h6>
+            <h3 class="mb-0 fw-bold">{{ stat_cards.expenses|floatformat:2|intcomma }}</h3>
+            <small class="text-danger">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Company Revenue -->
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="flex-shrink-0">
+            <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+              <i class="bi bi-graph-up-arrow fs-2"></i>
+            </div>
+          </div>
+          <div class="flex-grow-1 ms-3">
+            <h6 class="text-muted mb-1 text-uppercase small">Company Revenue</h6>
+            <h3 class="mb-0 fw-bold">{{ revenue_totals.company_total|floatformat:2|intcomma }}</h3>
+            <small class="text-success">KES</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Date Range Info (Updated after filter) -->
+<div class="alert alert-info mb-4" role="alert">
+  <i class="bi bi-calendar-range"></i> 
+  Viewing: <strong>{{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</strong>
+</div>
+
+<!-- ============================================
+     REVENUE RECORDS TABLE
+============================================= -->
+<div class="card shadow-sm">
+  <div class="card-header bg-white py-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <h5 class="mb-0"><i class="bi bi-table"></i> Revenue Records</h5>
+        <small class="text-muted">Detailed breakdown of all revenue-generating transactions</small>
+      </div>
+
+      {# Export dropdown - preserve current status and date filters #}
+     <div class="col-auto position-relative dropdown">
+        {% with current_status=status_filter|default:"completed" %}
+        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-printer"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown">
+          <li>
+            <a
+              class="dropdown-item"
+              href="{% url 'revenue_pdf' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&status={{ current_status }}"
+              target="_blank"
+            >
+              <i class="bi bi-file-earmark-pdf text-danger"></i> Export PDF
+            </a>
+          </li>
+          <li>
+            <a
+              class="dropdown-item"
+              href="{% url 'revenue_excel' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&status={{ current_status }}"
+            >
+              <i class="bi bi-file-earmark-excel text-success"></i> Export Excel
+            </a>
+          </li>
+        </ul>
+        {% endwith %}
+      </div>
+
+
+    </div>
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive mt-3" style="max-height: 600px; overflow-y: auto;">
+      <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th class="text-center" style="width: 5%;">#</th>
+            <th style="width: 20%;">Client Details</th>
+            <th style="width: 25%;">Service Details</th>
+            <th class="text-end" style="width: 12%;">Client Charge</th>
+            <th class="text-end" style="width: 12%;">Institution Cost</th>
+            <th class="text-end" style="width: 12%;">Company Profit</th>
+            <th class="text-end" style="width: 8%;">Margin %</th>
+            <th class="text-center" style="width: 6%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if revenue_records %}
+            {% for record in revenue_records %}
+              <tr>
+                <td class="text-center text-muted small">{{ forloop.counter }}</td>
+                <td>
+                  <div>
+                    <strong class="d-block text-dark">{{ record.client.first_name }} {{ record.client.last_name }}</strong>
+                    <small class="text-muted">
+                      <i class="bi bi-credit-card"></i> {{ record.client.phone|default:"-" }}
+                    </small>
+                  </div>
+                </td>
+                <td>
+                  <div>
+                    <strong class="d-block text-dark">{{ record.service.name }}</strong>
+                    <small class="text-muted">
+                      <i class="bi bi-calendar-event"></i> {{ record.requested_at|date:"d M Y" }}
+                    </small>
+                  </div>
+                </td>
+                <td class="text-end">
+                  <span class="badge bg-light text-dark border px-3 py-2 fw-normal">
+                    KES {{ record.client_charge|floatformat:2|intcomma }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-normal">
+                    KES {{ record.inst_cost|floatformat:2|intcomma }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <span class="badge {% if record.profit_amount > 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if record.profit_amount > 0 %}text-success{% else %}text-danger{% endif %} px-3 py-2 fw-normal">
+                    KES {{ record.profit_amount|floatformat:2|intcomma }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <strong class="
+                    {% if record.profit_percent >= 50 %}text-success
+                    {% elif record.profit_percent >= 30 %}text-warning
+                    {% else %}text-danger{% endif %}
+                  ">
+                    {{ record.profit_percent|floatformat:1 }}%
+                  </strong>
+                </td>
+                <td class="text-center">
+                  {% if record.status == "completed" %}
+                    <span class="badge bg-success rounded-pill">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </span>
+                  {% elif record.status == "pending" %}
+                    <span class="badge bg-warning rounded-pill">
+                      <i class="bi bi-clock-fill"></i>
+                    </span>
+                  {% elif record.status == "processing" %}
+                    <span class="badge bg-info rounded-pill">
+                      <i class="bi bi-arrow-repeat"></i>
+                    </span>
+                  {% else %}
+                    <span class="badge bg-secondary rounded-pill">{{ record.status }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="8" class="text-center py-5">
+                <div class="text-muted">
+                  <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+                  <h5 class="mb-2">No Revenue Records Found</h5>
+                  <p class="mb-0">No transactions found for the selected period:<br>
+                    <strong>{{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</strong>
+                  </p>
+                </div>
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+
+        {% if revenue_records %}
+          <tfoot class="table-secondary fw-bold sticky-bottom">
+            <tr>
+              <td colspan="3" class="text-end">TOTALS:</td>
+              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">KES {{ revenue_totals.inst_total|floatformat:2|intcomma }}</td>
+              <td class="text-end text-success">KES {{ revenue_totals.company_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">
+                {% if revenue_totals.gross_total > 0 %}
+                  {% widthratio revenue_totals.company_total revenue_totals.gross_total 100 %}%
+                {% else %}
+                  0%
+                {% endif %}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  {% if revenue_records %}
+    <div class="card-footer bg-light border-top">
+      <div class="row text-center py-2">
+        <div class="col-md-4">
+          <small class="text-muted d-block text-uppercase fw-semibold">Main Services</small>
+          <strong class="text-success fs-5">KES {{ revenue_totals.main_services.company_total|floatformat:2|intcomma }}</strong>
+        </div>
+        <div class="col-md-4">
+          <small class="text-muted d-block text-uppercase fw-semibold">Sub Services</small>
+          <strong class="text-success fs-5">KES {{ revenue_totals.subservices.company_total|floatformat:2|intcomma }}</strong>
+        </div>
+        <div class="col-md-4">
+          <small class="text-muted d-block text-uppercase fw-semibold">Total Records</small>
+          <strong class="text-primary fs-5">{{ revenue_records|length }}</strong>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+</div>

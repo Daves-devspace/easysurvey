@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  test:
+    name: Run Django Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install coverage
+
+      - name: Run Django tests
+        run: python manage.py test --noinput
+
+      - name: Generate coverage
+        run: |
+          branch=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          coverage run manage.py test
+          coverage report -m
+          coverage xml -o coverage-${branch}/coverage.xml
+          coverage html -d coverage-${branch}
+        continue-on-error: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.ref_name }}
+          path: coverage-${{ github.ref_name }}
+
+      - name: Extract coverage percent
+        id: coverage
+        run: |
+          percent=$(coverage report | tail -n 1 | awk '{print $4}' | sed 's/%//')
+          echo "coverage=${percent}" >> $GITHUB_OUTPUT
+
+      - name: Publish coverage badge
+        uses: schneegans/dynamic-badges-action@v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.GIST_ID }}
+          filename: coverage-${{ github.ref_name }}.json
+          label: "Coverage (${{ github.ref_name }})"
+          message: "${{ steps.coverage.outputs.coverage }}%"
+          color: ${{ steps.coverage.outputs.coverage > 80 && 'green' || steps.coverage.outputs.coverage > 50 && 'yellow' || 'red' }}
