@@ -2,24 +2,32 @@ import logging
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from apps.tenant_management.models import Tenant, Lease, Deposit, LedgerEntry
+from apps.tenant_management.models import Tenant, Lease, Deposit, Unit
+# Import the InvoiceService to trigger billing on creation
+from apps.tenant_management.services.invoice_service import InvoiceService
 
 logger = logging.getLogger(__name__)
 
-
 class TenantLeaseService:
+    """
+    Service to handle the orchestration of creating Tenants and Leases.
+    Ensures data consistency and triggers initial billing.
+    """
 
     @classmethod
     def save_tenant_with_lease(cls, tenant_data: dict, lease_data: dict, tenant_id=None, lease_id=None):
         """
-        Create or update a tenant with an associated lease and deposit.
-        - If tenant_id is None → creates a new tenant
-        - If lease_id is None → creates a new lease
-        - Handles deposit creation/update
+        Create or update a tenant with an associated lease.
+        
+        Workflow:
+        1. Create/Update Tenant.
+        2. Create/Update Lease.
+        3. Mark Unit as Occupied.
+        4. Generate the FIRST Invoice (Move-in Invoice: Deposit + Rent).
         """
         try:
             with transaction.atomic():
-                # Tenant
+                # --- 1. Handle Tenant ---
                 if tenant_id:
                     tenant = Tenant.objects.get(pk=tenant_id)
                     for field, value in tenant_data.items():
@@ -30,37 +38,65 @@ class TenantLeaseService:
                     tenant = Tenant.objects.create(**tenant_data)
                     action = "created"
 
-                # Lease
+                # --- 2. Handle Lease ---
                 if lease_id:
                     lease = Lease.objects.get(pk=lease_id, tenant=tenant)
+                    old_unit = lease.unit
+                    
                     for field, value in lease_data.items():
-                        if field != "deposit_amount":
+                        if field != "deposit_amount": # Deposit amount is stored on Lease model but also creates Deposit obj
                             setattr(lease, field, value)
                     lease.save()
+                    
+                    # If unit changed, update occupancy
+                    if old_unit.id != lease.unit.id:
+                        old_unit.is_occupied = False
+                        old_unit.save(update_fields=['is_occupied'])
+                        lease.unit.is_occupied = True
+                        lease.unit.save(update_fields=['is_occupied'])
+                        
                     lease_action = "updated"
                 else:
+                    # For new lease, ensure unit is free
+                    unit = Unit.objects.select_for_update().get(pk=lease_data['unit_id'])
+                    if unit.is_occupied:
+                        raise ValidationError(f"Unit {unit.unit_number} is already occupied.")
+                        
                     lease = Lease.objects.create(tenant=tenant, **lease_data)
+                    
+                    # Mark unit occupied
+                    unit.is_occupied = True
+                    unit.save(update_fields=['is_occupied'])
+                    
                     lease_action = "created"
 
-                # Deposit - FIXED: Set amount_held to 0, not the deposit amount
-                deposit_amount = lease_data.get("deposit_amount", 0)
+                # --- 3. Handle Deposit Object ---
+                # We create the Deposit object here to track the liability.
+                # The InvoiceService will pick this up to create the line item on the bill.
+                deposit_amount = lease_data.get("deposit_amount", Decimal('0.00'))
                 if deposit_amount > 0:
-                    deposit, created = Deposit.objects.get_or_create(
+                    Deposit.objects.get_or_create(
                         lease=lease,
-                        defaults={"amount": deposit_amount, "amount_held": Decimal('0.00')},  # Changed to 0.00
+                        defaults={
+                            "tenant": tenant,
+                            "amount": deposit_amount, 
+                            "amount_held": Decimal('0.00') # Held is 0 until paid
+                        }
                     )
-                    if not created:
-                        deposit.amount = deposit_amount
-                        # Don't update amount_held here - it should only be updated when payment is received
-                        deposit.save()
 
-                    
-                    # Ledger entries should only be created when payments are actually made
+                # --- 4. Trigger Move-In Invoice ---
+                # This generates the invoice for the start_date (e.g., Jan 15).
+                # It will include Prorated Rent + Deposit Line.
+                if lease_action == "created":
+                    InvoiceService.upsert_rent_invoice_line_for_lease(
+                        lease=lease, 
+                        billing_date=lease.start_date
+                    )
 
                 return {
                     "tenant": tenant,
                     "lease": lease,
-                    "message": f"Tenant {tenant.full_name} and lease {lease_action} successfully."
+                    "message": f"Tenant {tenant.full_name} and lease {lease_action} successfully. Initial invoice generated."
                 }
 
         except ValidationError as e:
@@ -68,3 +104,24 @@ class TenantLeaseService:
         except Exception as e:
             logger.exception("Unexpected error saving tenant/lease: %s", e)
             raise
+
+    @classmethod
+    def get_available_units(cls, property_id):
+        """Return list of unoccupied units for a property."""
+        return Unit.objects.filter(property_id=property_id, is_occupied=False)
+
+    @classmethod
+    def end_lease_and_free_unit(cls, lease_id):
+        """End a lease and mark the unit as vacant."""
+        try:
+            with transaction.atomic():
+                lease = Lease.objects.select_for_update().get(pk=lease_id)
+                lease.end_lease() # Sets is_active=False
+                
+                if lease.unit:
+                    lease.unit.is_occupied = False
+                    lease.unit.save(update_fields=['is_occupied'])
+                    
+                return {"success": True, "message": f"Lease ended for {lease.tenant.full_name}"}
+        except Lease.DoesNotExist:
+            return {"success": False, "message": "Lease not found"}

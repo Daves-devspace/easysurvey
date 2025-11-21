@@ -2,9 +2,8 @@ from django.db import transaction
 from decimal import Decimal
 from datetime import date
 from apps.tenant_management.models import Invoice, Lease
-from apps.tenant_management.utils.billing_utils import billing_period_for_reading_date
+from apps.tenant_management.helpers.date_helpers import get_billing_period_for_date
 from apps.tenant_management.services import BaseService
-from apps.tenant_management.exceptions import InvoiceGenerationError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,10 +17,10 @@ class BillingService(BaseService):
         Get or create invoice for the tenant respecting the property's billing_day.
         Uses retry logic to handle database lock contention.
         """
-        from apps.tenant_management.utils.date_utils import normalize_billing_day_for_month
+        from apps.tenant_management.helpers.date_helpers import normalize_billing_day_for_month
         
         billing_day = tenant.property.billing_day
-        start, end = billing_period_for_reading_date(billing_date, billing_day)
+        start, end = get_billing_period_for_date(billing_date, billing_day)
         
         def operation():
             # Try to get existing invoice first

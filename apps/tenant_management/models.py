@@ -10,19 +10,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from apps.tenant_management.utils.payment_utils import q
-from apps.tenant_management.utils.date_utils import month_bounds_for
-
-# ---------- Utilities ----------
-# CENTS = Decimal('0.01')
-# def quantize(d: Decimal) -> Decimal:
-#     """Uniform rounding to 2dp for storing money values."""
-#     if d is None:
-#         return Decimal('0.00')
-#     if not isinstance(d, Decimal):
-#         d = Decimal(str(d))
-#     return d.quantize(CENTS, rounding=ROUND_HALF_UP)
-
 
 # ---------- Core models ----------
 class WaterCompany(models.Model):
@@ -121,6 +108,7 @@ class Lease(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='leases')
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="leases")
     start_date = models.DateField()
+    end_date=models.DateField(null=True, blank=True)
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2)
     is_active = models.BooleanField(default=True, db_index=True)
 
@@ -140,9 +128,9 @@ class Lease(models.Model):
         self.is_active = False
         self.save()
 
-    @classmethod
-    def get_active_leases(cls):
-        return cls.objects.filter(is_active=True)
+    # @classmethod
+    # def get_active_leafrom apps.tenant_management.utils.date_helpers import ses(cls):
+    #     return cls.objects.filter(is_active=True)
 
     def clean(self):
         """
@@ -243,7 +231,7 @@ class Invoice(models.Model):
         total_paid = sum of Payment records
         balance = charges - payments
         """
-        from .utils import q
+        from apps.tenant_management.helpers.money_helpers import quantize_money as q
         return q(self.total_amount) - q(self.total_paid)
 
     def finalize(self):
@@ -501,7 +489,7 @@ class Deposit(models.Model):
         Refund deposit: reduces amount_held, sets refunded_amount, creates ledger entry.
         Only admin should trigger this at lease end.
         """
-        from apps.tenant_management.billings.services import refund_deposit as svc_refund
+        from apps.tenant_management.billing.services import refund_deposit as svc_refund
         return svc_refund(self, amount=amount)
 
     def apply_to_invoice(self, invoice, amount=None):
@@ -509,7 +497,7 @@ class Deposit(models.Model):
         Only admin can apply deposit to an invoice manually.
         By default, this does nothing automatically on invoice creation.
         """
-        from apps.tenant_management.billings.services import apply_deposit_to_invoice as svc_apply
+        from apps.tenant_management.billing.services import apply_deposit_to_invoice as svc_apply
         return svc_apply(self, invoice, amount=amount)
 
 

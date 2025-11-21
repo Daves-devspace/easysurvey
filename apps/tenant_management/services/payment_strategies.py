@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from django.db import transaction
 from apps.tenant_management.models import Tenant, Invoice, Payment
-from apps.tenant_management.utils.payment_utils import q
-from apps.tenant_management.exceptions import PaymentProcessingError
+from apps.tenant_management.helpers.money_helpers import quantize_money as q
+
 import logging
 
 logger = logging.getLogger(__name__)

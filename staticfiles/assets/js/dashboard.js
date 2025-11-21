@@ -8,7 +8,7 @@ async function fetchData(url) {
 document.addEventListener("DOMContentLoaded", async () => {
   // 1. Financial KPIs → Cards
   const financial = await fetchData(
-    "/tenant_management/api/dashboard/financial/"
+    "/property-management/api/dashboard/financial/"
   );
   document.getElementById("total-collected").innerText =
     financial.total_collected.toLocaleString();
@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     financial.deposits_held.toLocaleString();
 
   // 2. Occupancy per property → Bar Chart
-  const occupancy = await fetchData("/tenant_management/api/dashboard/occupancy/");
+  const occupancy = await fetchData("/property-management/api/dashboard/occupancy/");
   new Chart(document.getElementById("occupancyChart"), {
     type: "bar",
     data: {
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // 3. Invoice Status → Pie Chart
-  const operational = await fetchData("/tenant_management/api/dashboard/operational/");
+  const operational = await fetchData("/property-management/api/dashboard/operational/");
   new Chart(document.getElementById("invoiceChart"), {
     type: "pie",
     data: {
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // 4. Collections Aging → Doughnut Chart
-  const collections = await fetchData("/tenant_management/api/dashboard/collections/");
+  const collections = await fetchData("/property-management/api/dashboard/collections/");
   new Chart(document.getElementById("agingChart"), {
     type: "doughnut",
     data: {

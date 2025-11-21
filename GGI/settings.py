@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.EasyDocs',
     'apps.accounts',
     'apps.notifications',
+    'apps.tenant_management',
     
     'widget_tweaks',
     

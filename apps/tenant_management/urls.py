@@ -21,7 +21,7 @@ from .views import (
 from apps.tenant_management.tenants.payments import TenantPaymentModalView,ManualInvoiceGenerationView
 from apps.tenant_management.lease.meter_readings import MeterReadingListView, MeterReadingDeleteView, MeterReadingCreateView, MeterReadingUpdateView
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
-from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView, end_lease_view,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
+from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
 from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView, TenantMeterReadingsFilterView
 
 urlpatterns = [
@@ -118,9 +118,9 @@ urlpatterns = [
          LeaseDetailView.as_view(),
          name='lease_detail'),  # Detailed view of a single lease
 
-    path('leases/<int:lease_id>/end/',
-         end_lease_view,
-         name='end_lease'),  # POST endpoint to end a lease and free its unit
+#     path('leases/<int:lease_id>/end/',
+#          end_lease_view,
+#          name='end_lease'),  # POST endpoint to end a lease and free its unit
 
     # AJAX endpoint for dynamic dropdown of available units
     path('api/units-by-property/',
