@@ -1,5 +1,5 @@
 function openCreatePropertyModal() {
-  fetch("/tenant_management/properties/create/")
+  fetch("/property-management/properties/create/")
     .then((res) => res.text())
     .then((html) => {
       document.getElementById("propertyModalContent").innerHTML = html;
@@ -9,7 +9,7 @@ function openCreatePropertyModal() {
 }
 
 function openEditPropertyModal(id) {
-  fetch(`/tenant_management/properties/${id}/edit/`)  // backticks ✅
+  fetch(`/property-management/properties/${id}/edit/`)  // backticks ✅
     .then((res) => res.text())
     .then((html) => {
       document.getElementById("propertyModalContent").innerHTML = html;
@@ -19,7 +19,7 @@ function openEditPropertyModal(id) {
 }
 
 function openDeletePropertyModal(id) {
-  fetch(`/tenant_management/delete/${id}/`)  // backticks ✅
+  fetch(`/property-management/delete/${id}/`)  // backticks ✅
     .then((res) => res.text())
     .then((html) => {
       document.getElementById("propertyModalContent").innerHTML = html;

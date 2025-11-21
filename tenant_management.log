@@ -1,0 +1,6 @@
+2025-11-20 19:04:25 INFO [tenant_management.payment_service] Applying credit to invoice 1 for tenant David Maina
+2025-11-20 19:04:25 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-21 16:37:34 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-11-21 16:54:31 INFO [tenant_management.payment_service] Applying credit to invoice 2 for tenant Test Maina
+2025-11-21 16:54:31 INFO [tenant_management.payment_service] No available credit for tenant Test Maina
+2025-11-21 17:15:47 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina

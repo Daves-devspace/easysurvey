@@ -3,8 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from apps.tenant_management.models import Deposit, LedgerEntry
 from apps.tenant_management.services import BaseService
-from apps.tenant_management.utils.payment_utils import q
-from apps.tenant_management.exceptions import PaymentProcessingError
+from apps.tenant_management.helpers.money_helpers import quantize_money as q
 import logging
 
 logger = logging.getLogger(__name__)

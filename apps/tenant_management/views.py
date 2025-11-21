@@ -13,14 +13,17 @@ import json
 from django.http import HttpResponseRedirect, HttpResponseBadRequest,Http404, JsonResponse
 from django.db.models import Count, Prefetch, Sum, Q,OuterRef,Subquery,DecimalField, Value
 from decimal import Decimal
-from apps.tenant_management.services import get_property_leases_data
+from apps.tenant_management.utils import filter_units_for_property,filter_meter_readings_for_property,get_property_leases_data
+from django.db.models import F, ExpressionWrapper
+
+from apps.tenant_management.services.deposit_service import DepositService
 from django.db.models.functions import Coalesce
 from django.db import transaction, IntegrityError
-from apps.tenant_management.utils import filter_units_for_property, filter_meter_readings_for_property
+
 from typing import Optional
 from datetime import datetime
 
-from apps.tenant_management.billings.services import apply_deposit_to_invoice
+
 
 
 from django.core.paginator import Paginator, EmptyPage
@@ -298,7 +301,7 @@ def apply_deposit_to_final_invoice(lease, invoice):
     if not deposit:
         return None
     
-    return apply_deposit_to_invoice(
+    return DepositService.apply_deposit_to_invoice(
         deposit=deposit,
         invoice=invoice,
         lease=lease,

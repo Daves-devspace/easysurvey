@@ -1,12 +1,13 @@
 from decimal import Decimal
 from django.db import transaction
 from apps.tenant_management.models import Tenant
-from apps.tenant_management.services.payment_strategies import NewPaymentStrategy, CreditApplicationStrategy
+from apps.tenant_management.services.payment_strategies import  CreditApplicationStrategy,PaymentStrategy
+#from apps.tenant_management.services import BaseService
 from apps.tenant_management.services import BaseService
-from apps.tenant_management.exceptions import PaymentProcessingError, InvalidTenantError
-from apps.tenant_management.utils.payment_utils import q
-from apps.tenant_management.utils.logging_utils import get_logger
-from apps.tenant_management.utils.monitoring_utils import monitor_performance
+from apps.tenant_management.exceptions import InvalidTenantError
+#from apps.tenant_management.helpers.performance_monitoring import monitor_performance
+from django.db.models import Sum
+from apps.tenant_management.helpers.logging_utils import get_logger
 
 logger = get_logger("tenant_management.payment_service")
 
@@ -14,7 +15,7 @@ class PaymentService(BaseService):
     """Service for handling payment processing."""
     
     @classmethod
-    @monitor_performance("process_payment")
+ #   @monitor_performance("process_payment")
     def process_payment(cls, tenant, amount, reference=None, method="Mpesa", invoice=None):
         """
         Process a payment for a tenant.
@@ -38,7 +39,7 @@ class PaymentService(BaseService):
         
         # Use strategy pattern based on whether this is a new payment or credit application
         if amount is not None:
-            strategy = NewPaymentStrategy(tenant, reference, method)
+            strategy = PaymentStrategy(tenant, reference, method)
         else:
             strategy = CreditApplicationStrategy(tenant, reference, method)
         
@@ -57,7 +58,7 @@ class PaymentService(BaseService):
         return result
     
     @classmethod
-    @monitor_performance("apply_credit_to_invoice")
+ #   @monitor_performance("apply_credit_to_invoice")
     def apply_credit_to_invoice(cls, tenant, invoice):
         """
         Apply available tenant credit to a specific invoice.

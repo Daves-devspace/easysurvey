@@ -1,80 +1,108 @@
-# apps/tenant_management/billings/tasks.py
 import logging
 from celery import shared_task
 from django.utils import timezone
 from datetime import date
 
-from apps.tenant_management.billings.utils import (
-    generate_monthly_invoices_for_all_leases,
-)
-from apps.tenant_management.billings.services import (
-    upsert_water_invoice_line_from_reading,
-)
-from apps.tenant_management.models import MeterReading, InvoiceLine
+# Import the new Service Orchestrators
+from apps.tenant_management.services.billing_cycle_service import BillingCycleService
+from apps.tenant_management.services.invoice_service import InvoiceService
+from apps.tenant_management.models import MeterReading
 
 logger = logging.getLogger(__name__)
 
-
+# ---------------------------------------------------------
+# TASK 1: MONTHLY RENT ROLL (Schedule: 1st of Month)
+# ---------------------------------------------------------
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def generate_monthly_invoices(self, run_date: str | None = None):
     """
-    Celery task: batch-generate fully finalized invoices (rent + water + credits)
-    for all active leases in one go.
+    STEP 1 OF WORKFLOW: Rent Roll Generation.
+    
+    Should be scheduled via Celery Beat to run on the 1st of every month.
+    Generates invoices with Rent + Auto-applies Credits.
+    Status will be DRAFT or PENDING.
 
     Args:
-        run_date: optional ISO string (YYYY-MM-DD) for deterministic testing;
-                  defaults to today.
-
-    Returns:
-        dict: summary {created: X, updated: Y}
+        run_date: optional ISO string (YYYY-MM-DD) for deterministic testing.
     """
     ref_date = date.fromisoformat(run_date) if run_date else timezone.now().date()
-    logger.info("📄 Generating ALL invoices for reference date=%s", ref_date)
+    logger.info("🚀 Starting Monthly Rent Roll for date=%s", ref_date)
 
     try:
-        result = generate_monthly_invoices_for_all_leases(ref_date)
-        logger.info("✅ Monthly invoice task complete. Created=%s, Updated=%s",
-                    result["created"], result["updated"])
+        # Delegate to the new Orchestrator
+        result = BillingCycleService.generate_rent_roll(target_date=ref_date)
+        
+        logger.info(
+            "✅ Rent Roll Complete. Created=%s, Errors=%s",
+            result["created"], result["errors"]
+        )
         return result
     except Exception:
-        logger.exception("❌ Failed while generating monthly invoices for %s", ref_date)
+        logger.exception("❌ Failed during Rent Roll generation for %s", ref_date)
         raise
-    
-    
-    
 
+
+# ---------------------------------------------------------
+# TASK 2: DAILY FINALIZATION (Schedule: Daily at ~8:00 AM)
+# ---------------------------------------------------------
+@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def finalize_daily_invoices(self):
+    """
+    STEP 2 OF WORKFLOW: Daily Finalization Check.
+    
+    Should be scheduled via Celery Beat to run EVERY DAY.
+    Checks if today is the 'billing_day' for any property.
+    If so, it checks if invoices are ready (Rent + Water) and marks them FINALIZED.
+    """
+    today = timezone.now().date()
+    logger.info("🔄 Running Daily Invoice Finalization Check for %s", today)
+
+    try:
+        # Delegate to the new Orchestrator
+        BillingCycleService.process_billing_day(specific_date=today)
+        
+        logger.info("✅ Daily Finalization Check Complete.")
+        return True
+    except Exception:
+        logger.exception("❌ Failed during Daily Finalization Check")
+        raise
+
+
+# ---------------------------------------------------------
+# TASK 3: EVENT DRIVEN (Triggered on Save)
+# ---------------------------------------------------------
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def process_new_meter_reading(self, reading_id: int):
     """
-    Celery Task that delegates to the service layer.
-    Now passes billing_month_date to ensure consistent billing period selection.
+    Event-Driven Task: Triggered when a MeterReading is saved.
+    Updates the existing Pending Invoice with the water charge.
     """
-    from apps.tenant_management.billings.services import upsert_water_invoice_line_from_reading
-
     try:
         mr = MeterReading.objects.select_related(
-            'unit', 'unit__property', 'unit__property__water_company'
+            'unit', 'unit__property'
         ).get(pk=reading_id)
     except MeterReading.DoesNotExist:
         logger.warning("⚠️ MeterReading %s not found (probably deleted). Skipping.", reading_id)
         return None
 
     if mr.current_reading is None:
-        logger.debug("process_new_meter_reading: reading %s has no current_reading; skipping", reading_id)
+        logger.debug("Reading %s has no current_reading; skipping", reading_id)
         return None
 
     try:
-        # Pass the reading_date as billing_month_date to ensure consistency
-        il = upsert_water_invoice_line_from_reading(mr, billing_month_date=mr.reading_date)
+        # Upsert the water line to the pending invoice
+        # We pass reading_date to ensure we hit the correct invoice period
+        il = InvoiceService.upsert_water_invoice_line_from_reading(
+            mr, 
+            billing_month_date=mr.reading_date
+        )
+        
         if il:
-            logger.info("💧 Processed MeterReading %s → InvoiceLine %s", reading_id, il.pk)
+            logger.info("💧 Added Water Line %s to Invoice for Reading %s", il.pk, reading_id)
             return il.pk
 
-        logger.debug("MeterReading %s did not result in invoice line (not latest/final)", reading_id)
+        logger.debug("No invoice line created for Reading %s (Check lease status)", reading_id)
         return None
     except Exception:
         logger.exception("Error while processing MeterReading %s", reading_id)
         raise
-
-
-
