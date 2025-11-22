@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from apps.tenant_management.models import Tenant, Lease, Deposit, Unit
+from apps.tenant_management.models import Tenant, Lease, Deposit, Unit,MeterReading
 # Import the InvoiceService to trigger billing on creation
 from apps.tenant_management.services.invoice_service import InvoiceService
 
@@ -23,7 +23,8 @@ class TenantLeaseService:
         1. Create/Update Tenant.
         2. Create/Update Lease.
         3. Mark Unit as Occupied.
-        4. Generate the FIRST Invoice (Move-in Invoice: Deposit + Rent).
+        4. Create Baseline Meter Reading (NEW).
+        5. Generate the FIRST Invoice (Move-in Invoice: Deposit + Rent).
         """
         try:
             with transaction.atomic():
@@ -39,12 +40,15 @@ class TenantLeaseService:
                     action = "created"
 
                 # --- 2. Handle Lease ---
+                # Extract the initial reading from the payload so it doesn't break Lease creation
+                initial_reading_val = lease_data.pop("initial_reading", None)
+                
                 if lease_id:
                     lease = Lease.objects.get(pk=lease_id, tenant=tenant)
                     old_unit = lease.unit
                     
                     for field, value in lease_data.items():
-                        if field != "deposit_amount": # Deposit amount is stored on Lease model but also creates Deposit obj
+                        if field != "deposit_amount": 
                             setattr(lease, field, value)
                     lease.save()
                     
@@ -71,8 +75,6 @@ class TenantLeaseService:
                     lease_action = "created"
 
                 # --- 3. Handle Deposit Object ---
-                # We create the Deposit object here to track the liability.
-                # The InvoiceService will pick this up to create the line item on the bill.
                 deposit_amount = lease_data.get("deposit_amount", Decimal('0.00'))
                 if deposit_amount > 0:
                     Deposit.objects.get_or_create(
@@ -80,13 +82,24 @@ class TenantLeaseService:
                         defaults={
                             "tenant": tenant,
                             "amount": deposit_amount, 
-                            "amount_held": Decimal('0.00') # Held is 0 until paid
+                            "amount_held": Decimal('0.00')
                         }
                     )
+                    
+                # --- 4. Handle Baseline Meter Reading (NEW) ---
+                # We create a reading with 0 usage to act as the start point for the next calculation.
+                if lease_action == "created" and initial_reading_val is not None:
+                    MeterReading.objects.create(
+                        unit=lease.unit,
+                        reading_date=lease.start_date,
+                        previous_reading=Decimal('0.00'), # Irrelevant for baseline
+                        current_reading=initial_reading_val,
+                        usage=Decimal('0.00'),
+                        amount=Decimal('0.00'),
+                    )
 
-                # --- 4. Trigger Move-In Invoice ---
-                # This generates the invoice for the start_date (e.g., Jan 15).
-                # It will include Prorated Rent + Deposit Line.
+                # --- 5. Trigger Move-In Invoice ---
+                # This generates the invoice for the start_date.
                 if lease_action == "created":
                     InvoiceService.upsert_rent_invoice_line_for_lease(
                         lease=lease, 
@@ -96,7 +109,7 @@ class TenantLeaseService:
                 return {
                     "tenant": tenant,
                     "lease": lease,
-                    "message": f"Tenant {tenant.full_name} and lease {lease_action} successfully. Initial invoice generated."
+                    "message": f"Tenant {tenant.full_name} added. Baseline reading set to {initial_reading_val}."
                 }
 
         except ValidationError as e:

@@ -17,7 +17,7 @@ from apps.tenant_management.forms import (
     CombinedTenantLeaseForm
 )
 from .services import TenantLeaseService
-from apps.tenant_management.services.invoice_service import InvoiceService # Added for Standalone Lease
+from apps.tenant_management.services.invoice_service import InvoiceService
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +87,12 @@ class TenantLeaseCreateView(FormView):
             "unit_id": self.unit.id,
             "start_date": form.cleaned_data["start_date"],
             "deposit_amount": form.cleaned_data.get("deposit_amount", Decimal("0.00")),
+            # --- NEW: Pass the initial reading ---
+            "initial_reading": form.cleaned_data.get("initial_reading"),
         }
 
         try:
-            # Call Service (Handles creation + Invoice generation)
+            # Call Service (Handles creation + Invoice generation + Baseline Reading)
             result = TenantLeaseService.save_tenant_with_lease(tenant_data, lease_data)
         except ValidationError as e:
             form.add_error(None, getattr(e, "message", str(e)))
