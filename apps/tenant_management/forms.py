@@ -203,16 +203,40 @@ class CombinedTenantLeaseForm(forms.Form):
         max_length=15,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+2547XXXXXXXX'})
     )
-    email = forms.EmailField(required=False, widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (optional)'}))
-    national_id = forms.CharField(max_length=20, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'}))
+    email = forms.EmailField(
+        required=False, 
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (optional)'})
+    )
+    national_id = forms.CharField(
+        max_length=20, 
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'})
+    )
 
     # Hidden authoritative IDs (integers) - view sets initial; JS sets unit on click
     property = forms.IntegerField(widget=forms.HiddenInput())
     unit = forms.IntegerField(widget=forms.HiddenInput())
 
     # Lease fields
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'min': timezone.now().date().isoformat()}))
-    deposit_amount = forms.DecimalField(max_digits=10, decimal_places=2, widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}), required=False, initial=Decimal('0.00'))
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    deposit_amount = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}), 
+        required=False, 
+        initial=Decimal('0.00')
+    )
+    
+    # --- NEW FIELD: Initial Reading ---
+    initial_reading = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'e.g. 1050.00'}),
+        required=True, 
+        label="Initial Meter Reading",
+        help_text="The number currently on the water meter."
+    )
 
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number')
@@ -220,7 +244,6 @@ class CombinedTenantLeaseForm(forms.Form):
             phone = phone.replace(' ', '').replace('-', '')
             if phone.startswith('0'):
                 phone = '+254' + phone[1:]
-            from .models import Tenant
             if Tenant.objects.filter(phone_number=phone).exists():
                 raise ValidationError("A tenant with this phone already exists.")
         return phone
@@ -229,7 +252,6 @@ class CombinedTenantLeaseForm(forms.Form):
         nid = self.cleaned_data.get('national_id')
         if nid:
             nid = ''.join(filter(str.isdigit, nid))
-            from .models import Tenant
             if Tenant.objects.filter(national_id=nid).exists():
                 raise ValidationError("A tenant with this national ID already exists.")
         return nid
@@ -239,7 +261,6 @@ class CombinedTenantLeaseForm(forms.Form):
         prop_id = cleaned.get('property')
         unit_id = cleaned.get('unit')
 
-        from .models import Property, Unit
         if prop_id is None or not Property.objects.filter(pk=prop_id).exists():
             raise ValidationError("Invalid property selected.")
 
@@ -257,8 +278,6 @@ class CombinedTenantLeaseForm(forms.Form):
             raise ValidationError("Selected unit is already occupied.")
 
         return cleaned
-    
-
 
 
 

@@ -89,6 +89,7 @@
       <i class="bi bi-file-earmark-text me-2"></i>Lease Information
     </h6>
     
+    {# Row 1: Start Date & Initial Reading #}
     <div class="row">
       <div class="col-md-6">
         <div class="mb-3">
@@ -101,6 +102,26 @@
       </div>
       
       <div class="col-md-6">
+        <div class="mb-3">
+          {{ combined_form.initial_reading.label_tag }}
+          <div class="input-group">
+             {# Optional icon for meter #}
+             <span class="input-group-text"><i class="bi bi-speedometer2"></i></span>
+             {{ combined_form.initial_reading }}
+          </div>
+          {% if combined_form.initial_reading.errors %}
+            <div class="text-danger small">{{ combined_form.initial_reading.errors }}</div>
+          {% endif %}
+          <div class="form-text text-muted">
+             Required. Sets the baseline for water billing.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Row 2: Deposit #}
+    <div class="row">
+      <div class="col-md-12">
         <div class="mb-3">
           {{ combined_form.deposit_amount.label_tag }}
           <div class="input-group">

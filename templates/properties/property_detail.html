@@ -294,53 +294,46 @@
                                     <div class="card-body">
 
                                       <!-- Filters -->
-                                      <form
-                                        class="row g-2 align-items-end mb-3 flex-wrap"
-                                        hx-get="{% url 'property_readings_partial' property_obj.id %}"
-                                        hx-target="#readingsWrapper"
-                                        hx-trigger="change from:input, change from:select, submit"
-                                      >
-                                        <div class="col-auto">
-                                          <label for="month" class="form-label small mb-1">Billing month</label>
-                                          <!-- Use last finalized month by default -->
-                                          <input
-                                            type="month"
-                                            id="month"
-                                            name="month"
-                                            value="{{ active_month }}"
-                                            max="{{ active_month }}"
-                                            class="form-control form-control-sm"
-                                          />
-                                        </div>
+                                    <form class="row g-2 align-items-end mb-3 flex-wrap"
+                                                      hx-get="{% url 'property_readings_partial' property_obj.id %}"
+                                                      hx-target="#readingsWrapper"
+                                                      hx-trigger="change from:input, change from:select, submit">
+                                                    
+                                                    <div class="col-auto">
+                                                        <label for="month" class="form-label small mb-1">Billing Month</label>
+                                                        <!-- 
+                                                            FIXED: 
+                                                            value = {{ active_month }} (The currently filtered month)
+                                                            max = {% now 'Y-m' %} (Allows selection up to current month, preventing blockage) 
+                                                        -->
+                                                        <input type="month" 
+                                                               id="month" 
+                                                               name="month"
+                                                               value="{{ active_month }}" 
+                                                               max="{% now 'Y-m' %}" 
+                                                               class="form-control form-control-sm" />
+                                                    </div>
 
-                                        <div class="col-auto">
-                                          <label for="reading_status" class="form-label small mb-1">Status</label>
-                                          <select
-                                            id="reading_status"
-                                            name="reading_status"
-                                            class="form-select form-select-sm"
-                                          >
-                                            <option value="all" {% if reading_status == "all" %}selected{% endif %}>All</option>
-                                            <option value="filled" {% if reading_status == "filled" %}selected{% endif %}>Filled</option>
-                                            <option value="pending" {% if reading_status == "pending" %}selected{% endif %}>Pending</option>
-                                          </select>
-                                        </div>
+                                                    <div class="col-auto">
+                                                        <label for="reading_status" class="form-label small mb-1">Status</label>
+                                                        <select id="reading_status" name="reading_status" class="form-select form-select-sm">
+                                                            <option value="all" {% if reading_status == "all" %}selected{% endif %}>All</option>
+                                                            <option value="filled" {% if reading_status == "filled" %}selected{% endif %}>Filled</option>
+                                                            <option value="pending" {% if reading_status == "pending" %}selected{% endif %}>Pending</option>
+                                                        </select>
+                                                    </div>
 
-                                        <div class="col-auto">
-                                          <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-                                        </div>
-                                        <div class="col-auto">
-                                          <!-- Optional: quick reset to default month + all -->
-                                          <button
-                                            type="button"
-                                            class="btn btn-sm btn-outline-secondary"
-                                            hx-get="{% url 'property_readings_partial' property_obj.id %}?month={{ active_month }}&reading_status=all"
-                                            hx-target="#readingsWrapper"
-                                          >
-                                            Reset
-                                          </button>
-                                        </div>
-                                      </form>
+                                                    <div class="col-auto">
+                                                        <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                                hx-get="{% url 'property_readings_partial' property_obj.id %}?month={% now 'Y-m' %}&reading_status=all"
+                                                                hx-target="#readingsWrapper">
+                                                            Reset to Current
+                                                        </button>
+                                                    </div>
+                                                </form>
 
                                       <!-- Wrapper the partial will replace -->
                                       <div id="readingsWrapper">
