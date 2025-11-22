@@ -10,7 +10,7 @@ __pycache__/
 
 # Logs
 *.log
-
+.pdf
 # Virtual environments
 .venv
 env/
