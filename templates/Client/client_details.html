@@ -212,7 +212,7 @@
 
                         <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
                             <i class="ti ti-map-pin text-muted me-2 mt-1"></i>
-                            <span class="text-muted small lh-sm mt-1">Location / Address Placeholder</span>
+                            <span class="text-muted small lh-sm mt-1">Location / Address</span>
                         </div>
 
                     </div>
@@ -268,7 +268,7 @@
                                             <button class="btn btn-sm btn-success d-flex align-items-center br-5"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#addClientServiceModal">
-                                                <i class="ti ti-circle-plus p-3 me-1"></i> Service
+                                                <i class="ti ti-circle-plus  me-1 "></i> Service
                                             </button>
                                         {% endif %}
                                     </div>
@@ -323,7 +323,7 @@
                                                                             data-service-id="{{ cs.id }}"
                                                                             data-service-name="{{ cs.service.name|escape }}"
                                                                             >
-                                                                            <i class="ti ti-circle-plus"></i> Add SubService
+                                                                            <i class="ti ti-circle-plus"></i>SubService
                                                                             </button>
 
                                                                     {% endif %}
@@ -338,7 +338,7 @@
                                                                         data-service-name="{{ cs.service.name }}"
                                                                         data-service-id="{{ cs.id }}"
                                                                         data-service-id-label="{{ cs.service.name }}">  {# optional label fallback #}
-                                                                        <i class="ti ti-circle-plus me-1 txt-white"></i> Add Booking
+                                                                        <i class="ti ti-circle-plus me-1 txt-white"></i> Booking
                                                                         </button>
                                                                     </div>
                                                                     
@@ -855,7 +855,7 @@
 
                                             <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
                                                 <i class="ti ti-map-pin text-muted me-2 mt-1"></i>
-                                                <span class="text-muted small lh-sm mt-1">Location / Address Placeholder</span>
+                                                <span class="text-muted small lh-sm mt-1">Location / Address</span>
                                             </div>
 
                                         </div>
@@ -962,9 +962,9 @@
                                         <div>
                                             <!-- Existing buttons -->
                                             <!-- Trigger button -->
-                                                                        <button type="button" class="btn btn-success mb-3"
+                                                                        <button type="button" class="btn btn-success btn-sm mb-3"
                                                                                 data-bs-toggle="modal" data-bs-target="#uploadDocModal">
-                                                                            Add New Document
+                                                                            <i class="ti ti-circle-plus me-1 txt-white"></i>Document
                                                                         </button>
                                             
                                             <!-- Migration Button (show only if Drive is configured) -->
