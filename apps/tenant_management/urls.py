@@ -98,7 +98,7 @@ urlpatterns = [
      path(
      'units/<int:unit_id>/tenant/<int:tenant_id>/existing-tenant-lease/',
      LeaseCreateView.as_view(),
-     name='existing_tenant_lease_create'
+     name='lease_create'
      ),
      
      path('units/lease/<int:pk>/edit/',

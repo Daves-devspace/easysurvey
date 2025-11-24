@@ -21,20 +21,16 @@ from apps.tenant_management.services.billing_cycle_service import BillingCycleSe
 
 class TenantPaymentModalView(FormView):
     """
-    Handles tenant payments via the new PaymentService.
+    Handles tenant payments.
+    - If invoice_id is provided: Pays that specific invoice.
+    - If invoice_id is None: Acts as a 'Recharge' (FIFO allocation).
     """
     form_class = PaymentForm
-    template_name = "tenant_management/payment_modal_stub.html"  # not used for modal POST
-    success_url = reverse_lazy("tenant_list")
+    template_name = "tenant_management/payment_modal_stub.html"
 
     def dispatch(self, request, *args, **kwargs):
-        # ensure tenant exists
         self.tenant = get_object_or_404(Tenant, pk=kwargs.get("tenant_id"))
         return super().dispatch(request, *args, **kwargs)
-
-    def get_success_url(self):
-        # prefer to return to referring page when possible
-        return self.request.META.get("HTTP_REFERER") or super().get_success_url()
 
     def form_valid(self, form):
         amount = form.cleaned_data["amount"]
@@ -42,34 +38,32 @@ class TenantPaymentModalView(FormView):
         reference = form.cleaned_data.get("reference")
         method = form.cleaned_data.get("method") or "Mpesa"
 
-        # Resolve invoice if provided (ensure it's the same tenant and unpaid)
+        # Resolve invoice if provided
         invoice = None
         if invoice_id:
             invoice = Invoice.objects.filter(pk=invoice_id, tenant=self.tenant).first()
+            # If the invoice is already paid, ignore the ID and treat as general credit
             if invoice and invoice.is_paid:
-                invoice = None  # ignore paid invoice; let allocation logic decide
+                invoice = None 
 
         try:
-            with transaction.atomic():
-                # Use the new PaymentService Strategy
-                # This handles allocation, deposits, and overpayment credits automatically
-                PaymentService.process_payment(
-                    tenant=self.tenant,
-                    amount=Decimal(amount),
-                    reference=reference,
-                    method=method,
-                    invoice=invoice
-                )
+            # Use Service Layer for robust transaction handling
+            PaymentService.process_payment(
+                tenant=self.tenant,
+                amount=Decimal(amount),
+                reference=reference,
+                method=method,
+                invoice=invoice
+            )
+            messages.success(self.request, f"Payment of {amount} processed successfully.")
         except Exception as e:
-            messages.error(self.request, f"Failed to process payment: {str(e)}")
-            return redirect(self.get_success_url())
-
-        messages.success(self.request, f"Payment of {amount} submitted successfully.")
-        return redirect(self.get_success_url())
+            messages.error(self.request, f"Payment failed: {str(e)}")
+            
+        return redirect(self.request.META.get("HTTP_REFERER", "/"))
 
     def form_invalid(self, form):
-        messages.error(self.request, "Invalid payment data. Please correct the highlighted fields.")
-        return redirect(self.get_success_url())
+        messages.error(self.request, "Invalid payment details. Please check amount.")
+        return redirect(self.request.META.get("HTTP_REFERER", "/"))
 
 
 @method_decorator(staff_member_required, name="dispatch")

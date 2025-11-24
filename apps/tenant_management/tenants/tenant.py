@@ -20,6 +20,19 @@ from django.db.models import F, ExpressionWrapper
 from django.http import Http404
 from django.views import View
 
+# views.py
+
+from django.shortcuts import render, get_object_or_404
+from django.views.generic import DetailView, View
+from django.db.models import Sum, FloatField, Q
+from datetime import datetime
+from django.utils.dateparse import parse_date
+from apps.tenant_management.utils import (
+    get_tenant_leases_data
+)
+
+
+
 def _build_tenant_row_context(tenant):
     """Return a 'row' dict used by the tenant_row partial."""
     # Try to get an active lease related to the tenant (adjust related name if needed)
@@ -250,15 +263,11 @@ class TenantListView(ListView):
 
 
 
-# views.py
-
-from django.shortcuts import render, get_object_or_404
-from django.views.generic import DetailView, View
-from django.db.models import Sum, FloatField, Q
-from datetime import datetime
-from django.utils.dateparse import parse_date
-
 class TenantDetailView(DetailView):
+    """
+    Comprehensive Dashboard for a single Tenant.
+    Shows all leases (active/expired), financial summary, and payment history.
+    """
     model = Tenant
     template_name = "tenants/tenant_detail.html"
     context_object_name = "tenant"
@@ -266,125 +275,43 @@ class TenantDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        tenant: Tenant = self.object
+        tenant = self.object
 
-        leases_qs = Lease.objects.filter(tenant=tenant).select_related("unit", "unit__property")
-        all_invoice_lines = InvoiceLine.objects.filter(lease__tenant=tenant).select_related("lease", "invoice", "meter_reading")
-        all_deposits = Deposit.objects.filter(tenant=tenant)
-        all_payments = Payment.objects.filter(invoice__tenant=tenant).select_related("invoice")
+        # 1. Financial Data & Leases (Using Shared Utility)
+        leases_data, aggregates = get_tenant_leases_data(tenant)
+        ctx['leases_data'] = leases_data
+        ctx.update(aggregates)
 
-        # Latest meter readings per unit
-        meter_readings = {
-            lease.unit_id: MeterReading.objects.filter(unit=lease.unit).order_by("-reading_date").first()
-            for lease in leases_qs
-        }
-
-        leases_data = []
-        for lease in leases_qs:
-            total_invoiced = sum(line.amount for line in all_invoice_lines if line.lease_id == lease.pk)
-            total_deposit = sum(dep.amount for dep in all_deposits if dep.lease_id == lease.pk)
-            total_paid = sum(p.amount for p in all_payments if p.invoice.lines.filter(lease_id=lease.pk).exists())
+        # 2. Data for Tables
+        ctx['invoices'] = Invoice.objects.filter(tenant=tenant).order_by("-billing_period_start")
+        
+        # --- FIX: Filter Payments to remove duplicate "Master" records ---
+        # We exclude 'MIXED' type because those represent the "Total Container" 
+        # for split payments. We only want to see the actual breakdown (RENT, DEPOSIT, CREDIT).
+        ctx['payments'] = Payment.objects.filter(tenant=tenant)\
+            .exclude(payment_type='MIXED')\
+            .select_related("invoice")\
+            .order_by("-payment_date")
             
-            latest_reading = meter_readings.get(lease.unit_id)
-            previous_meter = latest_reading.previous_reading if latest_reading else None
-            current_meter = latest_reading.current_reading if latest_reading else None
+        # Meter Readings
+        ctx['meter_readings'] = MeterReading.objects.filter(
+            unit__leases__tenant=tenant
+        ).select_related("unit", "unit__property").order_by("-reading_date").distinct()
 
-            # Water usage lines
-            water_lines = [line for line in all_invoice_lines if line.lease_id == lease.pk and line.meter_reading]
-            total_water_usage = sum((line.meter_reading.usage or Decimal("0.00")) for line in water_lines)
-            total_water_amount = sum((line.amount or Decimal("0.00")) for line in water_lines)
-
-            leases_data.append({
-                "lease": lease,
-                "unit": lease.unit,
-                "property": lease.unit.property,
-                "rent_amount": lease.unit.rent_amount or Decimal("0.00"),
-                "deposit": total_deposit,
-                "status": "Active" if lease.is_active else "Expired",
-                "total_invoiced": total_invoiced,
-                "total_paid": total_paid,
-                "balance": total_invoiced - total_paid,
-                "balance_abs": abs(total_invoiced - total_paid),
-                "previous_meter": previous_meter,
-                "current_meter": current_meter,
-                "water_lines": water_lines,
-                "total_water_usage": total_water_usage,
-                "total_water_amount": total_water_amount,
-            })
-
-        # --- Tenant-level deposits summary ---
-        deposits_for_tenant = Deposit.objects.filter(tenant=tenant)
-
-        total_deposit_held = deposits_for_tenant.aggregate(
-            total=Coalesce(Sum("amount_held"), Value(Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-
-        total_deposit_refunded = deposits_for_tenant.aggregate(
-            total=Coalesce(Sum("refunded_amount"), Value(Decimal("0.00")))
-        )["total"] or Decimal("0.00")
-
-        total_deposit_ledger_credit = LedgerEntry.objects.filter(
-            tenant=tenant,
-            deposit__isnull=False,
-            credit__gt=0
-        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
-
-        total_deposit_applied_to_invoices = LedgerEntry.objects.filter(
-            tenant=tenant,
-            deposit__isnull=False,
-            invoice__isnull=False,
-            credit__gt=0
-        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
-
-        # Tenant unallocated credit
-        tenant_credit = LedgerEntry.objects.filter(
-            tenant=tenant,
-            invoice__isnull=True,
-            deposit__isnull=True
-        ).aggregate(total=Coalesce(Sum("credit"), Value(Decimal("0.00"))))["total"] or Decimal("0.00")
-
-        # Additional context data
-        payments = Payment.objects.filter(tenant=tenant).select_related("invoice").order_by("-payment_date")
-        total_units = leases_qs.values_list("unit_id", flat=True).distinct().count()
-
-        # Vacant units grouped by property
-        property_ids = leases_qs.values_list("unit__property_id", flat=True).distinct()
-        if property_ids:
-            properties = Property.objects.filter(pk__in=set(property_ids)).prefetch_related(
-                Prefetch("units", queryset=Unit.objects.filter(is_occupied=False).order_by("unit_number"))
-            )
-        else:
-            properties = Property.objects.none()
-        available_units_by_property = [{"property": p, "units": list(p.units.all())} for p in properties if p.units.exists()]
-
-        # Tenant-wide financial totals
-        totals = get_tenant_financials(tenant)
-
-        # Get all meter readings for the tenant
-        tenant_meter_readings = MeterReading.objects.filter(
-            unit__leases__tenant=tenant  # plural 'leases'
-        ).select_related("unit", "unit__property").order_by("-reading_date")
-        tenant_invoices = Invoice.objects.filter(tenant=tenant).order_by("-billing_period_start")
-
-
-        # Final context dictionary
-        ctx.update({
-            "invoices": tenant_invoices,
-            "leases": list(leases_qs),
-            "leases_data": leases_data,
-            "payments": list(payments),
-            "total_units": total_units,
-            "total_deposit_held": total_deposit_held,
-            "total_deposit_refunded": total_deposit_refunded,
-            "total_deposit_ledger_credit": total_deposit_ledger_credit,
-            "total_deposit_applied_to_invoices": total_deposit_applied_to_invoices,
-            "tenant_credit": tenant_credit,
-            "available_units_by_property": available_units_by_property,
-            "meter_readings": tenant_meter_readings,
-            **totals,
-        })
+        # 3. Data for "Assign Unit" Modal
+        properties_with_vacancies = Property.objects.prefetch_related(
+            Prefetch("units", queryset=Unit.objects.filter(is_occupied=False).order_by("unit_number"))
+        ).distinct()
+        
+        available_units_by_property = [
+            {"property": p, "units": list(p.units.all())} 
+            for p in properties_with_vacancies if p.units.exists()
+        ]
+        ctx['available_units_by_property'] = available_units_by_property
 
         return ctx
+
+
 
 
 # HTMX endpoint for filtering invoices

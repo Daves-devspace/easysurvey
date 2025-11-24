@@ -1,939 +1,610 @@
 {% extends 'Home/base.html' %}
 {% load static %}
 {% load custom_filters %}
-{% load service_extras %}
-{% load client_extras %}
+
+{% block extra_css %}
+<style>
+    /* --- EXISTING STAT CARD STYLES --- */
+    .stat-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        border-left: 4px solid transparent;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card.border-blue { border-left-color: #3b82f6; }
+    .stat-card.border-green { border-left-color: #22c55e; }
+    .stat-card.border-red { border-left-color: #ef4444; }
+    .stat-card.border-orange { border-left-color: #f97316; }
+
+    .stat-card .meta { display: flex; align-items: flex-start; gap: 1rem; }
+    .stat-card .icon {
+        width: 48px; height: 48px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; flex-shrink: 0;
+    }
+    .stat-card .label {
+        font-size: 0.875rem; color: #6c757d; font-weight: 500;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .stat-card .value {
+        font-size: 1.25rem; font-weight: 700; color: #1f2937;
+        line-height: 1.2; margin-top: 4px;
+    }
+    .stat-card .small-badge {
+        font-size: 0.7rem; padding: 4px 8px; border-radius: 12px; text-transform: uppercase;
+    }
+
+    /* --- NEW PROFILE CARD STYLES (For the Left Column) --- */
+    .profile-card {
+        background: #fff;
+        overflow: hidden;
+    }
+    
+    /* The colored banner area */
+    .profile-header {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%); /* Dark slate gradient */
+        height: 130px;
+        border-radius: 8px 8px 0 0;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    /* Optional fade overlay effect */
+    .fade-overlay {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+        border-radius: 8px 8px 0 0;
+        pointer-events: none;
+    }
+
+    /* Wrapper to pull avatar up over the header */
+    .avatar-wrapper {
+        position: relative;
+        margin-top: -50px; /* Pulls avatar up */
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .chat-avatar {
+        position: relative;
+        display: inline-block;
+    }
+
+    .avatar-img {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border: 4px solid #fff; /* White ring */
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        background-color: #fff;
+    }
+
+    /* Edit pencil button */
+    .avatar-edit-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: #64748b;
+        padding: 0;
+    }
+    .avatar-edit-btn:hover {
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    /* Custom color utility matching your snippet */
+    .bg-orange-400 {
+        background-color: #fb923c !important;
+    }
+    
+    /* Small font adjustments */
+    .header-text h5 { font-weight: 600; letter-spacing: 0.3px; }
+    .fs-7 { font-size: 0.75rem; }
+</style>
+{% endblock %}
 
 {% block body %}
-
-
-    <!-- [ Main Content ] start -->
-    <div class="pc-container">
+<div class="pc-container">
     <div class="pc-content">
-    <!-- [ breadcrumb ] start -->
-    <div class="page-header">
-        <div class="page-block">
-            <div class="row align-items-center">
-                <div class="col-md-12">
-                    <ul class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
-                        <li class="breadcrumb-item"><a href="javascript: void(0)">Property</a></li>
-                        <li class="breadcrumb-item" aria-current="page">Tenant's Profile</li>
-                    </ul>
+        <!-- Breadcrumb -->
+        <div class="page-header">
+            <div class="page-block">
+                <div class="row align-items-center">
+                    <div class="col-md-12">
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                            <li class="breadcrumb-item">Tenants</li>
+                            <li class="breadcrumb-item active">{{ tenant.full_name }}</li>
+                        </ul>
+                    </div>
                 </div>
-                
-
             </div>
         </div>
-    </div>
-    <!-- [ breadcrumb ] end -->
-    <div class="container-fluid col-lg-12">
-    {% if messages %}
-        {% for message in messages %}
-            {% if message.tags == 'error' %}
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            {% elif message.tags == 'success' %}
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {% elif message.tags == 'warning' %}
-                <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            {% elif message.tags == 'info' %}
-                <div class="alert alert-info alert-dismissible fade show" role="alert">
-            {% else %}
-                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+
+        <!-- Messages -->
+        <div class="container-fluid">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
             {% endif %}
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-        {% endfor %}
-    {% endif %}
-</div>
 
-<!-- [ Main Content ] start -->
-<div class="row">
-    <!-- [ sample-page ] start -->
-    <div class="col-sm-12">
-        <div class="card">
-            <div class="card-header pb-0">
-                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
-                           href="#profile-1"
-                           role="tab"
-                           aria-selected="true">
-                            <i class="ti ti-user me-2"></i>Profile
-                        </a>
-                    </li>
-                   
-                    <li class="nav-item">
-                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                        role="tab" aria-selected="true">
-                            <i class="ti ti-file-text me-2"></i>Lease / Invoices
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
-                        role="tab" aria-selected="false">
-                            <i class="ti ti-file-text me-2"></i>All Payments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
-                        role="tab" aria-selected="false">
-                            <i class="ti ti-file-text me-2"></i>Meter Readings
-                        </a>
-                    </li>
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="card">
+                    <!-- Tabs Header -->
+                    <div class="card-header pb-0">
+                        <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#profile-1"><i class="ti ti-user me-2"></i>Profile & Leases</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-2"><i class="ti ti-file-text me-2"></i>Invoices</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-3"><i class="ti ti-receipt me-2"></i>Payments</a></li>
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-4"><i class="ti ti-dashboard me-2"></i>Readings</a></li>
+                        </ul>
+                    </div>
 
-                    
-                </ul>
-            </div>
-            <div class="card-body">
-                <div class="tab-content">
-                    <!--profile-->
-                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
-                         aria-labelledby="profile-tab-1">
-                        <div class="row">
-                            <div class="col-lg-4 col-xxl-3">
-                                <div class="card shadow-sm border-0 h-100">
-                                    <div class="card-body text-center p-4">
-                                        
-                                        <!-- Avatar -->
-                                        <div class="chat-avtar d-inline-flex mx-auto mb-3">
-                                        <img class="rounded-circle img-fluid wid-70 shadow-sm"
-                                            src="{% static 'assets/images/user/avatar-5.jpg' %}"
-                                            alt="User image">
-                                        </div>
-                                        
-                                        <!-- Name + Role -->
-                                        <h5 class="mb-1">{{ tenant.full_name }}</h5>
-                                        <p class="text-muted text-sm mb-3">Tenant</p>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            
+                            <!-- TAB 1: Profile & Leases -->
+                            <div class="tab-pane show active" id="profile-1">
+                                <div class="row">
+                                    
+                                    <!-- --- UPDATED TENANT PROFILE CARD --- -->
+                                    <div class="col-lg-4 mb-4">
+                                        <div class="card h-100 border-0 shadow-sm">
+                                            <div class="card-body position-relative p-0">
+                                                <div class="profile-card">
+                                                    <!-- HEADER: background image area -->
+                                                    <div class="profile-header text-white position-relative">
+                                                        <!-- Header text -->
+                                                        <div class="header-text z-1">
+                                                            <h5 class="mb-0 text-white">{{ tenant.full_name }}</h5>
+                                                            <p class="text-white-50 text-sm mb-0">Tenant ID: #{{ tenant.id }}</p>
+                                                        </div>
+                                                        <!-- Fading overlay -->
+                                                        <div class="fade-overlay"></div>
+                                                    </div>
 
-                                        <!-- Action Buttons -->
-                                        <div class="d-flex justify-content-center gap-2 mb-4 flex-wrap">
-                                        <a href="#" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-pencil-square me-1"></i>Edit Details
-                                        </a>
-                                        <a href="#" class="btn btn-sm btn-outline-success">
-                                            <i class="bi bi-cash-coin me-1"></i>Add Payment
-                                        </a>
-                                        </div>
-
-                                        <!-- Stats -->
-                                        <div class="row g-0 border rounded overflow-hidden mb-4">
-                                        <div class="col-4 py-3">
-                                            <h5 class="mb-0">{{ total_units }}</h5>
-                                            <small class="text-muted">Units</small>
-                                        </div>
-                                        <div class="col-4 border-start border-end py-3">
-                                            <h5 class="mb-0">Lease</h5>
-                                            <small class="text-muted">Completed Services</small>
-                                        </div>
-                                        <div class="col-4 py-3">
-                                            <h5 class="mb-0">{{ total_balance }}</h5>
-                                            <small class="text-muted">Balance</small>
-                                        </div>
-                                        </div>
-
-                                        <!-- Info -->
-                                        <div class="list-group list-group-flush text-start">
-                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
-                                            <i class="ti ti-phone text-primary me-2"></i>
-                                            <span>{{ tenant.phone_number }}</span>
-                                        </div>
-                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
-                                            <i class="ti ti-mail text-primary me-2"></i>
-                                            <span>{{ tenant.email }}</span>
-                                        </div>
-                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
-                                            <i class="ti ti-map-pin text-primary me-2"></i>
-                                            <span>{{ tenant.national_id }}</span>
-                                        </div>
-                                        <div class="list-group-item d-flex align-items-center px-0 py-2">
-                                            <i class="ti ti-link text-success me-2"></i>
-                                            <a href="#" class="link-primary mb-0">Active</a>
-                                        </div>
-                                        </div>
-
-                                    </div>
-                                    </div>
-
-
-                            </div>
-
-                           <div class="col-lg-8 col-xxl-9">
-
-                                <div class="card h-100" style="min-height: 600px; overflow-y: auto;">
-                                    <!-- Card Header -->
-                                    <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
-                                        <h5 class="mb-2 mb-md-0 text-capitalize">
-                                            <i class="fas fa-user me-1"></i> {{ tenant.full_name }}'s Leases
-                                        </h5>
-
-                                        <div class="d-flex flex-wrap gap-2">
-                                            <!-- Create button: include data attributes -->
-                                                <button
-                                                type="button"
-                                                class="btn btn-primary open-lease-modal"
-                                                data-mode="create"
-                                                data-tenant-id="{{ tenant.id }}"
-                                                data-tenant-name="{{ tenant.full_name|escape }}"
-                                                data-property-id="{% if tenant.property %}{{ tenant.property.id }}{% endif %}"
-                                                data-submit-template="/tenant_management/units/:unit_id:/tenant/:tenant_id:/existing-tenant-lease/"
-                                                data-insert-target="#leasesTableBody"
-                                                >
-                                                Assign unit
-                                                </button>
-
-                                            <div class="mb-3">
-                                            
-                                            <button
-                                                class="btn btn-outline-success btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#paymentModal"
-                                                data-payment-url="{% url 'tenant_payment_modal' tenant.id %}"
-                                                data-tenant-id="{{ tenant.id }}">
-                                                Recharge / Make Payment
-                                            </button>
-
-                                        </div>
-                                        </div>
-                                    </div>
-
-                                         <div class="row g-3 mt-3 p-3">
-                                                <!-- Units -->
-                                                <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-                                                    <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-                                                        <div class="card-body text-center">
-                                                            <h6 class="card-title text-uppercase small mb-1">
-                                                                <i class="fas fa-building me-1"></i> Units
-                                                            </h6>
-                                                            <p class="card-text fs-6 fw-semibold">{{ total_units }}</p>
+                                                    <!-- Avatar with Edit Button -->
+                                                    <div class="avatar-wrapper">
+                                                        <div class="chat-avatar">
+                                                            <!-- Using static avatar since tenant model usually doesn't have profile_pic in this schema -->
+                                                            <img class="rounded-circle img-fluid avatar-img"
+                                                                 src="{% static 'assets/images/user/avatar-5.jpg' %}"
+                                                                 alt="{{ tenant.full_name }}">
+                                                            
+                                                            <!-- Edit button on avatar -->
+                                                            <button class="btn btn-sm avatar-edit-btn"
+                                                                    aria-label="Edit Tenant">
+                                                                <i class="ti ti-pencil"></i>
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                <!-- Total Paid -->
-                                                <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-                                                    <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-                                                        <div class="card-body text-center">
-                                                            <h6 class="card-title text-uppercase small mb-1">
-                                                                <i class="fas fa-coins me-1"></i> Total Paid
-                                                            </h6>
-                                                            <p class="card-text fs-6 fw-semibold">Ksh {{ total_paid }}</p>
+                                                    <!-- Action Button (Recharge) -->
+                                                    <div class="text-center px-3 mb-3">
+                                                        <button class="btn btn-success w-100 rounded-pill" onclick="openPaymentModal()">
+                                                            <i class="bi bi-cash-coin me-1"></i> Payment / Recharge
+                                                        </button>
+                                                    </div>
+
+                                                    <!-- FIRST hr -->
+                                                    <hr class="mx-4 my-3 text-muted opacity-25">
+
+                                                    <!-- Stats row -->
+                                                    <div class="row g-0 py-2 mx-3 bg-light bg-opacity-50 rounded-3 border border-secondary border-opacity-10">
+                                    
+                                                        <div class="col-4 text-center px-1">
+                                                            <div class="fw-bolder text-dark fs-6">{{ total_units }}</div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Units</div>
                                                         </div>
-                                                    </div>
-                                                </div>
 
-                                                <!-- Balance / Credit (conditionally) -->
-                                            <!-- Deposit Card -->
-                                            <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-                                                <div class="card bg-info bg-opacity-10 text-info shadow rounded-3 h-100">
-                                                    <div class="card-body text-center">
-                                                        <h6 class="card-title text-uppercase small mb-1">
-                                                            <i class="fas fa-piggy-bank me-1"></i> Deposit
-                                                        </h6>
-                                                        <p class="card-text fs-6 fw-semibold">
-                                                            Ksh {{ total_deposit|floatformat:2 }}
-                                                        </p>
-                                                        <small class="text-muted d-block">
-                                                            Held: Ksh {{ total_deposit_held|floatformat:2 }}<br>
-                                                            Refunded: Ksh {{ total_deposit_refunded|floatformat:2 }}<br>
-                                                            Applied: Ksh {{ total_deposit_applied_to_invoices|floatformat:2 }}
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                        <div class="col-4 text-center px-1 border-start border-end border-secondary border-opacity-10">
+                                                            <div class="fw-bolder text-dark fs-6">{{ leases_data|length }}</div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Leases</div>
+                                                        </div>
 
-                                            <!-- Balance / Credit Card -->
-                                            <div class="col-12 col-sm-6 col-md-3 col-lg-3">
-                                                {% if tenant_credit > 0 %}
-                                                <div class="card bg-success bg-opacity-10 text-success shadow rounded-3 h-100">
-                                                    <div class="card-body text-center">
-                                                        <h6 class="card-title text-uppercase small mb-1">
-                                                            <i class="fas fa-gift me-1"></i> Credit
-                                                        </h6>
-                                                        <p class="card-text fs-6 fw-semibold">Ksh {{ tenant_credit }}</p>
-                                                    </div>
-                                                </div>
-                                                {% else %}
-                                                <div class="card {% if total_balance > 0 %}bg-warning bg-opacity-10 text-warning{% else %}bg-success bg-opacity-10 text-success{% endif %} shadow rounded-3 h-100">
-                                                    <div class="card-body text-center">
-                                                        <h6 class="card-title text-uppercase small mb-1">
-                                                            <i class="fas fa-wallet me-1"></i> Balance
-                                                        </h6>
-                                                        <p class="card-text fs-6 fw-semibold">Ksh {{ total_balance|floatformat:2 }}</p>
-                                                    </div>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-
-
-
-
-                                    <!-- Active Leases Table -->
-                                 <div class="card shadow-sm">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>Active Leases</h6>
-                                    </div>
-                                    <div class="card-body p-0">
-                                        <div class="table-responsive">
-                                            <table class="table table-hover mb-0">
-                                                <thead class="table-dark">
-                                                    <tr>
-                                                        <th>Unit</th>
-                                                        <th>Property</th>
-                                                        <th>Monthly Rent</th>
-                                                        <th>Deposit</th>
-                                                        <th>Status</th>
-                                                        <th class="text-end">Total Invoiced</th>
-                                                        <th class="text-end">Total Paid</th>
-                                                        <th class="text-end">Balance</th>
-                                                        <th class="text-center">Water Usage</th>
-                                                        <th class="text-center">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for ld in leases_data %}
-                                                    <tr>
-                                                        <td>
-                                                            <strong>{{ ld.unit.unit_number }}</strong>
-                                                        </td>
-                                                        <td>{{ ld.property.name }}</td>
-                                                        <td>
-                                                            <span class="text-muted">Ksh</span> {{ ld.rent_amount|floatformat:2 }}
-                                                        </td>
-                                                       <!-- Add a deposit status column -->
-                                                        <td class="text-center">
-                                                            {% if ld.deposit > 0 %}
-                                                                {% if ld.lease.deposits.first.amount_held == ld.deposit %}
-                                                                    <span class="badge bg-success">Deposit Paid</span>
-                                                                {% else %}
-                                                                    <span class="badge bg-warning">Deposit Pending</span>
-                                                                {% endif %}
-                                                            {% else %}
-                                                                <span class="text-muted">No Deposit</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td>
-                                                            {% if ld.status == "Active" %}
-                                                                <span class="badge bg-success">{{ ld.status }}</span>
-                                                            {% else %}
-                                                                <span class="badge bg-secondary">{{ ld.status }}</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        <td class="text-end">
-                                                            <span class="text-muted">Ksh</span> {{ ld.total_invoiced|floatformat:2 }}
-                                                        </td>
-                                                        <td class="text-end">
-                                                            <span class="text-muted">Ksh</span> {{ ld.total_paid|floatformat:2 }}
-                                                        </td>
-                                                        <td class="text-end">
-                                                            {% if ld.balance > 0 %}
-                                                                <span class="fw-bold text-danger">Ksh {{ ld.balance|floatformat:2 }}</span>
-                                                            {% elif ld.balance < 0 %}
-                                                                <span class="fw-bold text-success">Credit {{ ld.balance_abs|floatformat:2 }}</span>
-                                                            {% else %}
-                                                                <span class="text-success fw-bold">Settled</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        
-                                                        <!-- Water Usage - Collapsible -->
-                                                        <td class="text-center">
-                                                            {% if ld.water_lines %}
-                                                                <button class="btn btn-outline-info btn-sm" type="button" 
-                                                                        data-bs-toggle="collapse" 
-                                                                        data-bs-target="#waterUsage{{ ld.lease.id }}" 
-                                                                        aria-expanded="false">
-                                                                    <i class="fas fa-tint me-1"></i>{{ ld.water_lines|length }} Record{{ ld.water_lines|length|pluralize }}
-                                                                </button>
-                                                            {% else %}
-                                                                <span class="text-muted">No Records</span>
-                                                            {% endif %}
-                                                        </td>
-                                                        
-                                                        <!-- Actions -->
-                                                        <td class="text-center">
-                                                            <div class="btn-group" role="group">
-                                                                <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                                        data-bs-toggle="tab" 
-                                                                        data-bs-target="#invoices-tab"
-                                                                        title="View Invoices">
-                                                                    <i class="fas fa-file-invoice"></i>
-                                                                </button>
-                                                                <a href="#" 
-                                                                class="btn btn-outline-danger btn-sm"
-                                                                title="Terminate Lease"
-                                                                onclick="return confirm('Are you sure you want to terminate this lease?')">
-                                                                    <i class="fas fa-times"></i>
-                                                                </a>
+                                                        <div class="col-4 text-center px-1">
+                                                            <div class="fw-bolder {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %} fs-6 text-break" title="{{ total_balance }}">
+                                                                {{ total_balance|floatformat:0 }}
                                                             </div>
-                                                        </td>
-                                                    </tr>
-                                                    
-                                                    <!-- Collapsible Water Usage Details -->
-                                                    {% if ld.water_lines %}
-                                                    <tr>
-                                                        <td colspan="10" class="p-0 border-0">
-                                                            <div class="collapse" id="waterUsage{{ ld.lease.id }}">
-                                                                <div class="card card-body border-0 bg-light">
-                                                                    <h6 class="text-primary mb-3">
-                                                                        <i class="fas fa-tint me-2"></i>Water Usage History - Unit {{ ld.unit.unit_number }}
-                                                                    </h6>
-                                                                    <div class="table-responsive">
-                                                                        <table class="table table-sm table-bordered mb-0">
-                                                                            <thead class="table-primary">
-                                                                                <tr>
-                                                                                    <th>Billing Period</th>
-                                                                                    <th class="text-end">Previous Reading</th>
-                                                                                    <th class="text-end">Current Reading</th>
-                                                                                    <th class="text-end">Usage (m³)</th>
-                                                                                    <th class="text-end">Rate/m³</th>
-                                                                                    <th class="text-end">Amount</th>
-                                                                                </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                                {% for wl in ld.water_lines %}
-                                                                                <tr>
-                                                                                    <td>{{ wl.invoice.billing_period_start|date:"M Y" }}</td>
-                                                                                    <td class="text-end">{{ wl.meter_reading.previous_reading|floatformat:2 }}</td>
-                                                                                    <td class="text-end">{{ wl.meter_reading.current_reading|floatformat:2 }}</td>
-                                                                                    <td class="text-end">
-                                                                                        <span class="fw-bold">{{ wl.meter_reading.usage|floatformat:2 }}</span>
-                                                                                    </td>
-                                                                                    <td class="text-end">
-                                                                                        <span class="text-muted">Ksh</span> {{ wl.meter_reading.rate_per_cubic_meter|default:"-"|floatformat:2 }}
-                                                                                    </td>
-                                                                                    <td class="text-end">
-                                                                                        <span class="fw-bold text-primary">Ksh {{ wl.amount|floatformat:2 }}</span>
-                                                                                    </td>
-                                                                                </tr>
-                                                                                {% endfor %}
-                                                                            </tbody>
-                                                                            <!-- Water Usage Totals -->
-                                                                            <tfoot class="table-secondary">
-                                                                                <tr>
-                                                                                    <th>Total</th>
-                                                                                    <th></th>
-                                                                                    <th></th>
-                                                                                    <th class="text-end">
-                                                                                        {{ ld.total_water_usage|floatformat:2 }} m³
-                                                                                    </th>
-                                                                                    <th></th>
-                                                                                    <th class="text-end">
-                                                                                        <strong>Ksh {{ ld.total_water_amount|floatformat:2 }}</strong>
-                                                                                    </th>
-                                                                                </tr>
-                                                                            </tfoot>
-                                                                        </table>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Due</div>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <!-- SECOND hr -->
+                                                    <hr class="mx-4 my-3 text-muted opacity-25">
+
+                                                    <!-- Contact Info -->
+                                                    <div class="bg-light bg-opacity-50 rounded-3 p-3 mx-3 mb-4 border border-secondary border-opacity-10">
+                                    
+                                                        <!-- Email -->
+                                                        <div class="d-flex align-items-center mb-3">
+                                                            <div class="flex-shrink-0 text-primary me-3">
+                                                                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                                                                    <i class="ti ti-mail"></i>
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex-grow-1 overflow-hidden">
+                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Email</p>
+                                                                <h6 class="mb-0 text-truncate text-dark" title="{{ tenant.email }}" style="font-size: 0.9rem;">
+                                                                    {{ tenant.email|default:"--" }}
+                                                                </h6>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Phone & Status -->
+                                                        <div class="row g-0 mb-3">
+                                                            <div class="col-7 border-end border-secondary border-opacity-10 pe-2">
+                                                                <div class="d-flex align-items-center">
+                                                                    <i class="ti ti-phone text-muted me-2 fs-5"></i>
+                                                                    <div>
+                                                                        <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Phone</p>
+                                                                        <span class="text-dark fw-bold small">{{ tenant.phone_number }}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </td>
-                                                    </tr>
-                                                    {% endif %}
-                                                    {% empty %}
-                                                    <tr>
-                                                        <td colspan="10" class="text-center text-muted py-4">
-                                                            <i class="fas fa-home fa-2x mb-2 d-block"></i>
-                                                            No active leases found
-                                                        </td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
+
+                                                            <div class="col-5 ps-3">
+                                                                <div class="d-flex flex-column justify-content-center">
+                                                                    <p class="mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Status</p>
+                                                                    <div>
+                                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">
+                                                                            Active
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- National ID / Location -->
+                                                        <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
+                                                            <i class="ti ti-id text-muted me-2 mt-1"></i>
+                                                            <div>
+                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">National ID</p>
+                                                                <span class="text-dark small fw-bold">{{ tenant.national_id }}</span>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                    <!-- --- END UPDATED PROFILE CARD --- -->
 
-
-
-
-                                </div>
-
-                            </div>
-
-                        </div>
-                    </div>
-                    <!-- Invoices / Lease -->
-                        <div class="tab-pane fade" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
-                            <div class="row g-4">
-
-                            <!-- Invoices Card -->
-                                <div class="col-lg-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-header bg-gradient-to-r from-green-600 to-green-700 text-white d-flex justify-content-between align-items-center">
-                                            <h5 class="mb-0">Invoices</h5>
-                                            <span class="badge bg-green-500">Total: {{ invoices.count }}</span>
-                                        </div>
-                                        <div class="card-body">
-                                            <!-- Filters -->
-                                            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center">
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <label for="invoice-status" class="form-label mb-0">Status:</label>
-                                                    <select id="invoice-status" name="status"
-                                                            class="form-select form-select-sm"
-                                                            hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
-                                                            hx-target="#invoices-table-body"
-                                                            hx-include="#invoice-status, #invoice-billing-period"
-                                                            hx-trigger="change">
-                                                        <option value="all">All</option>
-                                                        <option value="paid">Paid</option>
-                                                        <option value="unpaid">Unpaid</option>
-                                                    </select>
-                                                </div>
-
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <label for="invoice-billing-period" class="form-label mb-0">Billing Period:</label>
-                                                    <input type="month" id="invoice-billing-period" name="billing_period"
-                                                        class="form-control form-control-sm"
-                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
-                                                        hx-target="#invoices-table-body"
-                                                        hx-include="#invoice-status, #invoice-billing-period"
-                                                        hx-trigger="change">
-                                                </div>
-
-                                                <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                        onclick="clearInvoiceFilters()">
-                                                    Clear Filters
+                                    <!-- Leases List & Stats -->
+                                    <div class="col-lg-8">
+                                        <div class="card h-100 border-0 shadow-sm">
+                                            <!-- Header -->
+                                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                                <h5 class="mb-0">Overview</h5>
+                                                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#leaseModal">
+                                                    <i class="bi bi-plus-lg"></i> Assign Unit
                                                 </button>
                                             </div>
 
-                                            <!-- Invoices Table -->
-                                            <!-- Invoices Table -->
-                                            <div class="table-responsive">
-                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                    <thead class="table-dark">
-                                                        <tr>
-                                                            <th scope="col" class="align-middle">
-                                                                <div class="form-check mb-0">
-                                                                    <input class="form-check-input" type="checkbox" id="select-all-invoices" aria-label="Select all invoices">
-                                                                </div>
-                                                            </th>
-                                                            <th scope="col" class="align-middle">Invoice</th>
-                                                            <th scope="col" class="align-middle text-end">Total</th>
-                                                            <th scope="col" class="align-middle text-end">Paid</th>
-                                                            <th scope="col" class="align-middle text-end">Balance</th>
-                                                            <th scope="col" class="align-middle">Due Date</th>
-                                                            <th scope="col" class="align-middle">Status</th>
-                                                            <th scope="col" class="align-middle text-center">Records</th>
-                                                            <th scope="col" class="align-middle">Action</th>
-                                                        </tr>
-                                                    </thead>
-
-                                                    <!-- IMPORTANT: include both controls by ID so HTMX sends the month on load/change -->
-                                                    <tbody id="invoices-table-body"
-                                                        hx-get="{% url 'tenant_invoices_filter' tenant.id %}"
-                                                        hx-trigger="load"
-                                                        hx-swap="innerHTML"
-                                                        hx-include="#invoice-status, #invoice-billing-period">
-                                                        <tr><td colspan="9" class="text-center">Loading invoices…</td></tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </div>
-
-
-                            
-
-                            </div>
-                        </div>
-                        <!-- Payments -->
-                        <div class="tab-pane fade" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
-                            <div class="row g-4">
-                                <div class="col-lg-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-header  text-white">
-                                            <h5 class="mb-0">Payments History</h5>
-                                        </div>
-                                        
-                            
-                                            <div class="card shadow-sm">
+                                            <div class="card-body">
                                                 
-                                                <div class="card-body table-responsive">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                        <thead class="table-dark">
+                                                <!-- STAT CARDS -->
+                                                <div class="row g-3 mb-4">
+                                                    <!-- 1. Total Rent (Invoiced) -->
+                                                    <div class="col-sm-6 col-xl-3">
+                                                        <div class="stat-card border-blue">
+                                                            <div class="meta">
+                                                                <div class="icon bg-light text-primary"><i class="fas fa-file-invoice-dollar"></i></div>
+                                                                <div><p class="label mb-0">Total Rent</p><p class="value mb-0">{{ total_invoiced|floatformat:0 }}</p></div>
+                                                            </div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Invoiced</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- 2. Total Held Deposit -->
+                                                    <div class="col-sm-6 col-xl-3">
+                                                        <div class="stat-card border-green">
+                                                            <div class="meta">
+                                                                <div class="icon bg-light text-success"><i class="fas fa-piggy-bank"></i></div>
+                                                                <div><p class="label mb-0">Deposit Held</p><p class="value mb-0">{{ total_deposit_held|floatformat:0 }}</p></div>
+                                                            </div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Refundable</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- 3. Total Leases -->
+                                                    <div class="col-sm-6 col-xl-3">
+                                                        <div class="stat-card border-orange">
+                                                            <div class="meta">
+                                                                <div class="icon bg-light text-warning"><i class="fas fa-file-contract"></i></div>
+                                                                <div><p class="label mb-0">Total Leases</p><p class="value mb-0">{{ leases_data|length }}</p></div>
+                                                            </div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">History</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- 4. Total Units -->
+                                                    <div class="col-sm-6 col-xl-3">
+                                                        <div class="stat-card border-red">
+                                                            <div class="meta">
+                                                                <div class="icon bg-light text-danger"><i class="fas fa-building"></i></div>
+                                                                <div><p class="label mb-0">Total Units</p><p class="value mb-0">{{ total_units }}</p></div>
+                                                            </div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Occupied</span></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Leases Table -->
+                                                <h6 class="mb-3 text-muted"><i class="fas fa-list me-2"></i>Lease Details</h6>
+                                                <div class="table-responsive mt-3">
+                                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                            <thead class="bg-green-100 ">
                                                             <tr>
-                                                                <th scope="col"><input type="checkbox" id="select-all"></th>
-                                                                <th scope="col">Date</th>
-                                                                <th scope="col">Amount</th>
-                                                                <th scope="col">Method</th>
-                                                                <th scope="col">Invoice</th>
-                                                                <th scope="col">Balance After</th>
+                                                                <th>Unit</th><th>Property</th><th>Rent</th><th>Balance</th><th>Deposit</th><th>Meter</th><th>Status</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {% for p in payments %}
+                                                            {% for ld in leases_data %}
                                                             <tr>
-                                                                <td>{{ forloop.counter }}</td>
-                                                                <td>{{ p.payment_date|date:"d M Y H:i" }}</td>
-                                                                <td>Ksh {{ p.amount }}</td>
-                                                                <td>{{ p.method }}</td>
-                                                                <td>{{ p.invoice }}</td>
-                                                                <td>Ksh {{ p.balance_after }}</td>
+                                                                <td><span class="fw-bold">{{ ld.unit.unit_number }}</span></td>
+                                                                <td>{{ ld.property.name }}</td>
+                                                                <td>{{ ld.rent_amount|floatformat:0 }}</td>
+                                                                <td>
+                                                                    {% if ld.balance > 0 %}
+                                                                        <span class="text-danger fw-bold">{{ ld.balance|floatformat:2 }}</span>
+                                                                    {% elif ld.balance < 0 %}
+                                                                        <span class="text-success fw-bold">CR {{ ld.balance_abs|floatformat:2 }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">-</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if ld.deposit > 0 %}
+                                                                        {% if ld.deposit_held >= ld.deposit %}
+                                                                            <span class="badge bg-success" title="Fully Paid"><i class="bi bi-check-circle me-1"></i> {{ ld.deposit|floatformat:0 }}</span>
+                                                                        {% elif ld.deposit_held > 0 %}
+                                                                            <span class="badge bg-warning text-dark" title="Partially Paid">{{ ld.deposit_held|floatformat:0 }} / {{ ld.deposit|floatformat:0 }}</span>
+                                                                        {% else %}
+                                                                            <span class="badge bg-danger" title="Unpaid">Pending: {{ ld.deposit|floatformat:0 }}</span>
+                                                                        {% endif %}
+                                                                    {% else %}
+                                                                        <span class="text-muted">-</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if ld.current_meter %}
+                                                                        <span class="badge bg-secondary">{{ ld.current_meter }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">-</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if ld.status == 'Active' %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Expired</span>{% endif %}
+                                                                </td>
                                                             </tr>
+                                                            {% empty %}
+                                                            <tr><td colspan="7" class="text-center py-4 text-muted">No active leases found.</td></tr>
                                                             {% endfor %}
                                                         </tbody>
                                                     </table>
                                                 </div>
                                             </div>
-                                
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Meter Readings -->
-                    <!-- Meter Readings -->
-                        <div class="tab-pane fade" id="profile-4" role="tabpanel" aria-labelledby="profile-tab-4">
-                            <div class="row g-4">
-                                <div class="col-lg-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-header bg-gradient-to-r from-blue-600 to-blue-700 text-white d-flex justify-content-between align-items-center rounded-top">
-                                            <h5 class="mb-0">Meter Readings</h5>
-                                            <span class="badge bg-blue-500 px-3 py-2">Total: {{ meter_readings.count }}</span>
-                                        </div>
-                                        <div class="card-body">
-
-                                            <!-- Filters -->
-                                            <div class="mb-3 d-flex flex-wrap gap-3 align-items-center">
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <label for="meter-billing-period" class="form-label mb-0 fw-medium">Billing Period:</label>
-                                                    <input type="month" id="meter-billing-period" name="billing_period"
-                                                        class="form-control form-control-sm"
-                                                        hx-get="{% url 'tenant_meter_readings_filter' tenant.id %}"
-                                                        hx-target="#meter-readings-table"
-                                                        hx-include="#meter-billing-period"
-                                                        hx-trigger="change">
-                                                </div>
-                                                <button type="button" class="btn btn-outline-secondary btn-sm"
-                                                        onclick="clearMeterFilters()">
-                                                    Clear Filter
-                                                </button>
-                                            </div>
-
-                                            <!-- Meter Readings Table -->
-                                            <!-- Meter Readings Table -->
-                                            <div class="table-responsive">
-                                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                    <thead class="table-dark">
-                                                        <tr>
-                                                            <th scope="col" class="align-middle">Reading Date</th>
-                                                            <th scope="col" class="align-middle">Property</th>
-                                                            <th scope="col" class="align-middle">Unit</th>
-                                                            <th scope="col" class="align-middle text-end">Previous Reading</th>
-                                                            <th scope="col" class="align-middle text-end">Current Reading</th>
-                                                            <th scope="col" class="align-middle text-end">Usage</th>
-                                                            <th scope="col" class="align-middle text-end">Rate</th>
-                                                            <th scope="col" class="align-middle text-end">Amount</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="meter-readings-table" class="bg-white"
-                                                        hx-get="{% url 'tenant_meter_readings_filter' tenant.id %}"
-                                                        hx-trigger="load"
-                                                        hx-swap="innerHTML"
-                                                        hx-include="#meter-billing-period">
-                                                        {% include "tenants/partials/_meter_readings_rows.html" %}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-
-
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-
-                                
+                            <!-- TAB 2: Invoices -->
+                            <div class="tab-pane fade" id="profile-2">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Invoice History</h5>
+                                    </div>
+                                    <div class="table-responsive mt-3">
+                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                            <thead class="bg-green-100 ">
+                                                <tr>
+                                                    <th>#</th><th>Date</th><th>Period</th><th>Total</th><th>Balance</th><th>Status</th><th class="text-end">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for inv in invoices %}
+                                                <tr>
+                                                    <td><a href="#" class="text-decoration-none fw-bold">#{{ inv.id }}</a></td>
+                                                    <td>{{ inv.created_at|date:"d M Y" }}</td>
+                                                    <td>{{ inv.billing_period_start|date:"M Y" }}</td>
+                                                    <td>{{ inv.total_amount }}</td>
+                                                    <td>
+                                                        {% if inv.balance > 0 %}<span class="text-danger">{{ inv.balance }}</span>{% else %}<span class="text-muted">-</span>{% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if inv.is_paid %}<span class="badge bg-success">Paid</span>{% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}
+                                                    </td>
+                                                    <td class="text-end">
+                                                        {% if not inv.is_paid %}
+                                                            <button class="btn btn-sm btn-outline-success" onclick="openPaymentModal('{{ inv.id }}', '{{ inv.balance }}')">Pay</button>
+                                                        {% else %}
+                                                            <button class="btn btn-sm btn-light" disabled><i class="bi bi-check"></i></button>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="7" class="text-center py-3">No invoices generated yet.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
+
+                            <!-- TAB 3: Payments -->
+                            <div class="tab-pane fade" id="profile-3">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Payment History</h5>
+                                    </div>
+                                    <div class="table-responsive mt-3">
+                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                            <thead class="bg-green-100 ">
+                                                <tr>
+                                                    <th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Allocated To</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for p in payments %}
+                                                <tr>
+                                                    <td>{{ p.payment_date|date:"d M Y H:i" }}</td>
+                                                    <td class="fw-bold text-success">+ {{ p.amount }}</td>
+                                                    <td>{{ p.method }}</td>
+                                                    <td><small class="text-muted">{{ p.reference|default:"-" }}</small></td>
+                                                    <td>
+                                                        {% if p.invoice %}Invoice #{{ p.invoice.id }}{% else %}<span class="badge bg-info">Credit / Deposit</span>{% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="5" class="text-center py-3">No payments recorded.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TAB 4: Meter Readings -->
+                            <div class="tab-pane fade" id="profile-4">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-white">
+                                        <h5 class="mb-0">Meter Reading History</h5>
+                                    </div>
+                                    <div class="table-responsive mt-3">
+                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                            <thead class="bg-green-100 ">
+                                                <tr>
+                                                    <th>Date</th><th>Unit</th><th>Previous</th><th>Current</th><th>Usage</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for mr in meter_readings %}
+                                                <tr>
+                                                    <td>{{ mr.reading_date|date:"d M Y" }}</td>
+                                                    <td>{{ mr.unit.unit_number }}</td>
+                                                    <td>{{ mr.previous_reading }}</td>
+                                                    <td>{{ mr.current_reading }}</td>
+                                                    <td>{% if mr.usage == 0 %}<span class="badge bg-secondary">Baseline</span>{% else %}{{ mr.usage }} m³{% endif %}</td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr><td colspan="5" class="text-center py-3">No readings found.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
-    <!-- [ sample-page ] end -->
-</div>
-<!-- [ Main Content ] end -->
-</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Payment Modal (Bootstrap 5) -->
-<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+<!-- Shared Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="post" id="tenantPaymentForm">
+      <form method="post" action="{% url 'tenant_payment_modal' tenant.id %}">
         {% csrf_token %}
         <div class="modal-header">
-          <h5 class="modal-title" id="paymentModalLabel">Make Payment / Recharge</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="paymentModalTitle">Make Payment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-
         <div class="modal-body">
-          <!-- Hidden tenant id / invoice id -->
-          <input type="hidden" name="invoice_id" id="id_invoice_id" />
-          <!-- amount -->
-          <div class="mb-3">
-            <label for="id_amount" class="form-label">Amount</label>
-            <input type="number" step="0.01" min="0.01" name="amount" id="id_amount" class="form-control" required>
-            <div class="form-text" id="amountHelp">Enter amount to pay (KES)</div>
-          </div>
-
-          <!-- method -->
-          <div class="mb-3">
-            <label for="id_method" class="form-label">Payment Method</label>
-            <input type="text" name="method" id="id_method" class="form-control" value="Mpesa" required>
-          </div>
-
-          <!-- reference -->
-          <div class="mb-3">
-            <label for="id_reference" class="form-label">Reference (optional)</label>
-            <input type="text" name="reference" id="id_reference" class="form-control">
-          </div>
-
-          <!-- optional helpful info -->
-          <div class="alert alert-info small" id="modalHelperText">
-            If you select an invoice, payment will target that invoice. If you leave it blank, payment will be stored as tenant credit and allocated automatically.
-          </div>
+          <input type="hidden" name="invoice_id" id="modal_invoice_id">
+          <div class="mb-3"><label class="form-label">Amount</label><input type="number" step="0.01" name="amount" id="modal_amount" class="form-control" required></div>
+          <div class="mb-3"><label class="form-label">Method</label><select name="method" class="form-select"><option value="Mpesa">Mpesa</option><option value="Cash">Cash</option><option value="Bank">Bank Transfer</option></select></div>
+          <div class="mb-3"><label class="form-label">Reference</label><input type="text" name="reference" class="form-control"></div>
+          <div class="alert alert-info small"><i class="bi bi-info-circle"></i> <span id="paymentModalHelp">Payments are automatically allocated to the oldest unpaid invoice first. Excess amounts are stored as credit.</span></div>
         </div>
-
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-success">Submit Payment</button>
+          <button type="submit" class="btn btn-success">Process Payment</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-
-
-
-<!-- modal (place near bottom of page) -->
+<!-- Lease Assignment Modal -->
 <div class="modal fade" id="leaseModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
-      <form id="leaseModalForm" class="needs-validation" novalidate>
-        <div class="modal-header">
-          <h5 class="modal-title" id="leaseModalTitle">Assign unit</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body">
-          <input type="hidden" id="leaseModalMode" value=""> <!-- create | update -->
-          <input type="hidden" id="leaseModalTenantId" value="">
-          <input type="hidden" id="leaseModalUnitId" value="">
-          <input type="hidden" id="leaseModalSubmitTemplate" value=""> <!-- template or url -->
-
-          <div class="row">
-            <!-- Left: search + form -->
-            <div class="col-lg-8">
-              <div class="mb-3">
-                <label class="form-label">Tenant</label>
-                <input type="text" id="leaseModalTenantName" class="form-control" readonly>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">Search available unit</label>
-                <input id="leaseModalSearch" class="form-control" type="search" placeholder="Type unit number, meter, or property..." autocomplete="off">
-                <div id="leaseModalResults" class="list-group mt-2" style="max-height:300px; overflow:auto;"></div>
-                <div class="form-text">Results are paged. Use ↑↓ or type to search. Press Enter to select highlighted.</div>
-              </div>
-
-              <div class="row g-3 mt-3">
-                <div class="col-md-6">
-                  <label class="form-label">Start date</label>
-                  <input id="leaseModalStartDate" name="start_date" type="date" class="form-control" required>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Deposit amount</label>
-                  <input id="leaseModalDeposit" name="deposit_amount" type="number" step="0.01" class="form-control">
-                </div>
-              </div>
-
-              <div id="leaseModalError" class="mt-3 alert alert-danger d-none"></div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Unit to {{ tenant.full_name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
-            <!-- Right: unit details -->
-            <div class="col-lg-4">
-              <div class="card">
-                <div class="card-body">
-                  <h6 class="card-title">Unit details</h6>
-                  <dl class="row">
-                    <dt class="col-5">Unit</dt><dd id="detailUnit" class="col-7">—</dd>
-                    <dt class="col-5">Property</dt><dd id="detailProperty" class="col-7">—</dd>
-                    <dt class="col-5">Rent</dt><dd id="detailRent" class="col-7">—</dd>
-                    <dt class="col-5">Meter</dt><dd id="detailMeter" class="col-7">—</dd>
-                  </dl>
-                  <p id="detailNote" class="small text-muted">Select a unit to view details.</p>
-                </div>
-              </div>
+            <div class="modal-body">
+                <h6>Available Units:</h6>
+                <ul class="list-group">
+                    {% for prop_group in available_units_by_property %}
+                        <li class="list-group-item bg-light fw-bold">{{ prop_group.property.name }}</li>
+                        {% for u in prop_group.units %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center ps-4">
+                                Unit {{ u.unit_number }}
+                                <!-- FIX IS HERE: Swapped tenant.id and u.id -->
+                                <a href="{% url 'lease_create' u.id tenant.id %}" class="btn btn-sm btn-outline-primary">Select</a>
+                            </li>
+                        {% endfor %}
+                    {% empty %}
+                        <li class="list-group-item text-muted">No vacant units found in associated properties.</li>
+                    {% endfor %}
+                </ul>
             </div>
-          </div>
-        </div> <!-- modal-body -->
-
-        <div class="modal-footer">
-          <div class="me-auto"><small class="text-muted" id="leaseModalHelp"> </small></div>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button id="leaseModalSubmit" type="submit" class="btn btn-success">Assign</button>
         </div>
-      </form>
     </div>
-  </div>
 </div>
-
-
-{% comment %} <script>
-(function(){
-  // CSRF setup (Django default)
-  function getCookie(name) {
-    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-    return v ? v.pop() : '';
-  }
-  const csrftoken = getCookie('csrftoken');
-
-  const tenantId = document.getElementById('assignTenantId').value;
-  const propertyId = document.getElementById('assignPropertyId').value;
-
-  // init select2
-  $('#unitSelect').select2({
-    placeholder: 'Search units (unit number, meter, property)...',
-    minimumInputLength: 1,
-    ajax: {
-      url: '{% url "unit_search_json" %}',
-      dataType: 'json',
-      delay: 250,
-      data: function(params) {
-        return {
-          q: params.term, // search term
-          page: params.page || 1,
-          page_size: 25,
-          property_id: propertyId || ''
-        };
-      },
-      processResults: function(data, params) {
-        params.page = params.page || 1;
-        return {
-          results: data.results,
-          pagination: {
-            more: data.pagination && data.pagination.more
-          }
-        };
-      },
-      cache: true
-    },
-    width: 'resolve',
-    templateResult: function (repo) { return repo.text; },
-    templateSelection: function (repo) { return repo.text || repo.id; }
-  });
-
-  // Handle form submit (AJAX to existing_tenant_lease_create)
-  document.getElementById('assignUnitForm').addEventListener('submit', function(ev){
-    ev.preventDefault();
-    const unitSel = $('#unitSelect').select2('data');
-    if (!unitSel || !unitSel.length) {
-      showError('Please select a unit.');
-      return;
-    }
-    const unitId = unitSel[0].id;
-    const startDate = document.getElementById('startDate').value || '';
-    const depositAmount = document.getElementById('depositAmount').value || '';
-
-    // Build POST url: /units/{unit_id}/tenant/{tenant_id}/existing-tenant-lease/
-    const postUrl = `/units/${unitId}/tenant/${tenantId}/existing-tenant-lease/`;
-
-    const payload = new FormData();
-    // If your LeaseCreateView expects 'unit' (since you included a unit field), it's okay
-    // but because the URL carries the unit_id, your view will assign the unit accordingly.
-    // nevertheless include start_date and deposit_amount if present
-    if (startDate) payload.append('start_date', startDate);
-    if (depositAmount) payload.append('deposit_amount', depositAmount);
-
-    // AJAX POST
-    fetch(postUrl, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrftoken
-      },
-      body: payload
-    })
-    .then(async res => {
-      const data = await res.json().catch(() => null);
-      if (res.ok && data && data.success) {
-        // Insert returned HTML row into leases table if present
-        if (data.html && data.row_id) {
-          // append to your lease rows container (adjust selector)
-          const tb = document.querySelector('#leasesTableBody'); // example selector
-          if (tb) {
-            // create temporary container and insert
-            const tmp = document.createElement('div');
-            tmp.innerHTML = data.html;
-            const rowEl = tmp.querySelector('tr') || tmp.firstChild;
-            if (rowEl) tb.prepend(rowEl);
-          }
-        }
-
-        // close modal
-        var modalEl = document.getElementById('assignUnitModal');
-        var bsModal = bootstrap.Modal.getInstance(modalEl);
-        if (bsModal) bsModal.hide();
-
-        // optional toast
-        alert(data.message || 'Lease created successfully.');
-      } else {
-        // handle validation errors returned as html fragment
-        if (data && data.html) {
-          // replace modal body with rendered form (server-side validation)
-          const modalBody = document.querySelector('#assignUnitModal .modal-body');
-          if (modalBody) modalBody.innerHTML = data.html;
-        } else if (data && data.error) {
-          showError(data.error);
-        } else {
-          showError('Failed to create lease. Please check input and try again.');
-        }
-      }
-    }).catch(err => {
-      console.error(err);
-      showError('Unexpected error. Check console for details.');
-    });
-  });
-
-  function showError(msg) {
-    const el = document.getElementById('assignUnitErrors');
-    el.classList.remove('d-none');
-    el.innerText = msg;
-  }
-
-})();
-</script> {% endcomment %}
-
-
 
 <script>
-function clearInvoiceFilters() {
-  const status = document.getElementById('invoice-status');
-  const month = document.getElementById('invoice-billing-period');
+function openPaymentModal(invoiceId = null, balance = null) {
+    const modalElement = document.getElementById('paymentModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    document.getElementById('modal_invoice_id').value = '';
+    document.getElementById('modal_amount').value = '';
+    document.getElementById('paymentModalTitle').innerText = 'Make Payment / Recharge';
+    document.getElementById('paymentModalHelp').innerText = 'Payments are automatically allocated to the oldest unpaid invoice first. Excess amounts are stored as credit.';
 
-  if (status) status.value = 'all';
-  if (month) month.value = '';
-
-  // trigger change events so HTMX fires again
-  if (status) status.dispatchEvent(new Event('change', { bubbles: true }));
-  if (month) month.dispatchEvent(new Event('change', { bubbles: true }));
-}
-
-function clearMeterFilters() {
-  const month = document.getElementById('meter-billing-period');
-  if (month) month.value = '';
-  if (month) month.dispatchEvent(new Event('change', { bubbles: true }));
+    if (invoiceId) {
+        document.getElementById('modal_invoice_id').value = invoiceId;
+        if (balance) document.getElementById('modal_amount').value = balance;
+        document.getElementById('paymentModalTitle').innerText = `Pay Invoice #${invoiceId}`;
+        document.getElementById('paymentModalHelp').innerText = `Paying specifically for Invoice #${invoiceId}.`;
+    }
+    modal.show();
 }
 </script>
-
-
 {% endblock %}
 {% block extra_js %}
 <script src="{% static 'assets/js/payment_modal.js' %}"></script>
-
 {% endblock %}

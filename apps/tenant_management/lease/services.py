@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from apps.tenant_management.models import Tenant, Lease, Deposit, Unit,MeterReading
+from apps.tenant_management.models import Tenant, Lease, Deposit, Unit, MeterReading
 # Import the InvoiceService to trigger billing on creation
 from apps.tenant_management.services.invoice_service import InvoiceService
 
@@ -86,13 +86,16 @@ class TenantLeaseService:
                         }
                     )
                     
-                # --- 4. Handle Baseline Meter Reading (NEW) ---
+                # --- 4. Handle Baseline Meter Reading (FIXED) ---
                 # We create a reading with 0 usage to act as the start point for the next calculation.
                 if lease_action == "created" and initial_reading_val is not None:
+                    # FIX: Set previous_reading = current_reading = initial_reading_val.
+                    # Result: Usage = 0.
+                    # This tells the system "This is a start point, not a bill".
                     MeterReading.objects.create(
                         unit=lease.unit,
                         reading_date=lease.start_date,
-                        previous_reading=Decimal('0.00'), # Irrelevant for baseline
+                        previous_reading=initial_reading_val, # Matches current so usage is 0
                         current_reading=initial_reading_val,
                         usage=Decimal('0.00'),
                         amount=Decimal('0.00'),

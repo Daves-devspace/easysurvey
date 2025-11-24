@@ -11,7 +11,7 @@ from django.forms import HiddenInput
 from django.template.loader import render_to_string
 from django.core.exceptions import ValidationError
 
-from apps.tenant_management.models import Tenant, Lease, Unit, Property
+from apps.tenant_management.models import Tenant, Lease, Unit, Property, MeterReading
 from apps.tenant_management.forms import (
     LeaseCreationForm,
     CombinedTenantLeaseForm
@@ -153,6 +153,9 @@ class LeaseCreateView(CreateView):
     def form_valid(self, form):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
         unit_id = self.kwargs.get('unit_id') or form.cleaned_data['unit'].id
+        
+        # --- Extract Initial Reading ---
+        initial_reading_val = form.cleaned_data.get('initial_reading')
 
         try:
             with transaction.atomic():
@@ -176,6 +179,29 @@ class LeaseCreateView(CreateView):
                 # Mark Occupied
                 unit_obj.is_occupied = True
                 unit_obj.save(update_fields=['is_occupied'])
+                
+                # --- Handle Deposit ---
+                if lease.deposit_amount > 0:
+                    from apps.tenant_management.models import Deposit
+                    Deposit.objects.get_or_create(
+                        lease=lease,
+                        defaults={
+                            "tenant": tenant,
+                            "amount": lease.deposit_amount, 
+                            "amount_held": Decimal('0.00')
+                        }
+                    )
+
+                # --- Handle Baseline Meter Reading (NEW) ---
+                if initial_reading_val is not None:
+                    MeterReading.objects.create(
+                        unit=lease.unit,
+                        reading_date=lease.start_date,
+                        previous_reading=initial_reading_val, # Equal to current = 0 usage
+                        current_reading=initial_reading_val,
+                        usage=Decimal('0.00'),
+                        amount=Decimal('0.00'),
+                    )
 
                 # --- TRIGGER BILLING ---
                 # Generate the Move-in Invoice (Rent + Deposit)
@@ -187,6 +213,7 @@ class LeaseCreateView(CreateView):
 
         # Response Handling
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from .lease import _build_lease_row_context # Ensure imported or available
             row = _build_lease_row_context(lease)
             html = render_to_string(
                 "leases/partials/lease_row.html",
@@ -203,6 +230,7 @@ class LeaseCreateView(CreateView):
         messages.success(self.request, f'Lease created for {tenant.full_name}. Invoice generated.')
         return super().form_valid(form)
 
+    # ... [Rest of methods unchanged] ...
     def form_invalid(self, form):
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render_to_string(
@@ -215,7 +243,7 @@ class LeaseCreateView(CreateView):
 
     def get_success_url(self):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
-        return reverse_lazy("tenant_detail", kwargs={"pk": tenant.property.pk})
+        return reverse_lazy("tenant_detail", kwargs={"pk": tenant.property.pk}) # Careful with this redirect if pk is tenant ID
 
 
 # ==============================================================================
