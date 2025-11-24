@@ -129,6 +129,14 @@ class LeaseCreationForm(forms.ModelForm):
     Form for creating a Lease. Dynamically limits unit choices to vacant units of a property.
     """
     # Override unit field to set queryset later in __init__
+    initial_reading = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        required=True, 
+        label="Initial Meter Reading",
+        help_text="Baseline reading for the new unit."
+    )
     unit = forms.ModelChoiceField(
         queryset=Unit.objects.none(),
         widget=forms.Select(attrs={'class': 'form-control'}),
