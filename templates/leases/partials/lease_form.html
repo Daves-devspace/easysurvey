@@ -1,4 +1,77 @@
+{% load widget_tweaks %}
 
+<form hx-post="{{ request.path }}" hx-target="#crudModalContent" class="p-3">
+    {% csrf_token %}
+    
+    <!-- Hidden Unit ID -->
+    {{ form.unit.as_hidden }}
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <label class="form-label fw-bold">Tenant</label>
+            <input type="text" class="form-control bg-light" value="{{ tenant.full_name }}" readonly>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label fw-bold">{{ form.start_date.label }}</label>
+            {% render_field form.start_date class="form-control" %}
+            <div class="text-danger small">{{ form.start_date.errors }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold">{{ form.end_date.label }}</label>
+            {% render_field form.end_date class="form-control" %}
+            <div class="text-danger small">{{ form.end_date.errors }}</div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label fw-bold">{{ form.rent_amount.label }}</label>
+            <div class="input-group">
+                <span class="input-group-text">KES</span>
+                {% render_field form.rent_amount class="form-control" %}
+            </div>
+            <div class="text-danger small">{{ form.rent_amount.errors }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-bold">{{ form.deposit_amount.label }}</label>
+            <div class="input-group">
+                <span class="input-group-text">KES</span>
+                {% render_field form.deposit_amount class="form-control" %}
+            </div>
+            <div class="text-danger small">{{ form.deposit_amount.errors }}</div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-bold text-primary">{{ form.initial_reading.label }}</label>
+        <div class="input-group">
+            <span class="input-group-text bg-primary text-white"><i class="ti ti-dashboard"></i></span>
+            {% render_field form.initial_reading class="form-control" placeholder="e.g. 1050.00" %}
+        </div>
+        <div class="form-text text-muted">Enter the current meter reading to establish a baseline.</div>
+        <div class="text-danger small">{{ form.initial_reading.errors }}</div>
+    </div>
+
+    <div class="modal-footer px-0 pb-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-success">
+            <i class="ti ti-check me-1"></i> Create Lease
+        </button>
+    </div>
+</form>
+
+
+
+
+
+
+
+
+
+{% comment %} 
 
 <!-- leases/lease_form.html -->
 <div class="modal fade" id="leaseModal" tabindex="-1" aria-hidden="true">
@@ -94,4 +167,4 @@
       </form>
     </div>
   </div>
-</div>
+</div> {% endcomment %}

@@ -1,4 +1,3 @@
-# apps/tenant_management/models.py
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN
 from django.db import models, transaction
@@ -218,18 +217,19 @@ class Invoice(models.Model):
     @property
     def total_paid(self):
         """
-        ROBUST: Only count Payment records linked to this invoice.
-        No longer considers negative InvoiceLines.
+        ROBUST: Sums payments linked to this invoice but EXCLUDES 'MIXED' 
+        (Master) records to prevent double counting against allocations.
         """
-        return sum(p.amount for p in self.payments.all())
+        return sum(
+            p.amount for p in self.payments.exclude(payment_type='MIXED')
+        )
     
     @property
     def balance(self):
         """
-        ROBUST: Simple calculation using only Payment records.
+        ROBUST: Simple calculation using total amount - total paid.
         total_amount = sum of positive InvoiceLines (charges only)
-        total_paid = sum of Payment records
-        balance = charges - payments
+        total_paid = sum of Payment records (excluding mixed/master records)
         """
         from apps.tenant_management.helpers.money_helpers import quantize_money as q
         return q(self.total_amount) - q(self.total_paid)
@@ -413,7 +413,13 @@ class TenantBalance(models.Model):
         log(f"[DEBUG] Total unpaid invoice balance for tenant {tenant}: {total_invoice_balance}")
 
         # Find unallocated payments (payments not linked to any invoice)
-        unallocated_payments = Payment.objects.filter(tenant=tenant, invoice__isnull=True)
+        # CRITICAL FIX: Exclude 'MIXED' payments to avoid double counting credits 
+        # if a master payment sits unallocated but generated children.
+        unallocated_payments = Payment.objects.filter(
+            tenant=tenant, 
+            invoice__isnull=True
+        ).exclude(payment_type='MIXED')
+        
         total_unallocated_credit = sum(_quantize(p.amount) for p in unallocated_payments)
         log(f"[DEBUG] Total unallocated payment credits: {total_unallocated_credit}")
 

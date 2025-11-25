@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.views.generic.edit import FormView
 from django.urls import reverse, reverse_lazy
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponseRedirect, HttpResponse
 from django.db import transaction, IntegrityError
 from django.forms import HiddenInput
 from django.template.loader import render_to_string
@@ -21,8 +21,7 @@ from apps.tenant_management.services.invoice_service import InvoiceService
 
 logger = logging.getLogger(__name__)
 
-
-# --- Helper to build lease row context for AJAX ---
+# ... [Helpers and TenantLeaseCreateView remain unchanged] ...
 def _build_lease_row_context(lease):
     """Return a 'row' dict used by the lease_row partial."""
     return {
@@ -34,15 +33,8 @@ def _build_lease_row_context(lease):
         "deposit": lease.deposit_amount
     }
 
-# ==============================================================================
-# 1. Combined Tenant + Lease Creation (The "Add Tenant" Button)
-# ==============================================================================
-
 class TenantLeaseCreateView(FormView):
-    """
-    Handles combined Tenant + Lease creation via AJAX.
-    Delegates logic to TenantLeaseService.
-    """
+    # ... [Keep existing implementation] ...
     form_class = CombinedTenantLeaseForm
     template_name = "tenants/partials/tenant_lease_form.html"
 
@@ -87,7 +79,6 @@ class TenantLeaseCreateView(FormView):
             "unit_id": self.unit.id,
             "start_date": form.cleaned_data["start_date"],
             "deposit_amount": form.cleaned_data.get("deposit_amount", Decimal("0.00")),
-            # --- NEW: Pass the initial reading ---
             "initial_reading": form.cleaned_data.get("initial_reading"),
         }
 
@@ -115,19 +106,24 @@ class TenantLeaseCreateView(FormView):
             return JsonResponse({"success": True, "redirect": redirect_url, "message": success_message})
         return redirect(redirect_url)
 
-
 # ==============================================================================
-# 2. Standalone Lease Creation (Existing Tenant)
+# 2. Standalone Lease Creation (Existing Tenant) - UPDATED
 # ==============================================================================
 
 class LeaseCreateView(CreateView):
     """
     Create a new lease for an EXISTING tenant.
-    Must manually trigger InvoiceService here as it doesn't use TenantLeaseService.
+    Supports HTMX for modal rendering.
     """
     model = Lease
     form_class = LeaseCreationForm
     template_name = 'leases/lease_form.html'
+
+    def get_template_names(self):
+        # If HTMX request, use the partial to render just the form inside the modal
+        if self.request.headers.get('HX-Request'):
+            return ['leases/partials/lease_form.html']
+        return [self.template_name]
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -148,21 +144,18 @@ class LeaseCreateView(CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["tenant"] = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
+        ctx["unit_id"] = self.kwargs.get('unit_id')
         return ctx
 
     def form_valid(self, form):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
         unit_id = self.kwargs.get('unit_id') or form.cleaned_data['unit'].id
-        
-        # --- Extract Initial Reading ---
         initial_reading_val = form.cleaned_data.get('initial_reading')
 
         try:
             with transaction.atomic():
-                # Lock Unit
                 unit_obj = Unit.objects.select_for_update().get(pk=unit_id)
                 
-                # Validations
                 if tenant.property_id != unit_obj.property_id:
                     form.add_error(None, "Unit does not belong to tenant's property.")
                     return self.form_invalid(form)
@@ -170,17 +163,14 @@ class LeaseCreateView(CreateView):
                     form.add_error(None, "Unit is already occupied.")
                     return self.form_invalid(form)
 
-                # Save Lease
                 lease = form.save(commit=False)
                 lease.tenant = tenant
                 lease.unit = unit_obj
                 lease.save()
 
-                # Mark Occupied
                 unit_obj.is_occupied = True
                 unit_obj.save(update_fields=['is_occupied'])
                 
-                # --- Handle Deposit ---
                 if lease.deposit_amount > 0:
                     from apps.tenant_management.models import Deposit
                     Deposit.objects.get_or_create(
@@ -192,28 +182,30 @@ class LeaseCreateView(CreateView):
                         }
                     )
 
-                # --- Handle Baseline Meter Reading (NEW) ---
                 if initial_reading_val is not None:
                     MeterReading.objects.create(
                         unit=lease.unit,
                         reading_date=lease.start_date,
-                        previous_reading=initial_reading_val, # Equal to current = 0 usage
+                        previous_reading=initial_reading_val,
                         current_reading=initial_reading_val,
                         usage=Decimal('0.00'),
                         amount=Decimal('0.00'),
                     )
 
-                # --- TRIGGER BILLING ---
-                # Generate the Move-in Invoice (Rent + Deposit)
                 InvoiceService.upsert_rent_invoice_line_for_lease(lease, billing_date=lease.start_date)
 
         except IntegrityError:
             form.add_error(None, "Database error. Please try again.")
             return self.form_invalid(form)
 
-        # Response Handling
+        # HTMX Success Handling: Refresh the page
+        if self.request.headers.get('HX-Request'):
+            messages.success(self.request, f'Lease created for {tenant.full_name}.')
+            # 204 No Content with HX-Refresh trigger tells HTMX to reload the full page
+            return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+
+        # Legacy AJAX / Standard POST
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            from .lease import _build_lease_row_context # Ensure imported or available
             row = _build_lease_row_context(lease)
             html = render_to_string(
                 "leases/partials/lease_row.html",
@@ -230,8 +222,11 @@ class LeaseCreateView(CreateView):
         messages.success(self.request, f'Lease created for {tenant.full_name}. Invoice generated.')
         return super().form_valid(form)
 
-    # ... [Rest of methods unchanged] ...
     def form_invalid(self, form):
+        # HTMX Error Handling: Re-render partial with errors
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, 'leases/partials/lease_form.html', self.get_context_data(form=form))
+
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render_to_string(
                 self.template_name,
@@ -243,13 +238,9 @@ class LeaseCreateView(CreateView):
 
     def get_success_url(self):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
-        return reverse_lazy("tenant_detail", kwargs={"pk": tenant.property.pk}) # Careful with this redirect if pk is tenant ID
+        return reverse_lazy("tenant_detail", kwargs={"tenant_id": tenant.pk}) 
 
-
-# ==============================================================================
-# 3. Lease Management (Update, Delete, List, Details)
-# ==============================================================================
-
+# ... [Rest of classes] ...
 class LeaseUpdateView(UpdateView):
     model = Lease
     form_class = LeaseCreationForm

@@ -264,10 +264,6 @@ class TenantListView(ListView):
 
 
 class TenantDetailView(DetailView):
-    """
-    Comprehensive Dashboard for a single Tenant.
-    Shows all leases (active/expired), financial summary, and payment history.
-    """
     model = Tenant
     template_name = "tenants/tenant_detail.html"
     context_object_name = "tenant"
@@ -277,28 +273,31 @@ class TenantDetailView(DetailView):
         ctx = super().get_context_data(**kwargs)
         tenant = self.object
 
-        # 1. Financial Data & Leases (Using Shared Utility)
+        # 1. Financial Data & Leases
         leases_data, aggregates = get_tenant_leases_data(tenant)
         ctx['leases_data'] = leases_data
         ctx.update(aggregates)
 
-        # 2. Data for Tables
+        # 2. Invoices
         ctx['invoices'] = Invoice.objects.filter(tenant=tenant).order_by("-billing_period_start")
         
-        # --- FIX: Filter Payments to remove duplicate "Master" records ---
-        # We exclude 'MIXED' type because those represent the "Total Container" 
-        # for split payments. We only want to see the actual breakdown (RENT, DEPOSIT, CREDIT).
+        # 3. User-Friendly Payments (Hides Master Splits)
         ctx['payments'] = Payment.objects.filter(tenant=tenant)\
             .exclude(payment_type='MIXED')\
             .select_related("invoice")\
             .order_by("-payment_date")
             
-        # Meter Readings
+        # 4. NEW: Full Audit Log (Shows EVERYTHING: Sources & Destinations)
+        ctx['audit_logs'] = Payment.objects.filter(tenant=tenant)\
+            .select_related("invoice")\
+            .order_by("-payment_date", "-id") # Newest first
+            
+        # 5. Meter Readings
         ctx['meter_readings'] = MeterReading.objects.filter(
             unit__leases__tenant=tenant
         ).select_related("unit", "unit__property").order_by("-reading_date").distinct()
 
-        # 3. Data for "Assign Unit" Modal
+        # 6. Available Units for Modal
         properties_with_vacancies = Property.objects.prefetch_related(
             Prefetch("units", queryset=Unit.objects.filter(is_occupied=False).order_by("unit_number"))
         ).distinct()
