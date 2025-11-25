@@ -41,85 +41,54 @@
         font-size: 0.7rem; padding: 4px 8px; border-radius: 12px; text-transform: uppercase;
     }
 
-    /* --- NEW PROFILE CARD STYLES (For the Left Column) --- */
-    .profile-card {
-        background: #fff;
-        overflow: hidden;
-    }
+    /* --- PROFILE CARD STYLES --- */
+    .profile-card { background: #fff; overflow: hidden; }
     
-    /* The colored banner area */
     .profile-header {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%); /* Dark slate gradient */
-        height: 130px;
-        border-radius: 8px 8px 0 0;
-        padding: 1.5rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        height: 130px; border-radius: 8px 8px 0 0;
+        padding: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;
     }
     
-    /* Optional fade overlay effect */
     .fade-overlay {
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
-        border-radius: 8px 8px 0 0;
-        pointer-events: none;
+        border-radius: 8px 8px 0 0; pointer-events: none;
     }
 
-    /* Wrapper to pull avatar up over the header */
     .avatar-wrapper {
-        position: relative;
-        margin-top: -50px; /* Pulls avatar up */
-        display: flex;
-        justify-content: center;
-        margin-bottom: 1rem;
+        position: relative; margin-top: -50px; display: flex; justify-content: center; margin-bottom: 1rem;
     }
 
-    .chat-avatar {
-        position: relative;
-        display: inline-block;
-    }
+    .chat-avatar { position: relative; display: inline-block; }
 
     .avatar-img {
-        width: 100px;
-        height: 100px;
-        object-fit: cover;
-        border: 4px solid #fff; /* White ring */
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        background-color: #fff;
+        width: 100px; height: 100px; object-fit: cover;
+        border: 4px solid #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background-color: #fff;
     }
 
-    /* Edit pencil button */
     .avatar-edit-btn {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        color: #64748b;
-        padding: 0;
+        position: absolute; bottom: 0; right: 0; width: 32px; height: 32px;
+        border-radius: 50%; background: #fff; border: 1px solid #e2e8f0;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #64748b; padding: 0;
     }
-    .avatar-edit-btn:hover {
-        background: #f1f5f9;
-        color: #334155;
-    }
-
-    /* Custom color utility matching your snippet */
-    .bg-orange-400 {
-        background-color: #fb923c !important;
-    }
-    
-    /* Small font adjustments */
+    .avatar-edit-btn:hover { background: #f1f5f9; color: #334155; }
     .header-text h5 { font-weight: 600; letter-spacing: 0.3px; }
-    .fs-7 { font-size: 0.75rem; }
+
+    /* --- AUDIT LOG STYLES --- */
+    .audit-row-source {
+        background-color: rgba(34, 197, 94, 0.05); /* Light Green tint for Receipts */
+        border-left: 4px solid #22c55e;
+    }
+    .audit-row-dest {
+        border-left: 4px solid #3b82f6; /* Blue border for Allocations */
+    }
+    .badge-audit {
+        font-size: 0.75em;
+        padding: 5px 8px;
+        border-radius: 4px;
+    }
 </style>
 {% endblock %}
 
@@ -163,6 +132,8 @@
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-2"><i class="ti ti-file-text me-2"></i>Invoices</a></li>
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-3"><i class="ti ti-receipt me-2"></i>Payments</a></li>
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-4"><i class="ti ti-dashboard me-2"></i>Readings</a></li>
+                            <!-- NEW ACCOUNTING TAB -->
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-accounting"><i class="ti ti-book me-2"></i>Accounting Audit</a></li>
                         </ul>
                     </div>
 
@@ -173,130 +144,107 @@
                             <div class="tab-pane show active" id="profile-1">
                                 <div class="row">
                                     
-                                    <!-- --- UPDATED TENANT PROFILE CARD --- -->
+                                    <!-- TENANT PROFILE CARD -->
                                     <div class="col-lg-4 mb-4">
                                         <div class="card h-100 border-0 shadow-sm">
                                             <div class="card-body position-relative p-0">
                                                 <div class="profile-card">
-                                                    <!-- HEADER: background image area -->
+                                                    <!-- Header -->
                                                     <div class="profile-header text-white position-relative">
-                                                        <!-- Header text -->
                                                         <div class="header-text z-1">
                                                             <h5 class="mb-0 text-white">{{ tenant.full_name }}</h5>
                                                             <p class="text-white-50 text-sm mb-0">Tenant ID: #{{ tenant.id }}</p>
                                                         </div>
-                                                        <!-- Fading overlay -->
                                                         <div class="fade-overlay"></div>
                                                     </div>
 
-                                                    <!-- Avatar with Edit Button -->
+                                                    <!-- Avatar -->
                                                     <div class="avatar-wrapper">
                                                         <div class="chat-avatar">
-                                                            <!-- Using static avatar since tenant model usually doesn't have profile_pic in this schema -->
                                                             <img class="rounded-circle img-fluid avatar-img"
                                                                  src="{% static 'assets/images/user/avatar-5.jpg' %}"
                                                                  alt="{{ tenant.full_name }}">
-                                                            
-                                                            <!-- Edit button on avatar -->
-                                                            <button class="btn btn-sm avatar-edit-btn"
-                                                                    aria-label="Edit Tenant">
+                                                            <button class="btn btn-sm avatar-edit-btn" aria-label="Edit Tenant">
                                                                 <i class="ti ti-pencil"></i>
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    <!-- Action Button (Recharge) -->
+                                                    <!-- Recharge Button -->
                                                     <div class="text-center px-3 mb-3">
                                                         <button class="btn btn-success w-100 rounded-pill" onclick="openPaymentModal()">
                                                             <i class="bi bi-cash-coin me-1"></i> Payment / Recharge
                                                         </button>
                                                     </div>
 
-                                                    <!-- FIRST hr -->
                                                     <hr class="mx-4 my-3 text-muted opacity-25">
 
-                                                    <!-- Stats row -->
+                                                    <!-- Mini Stats -->
                                                     <div class="row g-0 py-2 mx-3 bg-light bg-opacity-50 rounded-3 border border-secondary border-opacity-10">
-                                    
-                                                        <div class="col-4 text-center px-1">
+                                                        <div class="col-3 text-center px-1">
                                                             <div class="fw-bolder text-dark fs-6">{{ total_units }}</div>
-                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Units</div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Units</div>
                                                         </div>
-
-                                                        <div class="col-4 text-center px-1 border-start border-end border-secondary border-opacity-10">
+                                                        <div class="col-3 text-center px-1 border-start border-secondary border-opacity-10">
                                                             <div class="fw-bolder text-dark fs-6">{{ leases_data|length }}</div>
-                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Leases</div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Leases</div>
                                                         </div>
-
-                                                        <div class="col-4 text-center px-1">
-                                                            <div class="fw-bolder {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %} fs-6 text-break" title="{{ total_balance }}">
+                                                        <div class="col-3 text-center px-1 border-start border-secondary border-opacity-10">
+                                                            <div class="fw-bolder text-success fs-6 text-break" title="Unallocated Credit">
+                                                                {{ tenant_credit|floatformat:0 }}
+                                                            </div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Credit</div>
+                                                        </div>
+                                                        <div class="col-3 text-center px-1 border-start border-secondary border-opacity-10">
+                                                            <div class="fw-bolder {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %} fs-6" title="{{ total_balance }}">
                                                                 {{ total_balance|floatformat:0 }}
                                                             </div>
-                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Due</div>
+                                                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Due</div>
                                                         </div>
-
                                                     </div>
 
-                                                    <!-- SECOND hr -->
                                                     <hr class="mx-4 my-3 text-muted opacity-25">
 
-                                                    <!-- Contact Info -->
+                                                    <!-- Contact Details -->
                                                     <div class="bg-light bg-opacity-50 rounded-3 p-3 mx-3 mb-4 border border-secondary border-opacity-10">
-                                    
-                                                        <!-- Email -->
                                                         <div class="d-flex align-items-center mb-3">
                                                             <div class="flex-shrink-0 text-primary me-3">
-                                                                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                                                                    <i class="ti ti-mail"></i>
-                                                                </div>
+                                                                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;"><i class="ti ti-mail"></i></div>
                                                             </div>
                                                             <div class="flex-grow-1 overflow-hidden">
-                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Email</p>
-                                                                <h6 class="mb-0 text-truncate text-dark" title="{{ tenant.email }}" style="font-size: 0.9rem;">
-                                                                    {{ tenant.email|default:"--" }}
-                                                                </h6>
+                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Email</p>
+                                                                <h6 class="mb-0 text-truncate text-dark" style="font-size: 0.9rem;">{{ tenant.email|default:"--" }}</h6>
                                                             </div>
                                                         </div>
-
-                                                        <!-- Phone & Status -->
                                                         <div class="row g-0 mb-3">
                                                             <div class="col-7 border-end border-secondary border-opacity-10 pe-2">
                                                                 <div class="d-flex align-items-center">
                                                                     <i class="ti ti-phone text-muted me-2 fs-5"></i>
                                                                     <div>
-                                                                        <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Phone</p>
+                                                                        <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Phone</p>
                                                                         <span class="text-dark fw-bold small">{{ tenant.phone_number }}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
-
                                                             <div class="col-5 ps-3">
                                                                 <div class="d-flex flex-column justify-content-center">
-                                                                    <p class="mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Status</p>
-                                                                    <div>
-                                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">
-                                                                            Active
-                                                                        </span>
-                                                                    </div>
+                                                                    <p class="mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Status</p>
+                                                                    <div><span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">Active</span></div>
                                                                 </div>
                                                             </div>
                                                         </div>
-
-                                                        <!-- National ID / Location -->
                                                         <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
                                                             <i class="ti ti-id text-muted me-2 mt-1"></i>
                                                             <div>
-                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">National ID</p>
+                                                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">National ID</p>
                                                                 <span class="text-dark small fw-bold">{{ tenant.national_id }}</span>
                                                             </div>
                                                         </div>
-
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- --- END UPDATED PROFILE CARD --- -->
 
                                     <!-- Leases List & Stats -->
                                     <div class="col-lg-8">
@@ -313,14 +261,14 @@
                                                 
                                                 <!-- STAT CARDS -->
                                                 <div class="row g-3 mb-4">
-                                                    <!-- 1. Total Rent (Invoiced) -->
+                                                    <!-- 1. Total Rent -->
                                                     <div class="col-sm-6 col-xl-3">
                                                         <div class="stat-card border-blue">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-primary"><i class="fas fa-file-invoice-dollar"></i></div>
                                                                 <div><p class="label mb-0">Total Rent</p><p class="value mb-0">{{ total_invoiced|floatformat:0 }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Invoiced</span></div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted txt-sm small-badge">Invoiced</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 2. Total Held Deposit -->
@@ -328,9 +276,9 @@
                                                         <div class="stat-card border-green">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-success"><i class="fas fa-piggy-bank"></i></div>
-                                                                <div><p class="label mb-0">Deposit Held</p><p class="value mb-0">{{ total_deposit_held|floatformat:0 }}</p></div>
+                                                                <div><p class="label mb-0">Depo Held</p><p class="value mb-0">{{ total_deposit_held|floatformat:0 }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Refundable</span></div>
+                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">Refundable</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 3. Total Leases -->
@@ -340,7 +288,7 @@
                                                                 <div class="icon bg-light text-warning"><i class="fas fa-file-contract"></i></div>
                                                                 <div><p class="label mb-0">Total Leases</p><p class="value mb-0">{{ leases_data|length }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">History</span></div>
+                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">History</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 4. Total Units -->
@@ -350,7 +298,7 @@
                                                                 <div class="icon bg-light text-danger"><i class="fas fa-building"></i></div>
                                                                 <div><p class="label mb-0">Total Units</p><p class="value mb-0">{{ total_units }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Occupied</span></div>
+                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">Occupied</span></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -358,8 +306,8 @@
                                                 <!-- Leases Table -->
                                                 <h6 class="mb-3 text-muted"><i class="fas fa-list me-2"></i>Lease Details</h6>
                                                 <div class="table-responsive mt-3">
-                                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                            <thead class="bg-green-100 ">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                        <thead class="bg-green-100 ">
                                                             <tr>
                                                                 <th>Unit</th><th>Property</th><th>Rent</th><th>Balance</th><th>Deposit</th><th>Meter</th><th>Status</th>
                                                             </tr>
@@ -522,6 +470,74 @@
                                 </div>
                             </div>
 
+                            <!-- TAB 5: ACCOUNTING AUDIT -->
+                            <div class="tab-pane fade" id="profile-accounting">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">Full Audit Trail</h5>
+                                        <small class="text-muted">Shows Source (Receipts) and Destinations (Allocations)</small>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="datatable display table table-hover mb-0 align-middle" style="font-size: 0.9rem;">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Date</th>
+                                                    <th>Flow Type</th>
+                                                    <th>Details</th>
+                                                    <th class="text-end">Amount</th>
+                                                    <th class="text-end">Method</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for log in audit_logs %}
+                                                    <!-- Determine if Source or Destination based on properties -->
+                                                    {% if log.payment_type == 'MIXED' or 'Allocation' not in log.reference and 'Credit' not in log.reference %}
+                                                        <tr class="audit-row-source">
+                                                            <td><span class="text-muted">#{{ log.id }}</span></td>
+                                                            <td>{{ log.payment_date|date:"d M Y H:i" }}</td>
+                                                            <td><span class="badge bg-success-subtle text-success border border-success badge-audit">📥 Source (Receipt)</span></td>
+                                                            <td>
+                                                                <strong>Received Funds</strong><br>
+                                                                <small class="text-muted">Ref: {{ log.reference }}</small>
+                                                            </td>
+                                                            <td class="text-end fw-bold text-success">+ {{ log.amount }}</td>
+                                                            <td class="text-end">{{ log.method }}</td>
+                                                        </tr>
+                                                    {% else %}
+                                                        <tr class="audit-row-dest">
+                                                            <td><span class="text-muted">#{{ log.id }}</span></td>
+                                                            <td>{{ log.payment_date|date:"d M Y H:i" }}</td>
+                                                            <td>
+                                                                {% if log.payment_type == 'CREDIT' %}
+                                                                    <span class="badge bg-info-subtle text-info border border-info badge-audit">💾 Stored Credit</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-primary-subtle text-primary border border-primary badge-audit">↘ Ledger (Applied)</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if log.invoice %}
+                                                                    Applied to <strong>Invoice #{{ log.invoice.id }}</strong> ({{ log.payment_type }})
+                                                                {% else %}
+                                                                    Unallocated Credit
+                                                                {% endif %}
+                                                                <br>
+                                                                <small class="text-muted">{{ log.reference }}</small>
+                                                            </td>
+                                                            <td class="text-end text-muted">{{ log.amount }}</td>
+                                                            <td class="text-end"><span class="text-muted">Internal</span></td>
+                                                        </tr>
+                                                    {% endif %}
+                                                {% empty %}
+                                                    <tr><td colspan="6" class="text-center py-4">No transaction history found.</td></tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- END TAB 5 -->
+
                         </div>
                     </div>
                 </div>
@@ -556,7 +572,22 @@
   </div>
 </div>
 
-<!-- Lease Assignment Modal -->
+<!-- CRUD Modal (Target for Lease Form) -->
+<div class="modal fade" id="crudModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Lease</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="crudModalContent">
+                <!-- Lease form injected here via HTMX -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lease Assignment Modal (Unit Picker) -->
 <div class="modal fade" id="leaseModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -572,8 +603,15 @@
                         {% for u in prop_group.units %}
                             <li class="list-group-item d-flex justify-content-between align-items-center ps-4">
                                 Unit {{ u.unit_number }}
-                                <!-- FIX IS HERE: Swapped tenant.id and u.id -->
-                                <a href="{% url 'lease_create' u.id tenant.id %}" class="btn btn-sm btn-outline-primary">Select</a>
+                                <!-- MODAL-TO-MODAL TRIGGER -->
+                                <button class="btn btn-sm btn-outline-primary" 
+                                        hx-get="{% url 'lease_create' u.id tenant.id %}" 
+                                        hx-target="#crudModalContent" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#crudModal"
+                                        onclick="bootstrap.Modal.getInstance(document.getElementById('leaseModal')).hide()">
+                                    Select
+                                </button>
                             </li>
                         {% endfor %}
                     {% empty %}

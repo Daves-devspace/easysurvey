@@ -35,7 +35,8 @@ class Config:
     HF_API_KEY = getattr(settings, "HF_API_KEY", "")
     HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     HF_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
-    HF_SIMILARITY_URL = f"https://api-inference.huggingface.co/models/{HF_SIMILARITY_MODEL}"
+    # FIXED: Correct router endpoint format (no /models/ in path)
+    HF_SIMILARITY_URL = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{HF_SIMILARITY_MODEL}"
     HF_ZERO_SHOT_URL = f"https://api-inference.huggingface.co/models/{HF_ZERO_SHOT_MODEL}"
     
     # OpenRouter (for refinement)
@@ -150,7 +151,12 @@ class CacheManager:
     def get_intent(text: str) -> Optional[Intent]:
         key = f"int:v3:{CacheManager.hash_key(text)}"
         data = cache.get(key)
-        return Intent(**data) if data else None
+        if data:
+            # Handle both dict and Intent objects
+            if isinstance(data, dict):
+                return Intent(**data)
+            return data
+        return None
     
     @staticmethod
     def set_intent(text: str, intent: Intent):
@@ -161,7 +167,12 @@ class CacheManager:
     def get_search(text: str) -> Optional[SearchResult]:
         key = f"search:v3:{CacheManager.hash_key(text)}"
         data = cache.get(key)
-        return SearchResult(**data) if data else None
+        if data:
+            # Handle both dict and SearchResult objects
+            if isinstance(data, dict):
+                return SearchResult(**data)
+            return data
+        return None
     
     @staticmethod
     def set_search(text: str, result: SearchResult):
@@ -173,9 +184,17 @@ class CacheManager:
         key = f"response:v3:{CacheManager.hash_key(query)}:{username[:10]}"
         data = cache.get(key)
         if data:
-            response = BotResponse(**data)
-            response.cached = True
-            return response
+            # Handle both dict and BotResponse objects
+            if isinstance(data, dict):
+                # Reconstruct nested Intent object
+                if 'intent' in data and isinstance(data['intent'], dict):
+                    data['intent'] = Intent(**data['intent'])
+                response = BotResponse(**data)
+                response.cached = True
+                return response
+            # Already a BotResponse object
+            data.cached = True
+            return data
         return None
     
     @staticmethod

@@ -5,7 +5,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from .models import Tenant, Unit, Lease, Property, MeterReading, WaterCompany,Payment
-
+from decimal import Decimal
 from datetime import date as dt_date
 
 class UnitForm(forms.ModelForm):
@@ -124,83 +124,6 @@ class TenantCreationForm(forms.ModelForm):
         return nid
 
 
-class LeaseCreationForm(forms.ModelForm):
-    """
-    Form for creating a Lease. Dynamically limits unit choices to vacant units of a property.
-    """
-    # Override unit field to set queryset later in __init__
-    initial_reading = forms.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-        required=True, 
-        label="Initial Meter Reading",
-        help_text="Baseline reading for the new unit."
-    )
-    unit = forms.ModelChoiceField(
-        queryset=Unit.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        help_text="Select an available unit"
-    )
-
-    class Meta:
-        model = Lease
-        fields = ['unit', 'start_date', 'deposit_amount']
-        widgets = {
-            # Date picker that prevents past dates
-            'start_date': forms.DateInput(attrs={
-                'class': 'form-control',
-                'type': 'date',
-                'min': timezone.now().date().isoformat()
-            }),
-            # Numeric input for deposit
-            'deposit_amount': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0'
-            })
-        }
-
-    def __init__(self, property_id=None, *args, **kwargs):
-        """
-        If property_id is passed, limit unit choices to that property's vacant units.
-        """
-        super().__init__(*args, **kwargs)
-        if property_id:
-            self.fields['unit'].queryset = Unit.objects.filter(
-                property_id=property_id,
-                is_occupied=False
-            ).select_related('property')
-
-    def clean_start_date(self):
-        """
-        Prevent start date in the past.
-        """
-        start_date = self.cleaned_data.get('start_date')
-        if start_date and start_date < timezone.now().date():
-            raise ValidationError("Start date cannot be in the past")
-        return start_date
-
-    def clean_deposit_amount(self):
-        """
-        Enforce deposit between 50% and 300% of monthly rent.
-        """
-        deposit = self.cleaned_data.get('deposit_amount')
-        unit = self.cleaned_data.get('unit')
-        if deposit and unit:
-            min_dep = unit.rent_amount * 0.5
-            max_dep = unit.rent_amount * 3
-            if deposit < min_dep:
-                raise ValidationError("Deposit is typically at least 50% of monthly rent")
-            if deposit > max_dep:
-                raise ValidationError("Deposit seems unusually high. Please verify.")
-        return deposit
-
-
-
-from decimal import Decimal
-
-
 class CombinedTenantLeaseForm(forms.Form):
     # Tenant fields
     full_name = forms.CharField(
@@ -220,7 +143,7 @@ class CombinedTenantLeaseForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'})
     )
 
-    # Hidden authoritative IDs (integers) - view sets initial; JS sets unit on click
+    # Hidden authoritative IDs
     property = forms.IntegerField(widget=forms.HiddenInput())
     unit = forms.IntegerField(widget=forms.HiddenInput())
 
@@ -236,7 +159,7 @@ class CombinedTenantLeaseForm(forms.Form):
         initial=Decimal('0.00')
     )
     
-    # --- NEW FIELD: Initial Reading ---
+    # Initial Reading
     initial_reading = forms.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -287,6 +210,71 @@ class CombinedTenantLeaseForm(forms.Form):
 
         return cleaned
 
+
+class LeaseCreationForm(forms.ModelForm):
+    """
+    Form for creating a Lease. Dynamically limits unit choices to vacant units of a property.
+    """
+    initial_reading = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+        required=True, 
+        label="Initial Meter Reading",
+        help_text="Baseline reading for the new unit."
+    )
+    
+    unit = forms.ModelChoiceField(
+        queryset=Unit.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text="Select an available unit"
+    )
+
+    class Meta:
+        model = Lease
+        fields = ['unit', 'start_date', 'deposit_amount']
+        widgets = {
+            'start_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'min': timezone.now().date().isoformat()
+            }),
+            'deposit_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            })
+        }
+
+    def __init__(self, property_id=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if property_id:
+            self.fields['unit'].queryset = Unit.objects.filter(
+                property_id=property_id,
+                is_occupied=False
+            ).select_related('property')
+
+    def clean_start_date(self):
+        start_date = self.cleaned_data.get('start_date')
+        if start_date and start_date < timezone.now().date():
+            raise ValidationError("Start date cannot be in the past")
+        return start_date
+
+    def clean_deposit_amount(self):
+        deposit = self.cleaned_data.get('deposit_amount')
+        unit = self.cleaned_data.get('unit')
+        
+        if deposit is not None and unit:
+            # FIX: Convert floats to Decimal for calculation
+            min_dep = unit.rent_amount * Decimal("0.5")
+            max_dep = unit.rent_amount * Decimal("3.0")
+            
+            if deposit < min_dep:
+                raise ValidationError(f"Deposit is typically at least 50% of monthly rent (Min: {min_dep})")
+            if deposit > max_dep:
+                raise ValidationError("Deposit seems unusually high. Please verify.")
+                
+        return deposit
 
 
 

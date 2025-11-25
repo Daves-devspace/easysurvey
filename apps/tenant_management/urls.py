@@ -133,5 +133,8 @@ urlpatterns = [
     path("api/dashboard/occupancy/", occupancy_kpis),
     path("api/dashboard/operational/", operational_kpis),
     path("api/dashboard/collections/", collections_kpis),
+    
+    
+
 ]
 
