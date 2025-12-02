@@ -1,0 +1,29 @@
+
+  {% for employee in employees %}
+    {% with payroll=employee.filtered_payrolls|first %}
+      <tr>
+        <td>{{ employee.user.get_full_name }}</td>
+        <td>{{ employee.department }}</td>
+        <td>{{ employee.get_role_display }}</td>
+        <td>{{ employee.phone_number }}</td>
+
+        {% if payroll %}
+          <td class="text-end">KES {{ payroll.gross_salary|floatformat:2 }}</td>
+          <td class="text-end">KES {{ payroll.net_salary|floatformat:2 }}</td>
+          <td>{{ payroll.month|date:"F Y" }}</td>
+          <td>
+            <span class="badge {% if payroll.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+              {{ payroll.is_paid|yesno:"Paid,Pending" }}
+            </span>
+          </td>
+          <td>{{ payroll.paid_on|default:"—" }}</td>
+          <td>
+              <button>view</button>
+          </td>
+        {% else %}
+          <td colspan="6" class="text-center text-muted">No payroll</td>
+        {% endif %}
+      </tr>
+    {% endwith %}
+  {% endfor %}
+

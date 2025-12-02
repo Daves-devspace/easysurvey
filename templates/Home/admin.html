@@ -1,0 +1,542 @@
+{% extends 'Home/base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block body %}
+    <style>
+        .nav-tabs .nav-link.active {
+            background-color: #198754; /* Bootstrap green */
+            color: white;
+            box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link {
+            transition: all 0.3s ease;
+            border-radius: 0.5rem;
+        }
+
+        .nav-tabs {
+            border-bottom: none;
+        }
+    </style>
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                           
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Dashboard</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Home</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="csv-alert" class="alert alert-success alert-dismissible fade d-none" role="alert">
+                CSV exported successfully!
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <!-- Total Processed Title Deeds -->
+                <div class="container-fluid mt-3">
+                    <div class="row g-2">
+
+                    {% comment %}—— CLIENTS ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-users text-primary"></i> Clients
+                            </span>
+                            <span class="badge rounded-pill {% if clients_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ clients_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">{{ clients_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if clients_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> {{ clients_diff|intcomma }} more than last year
+                            {% elif clients_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> {{ clients_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                {% comment %}—— CLIENT PAYMENTS / GROSS COLLECTIONS ——{% endcomment %}
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="card border-0 shadow-lg rounded-2">
+                    <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-secondary">
+                        <i class="fas fa-hand-holding-usd text-success"></i> Client Payments
+                        </span>
+                        <span class="badge rounded-pill {% if client_payments_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                        {{ client_payments_growth_pct|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <h4 class="mb-2 fw-bold">KES {{ client_payments_cur|intcomma }}</h4>
+                    <p class="text-muted small mb-0">
+                        {% if client_payments_diff > 0 %}
+                        <i class="fas fa-arrow-up text-success"></i> KES {{ client_payments_diff|intcomma }} more than last year
+                        {% elif client_payments_diff < 0 %}
+                        <i class="fas fa-arrow-down text-danger"></i> KES {{ client_payments_diff_abs|intcomma }} less than last year
+                        {% else %}
+                        <i class="fas fa-equals text-secondary"></i> No change from last year
+                        {% endif %}
+                    </p>
+                    </div>
+                </div>
+                </div>
+
+
+
+                    {% comment %}—— INSTITUTION COSTS PAID ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-university text-warning"></i> Institutions Paid
+                            </span>
+                            <span class="badge rounded-pill {% if inst_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ inst_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ rev_cur_inst_paid|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if inst_diff > 0 %}
+                            <i class="fas fa-arrow-up text-danger"></i> KES {{ inst_diff|intcomma }} more than last year
+                            {% elif inst_diff < 0 %}
+                            <i class="fas fa-arrow-down text-success"></i> KES {{ inst_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+
+                    {% comment %}—— REVENUE ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-money-bill-wave text-success"></i> Revenue
+                            </span>
+                            <span class="badge rounded-pill {% if rev_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ rev_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ rev_cur_net|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if rev_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> KES {{ rev_diff|intcomma }} more than last year
+                            {% elif rev_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> KES {{ rev_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— EXPENSES ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-file-invoice text-danger"></i> Expenses
+                            </span>
+                            <span class="badge rounded-pill {% if exp_growth_pct <= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ exp_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ exp_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if exp_diff > 0 %}
+                            <i class="fas fa-arrow-up text-danger"></i> KES {{ exp_diff|intcomma }} more than last year
+                            {% elif exp_diff < 0 %}
+                            <i class="fas fa-arrow-down text-success"></i> KES {{ exp_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— NET REVENUE ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-chart-line text-info"></i> Net Rev
+                            </span>
+                            <span class="badge rounded-pill {% if net_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ net_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">KES {{ net_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if net_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> KES {{ net_diff|intcomma }} more than last year
+                            {% elif net_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> KES {{ net_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+
+                    {% comment %}—— TITLE DEEDS ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="card border-0 shadow-lg rounded-2">
+                        <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">
+                            <i class="fas fa-file-contract text-warning"></i> Title Deeds
+                            </span>
+                            <span class="badge rounded-pill {% if titles_growth_pct >= 0 %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} px-2 py-0">
+                            {{ titles_growth_pct|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <h4 class="mb-2 fw-bold">{{ titles_cur|intcomma }}</h4>
+                        <p class="text-muted small mb-0">
+                            {% if titles_diff > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> {{ titles_diff|intcomma }} more than last year
+                            {% elif titles_diff < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> {{ titles_diff_abs|intcomma }} less than last year
+                            {% else %}
+                            <i class="fas fa-equals text-secondary"></i> No change from last year
+                            {% endif %}
+                        </p>
+                        </div>
+                    </div>
+                    </div>
+
+                    {% comment %}—— AI FORECAST ——{% endcomment %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <div class="card border-0 shadow-lg rounded-2">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-secondary">
+                                        <i class="fas fa-brain text-primary"></i> AI Forecast
+                                    </span>
+                                    <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-0">
+                                        87%
+                                    </span>
+                                </div>
+                                <h4 class="mb-2 fw-bold">KES 2,450,000</h4>
+                                <p class="text-muted small mb-0">
+                                    <i class="fas fa-chart-line text-primary"></i> Projected for next quarter
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                <div class="row g-4">
+                    <!-- Tabs + Shared Chart Area -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-green-100">
+
+
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <ul class="nav nav-tabs border-0" id="chartTab" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#revenue" type="button" role="tab">
+                                                Revenue
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="services-tab" data-bs-toggle="tab"
+                                                    data-bs-target="#services" type="button" role="tab">
+                                                Service Analysis
+                                            </button>
+                                        </li>
+                                    </ul>
+
+                                    <!-- Filters Container -->
+                                    <div id="revenue-filters" class="d-flex gap-2">
+                                        <select id="year-selector" class="form-select form-select-sm"
+                                                style="min-width: 120px;"></select>
+                                        <button id="export-csv-btn" class="btn btn-outline-primary btn-sm"
+                                                style="min-width: 120px;">
+                                            Export CSV
+                                        </button>
+                                    </div>
+
+                                    <div id="service-filters" class="d-flex gap-2 d-none">
+                                        <select id="service-year-selector" class="form-select form-select-sm"
+                                                style="min-width: 120px;"></select>
+                                        <select id="service-selector" class="form-select form-select-sm"
+                                                style="min-width: 150px;"></select>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="card-body tab-content shadow-lg">
+                                <!-- Revenue Tab -->
+                                <div class="tab-pane fade show active" id="revenue" role="tabpanel">
+                                    <div id="survey-sales-report-chart" style="min-height: 430px;"></div>
+                                </div>
+                                <!-- Service Analysis Tab -->
+                                <div class="tab-pane fade" id="services" role="tabpanel">
+
+                                    <div id="chart-summary" class="mb-3">
+                                        <h6 id="summary-year" class="fw-bold"></h6>
+                                        <p id="summary-services" class="mb-1"></p>
+                                        <p id="summary-revenue"></p>
+                                    </div>
+                                    <div id="chart" style="min-height: 300px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendar or Other Right-Side Content -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-green-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label><input type="checkbox" id="toggle-handled" /> Show Handled</label>
+                                    <div id="viewSelector" class="d-none">
+                                    <button onclick="calendar.changeView('dayGridMonth')" class="btn btn-sm btn-light mb-1">Month</button>
+                                    <button onclick="calendar.changeView('timeGridWeek')" class="btn btn-sm btn-light mb-1">Week</button>
+                                    <button onclick="calendar.changeView('timeGridDay')" class="btn btn-sm btn-light">Day</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="card-body shadow-lg">
+                                <!-- Your calendar component here -->
+
+
+                                <div id="calendar" style="min-height: 400px; margin: 20px;"></div>
+
+
+                                <!-- Bootstrap Modal -->
+                                <!-- Modal -->
+                                <div class="modal fade" id="bookingModal" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Booking Details</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body" id="modalBody"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="col-md-12 col-xl-6">
+
+                    <div class="card tbl-card shadow-lg mt-2">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Recent Payments</h5>
+                            <a href="{% url 'accounts_dashboard' %}  ">View All</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover table-borderless mb-0">
+
+                                    <thead>
+                                    <tr>
+                                        <th>When</th>
+                                        <th>Client</th>
+                                        <th>Service</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Txn ID</th>
+
+                                        <th>Payment Status</th>
+                                        <th>View Details</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for payment in recent_payments %}
+                                        <tr>
+                                            <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                            <td>{{ payment.client_service.client }}</td>
+                                            <td>{{ payment.client_service }}</td>
+                                            <td>{{ payment.amount }}</td>
+                                            <td>{{ payment.payment_method }}</td>
+                                            <td>{{ payment.transaction_id }}</td>
+
+
+                                            {# Service payment status from ClientService #}
+
+                                            <td>
+                                                                                                  <span class="d-flex align-items-center gap-2">
+                                                                                                    {% if payment.client_service.payment_status == 'Fully Paid' %}
+                                                                                                        <i class="fas fa-circle text-success f-10"></i>
+                                                                                                        Fully Paid
+                                                                                                    {% elif payment.client_service.payment_status == 'Partially Paid' %}
+                                                                                                        <i class="fas fa-circle text-warning f-10"></i>
+                                                                                                        Partially Paid
+                                                                                                    {% else %}
+                                                                                                        <i class="fas fa-circle text-danger f-10"></i>
+                                                                                                        Not Paid
+                                                                                                    {% endif %}
+                                                                                                  </span>
+                                            </td>
+
+
+                                            {# Link to client-service detail view #}
+                                            <td>
+                                                <a href="{% url 'client_details' payment.client_service.client.id %}"
+                                                   class="btn btn-sm btn-primary">
+                                                    View Details
+                                                </a>
+                                            </td>
+
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="8" class="text-center py-3">No
+                                                history records.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="col-md-12 col-xl-6">
+
+                    <div class="card shadow-lg">
+                        <div class="card-header">
+                            <h5 class="mb-3">Today's Bookings</h5>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for booking in today_bookings %}
+                                <a href="{% url 'client_details' booking.client_service.client.pk %}"
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex align-items-center">
+                                        <div>
+                                            <div class="avtar avtar-s rounded-circle text-success bg-light-success">
+                                                <i class="ti ti-calendar-event f-18"></i>
+                                            </div>
+                                        </div>
+                                        <div class="ms-3 flex-grow-1">
+                                            <p class="mb-0 text-muted">
+                                                Service:<strong>{{ booking.client_service.service.name }}</strong>
+                                                &nbsp;for&nbsp;{{ booking.client_service.client.first_name }}&nbsp;{{ booking.client_service.client.last_name }}
+                                            </p>
+                                        </div>
+                                        <div class="text-end">
+                                            <h6 class="mb-1">{{ booking.scheduled_date|date:"M j, Y" }}</h6>
+                                            <p class="mb-0 text-muted">{{ booking.scheduled_date|time:"P" }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            {% empty %}
+                                <div class="list-group-item text-center text-muted">
+                                    No bookings scheduled for today
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="row">
+                    <!-- [ sample-page ] start -->
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body position-relative">
+                                <div id="calendar" class="calendar"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- [ sample-page ] end -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+{% endblock %}
+<!-- Just before </body>: FullCalendar bundle + your init -->
+
+
+{% block  extra_js %}
+
+
+    <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
+    <script src="{% static 'assets/js/modals/dashCardAnalytics.js' %}"></script>
+
+
+
+
+
+
+    <script>
+        const revenueTab = document.getElementById("revenue-tab");
+        const servicesTab = document.getElementById("services-tab");
+
+        const revenueFilters = document.getElementById("revenue-filters");
+        const serviceFilters = document.getElementById("service-filters");
+
+        revenueTab.addEventListener("click", () => {
+            revenueFilters.classList.remove("d-none");
+            serviceFilters.classList.add("d-none");
+        });
+
+        servicesTab.addEventListener("click", () => {
+            serviceFilters.classList.remove("d-none");
+            revenueFilters.classList.add("d-none");
+        });
+    </script>
+{% endblock %}
+
+<!-- v5 CSS & JS -->
+

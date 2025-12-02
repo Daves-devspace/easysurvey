@@ -1,0 +1,307 @@
+{% extends "Home/base.html" %}
+{% load static %}
+
+{% block title %}Step 1: Upload Coordinate File{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+.step-progress {
+    margin-bottom: 2rem;
+}
+.step-progress .step {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #6c757d;
+    line-height: 40px;
+    text-align: center;
+    font-weight: bold;
+    margin-right: 1rem;
+    position: relative;
+}
+.step-progress .step.active {
+    background-color: #007bff;
+    color: white;
+}
+.step-progress .step.completed {
+    background-color: #28a745;
+    color: white;
+}
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 3rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+.upload-zone:hover {
+    border-color: #007bff;
+    background-color: #e7f1ff;
+}
+.upload-zone.dragover {
+    border-color: #007bff;
+    background-color: #e7f1ff;
+    transform: scale(1.02);
+}
+.file-formats {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.format-badge {
+    background-color: #e9ecef;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    color: #495057;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<section class="pc-container">
+    <div class="pc-content">
+        <div class="page-header">
+            <div class="page-block">
+                <div class="row align-items-center">
+                    <div class="col-md-12">
+                        <div class="page-header-title">
+                            <h2 class="mb-0">Step 1: Upload Coordinate File</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+            <!-- Progress Steps -->
+            <div class="step-progress text-center mb-4">
+                <div class="step active"></div>
+                <div class="step"></div>
+                <div class="step"></div>
+                <div class="step"></div>
+                <div class="step"></div>
+                <div class="step"></div>
+                <div class="step"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-upload me-2"></i>
+                        Step 1: Upload Coordinate File
+                    </h4>
+                    <p class="text-muted mb-0 mt-1">
+                        Upload your coordinate file to begin the subdivision process
+                    </p>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        
+                        <!-- Project Name -->
+                        <div class="mb-4">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                <strong>Project Name</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Project Description -->
+                        <div class="mb-4">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                <strong>Description</strong> 
+                                <span class="text-muted">(Optional)</span>
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <strong>Coordinate File</strong>
+                                <span class="text-danger">*</span>
+                            </label>
+                            
+                            <div class="upload-zone" id="uploadZone">
+                                <div class="upload-content">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">Drag & Drop your coordinate file here</h5>
+                                    <p class="text-muted">or click to browse files</p>
+                                    
+                                    {{ form.coordinate_file }}
+                                    
+                                    <div class="file-formats mt-3">
+                                        <span class="format-badge">CSV</span>
+                                        <span class="format-badge">TXT</span>
+                                        <span class="format-badge">Excel (.xlsx)</span>
+                                        <span class="format-badge">Excel (.xls)</span>
+                                    </div>
+                                </div>
+                                
+                                <div id="fileInfo" class="mt-3" style="display: none;">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-file me-2"></i>
+                                        <span id="fileName"></span>
+                                        <span class="text-muted ms-2" id="fileSize"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if form.coordinate_file.errors %}
+                                <div class="text-danger small mt-2">{{ form.coordinate_file.errors.0 }}</div>
+                            {% endif %}
+                            
+                            <div class="form-text mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                {{ form.coordinate_file.help_text }}
+                            </div>
+                        </div>
+
+                        <!-- File Format Guidelines -->
+                        <div class="alert alert-light">
+                            <h6><i class="fas fa-lightbulb me-2"></i>File Format Guidelines:</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>CSV/TXT files:</strong> Should contain columns for Point ID, X coordinate, Y coordinate (and optionally Z coordinate)</li>
+                                <li><strong>Excel files:</strong> First sheet will be used, with similar column structure</li>
+                                <li><strong>Coordinate system:</strong> You'll specify the coordinate system in the next step</li>
+                                <li><strong>File size limit:</strong> Maximum 10MB per file</li>
+                            </ul>
+                        </div>
+
+                        <!-- Navigation -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'subdivision:project_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Projects
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                Next: Map Coordinates
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('{{ form.coordinate_file.id_for_label }}');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Drag and drop functionality
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            displayFileInfo(files[0]);
+        }
+    });
+
+    uploadZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            displayFileInfo(this.files[0]);
+        }
+    });
+
+    function displayFileInfo(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = `(${formatFileSize(file.size)})`;
+        fileInfo.style.display = 'block';
+        
+        // Validate file type
+        const validExtensions = ['csv', 'txt', 'xlsx', 'xls'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (validExtensions.includes(fileExtension)) {
+            fileInfo.className = 'mt-3';
+            fileInfo.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span>${file.name}</span>
+                    <span class="text-muted ms-2">(${formatFileSize(file.size)})</span>
+                </div>
+            `;
+        } else {
+            fileInfo.className = 'mt-3';
+            fileInfo.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Invalid file type. Please upload a CSV, TXT, or Excel file.
+                </div>
+            `;
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Form validation
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const projectName = document.getElementById('{{ form.name.id_for_label }}').value.trim();
+        const file = fileInput.files[0];
+
+        if (!projectName) {
+            e.preventDefault();
+            alert('Please enter a project name.');
+            return;
+        }
+
+        if (!file) {
+            e.preventDefault();
+            alert('Please select a coordinate file.');
+            return;
+        }
+
+        // Show loading state
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+        submitBtn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

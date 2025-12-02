@@ -1,0 +1,173 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Account Profile</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="page-header-title">
+                                <h2 class="mb-0">Account Profile</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+            <!-- [ breadcrumb ] end -->
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- [ sample-page ] start -->
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5"
+                                       role="tab"
+                                       aria-selected="true">
+                                        <i class="ti ti-users me-2"></i>All Users
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content">
+
+
+                                <div class="tab-pane show active" id="profile-5" role="tabpanel"
+                                     aria-labelledby="profile-tab-5">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>Invite Team Members</h5>
+                                        </div>
+                                        <div class="card-body">
+
+                                            <hr class="my-3">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <div class="form-group">
+                                                        <label class="form-label">Email Address</label>
+                                                        <div class="row">
+                                                            <div class="col">
+                                                                <input type="email" class="form-control">
+                                                            </div>
+                                                            <div class="col-auto">
+                                                                <button class="btn btn-primary">Send</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="card-body table-card">
+                                            <div class="table-responsive">
+                                                <table class="table mb-0">
+                                                    <thead class="table-light">
+                                                    <tr>
+                                                        <th>Username</th>
+                                                        <th>FirstName</th>
+                                                        <th>LastName</th>
+                                                        <th>Email</th>
+                                                        <th>Role</th>
+                                                        <th>Active?</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for u in users %}
+                                                        <tr>
+                                                            <td>{{ u.username }}</td>
+                                                            <td>{{ u.first_name }}</td>
+                                                            <td>{{ u.last_name }}</td>
+                                                            <td>{{ u.email }}</td>
+                                                            <td>
+                                                                {% if u.employeeprofile %}
+                                                                    {{ u.employeeprofile.get_role_display }}
+                                                                {% else %}
+                                                                    Not Assigned
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                {% if u.is_active %}
+                                                                    <span class="badge bg-success">Active</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-secondary">Inactive</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <form method="post" class="d-inline">
+                                                                    {% csrf_token %}
+                                                                    {# send the user’s id in the toggle_user field #}
+                                                                    <button
+                                                                            type="submit"
+                                                                            name="toggle_user"
+                                                                            value="{{ u.id }}"
+                                                                            class="btn btn-outline-{{ u.is_active|yesno:'danger,success' }} btn-sm"
+                                                                            {% if u == request.user %}
+                                                                            disabled {% endif %}
+                                                                    >
+                                                                        {{ u.is_active|yesno:'Deactivate,Activate' }}
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [ sample-page ] end -->
+            </div>
+            <!-- [ Main Content ] end -->
+        </div>
+    </div>
+    <!-- [ Main Content ] end -->
+
+{% endblock %}

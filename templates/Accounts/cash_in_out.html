@@ -1,0 +1,815 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+{% load custom_tags %}
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Accounts</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Cashbook</li>
+                    </ul>
+                </div>
+              
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+<!-- [ breadcrumb ] end -->
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap" id="myTab" role="tablist">
+                    {% if perms.easydocs.view_payment %}
+                        <li class="nav-item">
+                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                               href="#profile-1"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-zoom-money me-2"></i>Cashbook
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-file-text me-2"></i>Expenses
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-id me-2"></i>Revenue
+                            </a>
+                        </li>
+                    {% endif %}
+
+
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    {% if perms.easydocs.view_payment %}
+                        <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                             aria-labelledby="profile-tab-1">
+                            <div class="row">
+
+                               <div class="col-lg-12 col-xxl-12">
+                                            <div class="card shadow-lg border-0">
+                                               <!-- Enhanced & Responsive Card Header -->
+                                                <!-- Enhanced Card Header -->
+                                                <div class="card-header bg-gradient-primary text-white py-3 shadow-sm rounded-top">
+                                                    <div class="row align-items-center g-3 flex-wrap">
+                                                        
+                                                        <!-- Title Section -->
+                                                        <div class="col-12 col-md-6">
+                                                            <div class="d-flex align-items-center gap-3">
+                                                                <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                                    <i class="fas fa-book-open fs-5"></i>
+                                                                </div>
+                                                                <div>
+                                                                    <h5 class="mb-1 fw-bold">Cashbook Transactions</h5>
+                                                                    <p class="mb-0 small text-dark opacity-85">Track and manage all financial transactions</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Controls Section -->
+                                                        <div class="col-12 col-md-6">
+                                                            <div class="d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                                                                
+                                                                <!-- Date Picker -->
+                                                                <div class="input-group input-group-sm bg-white rounded shadow-sm" style="max-width: 220px;">
+                                                                    <span class="input-group-text bg-transparent border-0 text-primary">
+                                                                        <i class="fas fa-calendar-alt"></i>
+                                                                    </span>
+                                                                    <input 
+                                                                        type="date" 
+                                                                        class="form-control border-0 ps-0" 
+                                                                        id="dateFilter" 
+                                                                        value="{{ today|date:'Y-m-d' }}"
+                                                                        name="date"
+                                                                        hx-get="{% url 'cashbook_dashboard' %}"
+                                                                        hx-target="#cashbook-dashboard-content"
+                                                                        hx-trigger="change"
+                                                                        hx-indicator="#cashbook-indicator"
+                                                                    >
+                                                                    <div class="htmx-indicator" id="cashbook-indicator">
+                                                                        <div class="spinner-border spinner-border-sm text-primary ms-2" role="status">
+                                                                            <span class="visually-hidden">Loading...</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <!-- Sync Status -->
+                                                                {% if opening_summary.delta != 0 %}
+                                                                    <span class="text-warning small fw-semibold">⚠ Opening out of sync! Delta: {{ opening_summary.delta }}</span>
+                                                                    <form id="syncOpeningForm" method="post" action="{% url 'sync_opening_balance' %}" class="d-inline-flex">
+                                                                        {% csrf_token %}
+                                                                        <input type="hidden" name="date" value="{{ today }}">
+                                                                        <button type="submit" class="btn btn-sm btn-outline-light text-primary fw-semibold shadow-sm">
+                                                                            <i class="fas fa-sync-alt me-1"></i> Sync Now
+                                                                        </button>
+                                                                    </form>
+                                                                {% else %}
+                                                                    <span class="text-success small fw-semibold">✅ Opening in sync</span>
+                                                                {% endif %}
+
+                                                                <!-- Add Opening Balance Button -->
+                                                                <button type="button" class="btn btn-sm btn-outline-success text-primary fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#openingBalanceModal">
+                                                                    <i class="fas fa-plus me-1"></i>Opening Balance
+                                                                </button>
+
+                                                                <!-- Record Payout Button -->
+                                                                <button class="btn btn-sm btn-danger fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#institutionPayoutModal">
+                                                                    <i class="fas fa-university me-1"></i> Record Payout
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+                                                <!-- This content gets updated by HTMX -->
+                                                {% include "Accounts/partials/cashbook_dashboard_content.html" %}
+                                            </div>
+                                        </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <!--expenses-->
+                        <div class="tab-pane" id="profile-2" role="tabpanel"
+                             aria-labelledby="profile-tab-2">
+                            <div class="row">
+                                <div class="col-lg-12">
+
+                                    <div class="card">
+                                        <div class="card-header d-flex justify-content-between">
+
+                                            <h5>EXPENSES</h5>
+                                            <!-- Button to open modal -->
+                                            <!-- Button -->
+                                             <!-- In Expenses tab -->
+                                            {% if perms.easydocs.add_expense %}
+                                                <button class="btn bg-green-200 mb-3 add-expense-btn" data-bs-toggle="modal"
+                                                        data-bs-target="#expenseModal">
+                                                    <i class="fas fa-plus"></i> Add Expense
+                                                </button>
+                                            {% endif %}
+
+                                                <!-- Modal -->
+                                                <div class="modal fade" id="expenseModal" tabindex="-1"
+                                                    aria-labelledby="expenseModalLabel" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <form method="POST"
+                                                                action="{% url 'submit_expense' %}"
+                                                                id="expenseForm">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title"
+                                                                        id="expenseModalLabel">
+                                                                        Add/Edit Expense</h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+
+                                                                <div class="modal-body">
+                                                                    <input type="hidden" name="expense_id"
+                                                                        id="expense_id">
+                                                                    {{ form.as_p }}
+                                                                </div>
+
+                                                                <div class="modal-footer">
+                                                                    <button type="button"
+                                                                            class="btn btn-secondary"
+                                                                            data-bs-dismiss="modal">Cancel
+                                                                    </button>
+                                                                    <button type="submit"
+                                                                            class="btn btn-success">
+                                                                        Save
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+                                        </div>
+
+
+                                        <div class="card-body table-card">
+                                            <div class="table-responsive mt-3"  style="max-height: 600px; overflow-y: auto;">
+                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <thead class="table-success">
+                                                    <tr>
+                                                        <th>Date</th>
+
+                                                        <th>Amount</th>
+                                                        <th>Mode</th>
+                                                        <th>Handled By</th>
+                                                        <th>Approved By</th>
+                                                        {% if perms.easydocs.change_expense %}
+                                                            <th>Edit</th>
+                                                        {% endif %}
+                                                        {% if perms.easydocs.delete_expense %}
+                                                            <th>Delete</th>
+                                                        {% endif %}
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for exp in expenses %}
+                                                        <tr>
+                                                            <td>{{ exp.date }}</td>
+                                                            <td>{{ exp.amount }}</td>
+                                                            <td>{{ exp.get_payment_mode_display }}</td>
+                                                            <td>{{ exp.handled_by|default:"-" }}</td>
+                                                            <td>{{ exp.approved_by|default:"-" }}</td>
+
+                                                            {% if perms.easydocs.change_expense %}
+
+                                                                <td>
+                                                                    <button type="button"
+                                                                            class="btn btn-sm btn-warning edit-expense-btn"
+                                                                            data-exp-id="{{ exp.id }}"
+                                                                            data-amount="{{ exp.amount }}"
+                                                                            data-payment_mode="{{ exp.payment_mode }}"
+                                                                            data-handled_by="
+
+                                                                                    {% if exp.handled_by %}{{ exp.handled_by.id }}{% endif %}"
+                                                                            data-approved_by="
+
+                                                                                    {% if exp.approved_by %}{{ exp.approved_by.id }}{% endif %}"
+
+                                                                            data-description="{{ exp.description }}"
+                                                                            data-receipt_no="{{ exp.receipt_no }}">
+                                                                        <i class="fas fa-edit"></i> Edit
+                                                                    </button>
+
+
+                                                                </td>
+                                                            {% endif %}
+                                                            {% if perms.easydocs.delete_expense %}
+                                                                <td>
+                                                                    <button class=" btn bg-green-200"><i
+                                                                            class="ti ti-trash"></i>
+                                                                    </button>
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+                   <!-- Replace your Revenue Tab (profile-3) section in cash_in_out.html -->
+                    {% if perms.easydocs.view_expense %}
+                        <!--Revenue/Analytics Tab-->
+                        <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                            <div class="row">
+                                <div class="col-lg-12">
+
+                                    <!-- FILTER SECTION (Stays on page, never swapped) -->
+                                    <div class="card mb-4 shadow-sm">
+                                        <div class="card-body">
+                                            <form 
+                                                id="revenue-filter-form"
+                                                hx-get="{% url 'cashbook_dashboard' %}"
+                                                hx-target="#revenue-content-area"
+                                                hx-swap="innerHTML"
+                                                hx-indicator="#loading-spinner"
+                                            >
+                                                <input type="hidden" name="tab" value="revenue">
+                                                
+                                                <div class="row g-3 align-items-end">
+                                                    
+                                                    <!-- Filter Type Selector -->
+                                                    <div class="col-md-2">
+                                                        <label for="filter-type" class="form-label fw-semibold text-muted small">FILTER BY</label>
+                                                        <select id="filter-type" name="filter_type" class="form-select">
+                                                            <option value="year" selected>Year</option>
+                                                            <option value="month">Month</option>
+                                                            <option value="range">Date Range</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <!-- Year Picker (default shown) -->
+                                                    <div class="col-md-2" id="year-picker-group">
+                                                        <label for="year-input" class="form-label fw-semibold text-muted small">SELECT YEAR</label>
+                                                        <input 
+                                                            type="number" 
+                                                            id="year-input" 
+                                                            class="form-control"
+                                                            min="2020"
+                                                            name="rev_year"
+                                                            max="{{ current_year|add:1 }}"
+                                                            value="{{ revenue_year|default:current_year }}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Month Picker (hidden by default) -->
+                                                    <div class="col-md-3" id="month-picker-group" style="display: none;">
+                                                        <label for="month-input" class="form-label fw-semibold text-muted small">SELECT MONTH</label>
+                                                        <input 
+                                                            type="month" 
+                                                            name="month"
+                                                            id="month-input" 
+                                                            class="form-control"
+                                                            value="{{ current_year }}-{{ current_month|stringformat:'02d' }}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Date Range Pickers (hidden by default) -->
+                                                    <div class="col-md-3" id="start-date-group" style="display: none;">
+                                                        <label for="start-date-input" class="form-label fw-semibold text-muted small">START DATE</label>
+                                                        <input 
+                                                            type="date" 
+                                                            name="start_date"
+                                                            id="start-date-input" 
+                                                            class="form-control"
+                                                            value="{{ start_date|date:'Y-m-d' }}"
+                                                        >
+                                                    </div>
+
+                                                    <div class="col-md-3" id="end-date-group" style="display: none;">
+                                                        <label for="end-date-input" class="form-label fw-semibold text-muted small">END DATE</label>
+                                                        <input 
+                                                            type="date" 
+                                                            name="end_date"
+                                                            id="end-date-input" 
+                                                            class="form-control"
+                                                            value="{{ end_date|date:'Y-m-d' }}"
+                                                        >
+                                                    </div>
+
+                                                    <!-- Action Buttons -->
+                                                    <div class="col-md-2">
+                                                        <button type="submit" class="btn btn-primary w-100">
+                                                            <i class="bi bi-funnel-fill"></i> Apply
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="col-md-2">
+                                                        <button type="button" id="reset-btn" class="btn btn-outline-secondary w-100">
+                                                            <i class="bi bi-arrow-clockwise"></i> Reset
+                                                        </button>
+                                                    </div>
+
+                                                </div>
+
+                                                <!-- Date Range Display -->
+                                                <div class="row mt-3">
+                                                    <div class="col-12">
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-calendar-range"></i> 
+                                                            Viewing: <strong id="date-range-display">{{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</strong>
+                                                        </small>
+                                                    </div>
+                                                </div>
+
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <!-- Loading Spinner -->
+                                    <div id="loading-spinner" class="text-center my-4" style="display: none;">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">Loading revenue data...</p>
+                                    </div>
+
+                                    <!-- CONTENT AREA (Gets swapped by HTMX) -->
+                                    <div id="revenue-content-area">
+                                        {% include 'Accounts/partials/revenue_tab_content.html' %}
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+
+                </div>
+            </div>
+            <!-- [ sample-page ] end -->
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
+</div>
+</div>
+
+
+<!-- Modal -->
+<!-- Opening Balance Modal -->
+<!-- Opening Balance Modal -->
+<div class="modal fade" id="openingBalanceModal" tabindex="-1" aria-labelledby="openingBalanceLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="openingBalanceForm" method="post" action="{% url 'opening-balance' %}">
+        <div class="modal-header">
+          <h5 class="modal-title" id="openingBalanceLabel">Opening Balance / Contributions</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          {% csrf_token %}
+
+          
+
+          <!-- Opening balance form -->
+          <div class="mb-2">
+            <label for="id_date" class="form-label">Date</label>
+            {{ opening_balance_form.date }}
+            <div class="form-text">Opening balance applies to today only.</div>
+          </div>
+
+
+          <div class="mb-2">
+            <label for="id_amount" class="form-label">Amount</label>
+            {{ opening_balance_form.amount }}
+            <div class="form-text">
+              If an opening snapshot exists today, this will be added as a contribution.
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <label for="id_description" class="form-label">Description (optional)</label>
+            {{ opening_balance_form.description }}
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal -->
+<!-- Institution Payout Modal -->
+<div class="modal fade" id="institutionPayoutModal" tabindex="-1" aria-labelledby="institutionPayoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="institutionPayoutForm" method="post" action="{% url 'record-institution-payout' %}">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="institutionPayoutModalLabel">Record Institution Payout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{ payout_form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Record Payout</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+  <!-- Modal -->
+  {% comment %} <div class="modal fade" id="payoutModal" tabindex="-1" aria-labelledby="payoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="post" action="{% url 'record-institution-payout' %}">
+        {% csrf_token %}
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="payoutModalLabel">Record Institution Payout</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {{ payout_form.as_p }}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Record Payout</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div> {% endcomment %}
+    <!-- [ Main Content ] end -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+
+{% endblock %}
+{% block extra_js %}
+{# ------------ sync Modal script -------------- #}
+
+<script>
+document.getElementById("syncOpeningForm")?.addEventListener("submit", async function(e){
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const response = await fetch(form.action, {
+        method: "POST",
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+    });
+
+    const data = await response.json();
+    alert(data.message || "Sync completed");
+    location.reload();  // refresh dashboard to show updated flagged balance
+});
+</script>
+
+
+{# ------------ Expense Modal script -------------- #}  
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("expenseForm");
+
+    const setField = (name, value) => {
+        const input = form.querySelector(`[name="${name}"]`);
+        if (input) input.value = value || "";
+    };
+
+    // Handle ALL Add Expense buttons using the class
+    document.querySelectorAll(".add-expense-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            form.reset();
+            setField("expense_id", "");
+            document.getElementById("expenseModalLabel").textContent = "Add Expense";
+        });
+    });
+
+    // Handle Edit buttons
+    document.querySelectorAll(".edit-expense-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            form.reset();
+            setField("expense_id", this.dataset.expId);
+            setField("description", this.dataset.description);
+            setField("amount", this.dataset.amount);
+            setField("payment_mode", this.dataset.payment_mode);
+            setField("handled_by", this.dataset.handled_by);
+            setField("approved_by", this.dataset.approved_by);
+            setField("receipt_no", this.dataset.receipt_no);
+
+            document.getElementById("expenseModalLabel").textContent = "Edit Expense";
+            
+            // Get modal instance and show it for edit buttons
+            const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+            expenseModal.show();
+        });
+    });
+});
+</script>
+
+
+
+<!-- Revenue Filter JavaScript -->
+
+<!-- Revenue Filter JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Revenue filter script loaded');
+
+    const filterType = document.getElementById('filter-type');
+    const monthGroup = document.getElementById('month-picker-group');
+    const startDateGroup = document.getElementById('start-date-group');
+    const endDateGroup = document.getElementById('end-date-group');
+    const yearGroup = document.getElementById('year-picker-group');
+    const form = document.getElementById('revenue-filter-form');
+    const spinner = document.getElementById('loading-spinner');
+
+    if (!filterType || !form) {
+        console.log('Revenue filter elements not found (filterType or form missing).');
+        return;
+    }
+
+    function toggleFilterGroups(filterValue) {
+        // hide all
+        if (monthGroup) monthGroup.style.display = 'none';
+        if (startDateGroup) startDateGroup.style.display = 'none';
+        if (endDateGroup) endDateGroup.style.display = 'none';
+        if (yearGroup) yearGroup.style.display = 'none';
+
+        // show selected
+        if (filterValue === 'month' && monthGroup) {
+            monthGroup.style.display = 'block';
+        } else if (filterValue === 'range' && startDateGroup && endDateGroup) {
+            startDateGroup.style.display = 'block';
+            endDateGroup.style.display = 'block';
+        } else if (filterValue === 'year' && yearGroup) {
+            yearGroup.style.display = 'block';
+        }
+    }
+
+    // initialize
+    toggleFilterGroups(filterType.value);
+
+    // toggle on change
+    filterType.addEventListener('change', function() {
+        toggleFilterGroups(this.value);
+    });
+
+    // handle submit
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const params = new URLSearchParams();
+        params.append('tab', 'revenue');
+
+        const filterValue = filterType.value;
+        if (filterValue === 'month') {
+            const monthValue = document.getElementById('month-input')?.value;
+            if (monthValue) {
+                const [year, month] = monthValue.split('-');
+                params.append('rev_year', year);
+                params.append('rev_month', parseInt(month, 10));
+            }
+        } else if (filterValue === 'range') {
+            const startDate = document.getElementById('start-date-input')?.value;
+            const endDate = document.getElementById('end-date-input')?.value;
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+        } else { // year
+            const yearVal = document.getElementById('year-input')?.value;
+            if (yearVal) params.append('rev_year', yearVal);
+        }
+
+        // show spinner
+        if (spinner) spinner.style.display = 'block';
+
+        const hxGet = form.getAttribute('hx-get') || form.action || window.location.href;
+        const url = hxGet + (hxGet.includes('?') ? '&' : '?') + params.toString();
+        console.log('Requesting:', url);
+
+        try {
+            if (typeof htmx === 'undefined') {
+                // fallback: use fetch if HTMX not present
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                  .then(res => {
+                      if (!res.ok) throw new Error('Network response was not ok');
+                      return res.text();
+                  })
+                  .then(html => {
+                      document.getElementById('revenue-content-area').innerHTML = html;
+                      if (spinner) spinner.style.display = 'none';
+                  })
+                  .catch(err => {
+                      console.error('Fetch error:', err);
+                      if (spinner) spinner.style.display = 'none';
+                  });
+            } else {
+                // Use HTMX to swap content. NOTE: htmx.ajax does NOT return a Promise.
+                htmx.ajax('GET', url, { target: '#revenue-content-area', swap: 'innerHTML' });
+                // spinner will be hidden in htmx:afterSwap or htmx:responseError handlers below
+            }
+        } catch (err) {
+            console.error('Submission error:', err);
+            if (spinner) spinner.style.display = 'none';
+        }
+    });
+
+    // hide spinner after HTMX completes swap
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        // only hide when our target was the revenue content area
+        if (evt.detail && evt.detail.target && evt.detail.target.id === 'revenue-content-area') {
+            if (spinner) spinner.style.display = 'none';
+        }
+    });
+
+    // hide spinner and log on HTMX errors
+    document.body.addEventListener('htmx:responseError', function(evt) {
+        console.error('HTMX response error', evt);
+        if (spinner) spinner.style.display = 'none';
+    });
+
+    // Reset button
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            const today = new Date();
+            const year = today.getFullYear();
+            document.getElementById('year-input').value = year;
+            filterType.value = 'year';
+            toggleFilterGroups('year');
+            // re-run submit
+            form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+    }
+
+    // When revenue tab is shown (bootstrap), re-init visibility
+    const revenueTabButton = document.getElementById('profile-tab-3');
+    if (revenueTabButton) {
+        revenueTabButton.addEventListener('shown.bs.tab', function() {
+            toggleFilterGroups(filterType.value);
+        });
+    }
+});
+</script>
+
+
+
+<style>
+/* Sticky table header */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+}
+
+.sticky-bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: 9;
+    background-color: #e9ecef;
+}
+
+/* Card hover effect */
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+/* Table row hover */
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Smooth transitions */
+#revenue-content-area {
+    transition: opacity 0.3s ease;
+}
+
+.htmx-swapping #revenue-content-area {
+    opacity: 0.5;
+}
+
+/* Loading spinner */
+#loading-spinner.htmx-request {
+    display: block !important;
+}
+</style>
+
+
+{% endblock %}
+

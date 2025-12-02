@@ -1,0 +1,246 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Accounts</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Payments</li>
+                    </ul>
+                </div>
+              
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+<!-- [ breadcrumb ] end -->
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                    {% if perms.easydocs.view_payment %}
+                        <li class="nav-item">
+                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                               href="#profile-1"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-zoom-money me-2"></i>Payments
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% comment %} {% if perms.easydocs.view_expense %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-file-text me-2"></i>Expenses
+                            </a>
+                        </li>
+                    {% endif %} {% endcomment %}
+                    {% if request.user.is_superuser %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-id me-2"></i>Analytics
+                            </a>
+                        </li>
+                    {% endif %}
+
+
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    {% if perms.easydocs.view_payment %}
+                        <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                             aria-labelledby="profile-tab-1">
+                            <div class="row">
+
+                                <div class="col-lg-12 col-xxl-12">
+                                    <div class="card">
+                                        <div class="card-header pb-0">
+                                            <p>payments</p>
+                                        </div>
+
+                                        <div class="card-body">
+                                            <div class="tab-content" id="serviceTabsContent">
+
+                                                <div class="card-body p-0">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                        <thead class="table-success">
+                                                        <tr>
+                                                            <th>When</th>
+                                                            <th>Client</th>
+                                                            <th>Service</th>
+                                                            <th>Amount</th>
+                                                            <th>Method</th>
+                                                            <th>Txn ID</th>
+
+                                                            <th>Payment Status</th>
+                                                            <th>View Details</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        {% for payment in client_payments %}
+                                                            <tr>
+                                                                <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                                                                <td>{{ payment.client_service.client }}</td>
+                                                                <td>{{ payment.client_service }}</td>
+                                                                <td>{{ payment.amount }}</td>
+                                                                <td>{{ payment.payment_method }}</td>
+                                                                <td>{{ payment.transaction_id }}</td>
+
+
+                                                                {# Service payment status from ClientService #}
+
+                                                                <td>
+                                                                                                  <span class="d-flex align-items-center gap-2">
+                                                                                                    {% if payment.client_service.payment_status == 'Fully Paid' %}
+                                                                                                        <i class="fas fa-circle text-success f-10"></i>
+                                                                                                        Fully Paid
+                                                                                                    {% elif payment.client_service.payment_status == 'Partially Paid' %}
+                                                                                                        <i class="fas fa-circle text-warning f-10"></i>
+                                                                                                        Partially Paid
+                                                                                                    {% else %}
+                                                                                                        <i class="fas fa-circle text-danger f-10"></i>
+                                                                                                        Not Paid
+                                                                                                    {% endif %}
+                                                                                                  </span>
+                                                                </td>
+
+
+                                                                {# Link to client-service detail view #}
+                                                                <td>
+                                                                    <a href="{% url 'client_details' payment.client_service.client.id %}"
+                                                                       class="btn btn-sm btn-primary">
+                                                                        View Details
+                                                                    </a>
+                                                                </td>
+
+                                                            </tr>
+
+                                                        {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+                    {% if perms.easydocs.view_expense %}
+                        <!--expenses-->
+                        <div class="tab-pane" id="profile-2" role="tabpanel"
+                             aria-labelledby="profile-tab-2">
+                            <div class="row">
+                                <div class="col-lg-12">
+
+                                    
+                                </div>
+
+
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+            <!-- [ sample-page ] end -->
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
+</div>
+</div>
+    <!-- [ Main Content ] end -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+
+{% endblock %}
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const expenseModal = new bootstrap.Modal(document.getElementById('expenseModal'));
+            const form = document.getElementById("expenseForm");
+
+            const setField = (name, value) => {
+                const input = form.querySelector(`[name="${name}"]`);
+                if (input) input.value = value || "";
+            };
+
+            // Handle Add button
+            document.getElementById("add-expense-btn").addEventListener("click", function () {
+                form.reset();
+                setField("expense_id", "");
+                document.getElementById("expenseModalLabel").textContent = "Add Expense";
+                expenseModal.show(); // open modal manually
+            });
+
+            // Handle Edit buttons
+            document.querySelectorAll(".edit-expense-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    form.reset();
+                    setField("expense_id", this.dataset.expId);
+                    setField("description", this.dataset.description);
+                    setField("amount", this.dataset.amount);
+                    setField("payment_mode", this.dataset.payment_mode);
+                    setField("handled_by", this.dataset.handled_by);
+                    setField("approved_by", this.dataset.approved_by);
+                    setField("receipt_no", this.dataset.receipt_no);
+
+                    document.getElementById("expenseModalLabel").textContent = "Edit Expense";
+                    expenseModal.show(); // open modal manually
+                });
+            });
+        });
+    </script>
+
+{% endblock %}
+

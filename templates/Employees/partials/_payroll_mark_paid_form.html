@@ -1,0 +1,41 @@
+{# templates/Employees/partials/_payroll_mark_paid_form.html #}
+<form method="post" action="{% url 'payroll_mark_paid' payroll.pk %}">
+  {% csrf_token %}
+  <div class="modal-header">
+    <h5 class="modal-title">Confirm Payment for {{ payroll.month|date:"F Y" }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+
+  <div class="modal-body">
+    <p><strong>Net Amount to Pay:</strong> KES {{ payroll.net_salary|floatformat:2 }}</p>
+
+    <h6>Allowances</h6>
+    <ul class="list-unstyled ms-3">
+      {% for a in payroll.allowance_snapshots.all %}
+        <li>➕ {{ a.name }}: KES {{ a.amount|floatformat:2 }}</li>
+      {% empty %}
+        <li class="text-muted"><em>None</em></li>
+      {% endfor %}
+    </ul>
+
+    <h6>Deductions</h6>
+    <ul class="list-unstyled ms-3">
+      {% for d in payroll.deduction_snapshots.all %}
+        <li>➖ {{ d.name }}: KES {{ d.amount|floatformat:2 }}</li>
+      {% empty %}
+        <li class="text-muted"><em>None</em></li>
+      {% endfor %}
+    </ul>
+
+    <hr>
+    <div class="mb-3">
+      <label for="paymentRef" class="form-label">Payment Reference</label>
+      <input type="text" class="form-control" name="payment_reference" id="paymentRef" required>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-success">Mark as Paid</button>
+  </div>
+</form>

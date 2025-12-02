@@ -1,0 +1,151 @@
+# docker-compose.prod.yml
+# Production compose file — secret-first, no repo-stored credentials.
+# - Uses pre-built images (replace with your registry image + pinned tag).
+# - Expects a docker secret named gcp_service_account (external: true).
+# - Secrets are mounted at /run/secrets/drive/service-account.json
+# NOTE: Docker secrets are supported in Swarm. For k8s, mount secrets at same path.
+
+version: '3.8'
+
+services:
+  web:
+    image: your-registry/your-app:1.0.0    # 🔒 pin a version tag
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    env_file:
+      - .env.prod
+    environment:
+      - DEPLOYMENT_ENCRYPTION_KEY=${DEPLOYMENT_ENCRYPTION_KEY}
+      - RUN_MIGRATIONS=false
+      - RUN_COLLECT_STATIC=false
+      - WAIT_FOR_REDIS=true
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+    volumes:
+      - deployment_data:/app/deployment_data
+    secrets:
+      - source: gcp_service_account
+        target: drive/service-account.json
+        uid: '1000'
+        gid: '1000'
+        mode: 0400
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env.prod
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    image: your-registry/your-app:1.0.0
+    command: celery -A GGI worker --loglevel=info
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    env_file:
+      - .env.prod
+    environment:
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - deployment_data:/app/deployment_data
+    secrets:
+      - source: gcp_service_account
+        target: drive/service-account.json
+        uid: '1000'
+        gid: '1000'
+        mode: 0400
+    depends_on:
+      - db
+      - redis
+      - web
+
+  celery-beat:
+    image: your-registry/your-app:1.0.0
+    command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    deploy:
+      replicas: 1
+    env_file:
+      - .env.prod
+    environment:
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - deployment_data:/app/deployment_data
+    secrets:
+      - source: gcp_service_account
+        target: drive/service-account.json
+        uid: '1000'
+        gid: '1000'
+        mode: 0400
+    depends_on:
+      - db
+      - redis
+      - web
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d:ro
+      - static_volume:/app/static:ro
+      - staticfiles:/app/staticfiles:ro
+      - media_volume:/app/media:rw
+    depends_on:
+      - web
+
+  flower:
+    image: mher/flower
+    command: celery --broker=redis://redis:6379/0 flower
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+
+secrets:
+  # External secret expected before deploy:
+  # docker secret create gcp_service_account /path/to/service-account.json
+  gcp_service_account:
+    external: true
+
+volumes:
+  postgres_data:
+  static_volume:
+  staticfiles:
+  media_volume:
+  deployment_data:

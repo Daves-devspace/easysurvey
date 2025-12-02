@@ -1,0 +1,449 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Users</a></li>
+                                <li class="breadcrumb-item" aria-current="page">LegalOffice</li>
+                            </ul>
+                        </div>
+                       
+                    </div>
+                </div>
+            </div>
+            <div class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+                <!-- [ breadcrumb ] end -->
+                <!-- [ Main Content ] start -->
+                <div class="row">
+                    <!-- [ sample-page ] start -->
+                    <div class="col-sm-12">
+                        <div class="card">
+                            <div class="card-header pb-0">
+                                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                                    {% if perms.easydocs.view_clientsubservice %}
+                                        <li class="nav-item">
+                                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                                               href="#profile-1"
+                                               role="tab"
+                                               aria-selected="true">
+                                                <i class="ti ti-zoom-money me-2"></i>All Legal Services
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    {% if perms.easydocs.add_legalofficepayout %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab"
+                                               href="#profile-2"
+                                               role="tab"
+                                               aria-selected="true">
+                                                <i class="ti ti-file-text me-2"></i>Payouts 💰
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    {% if perms.easydocs.view_legalofficepayout %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab"
+                                               href="#profile-3"
+                                               role="tab"
+                                               aria-selected="true">
+                                                <i class="ti ti-id me-2"></i>Legal Payment💰
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    {% if request.user.is_superuser %}
+                                        <li class="nav-item">
+                                            <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab"
+                                               href="#profile-4"
+                                               role="tab"
+                                               aria-selected="true">
+                                                <i class="ti ti-id me-2"></i>Analytics
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+
+                                </ul>
+                            </div>
+                            <div class="card-body">
+                                <div class="tab-content">
+                                    {% if perms.easydocs.view_clientsubservice %}
+                                        <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                                             aria-labelledby="profile-tab-1">
+                                            <div class="row">
+
+                                                <div class="col-lg-12 col-xxl-12">
+                                                    <div class="card">
+                                                        <div class="card-header pb-0">
+                                                            <p>All Legal Services</p>
+                                                        </div>
+
+                                                        <div class="card-body">
+                                                            <div class="tab-content" id="serviceTabsContent">
+
+                                                                <div class="card-body p-0">
+                                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                                        <thead class="table-success">
+                                                                        <tr>
+                                                                            <th>Client</th>
+                                                                            <th>SubService</th>
+                                                                            <th>Price</th>
+                                                                            <th>Paid</th>
+                                                                            <th>Balance</th>
+                                                                            <th>ClientPaymentStatus</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                        {% for s in sub_services %}
+                                                                            <tr>
+                                                                                <td>{{ s.client_service.client }}</td>
+                                                                                <td>{{ s.sub_service.name }}</td>
+                                                                                <td>{{ s.annotated_price }}</td>
+                                                                                <td>{{ s.paid_amount }}</td>
+                                                                                <td>{{ s.annotated_balance }}</td>
+                                                                                <td>
+                                                                                    {% if s.annotated_balance <= 0 %}
+                                                                                        <span class="badge bg-success">Fully Paid</span>
+                                                                                    {% elif s.paid_amount > 0 %}
+                                                                                        <span class="badge bg-info text-dark">Partially Paid</span>
+                                                                                    {% else %}
+                                                                                        <span class="badge bg-danger">Unpaid</span>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                            </tr>
+                                                                        {% endfor %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+
+
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if perms.easydocs.add_legalofficepayout %}
+                                        <!-- bulk pay to legal tab -->
+                                        <div class="tab-pane" id="profile-2" role="tabpanel"
+                                             aria-labelledby="profile-tab-2">
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between">
+                                                    <div class="card shadow-sm border-0 mb-3">
+                                                        <div class="card-body bg-light border-start border-4 border-success rounded">
+                                                            <div class="d-flex align-items-start gap-3">
+                                                                <div class="bg-success text-white rounded-circle d-flex justify-content-center align-items-center"
+                                                                     style="width: 40px; height: 40px;">
+                                                                    <i class="ti ti-info-circle fs-5"></i>
+                                                                    <!-- Bootstrap icon -->
+                                                                </div>
+                                                                <div>
+                                                                    <h5 class="mb-1">Cleared by Clients (Fully Paid) —
+                                                                        Not
+                                                                        Yet
+                                                                        Paid to Legal</h5>
+                                                                    <p class="mb-0 text-muted">
+                                                                        These are cases where clients have completed
+                                                                        their
+                                                                        payments, but the funds haven't been transferred
+                                                                        to
+                                                                        the
+                                                                        legal team yet. Please review and initiate legal
+                                                                        payments.
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                                <div class="card-body table-card">
+                                                    <div class="table-responsive mt-3">
+                                                        <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                            <thead class="table-success">
+                                                            <tr>
+                                                                <th><input type="checkbox" id="select-all"></th>
+                                                                <th>Client</th>
+                                                                <th>SubService</th>
+                                                                <th>Paid</th>
+                                                                <th>Price</th>
+                                                                <th>Date</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for s in cleared_legal_subservices %}
+                                                                <tr>
+                                                                    <td>
+                                                                        <input type="checkbox"
+                                                                               class="subservice-checkbox"
+                                                                               value="{{ s.id }}"
+                                                                               data-price="{{ s.annotated_price }}">
+                                                                    </td>
+                                                                    <td>{{ s.client_service.client }}</td>
+                                                                    <td>{{ s.sub_service.name }}</td>
+                                                                    <td>{{ s.paid_amount }}</td>
+                                                                    <td>{{ s.annotated_price }}</td>
+                                                                    <td>{{ s.added_on|date:"Y-m-d" }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+
+                                                <!-- trigger modal -->
+                                                <button id="openConfirm" class="btn btn-success mt-3"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#confirmModal" disabled>
+                                                    Mark Selected as Paid to Legal
+                                                </button>
+
+                                                <!-- confirmation modal -->
+                                                <div class="modal fade" id="confirmModal" tabindex="-1">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-success text-white">
+                                                                <h5 class="modal-title">Confirm Bulk Payment</h5>
+                                                                <button type="button" class="btn-close"
+                                                                        data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <p>You're about to mark <strong
+                                                                        id="selected-count">0</strong>
+                                                                    subservice(s) as paid.</p>
+                                                                <p>Total to pay: <strong>KES <span
+                                                                        id="total-amount">0.00</span></strong>
+                                                                </p>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary"
+                                                                        data-bs-dismiss="modal">Cancel
+                                                                </button>
+                                                                <button id="confirmPay" type="button"
+                                                                        class="btn btn-success">
+                                                                    Yes, Proceed
+                                                                </button>
+                                                            </div>
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    {% if perms.easydocs.view_legalofficepayout %}
+                                        <!-- Sub Services -->
+                                        <div class="tab-pane" id="profile-3" role="tabpanel"
+                                             aria-labelledby="profile-tab-3">
+                                            <div class="col-lg-12">
+                                                <div class="card">
+
+                                                    <!-- Month Filter Section -->
+                                                    <div class="row">
+                                                        <div class="col-lg-12">
+                                                            <div class="card">
+                                                                <div class="card-header">
+                                                                    <h3>Legal Payouts</h3>
+                                                                </div>
+
+                                                                <div class="card-body">
+                                                                    <!-- Month Selector with HTMX -->
+                                                                    <form
+                                                                            id="filter-form"
+                                                                            class="row gx-2 gy-1 align-items-end mb-4"
+                                                                            method="GET"
+                                                                            hx-get="{% url 'subservices_status' %}"
+                                                                            hx-target="#payout-subservices-wrapper"
+                                                                            hx-push-url="true"
+                                                                    >
+                                                                        <div class="col-auto">
+                                                                            <label for="month_filter"
+                                                                                   class="form-label">Month</label>
+                                                                            <input
+                                                                                    type="month"
+                                                                                    id="month_filter"
+                                                                                    name="month_filter"
+                                                                                    class="form-control"
+                                                                                    value="{{ month_filter }}"
+                                                                                    hx-trigger="change"
+                                                                            >
+                                                                        </div>
+                                                                        <div class="col-auto">
+                                                                            <button type="submit"
+                                                                                    class="btn btn-primary mt-3">
+                                                                                Filter
+                                                                            </button>
+                                                                        </div>
+                                                                    </form>
+
+
+                                                                    <!-- Display Count and Total for the filtered Payouts -->
+
+                                                                    <!-- This wrapper will be replaced by HTMX on filter -->
+                                                                    <!-- HTMX wrapper -->
+                                                                    <div id="payout-subservices-wrapper"
+                                                                         hx-swap="outerHTML">
+                                                                        {% include "Management/partials/payout_subservices_list.html" %}
+                                                                    </div>
+
+                                                                    <!-- Table of Legal Payouts -->
+
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                            </div>
+                        </div>
+                        <!-- [ sample-page ] end -->
+                    </div>
+                    <!-- [ Main Content ] end -->
+                </div>
+                </div>
+                </div>
+                </div>
+                <!-- [ Main Content ] end -->
+                <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                <!-- Toast Container -->
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+                    <div id="bulkPayToast" class="toast align-items-center" role="alert" aria-live="assertive"
+                         aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body" id="bulkPayToastBody">
+                                <!-- Toast message will go here -->
+                            </div>
+                            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"
+                                    aria-label="Close"></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+    </div>
+
+{% endblock %}
+<!-- AJAX / JS -->
+
+{% block extra_js %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkboxes = document.querySelectorAll('.subservice-checkbox');
+            const selectAll = document.getElementById('select-all');
+            const openBtn = document.getElementById('openConfirm');
+            const confirmBtn = document.getElementById('confirmPay');
+            const countSpan = document.getElementById('selected-count');
+            const totalSpan = document.getElementById('total-amount');
+
+            // Toast setup
+            const toastEl = document.getElementById('bulkPayToast');
+            const toastBody = document.getElementById('bulkPayToastBody');
+            const bsToast = new bootstrap.Toast(toastEl);
+
+            // Recalculate summary (count + total)
+            function updateSummary() {
+                let count = 0, total = 0;
+                checkboxes.forEach(cb => {
+                    if (cb.checked) {
+                        count++;
+                        total += parseFloat(cb.dataset.price || 0);
+                    }
+                });
+                openBtn.disabled = count === 0;
+                countSpan.textContent = count;
+                totalSpan.textContent = total.toFixed(2);
+            }
+
+            // Wire up events
+            checkboxes.forEach(cb => cb.addEventListener('change', updateSummary));
+            selectAll.addEventListener('change', () => {
+                checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                updateSummary();
+            });
+
+            // On confirm, send AJAX and show toast
+            confirmBtn.addEventListener('click', () => {
+                const ids = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
+                fetch("{% url 'bulk_pay_to_legal' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({subservice_ids: ids})
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            toastBody.textContent = `✅ Paid ${data.updated_count} service(s) for KES ${data.total_paid}`;
+                            bsToast.show();
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            toastBody.textContent = `❌ ${data.message}`;
+                            bsToast.show();
+                        }
+                    })
+                    .catch(err => {
+                        toastBody.textContent = '❌ An unexpected error occurred.';
+                        bsToast.show();
+                        console.error(err);
+                    });
+            });
+        });
+    </script>
+
+
+{% endblock %}
+

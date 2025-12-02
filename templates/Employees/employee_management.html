@@ -1,0 +1,1048 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load custom_filters %}
+
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Employee</a></li>
+                       
+                    </ul>
+                </div>
+               
+            </div>
+        </div>
+    </div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+<!-- [ breadcrumb ] end -->
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-zoom-money me-2"></i>Employees
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-file-text me-2"></i>Payroll Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-cash-banknote me-2"></i>Payroll payments
+                        </a>
+                    </li>
+
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                         aria-labelledby="profile-tab-1">
+                        <div class="row">
+
+                            <div class="col-lg-12 col-xxl-12">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between pb-0">
+                                        <p>Employees</p>
+                                        <button class="btn btn-primary mb-3" data-bs-toggle="modal"
+                                                data-bs-target="#addEmployeeModal">Add Employee
+                                        </button>
+                                    </div>
+
+                                    <div class="card-body p-0">
+                                        <div class="tab-content" id="serviceTabsContent">
+
+
+                                            <div class="table-responsive mt-3">
+                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                    <thead class="bg-green-100 ">
+                                                    <tr>
+                                                        <th>First Name</th>
+                                                        <th>Last Name</th>
+                                                        <th>Email</th>
+                                                        <th>Department</th>
+                                                        <th>Role</th>
+                                                        <th>Phone</th>
+                                                        <th>Action</th>
+
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for employee in employees %}
+                                                        <tr>
+                                                            <td>{{ employee.user.first_name }} </td>
+                                                            <td>{{ employee.user.last_name }} </td>
+                                                            <td>{{ employee.user.email }} </td>
+                                                            <td>{{ employee.department }}</td>
+                                                            <td>{{ employee.get_role_display }}</td>
+                                                            <td>{{ employee.phone_number }}</td>
+                                                            <td>
+                                                                <a href="{% url 'employee_list' %}?edit={{ employee.id }}"
+                                                                   class="btn btn-warning">
+                                                                    Edit
+                                                                </a>
+                                                            </td>
+
+                                                        </tr>
+
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                    <!-- Payroll Tab -->
+                    <!-- Payroll Tab -->
+                    <div class="tab-pane" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card mt-4">
+                                    <div class="card-header d-flex justify-content-between">
+
+                                        {% if all_last_payrolls_paid %}
+                                            <form method="post" action="{% url 'payroll_generate_all' %}"
+                                                  class="mb-3">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-primary">
+                                                    Generate All Payrolls
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <div class="alert alert-warning">All payrolls must be paid to
+                                                generate next month's payroll.
+                                            </div>
+                                        {% endif %}
+                                        <!-- Trigger button -->
+                                        <button class="btn btn-outline-success" data-bs-toggle="modal"
+                                                data-bs-target="#bulkMarkPaidModal">
+                                            Bulk pay
+                                        </button>
+
+
+                                    </div>
+
+                                    <!-- Filter -->
+
+
+                                    <!-- Summary -->
+                                    <div class="row mb-4 px-3">
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-success">
+                                                    <strong>Total Net Payable:</strong>:<br>
+                                                    KES {{ total_payable|floatformat:2 }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-primary">
+                                                    <strong>Total Allowances:</strong> :<br>
+                                                    KES {{ total_allowances|floatformat:2 }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card shadow">
+                                                <div class="card-body text-danger">
+                                                    <strong>Total Deductions:</strong>:<br>
+                                                    KES {{ total_deductions|floatformat:2 }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card" style="height: 600px; overflow-y: auto;">
+                                        <div class="accordion" id="payrollAccordion">
+                                            {% for employee in employees %}
+                                                {% with payroll=employee.payrolls.first %}
+                                                    <div class="accordion-item">
+                                                        <h2 class="accordion-header d-flex align-items-center justify-content-between px-3 py-2"
+                                                            id="heading-{{ employee.id }}">
+                                                            <button class="accordion-button collapsed flex-grow-1 text-start py-2"
+                                                                    type="button"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#collapse-{{ employee.id }}"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="collapse-{{ employee.id }}">
+
+                                                                <div class="d-flex align-items-center flex-wrap gap-3">
+                                                                    <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name }}</span>
+
+                                                                    <small class="text-muted mb-0">
+                                                                        {{ employee.department }}
+                                                                        — {{ employee.get_role_display }}
+                                                                    </small>
+
+                                                                    {% with last_salary=employee.salaries.first %}
+                                                                        {% if last_salary %}
+                                                                            <small class="text-success mb-0 d-flex align-items-center">
+                                                                                💰
+                                                                                <span class="badge bg-light text-dark border ms-1">
+                    {{ last_salary.amount }} KES
+                </span>
+                                                                                <span class="text-muted ms-2">
+                    (Effective {{ last_salary.effective_from }})
+                </span>
+                                                                            </small>
+                                                                        {% else %}
+                                                                            <small class="text-danger mb-0">No
+                                                                                salary set</small>
+                                                                        {% endif %}
+                                                                    {% endwith %}
+                                                                </div>
+
+                                                            </button>
+
+                                                            <div class="btn-group btn-group-sm ms-3">
+                                                                {% with last_salary=employee.salaries.first %}
+                                                                    {% if last_salary %}
+                                                                        <button class="btn btn-outline-secondary open-salary-modal"
+                                                                                data-url="{% url 'salary_update' last_salary.pk %}"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#salaryModal">
+                                                                            <i class="ti ti-edit-circle">Salary</i>
+                                                                        </button>
+                                                                    {% else %}
+                                                                        <button class="btn btn-outline-success open-salary-modal"
+                                                                                data-url="{% url 'salary_create' employee.pk %}"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#salaryModal">
+                                                                            <i class="ti ti-circle-plus">Salary</i>
+                                                                        </button>
+                                                                    {% endif %}
+                                                                {% endwith %}
+
+
+                                                            </div>
+                                                        </h2>
+
+                                                        <div id="collapse-{{ employee.id }}"
+                                                             class="accordion-collapse collapse"
+                                                             aria-labelledby="heading-{{ employee.id }}"
+                                                             data-bs-parent="#payrollAccordion">
+                                                            <div class="accordion-body">
+
+                                                                {% if payroll %}
+                                                                    <div class="d-flex justify-content-between mb-3">
+                                                                        <div>
+                                                                            <p><strong>Gross:</strong>
+                                                                                KES {{ payroll.gross_salary|floatformat:2 }}
+                                                                            </p>
+                                                                            <p><strong>Net:</strong>
+                                                                                KES {{ payroll.net_salary|floatformat:2 }}
+                                                                            </p>
+                                                                            <p>
+                                                                                <strong>Month:</strong> {{ payroll.month|date:"F Y" }}
+                                                                            </p>
+                                                                            <p>
+                                                                                <strong>Status:</strong>
+                                                                                {% if payroll.is_paid %}
+                                                                                    <span class="badge bg-success">Paid</span>
+                                                                                {% else %}
+                                                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                                                {% endif %}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div class="text-end">
+                                                                            {# {% if not payroll.is_paid %} #}
+                                                                            <button class="btn btn-sm btn-success open-mark-paid-modal"
+                                                                                    data-url="{% url 'payroll_mark_paid' payroll.pk %}"
+                                                                                    data-bs-toggle="modal"
+                                                                                    data-bs-target="#markPaidModal">
+                                                                                pay salary
+                                                                            </button>
+
+
+                                                                            {# {% endif %} #}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                <h6>Allowances</h6>
+                                                                                <button
+                                                                                        class="btn btn-sm btn-outline-success open-allowance-modal"
+                                                                                        data-url="{% url 'allowance_create' employee.id %}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#allowanceModal">
+                                                                                    + Add
+                                                                                </button>
+                                                                            </div>
+                                                                            <table class="table table-sm border-black">
+                                                                                <thead>
+                                                                                <tr>
+                                                                                    <th>Name</th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Recurring</th>
+                                                                                    <th>From</th>
+                                                                                    <th>To</th>
+                                                                                    <th>Action</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for snap in payroll.allowance_snapshots.all %}
+                                                                                    <tr>
+                                                                                        <td>{{ snap.name }}</td>
+                                                                                        <td>
+                                                                                            KSH {{ snap.amount }}</td>
+                                                                                        <td>{{ snap.recurring }}</td>
+                                                                                        <td>{{ snap.template.start_date }}</td>
+                                                                                        <td>{{ snap.template.end_date }}</td>
+                                                                                        <td>
+                                                                                            {% if snap.template %}
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-primary open-allowance-modal"
+                                                                                                        data-url="{% url 'allowance_edit' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#allowanceModal">
+                                                                                                    Edit
+                                                                                                </button>
+
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-danger open-allowance-delete-modal"
+                                                                                                        data-url="{% url 'allowance_delete' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#allowanceDeleteModal">
+                                                                                                    Delete
+                                                                                                </button>
+                                                                                            {% else %}
+                                                                                                <span class="text-muted"><em>(no template)</em></span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <div class="col-md-6">
+                                                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                                <h6>Deductions</h6>
+                                                                                <button
+                                                                                        class="btn btn-sm btn-outline-success open-deduction-modal"
+                                                                                        data-url="{% url 'deduction_create' employee.id %}"
+                                                                                        data-bs-toggle="modal"
+                                                                                        data-bs-target="#deductionModal">
+                                                                                    + Add
+                                                                                </button>
+                                                                            </div>
+                                                                            <table class="table table-sm">
+                                                                                <thead>
+                                                                                <tr>
+                                                                                    <th>Name</th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Recurring</th>
+                                                                                    <th>From</th>
+                                                                                    <th>To</th>
+                                                                                    <th>Action</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for snap in payroll.deduction_snapshots.all %}
+                                                                                    <tr>
+                                                                                        <td>{{ snap.name }}</td>
+                                                                                        <td>
+                                                                                            KES {{ snap.amount }}</td>
+                                                                                        <td>{{ snap.recurring }}</td>
+                                                                                        <td>{{ snap.template.start_date }}</td>
+                                                                                        <td>{{ snap.template.end_date }}</td>
+                                                                                        <td>
+                                                                                            {% if snap.template %}
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-primary open-deduction-modal"
+                                                                                                        data-url="{% url 'deduction_edit' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#deductionModal">
+                                                                                                    Edit
+                                                                                                </button>
+                                                                                                <button
+                                                                                                        class="btn btn-sm btn-outline-danger open-deduction-delete-modal"
+                                                                                                        data-url="{% url 'deduction_delete' snap.template.pk %}"
+                                                                                                        data-bs-toggle="modal"
+                                                                                                        data-bs-target="#deductionDeleteModal">
+                                                                                                    Delete
+                                                                                                </button>
+                                                                                            {% else %}
+                                                                                                <span class="text-muted"><em>(no template)</em></span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                {% else %}
+                                                                    <p class="text-muted">No payroll
+                                                                        generated
+                                                                        yet.</p>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endwith %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="tab-pane" id="profile-3" role="tabpanel" aria-labelledby="profile-tab-3">
+                        <div class="row">
+
+                            <div class="col-lg-12">
+
+
+                                <div class="card">
+
+
+                                    <div class="card-header bg-green-100 p-3">
+                                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                                            <!-- Filter Button -->
+                                            <button id="toggleFilterBtn"
+                                                    class="btn btn-sm btn-outline-success"
+                                                    data-bs-toggle="collapse"
+                                                    data-bs-target="#filterPanel"
+                                                    aria-expanded="false" aria-controls="filterPanel">
+                                                <i class="fas fa-filter me-1"></i> Filter Dates
+                                            </button>
+
+                                            <!-- Filter Panel -->
+                                            <div id="filterPanel" class="collapse w-100 mt-2 mt-md-0">
+                                                <form id="filter-form" class="row gx-2 gy-2">
+                                                    <div class="col-12 col-sm-6 col-md-auto">
+                                                        <label for="month" class="form-label mb-1">Month</label>
+                                                        <input type="month" id="month" name="month"
+                                                               class="form-control"
+                                                               hx-get="{% url 'filter_payrolls' %}"
+                                                               hx-include="#filter-form"
+                                                               hx-target="#payroll-table-body"
+                                                               hx-trigger="change delay:500ms">
+                                                    </div>
+
+                                                    <div class="col-12 col-sm-6 col-md-auto">
+                                                        <label for="is_paid" class="form-label mb-1">Status</label>
+                                                        <select id="is_paid" name="is_paid"
+                                                                class="form-select"
+                                                                hx-get="{% url 'filter_payrolls' %}"
+                                                                hx-include="#filter-form"
+                                                                hx-target="#payroll-table-body"
+                                                                hx-trigger="change">
+                                                            <option value="">All</option>
+                                                            <option value="true">Paid</option>
+                                                            <option value="false">Unpaid</option>
+                                                        </select>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card-body p-0">
+                                        {% if employees_with_payroll %}
+                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                <thead class="table-success">
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Dept</th>
+                                                    <th>Role</th>
+                                                    <th>Phone</th>
+                                                    <th class="text-end">Basic</th>
+                                                    <th class="text-end">Net</th>
+                                                    <th>Month</th>
+                                                    <th>Paid?</th>
+                                                    <th>Paid On</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody id="payroll-table-body">
+                                                {% for employee in employees_with_payroll %}
+                                                    {% with payroll=employee.latest_payrolls.0 %}
+                                                        <tr>
+                                                            <td>{{ employee.user.get_full_name }}</td>
+                                                            <td>{{ employee.department }}</td>
+                                                            <td>{{ employee.get_role_display }}</td>
+                                                            <td>{{ employee.phone_number }}</td>
+
+                                                            {% if payroll %}
+                                                                <td class="text-end">
+                                                                    KES {{ payroll.salary_snapshot.amount|floatformat:2 }}</td>
+                                                                <td class="text-end">
+                                                                    KES {{ payroll.net_salary|floatformat:2 }}</td>
+                                                                <td>{{ payroll.month|date:"F Y" }}</td>
+                                                                <td>
+                                    <span class="badge {% if payroll.is_paid %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                        {{ payroll.is_paid|yesno:"Paid,Pending" }}
+                                    </span>
+                                                                </td>
+                                                                <td>{{ payroll.paid_on|default:"—" }}</td>
+                                                                <td>
+                                                                    <button class="btn btn-sm btn-primary">Preview
+                                                                    </button>
+                                                                </td>
+                                                            {% else %}
+                                                                <td colspan="6" class="text-center text-muted">No
+                                                                    payroll record
+                                                                </td>
+                                                            {% endif %}
+                                                        </tr>
+                                                    {% endwith %}
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        {% else %}
+                                            <div class="p-4 text-center text-muted">
+                                                <h5>No payroll records found for any employee.</h5>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- [ sample-page ] end -->
+        </div>
+        <!-- [ Main Content ] end -->
+    </div>
+</div>
+</div>
+</div>
+    <!-- [ Main Content ] end -->
+
+
+
+
+
+    <!-- Salary Create/Edit Modal -->
+    <!-- Salary Create/Edit Modal (AJAX loaded) -->
+    <div class="modal fade" id="salaryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" id="salaryModalContent">
+                <!-- JS will load your _salary_form.html here -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Salary Delete Modal -->
+    <div class="modal fade" id="salaryDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="salaryDeleteModalContent">
+                <!-- AJAX will inject _salary_confirm_delete.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- employee_management.html -->
+
+    <!-- Bulk Mark Paid Modal -->
+    <div class="modal fade" id="bulkMarkPaidModal" tabindex="-1" aria-labelledby="bulkMarkPaidLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" action="{% url 'payroll_bulk_mark_paid' %}">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bulkMarkPaidLabel">Mark All Payrolls as Paid</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>This will mark all <strong>unpaid payrolls</strong> for the selected month as paid.</p>
+                        <div class="mb-3">
+                            <label for="month" class="form-label">Payroll Month</label>
+                            <input type="month" class="form-control" name="month" id="month" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment_reference" class="form-label">Payment Reference (optional)</label>
+                            <input type="text" class="form-control" name="payment_reference" id="payment_reference">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Confirm & Pay</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- “Mark as Paid” modal container -->
+    <div class="modal fade" id="markPaidModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="markPaidModalContent">
+                <!-- AJAX will inject our partial here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalEl = document.getElementById('markPaidModal');
+            const contentEl = document.getElementById('markPaidModalContent');
+            const modal = new bootstrap.Modal(modalEl);
+
+            document.querySelectorAll('.open-mark-paid-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    fetch(btn.dataset.url, {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    })
+                        .then(r => r.text())
+                        .then(html => {
+                            contentEl.innerHTML = html;
+                            modal.show();
+                        })
+                        .catch(err => {
+                            console.error('Could not load mark‑paid form', err);
+                            alert('Failed to load form — check console');
+                        });
+                });
+            });
+        });
+    </script>
+
+
+
+
+
+
+
+    <!-- allowance add/edit -->
+    <div class="modal fade" id="allowanceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="allowanceModalContent">
+                <!-- JS will load _allowance_form.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- allowance delete -->
+    <div class="modal fade" id="allowanceDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="allowanceDeleteModalContent">
+                <!-- JS will load _allowance_confirm_delete.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- deduction add/edit -->
+    <div class="modal fade" id="deductionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="deductionModalContent">
+                <!-- JS will load _deduction_form.html here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- deduction delete -->
+    <div class="modal fade" id="deductionDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content" id="deductionDeleteModalContent">
+                <!-- JS will load _deduction_confirm_delete.html here -->
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // helper
+            async function load(url, targetId) {
+                const res = await fetch(url);
+                const html = await res.text();
+                document.getElementById(targetId).innerHTML = html;
+            }
+
+            // Allowance
+            document.querySelectorAll('.open-allowance-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'allowanceModalContent');
+            });
+            document.querySelectorAll('.open-allowance-delete-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'allowanceDeleteModalContent');
+            });
+
+            // Deduction
+            document.querySelectorAll('.open-deduction-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'deductionModalContent');
+            });
+            document.querySelectorAll('.open-deduction-delete-modal').forEach(btn => {
+                btn.onclick = () => load(btn.dataset.url, 'deductionDeleteModalContent');
+            });
+
+            // Intercept form submits inside any of these modals
+            document.body.addEventListener('submit', async (e) => {
+                const frm = e.target.closest('form');
+                if (!frm) return;
+                if (
+                    frm.closest('#allowanceModalContent') ||
+                    frm.closest('#allowanceDeleteModalContent') ||
+                    frm.closest('#deductionModalContent') ||
+                    frm.closest('#deductionDeleteModalContent')
+                ) {
+                    e.preventDefault();
+                    const res = await fetch(frm.action, {
+                        method: frm.method,
+                        body: new FormData(frm),
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    });
+                    if (res.redirected) {
+                        window.location.href = res.url;
+                    } else {
+                        // re‑render form with errors
+                        const text = await res.text();
+                        frm.closest('.modal-content').innerHTML = text;
+                    }
+                }
+            });
+        });
+    </script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            function toggleDates(recurringId, startId, endId) {
+                const cb = document.getElementById(recurringId);
+                const sd = document.getElementById(startId).closest('.form-group');
+                const ed = document.getElementById(endId).closest('.form-group');
+
+                function update() {
+                    if (cb.checked) {
+                        sd.style.display = '';
+                        ed.style.display = '';
+                    } else {
+                        sd.style.display = 'none';
+                        ed.style.display = 'none';
+                    }
+                }
+
+                cb.addEventListener('change', update);
+                update();
+            }
+
+            // For allowance form
+            toggleDates(
+                'id_recurring_allowance',
+                'id_start_date',
+                'id_end_date'
+            );
+
+            // For deduction form
+            toggleDates(
+                'id_recurring_deduction',
+                'id_start_date',
+                'id_end_date'
+            );
+        });
+    </script>
+
+
+
+
+
+
+
+
+
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    {# employee_management.html (excerpt) #}
+
+    {# — Add Employee Modal — #}
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1" aria-labelledby="addEmployeeModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" id="payrollCreateForm" action="{% url 'employee_add' %}">
+
+
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addEmployeeModalLabel">Add Employee</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        {# non‑field errors #}
+                        {% if add_form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {{ add_form.non_field_errors }}
+                            </div>
+                        {% endif %}
+                        {# each field #}
+                        <div class="mb-3">
+                            {{ add_form.first_name.label_tag }}
+                            {{ add_form.first_name }}
+                            {% for err in add_form.first_name.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.last_name.label_tag }}
+                            {{ add_form.last_name }}
+                            {% for err in add_form.last_name.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.email.label_tag }}
+                            {{ add_form.email }}
+                            {% for err in add_form.email.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.phone_number.label_tag }}
+                            {{ add_form.phone_number }}
+                            {% for err in add_form.phone_number.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.department.label_tag }}
+                            {{ add_form.department }}
+                            {% for err in add_form.department.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.address.label_tag }}
+                            {{ add_form.address }}
+                            {% for err in add_form.address.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.profile_picture.label_tag }}
+                            {{ add_form.profile_picture }}
+                            {% for err in add_form.profile_picture.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="mb-3">
+                            {{ add_form.role.label_tag }}
+                            {{ add_form.role }}
+                            {% for err in add_form.role.errors %}
+                                <div class="text-danger small">{{ err }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Add Employee</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# — Edit Employee Modal — #}
+    {% if edit_form %}
+        <div class="modal fade show" id="editEmployeeModal" tabindex="-1" aria-labelledby="editEmployeeModalLabel"
+             aria-modal="true" style="display: block;">
+            <div class="modal-dialog">
+                <form method="post" id="payrollEditForm" action="{% url 'employee_edit' edit_employee_id %}">
+
+                    {% csrf_token %}
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editEmployeeModalLabel">Edit Employee</h5>
+                            <a href="{% url 'employee_list' %}" class="btn-close" aria-label="Close"></a>
+                        </div>
+                        <div class="modal-body">
+                            {% if edit_form.non_field_errors %}
+                                <div class="alert alert-danger">
+                                    {{ edit_form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
+                            <input type="hidden" name="employee_id" value="{{ edit_employee_id }}">
+
+                            {% for field in edit_form %}
+                                <div class="mb-3">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                        <div class="text-danger small">
+                                            {% for err in field.errors %}
+                                                {{ err }}<br>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-success">Save Changes</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="modal-backdrop fade show"></div>  <!-- Add backdrop if modal is forcibly shown -->
+    {% endif %}
+
+
+    {# — JavaScript to wire up Edit Modal — #}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+    <script>
+        document.getElementById('generate-payroll-btn')?.addEventListener('click', function () {
+            fetch('{% url "payroll_generate_all" %}', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert(data.error);
+                    }
+                });
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch and inject the form partial
+            async function loadInto(url, target) {
+                const res = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+                target.innerHTML = await res.text();
+            }
+
+            const container = document.getElementById('salaryModalContent');
+            document.querySelectorAll('.open-salary-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    loadInto(btn.dataset.url, container);
+                });
+            });
+
+            // Intercept the form submit inside the modal
+            container.addEventListener('submit', async e => {
+                e.preventDefault();
+                const form = e.target.closest('form');
+                const res = await fetch(form.action, {
+                    method: form.method,
+                    body: new FormData(form),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                });
+                if (res.redirected) {
+                    // success → full page reload/redirect
+                    window.location.href = res.url;
+                } else {
+                    // errors → re-render partial
+                    container.innerHTML = await res.text();
+                }
+            });
+        });
+    </script>
+
+
+
+
+
+
+
+
+
+
+    <script>
+        document.getElementById('payroll-filter-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const query = new URLSearchParams(formData).toString();
+
+            fetch(`?${query}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const updatedSection = doc.querySelector('#payrolls-section'); // make sure to wrap your payrolls in a div with this ID
+                    document.querySelector('#payrolls-section').innerHTML = updatedSection.innerHTML;
+                });
+        });
+
+    </script>
+
+
+
+    <!-- JavaScript to populate Edit Modal -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+{% endblock %}
+
+

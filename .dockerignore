@@ -1,0 +1,25 @@
+# IDE files
+.idea
+.vscode
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+.pdf
+# Virtual environments
+.venv
+env/
+venv/
+media/
+
+
+tests/
+
+# Git
+.git
+.gitignore

@@ -1,0 +1,6 @@
+.env
+.service-account.json
+.firebase-admin.json
+.env.local
+simple_test.csv
+test_coordinates.csv

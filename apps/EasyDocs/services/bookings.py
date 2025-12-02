@@ -1,0 +1,485 @@
+from datetime import datetime
+
+from django.http import JsonResponse
+from django.utils import timezone
+from django.views import View
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.views.generic import TemplateView
+
+from apps.EasyDocs.forms import BookingManageForm
+from apps.EasyDocs.models import BookingAssignment, Booking, ClientService
+from apps.Employee.models import EmployeeProfile
+
+# bookings/utils.py
+from django.db.models import Count
+from django.utils import timezone
+import logging
+
+logger = logging.getLogger(__name__)
+from datetime import datetime
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.http import JsonResponse
+from django.views import View
+from django.views.generic.edit import UpdateView, CreateView
+from django.urls import reverse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.models import User
+from django.utils.dateformat import format as dformat
+from django.db import transaction   
+from django.http import HttpResponseBadRequest
+from typing import List
+
+
+def get_calendar_events(start=None, end=None, include_handled=True):
+    qs = Booking.objects.all()
+    if not include_handled:
+        qs = qs.filter(handled=False)
+
+    # Parse incoming start/end into date objects
+    if start and end:
+        sdate = datetime.fromisoformat(start).date()
+        edate = datetime.fromisoformat(end).date()
+        qs = qs.filter(scheduled_date__date__range=(sdate, edate))
+
+    # 1) Truncate to date
+    qs = qs.annotate(day=TruncDate('scheduled_date'))
+
+    # 2) Group by day + handled, count IDs
+    summary = (
+        qs
+        .values('day', 'handled')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+
+    # 3) Build your calendar‐friendly dicts
+    return [
+        {
+            'date':    entry['day'].isoformat(),
+            'count':   entry['count'],
+            'handled': entry['handled'],
+        }
+        for entry in summary
+    ]
+
+
+# -- Create
+
+class BookingCreateView(CreateView):
+    model = Booking
+    fields = ['scheduled_date', 'dispatch_message']
+
+    def form_valid(self, form):
+        cs_id = self.kwargs.get('client_service_id')
+        client_service = get_object_or_404(ClientService, id=cs_id)
+
+        booking = form.save(commit=False)
+        booking.client_service = client_service
+        booking.save()
+
+        sched = timezone.localtime(booking.scheduled_date)
+        sched_str = sched.strftime('%a, %d %b %Y %H:%M')
+
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'id': booking.id,
+                'scheduled_date': sched_str,
+                'dispatch_message': booking.dispatch_message or '',
+            }, json_dumps_params={'ensure_ascii': False})  # Add this line
+
+        messages.success(self.request, 'Booking created successfully!')
+        return redirect('client_details', client_id=client_service.client.id)
+
+    def form_invalid(self, form):
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            # Return formatted errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False, 
+                'errors': errors,
+                'error': 'Please correct the errors below.'
+            }, status=400, json_dumps_params={'ensure_ascii': False})  
+        
+        messages.error(self.request, 'Please correct the errors below.')
+        return super().form_invalid(form)
+
+
+class BookingUpdateView(UpdateView):
+    model = Booking
+    fields = ['scheduled_date', 'dispatch_message']
+
+    def form_valid(self, form):
+        booking = form.save()
+
+        sched = timezone.localtime(booking.scheduled_date)
+        sched_str = sched.strftime('%a, %d %b %Y %H:%M')
+
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'scheduled_date': sched_str,
+                'dispatch_message': booking.dispatch_message or '',
+            }, json_dumps_params={'ensure_ascii': False})  # Add this line
+
+        messages.success(self.request, 'Booking updated successfully!')
+        return redirect('client_details', client_id=booking.client_service.client.id)
+
+    def form_invalid(self, form):
+        # Check for AJAX request
+        is_ajax = (
+            self.request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+            self.request.content_type == 'application/json'
+        )
+        
+        if is_ajax:
+            # Return formatted errors
+            errors = {}
+            for field, error_list in form.errors.items():
+                errors[field] = [str(error) for error in error_list]
+            
+            return JsonResponse({
+                'success': False, 
+                'errors': errors,
+                'error': 'Please correct the errors below.'
+            }, status=400, json_dumps_params={'ensure_ascii': False})  
+        
+        messages.error(self.request, 'Please correct the errors below.')
+        return super().form_invalid(form)
+
+
+class BookingCalendarJSON(View):
+    """
+    GET params:
+      - handled  : '1' or '0' (optional, default '1')
+      - summary  : '1' (default) for aggregates, '0' for detail
+      - start,end: ISO datetimes for calendar range (optional in detail mode)
+    """
+
+    def get(self, request):
+        include_handled = request.GET.get('handled', '1') == '1'
+        summary = request.GET.get('summary', '1') == '1'
+        start_iso = request.GET.get('start')
+        end_iso = request.GET.get('end')
+
+        qs = Booking.objects.all()
+        if not include_handled:
+            qs = qs.filter(handled=False)
+
+        errors = []
+
+        if summary:
+            # Filter by start/end date if provided
+            if start_iso and end_iso:
+                try:
+                    sdate = timezone.datetime.fromisoformat(start_iso).date()
+                    edate = timezone.datetime.fromisoformat(end_iso).date()
+                except ValueError:
+                    errors.append("`start` and `end` must be ISO datetimes")
+                else:
+                    qs = qs.filter(scheduled_date__date__range=(sdate, edate))
+
+            if errors:
+                return JsonResponse({'errors': errors}, status=400)
+
+            # Aggregate bookings per day + handled status
+            qs = qs.annotate(day=TruncDate('scheduled_date'))
+            summary_qs = (
+                qs
+                .values('day', 'handled')
+                .annotate(count=Count('id'))
+                .order_by('day')
+            )
+
+            payload = []
+            for entry in summary_qs:
+                day_str = entry['day'].isoformat()
+
+                # ✅ Fetch all bookings for that day + handled status
+                bookings = Booking.objects.filter(
+                    scheduled_date__date=entry['day'],
+                    handled=entry['handled']
+                ).select_related('client_service', 'client_service__client', 'client_service__service') \
+                 .order_by('scheduled_date')
+
+                # Build full objects for extendedProps
+                booking_list = []
+                for b in bookings:
+                    booking_list.append({
+                        'id': b.id,
+                        'client_id': b.client_service.client.id,
+                        'client': b.client_service.client.first_name,
+                        'service': b.client_service.service.name,
+                        'handled': b.handled,
+                        'time': timezone.localtime(b.scheduled_date).strftime('%I:%M %p'),
+                        'dispatchMessage': b.dispatch_message or '',
+                        'scheduled_date': timezone.localtime(b.scheduled_date).isoformat()
+                    })
+
+                payload.append({
+                    'title': f"{entry['count']} booking{'s' if entry['count'] != 1 else ''}",
+                    'start': day_str,
+                    'color': '#28a745' if entry['handled'] else '#dc3545',
+                    'extendedProps': {
+                        'bookings': booking_list
+                    }
+                })
+
+            return JsonResponse(payload, safe=False)
+
+        else:
+            # Detail mode: return individual bookings
+            if start_iso and end_iso:
+                try:
+                    start_dt = timezone.datetime.fromisoformat(start_iso)
+                    end_dt = timezone.datetime.fromisoformat(end_iso)
+                except ValueError:
+                    errors.append("`start` and `end` must be ISO datetimes")
+                else:
+                    qs = qs.filter(scheduled_date__gte=start_dt, scheduled_date__lt=end_dt)
+
+            if errors:
+                return JsonResponse({'errors': errors}, status=400)
+
+            events = []
+            for b in qs.select_related('client_service', 'client_service__client', 'client_service__service').order_by('scheduled_date'):
+                events.append({
+                    'id': b.id,
+                    'title': f"{b.client_service.client.first_name} – {b.client_service.service.name}",
+                    'start': timezone.localtime(b.scheduled_date).isoformat(),
+                    'color': '#28a745' if b.handled else '#dc3545',
+                    'extendedProps': {
+                        'client_id': b.client_service.client.id,
+                        'client': b.client_service.client.first_name,
+                        'service': b.client_service.service.name,
+                        'handled': b.handled,
+                        'time': timezone.localtime(b.scheduled_date).strftime('%I:%M %p'),
+                        'dispatchMessage': b.dispatch_message or ''
+                    }
+                })
+            return JsonResponse(events, safe=False)
+
+
+
+
+
+
+# services/bookings.py
+
+
+
+class BookingManagementView(View):
+    """
+    Renders the main booking-management page with calendar and
+    inline modals for assign/handle actions.
+    """
+    template_name = 'Management/bookings/booking_management.html'
+
+    def get(self, request):
+        today = timezone.localdate()
+        unhandled = Booking.objects.filter(handled=False)
+        handled   = Booking.objects.filter(handled=True)
+
+        # All surveyors (for both modals)
+        surveyors = User.objects.filter(
+            employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR
+        )
+
+        # Build a map: booking_id -> [assigned_surveyor_ids]
+        assignments = BookingAssignment.objects.filter(booking__in=unhandled)
+        assigned_ids_map = {}
+        for a in assignments:
+            assigned_ids_map.setdefault(a.booking_id, []).append(a.surveyor_id)
+
+        return render(request, self.template_name, {
+            'today_bookings':    unhandled.filter(scheduled_date__date=today),
+            'unhandled_bookings': unhandled,
+            'handled_bookings':   handled,
+            'surveyors':          surveyors,
+            'assigned_ids_map':   assigned_ids_map,
+        })
+
+
+
+class AssignSurveyorsView(View):
+    template_name = 'Management/bookings/assign_surveyors_modal.html'
+
+    def get(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+        surveyors = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
+        assigned_ids = booking.bookingassignment_set.values_list('surveyor_id', flat=True)
+        return render(request, self.template_name, {
+            'booking': booking,
+            'surveyors': surveyors,
+            'assigned_ids': assigned_ids,
+        })
+
+    def post(self, request, pk):
+        logger.info("➡️ AssignSurveyorsView.post() called for booking ID=%s", pk)
+
+        booking = get_object_or_404(Booking, pk=pk)
+        logger.debug("Loaded booking: %s", booking)
+
+        # Optional: permission check
+        # if not request.user.has_perm('apps.EasyDocs.change_booking'):
+        #     raise PermissionDenied()
+
+        raw_ids = request.POST.getlist('surveyors')
+        logger.debug("Raw surveyor IDs from POST: %s", raw_ids)
+
+        try:
+            surveyor_ids = [int(x) for x in raw_ids if x != ""]
+            logger.debug("Validated surveyor IDs: %s", surveyor_ids)
+        except ValueError as e:
+            logger.exception("Invalid surveyor IDs submitted: %s", e)
+            return HttpResponseBadRequest("Invalid surveyor ids")
+
+        # Remove duplicates and keep order
+        surveyor_ids = list(dict.fromkeys(surveyor_ids))
+        logger.debug("Deduplicated surveyor IDs: %s", surveyor_ids)
+
+        # Fetch users and map by ID
+        users = {u.id: u for u in User.objects.filter(id__in=surveyor_ids)}
+        logger.debug("Fetched %d user(s): %s", len(users), list(users.keys()))
+
+        # Build BookingAssignment objects for bulk_create
+        assignments = []
+        for sid in surveyor_ids:
+            if sid in users:
+                assignments.append(BookingAssignment(booking=booking, surveyor_id=sid))
+                logger.debug("Prepared BookingAssignment for surveyor ID=%s", sid)
+            else:
+                logger.warning("Surveyor ID=%s not found — skipping", sid)
+
+        # Atomic replace + create + notifications
+        with transaction.atomic():
+            deleted = booking.bookingassignment_set.all().delete()
+            logger.info("Deleted old assignments for booking %s → %s", booking.id, deleted)
+
+            if assignments:
+                BookingAssignment.objects.bulk_create(assignments)
+                logger.info("Created %d new assignments for booking %s", len(assignments), booking.id)
+            else:
+                logger.warning("No new assignments provided for booking %s", booking.id)
+
+        # Send notifications asynchronously / safely
+        try:
+            from apps.EasyDocs.services.notifications import create_booking_notifications
+            logger.info("Triggering create_booking_notifications() for booking %s", booking.id)
+            create_booking_notifications(booking, surveyor_ids)
+            logger.info("✅ Notifications triggered successfully for booking %s", booking.id)
+        except Exception as exc:
+            logger.exception("❌ Failed to create/send booking notifications: %s", exc)
+
+        messages.success(request, "✅ Surveyors assigned successfully and notified.")
+        referer = request.META.get('HTTP_REFERER') or reverse('booking-management')
+        logger.info("Redirecting back to %s", referer)
+
+        return redirect(referer)
+
+
+class MarkBookingHandledView(View):
+    template_name = 'Management/bookings/mark_handled_modal.html'
+
+    def get(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+        surveyors = User.objects.filter(employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR)
+        assigned_ids = booking.bookingassignment_set.values_list('surveyor_id', flat=True)
+        return render(request, self.template_name, {
+            'booking': booking,
+            'surveyors': surveyors,
+            'assigned_ids': assigned_ids,
+        })
+
+    def post(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+
+        raw_ids = request.POST.getlist('surveyors')
+        try:
+            surveyor_ids = [int(x) for x in raw_ids if x != ""]
+        except ValueError:
+            return HttpResponseBadRequest("Invalid surveyor ids")
+
+        surveyor_ids = list(dict.fromkeys(surveyor_ids))
+        users = {u.id: u for u in User.objects.filter(id__in=surveyor_ids)}
+
+        # Replace assignments atomically, mark handled, and set client_service status
+        with transaction.atomic():
+            booking.bookingassignment_set.all().delete()
+            assignments = [BookingAssignment(booking=booking, surveyor_id=sid) for sid in surveyor_ids if sid in users]
+            if assignments:
+                BookingAssignment.objects.bulk_create(assignments)
+
+            booking.handled = True
+            booking.handled_at = timezone.now()
+            booking.handled_by = request.user
+            booking.save(update_fields=['handled', 'handled_at', 'handled_by'])
+
+            client_service = booking.client_service
+            if client_service and hasattr(client_service, 'status'):
+                client_service.status = 'completed'
+                client_service.save(update_fields=['status'])
+
+        # create notifications + send handled summary email (async) safely
+        try:
+            from apps.EasyDocs.services.notifications import create_handled_notifications
+            assigned_surveyors = create_handled_notifications(
+                booking=booking,
+                final_surveyor_ids=surveyor_ids,
+                handled_by_user=request.user,
+                notify_client=True
+            )
+        except Exception as exc:
+            import logging
+            logging.exception("Failed to create handled notifications: %s", exc)
+            assigned_surveyors = []
+
+        # Build recipient emails for summary (final surveyors + superadmins + client)
+        recipient_emails: List[str] = [u.email for u in assigned_surveyors if getattr(u, "email", None)]
+        superadmins = User.objects.filter(is_superuser=True).exclude(email__isnull=True).exclude(email__exact='')
+        recipient_emails += [a.email for a in superadmins if a.email]
+
+        client_user = getattr(getattr(booking, "client_service", None), "client", None)
+        # if client is a model that links to a user, adjust below:
+        client_user_obj = getattr(client_user, "user", None) if client_user is not None else None
+        if client_user_obj and getattr(client_user_obj, "email", None):
+            recipient_emails.append(client_user_obj.email)
+
+        # dedupe & enqueue email task if any
+        recipient_emails = list(dict.fromkeys(filter(None, recipient_emails)))
+        if recipient_emails:
+            try:
+                from apps.EasyDocs.tasks import send_handled_summary_email
+                send_handled_summary_email.delay(booking.id, recipient_emails)
+            except Exception as exc:
+                import logging
+                logging.exception("Failed to enqueue handled summary email: %s", exc)
+
+        messages.success(request, "✅ Booking marked as handled and notifications sent.")
+        referer = request.META.get('HTTP_REFERER') or reverse('booking-management')
+        return redirect(referer)

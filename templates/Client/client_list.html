@@ -1,0 +1,528 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+
+
+
+{% block body %}
+
+
+    <section class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Clients</a></li>
+                                <li class="breadcrumb-item" aria-current="page">List</li>
+                            </ul>
+                        </div>
+                       
+                    </div>
+                </div>
+            </div>
+            <div id="message-container" class="container-fluid col-lg-12">
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'warning' %}
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                        {% elif message.tags == 'info' %}
+                            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        {% else %}
+                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+                        {% endif %}
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                </div>
+
+                <!-- [ breadcrumb ] end -->
+
+                <!-- [ Main Content ] start -->
+                <div class="row">
+                    <!-- Config table start -->
+                    <div class="col-sm-12">
+                        <div class="card card-table">
+                            <div class="card-header">
+
+
+                                <!-- Button trigger modal -->
+                                <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"
+                                        data-bs-target="#addClientModal">
+                                    <i class="ti ti-user-plus"></i> Add Client
+                                </button>
+
+                                {#                                <button class="btn bg-green-200 mb-3" data-bs-toggle="modal"#}
+                                {#                                        data-bs-target="#addClientServiceModal">#}
+                                {#                                    <i class="ti ti-circle-plus"></i> Add Client Service#}
+                                {#                                </button>#}
+
+
+                            </div>
+                            <div class="card-body">
+                                <!-- Table -->
+                                <div class="table-responsive mt-3">
+                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                        <thead class="table-success">
+                                        <tr>
+                                            <th>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="select-all">
+                                                </div>
+                                            </th>
+                                            <th>First name</th>
+                                            <th>Last name</th>
+                                            <th>Phone</th>
+                                            <th>E-mail</th>
+                                            <th>Requested at</th>
+                                            <th>Service</th>
+                                            <th>Process</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                            <th>Details</th>
+
+
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {% for item in client_data %}
+                                            {% with client=item.client client_service=item.client_service current_process=item.current_process %}
+                                                <tr>
+                                                    <td>{{ forloop.counter }}</td>
+                                                    <td>{{ client.first_name }}</td>
+                                                    <td>{{ client.last_name }}</td>
+                                                    <td>{{ client.phone|default:"-" }}</td>
+                                                    <td>{{ client.email }}</td>
+                                                    <td>
+                                                        {% if client_service %}
+                                                            {{ client_service.requested_at|date:"Y-m-d" }}
+                                                        {% else %}
+                                                            <span class="text-muted">No service</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if client_service %}
+                                                            {{ client_service.service.name }}
+                                                        {% else %}
+                                                            <span class="text-muted">No service</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if current_process %}
+                                                            {{ current_process.process.name }}
+                                                        {% else %}
+                                                            <span class="text-muted">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if current_process %}
+                                                            <span class="badge
+              {% if current_process.status == 'in_progress' %}bg-info
+              {% elif current_process.status == 'pending' %}bg-secondary
+              {% elif current_process.status == 'completed' %}bg-success
+              {% elif current_process.status == 'collected' %}bg-primary
+              {% else %}bg-light text-dark{% endif %}">
+              {{ current_process.get_status_display }}
+            </span>
+                                                        {% else %}
+                                                            <span class="text-muted">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                                                                data-bs-target="#editClientModal{{ client.id }}">
+                                                            Edit
+                                                        </button>
+                                                    </td>
+                                                    <td>
+                                                        <a href="{% url 'client_details' client.id %}"
+                                                           class="btn btn-sm btn-outline-primary d-inline-flex align-items-center">
+                                                            <i class="ti ti-eye-check me-1"></i> Details
+                                                        </a>
+                                                    </td>
+
+                                                </tr>
+
+                                                <!-- Edit Client Modal -->
+                                                <div class="modal fade" id="editClientModal{{ client.id }}"
+                                                     tabindex="-1"
+                                                     aria-labelledby="editClientModalLabel{{ client.id }}"
+                                                     aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <form method="POST"
+                                                            action="{% url 'edit_client' client.id %}"
+                                                            enctype="multipart/form-data"
+                                                            class="client-form">
+                                                                {% csrf_token %}
+                                                                <div class="modal-header bg-warning">
+                                                                    <h5 class="modal-title"
+                                                                        id="editClientModalLabel{{ client.id }}">
+                                                                        Edit Client
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close"
+                                                                            data-bs-dismiss="modal"
+                                                                            aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    {{ item.form.as_p }}
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="submit" class="btn btn-primary">Save
+                                                                        Changes
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-secondary"
+                                                                            data-bs-dismiss="modal">Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endwith %}
+
+                                        {% endfor %}
+                                        </tbody>
+
+
+                                    </table>
+
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Config table end -->
+
+
+                    <!-- [ Main Content ] end -->
+                </div>
+                </div>
+    </section>
+
+
+
+<!-- Add Client Modal -->
+
+    <!-- Add Client Modal -->
+    <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'add_client' %}" class="client_service_form" id="client_service_form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="addClientModalLabel">Add Client</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ add_form.as_p }}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Add Client</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Client Service Modal -->
+    <div class="modal fade" id="addClientServiceModal" tabindex="-1" aria-labelledby="addClientServiceModalLabel"
+         aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'add_client_service' %}">
+                    {% csrf_token %}
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="addClientServiceModalLabel">Assign Service to Client</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+
+                        <!-- Searchable Client -->
+                        <div class="mb-3">
+                            <label for="clientSearch" class="form-label">Search Client</label>
+                            <input type="text" id="clientSearch" class="form-control"
+                                   placeholder="Type client details..." autocomplete="off">
+                            <ul id="clientList" class="list-group mt-2"
+                                style="max-height: 200px; overflow-y: auto;"></ul>
+                            <div id="noResults" class="text-danger" style="display: none;">No client found matching this
+                                search.
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="hiddenClientId" name="client" value="">
+
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Client Name</label>
+                            <input type="text" id="clientName" class="form-control" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientPhone" class="form-label">Phone</label>
+                            <input type="text" id="clientPhone" class="form-control" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ client_service_form.category.label_tag }}
+                            {{ client_service_form.category }}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ client_service_form.service.label_tag }}
+                            {{ client_service_form.service }}
+                        </div>
+
+                        <div class="mt-4" id="processCostSection" style="display: none;">
+                            <h6>Customize Service Processes</h6>
+                            <table class="table table-bordered">
+                                <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Custom Cost</th>
+                                </tr>
+                                </thead>
+                                <tbody id="processTableBody"></tbody>
+                            </table>
+                            <div class="text-end">
+                                <strong>Total: Ksh <span id="totalCost">0</span></strong>
+                            </div>
+                        </div>
+                        <div class="mt-4" id="totalPriceOverride" style="display: none;">
+                            <label for="overrideTotalPrice" class="form-label">Override Total Price (Ksh)</label>
+                            <input type="number" name="override_total_price" id="overrideTotalPrice"
+                                   class="form-control" step="0.01">
+                        </div>
+
+
+                        {{ client_service_form.land_description.label_tag }}
+                        {{ client_service_form.land_description }}
+                        <div id="groundFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="scheduledDate" class="form-label">Scheduled Date</label>
+                                <input type="date" name="scheduled_date" id="scheduledDate" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="dispatchMessage" class="form-label">Dispatch Message (optional)</label>
+                                <textarea name="dispatch_message" id="dispatchMessage" class="form-control" rows="3"
+                                          placeholder="e.g. Dispatching officer on Wednesday at 10 AM..."></textarea>
+                            </div>
+                        </div>
+
+
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" type="submit">Assign Service</button>
+                        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+
+
+
+    {#   <script>#}
+    {#    document.addEventListener("DOMContentLoaded", () => {#}
+    {#        const categorySelect = document.querySelector("#id_category");#}
+    {#        const serviceSelect = document.querySelector("#id_service");#}
+    {#        const processSection = document.getElementById("processCostSection");#}
+    {#        const processTableBody = document.getElementById("processTableBody");#}
+    {#        const totalCostDisplay = document.getElementById("totalCost");#}
+    {#        const overridePriceInput = document.getElementById("overrideTotalPrice");#}
+    {#        const overridePriceSection = document.getElementById("totalPriceOverride");#}
+    {#        const groundFields = document.getElementById("groundFields");#}
+    {#        const clientNameInput = document.getElementById("clientName");#}
+    {#        const scheduledDateInput = document.getElementById("scheduledDate");#}
+    {#        const dispatchMessageInput = document.getElementById("dispatchMessage");#}
+    {##}
+    {#        // Helper: Format date as readable string#}
+    {#        const formatDate = (date) => {#}
+    {#            return date.toLocaleDateString(undefined, {#}
+    {#                weekday: 'long',#}
+    {#                year: 'numeric',#}
+    {#                month: 'short',#}
+    {#                day: 'numeric'#}
+    {#            });#}
+    {#        };#}
+    {##}
+    {#        // Auto-update dispatch message#}
+    {#        const updateDispatchMessage = () => {#}
+    {#            const clientName = clientNameInput.value || "client";#}
+    {#            const dateValue = scheduledDateInput.value;#}
+    {#            if (dateValue) {#}
+    {#                const date = new Date(dateValue);#}
+    {#                const message = `Dispatching officer to ${clientName}'s site on ${formatDate(date)} at 10 AM.`;#}
+    {#                dispatchMessageInput.value = message;#}
+    {#            }#}
+    {#        };#}
+    {##}
+    {#        // Update dispatch message when scheduled date changes#}
+    {#        scheduledDateInput.addEventListener("change", updateDispatchMessage);#}
+    {##}
+    {#        // Handle category change#}
+    {#        categorySelect.addEventListener("change", () => {#}
+    {#            const category = categorySelect.value;#}
+    {#            if (!category) return;#}
+    {##}
+    {#            serviceSelect.innerHTML = '<option value="">Loading...</option>';#}
+    {##}
+    {#            fetch(`/services/by-category/?category=${category}`)#}
+    {#                .then(res => res.json())#}
+    {#                .then(data => {#}
+    {#                    serviceSelect.innerHTML = '<option value="">Select Service</option>';#}
+    {#                    data.services.forEach(service => {#}
+    {#                        serviceSelect.innerHTML += `<option value="${service.id}">${service.name}</option>`;#}
+    {#                    });#}
+    {#                });#}
+    {#        });#}
+    {##}
+    {#        // Handle service change#}
+    {#        serviceSelect.addEventListener("change", () => {#}
+    {#            const serviceId = serviceSelect.value;#}
+    {#            const selectedCategory = categorySelect.value.toLowerCase();#}
+    {#            if (!serviceId) return;#}
+    {##}
+    {#            fetch(`/get_service_processes/${serviceId}/`)#}
+    {#                .then(res => res.json())#}
+    {#                .then(data => {#}
+    {#                    // Show/hide ground fields based on category#}
+    {#                    if (selectedCategory === "ground") {#}
+    {#                        groundFields.style.display = "block";#}
+    {##}
+    {#                        // Auto-fill dispatch message and default date#}
+    {#                        const clientName = clientNameInput.value || "client";#}
+    {#                        const today = new Date();#}
+    {#                        const tomorrow = new Date();#}
+    {#                        tomorrow.setDate(today.getDate() + 1);#}
+    {#                        scheduledDateInput.valueAsDate = tomorrow;#}
+    {##}
+    {#                        const message = `Dispatching officer to ${clientName}'s site on ${formatDate(tomorrow)} at 10 AM.`;#}
+    {#                        dispatchMessageInput.value = message;#}
+    {#                    } else {#}
+    {#                        groundFields.style.display = "none";#}
+    {#                    }#}
+    {##}
+    {#                    processTableBody.innerHTML = '';#}
+    {#                    let total = 0;#}
+    {##}
+    {#                    if (data.processes.length === 0) {#}
+    {#                        processSection.style.display = "none";#}
+    {#                        overridePriceSection.style.display = "block";#}
+    {#                        overridePriceInput.value = data.total_price;#}
+    {#                    } else {#}
+    {#                        overridePriceSection.style.display = "none";#}
+    {#                        processSection.style.display = "block";#}
+    {##}
+    {#                        data.processes.forEach(process => {#}
+    {#                            total += process.default_cost;#}
+    {##}
+    {#                            processTableBody.innerHTML += `#}
+    {#                                <tr>#}
+    {#                                    <td>#}
+    {#                                        ${process.name}#}
+    {#                                        <input type="hidden" name="process_id[]" value="${process.id}">#}
+    {#                                        <input type="hidden" name="process_name[]" value="${process.name}">#}
+    {#                                    </td>#}
+    {#                                    <td>#}
+    {#                                        <input type="number"#}
+    {#                                            name="process_cost[]"#}
+    {#                                            value="${process.default_cost}"#}
+    {#                                            step="0.01"#}
+    {#                                            class="form-control cost-input">#}
+    {#                                    </td>#}
+    {#                                </tr>#}
+    {#                            `;#}
+    {#                        });#}
+    {##}
+    {#                        totalCostDisplay.innerText = total.toFixed(2);#}
+    {##}
+    {#                        // Handle manual changes to cost inputs#}
+    {#                        document.querySelectorAll(".cost-input").forEach(input => {#}
+    {#                            input.addEventListener("input", () => {#}
+    {#                                let newTotal = 0;#}
+    {#                                document.querySelectorAll(".cost-input").forEach(inp => {#}
+    {#                                    newTotal += parseFloat(inp.value || 0);#}
+    {#                                });#}
+    {#                                totalCostDisplay.innerText = newTotal.toFixed(2);#}
+    {#                            });#}
+    {#                        });#}
+    {#                    }#}
+    {#                });#}
+    {#        });#}
+    {#    });#}
+    {#</script>#}
+    {##}
+    {##}
+    {##}
+    {##}
+    {##}
+    {##}
+    {#    <script>#}
+    {#        $(document).ready(function () {#}
+    {#            // Search for client and display results#}
+    {#            $('#clientSearch').on('input', function () {#}
+    {#                const query = $(this).val().trim();#}
+    {#                if (query.length > 1) {#}
+    {#                    $.ajax({#}
+    {#                        url: '/clients/search/',  // The URL that handles the client search#}
+    {#                        data: {term: query},#}
+    {#                        success: function (data) {#}
+    {#                            $('#clientList').empty();#}
+    {#                            if (data.results.length > 0) {#}
+    {#                                data.results.forEach(function (client) {#}
+    {#                                    $('#clientList').append(`#}
+    {#                                <li class="list-group-item" data-id="${client.id}" data-name="${client.first_name} ${client.last_name}" data-phone="${client.phone}">#}
+    {#                                    ${client.first_name} ${client.last_name} - ${client.phone}#}
+    {#                                </li>#}
+    {#                            `);#}
+    {#                                });#}
+    {#                            } else {#}
+    {#                                $('#clientList').append('<li class="list-group-item">No results found</li>');#}
+    {#                            }#}
+    {#                        }#}
+    {#                    });#}
+    {#                } else {#}
+    {#                    $('#clientList').empty();#}
+    {#                }#}
+    {#            });#}
+    {##}
+    {#            // When a client is selected from the list#}
+    {#            $('#clientList').on('click', 'li', function () {#}
+    {#                const clientId = $(this).data('id');#}
+    {#                const clientName = $(this).data('name');#}
+    {#                const clientPhone = $(this).data('phone');#}
+    {##}
+    {#                // Pre-populate client fields in the form#}
+    {#                $('#hiddenClientId').val(clientId);  // Hidden client ID field#}
+    {#                $('#clientName').val(clientName);  // Client Name (readonly)#}
+    {#                $('#clientPhone').val(clientPhone);  // Client Phone (readonly)#}
+    {##}
+    {#                // Close the client list dropdown#}
+    {#                $('#clientList').empty();#}
+    {#            });#}
+    {#        });#}
+    {##}
+    {#    </script>#}
+
+
+
+
+{% endblock %}
+{% block scripts %}
+    <!-- jQuery & Select2 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'assets/js/modals/clientListModals.js' %}"></script>
+
+{% endblock %}

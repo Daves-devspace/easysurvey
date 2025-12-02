@@ -1,0 +1,959 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+{% load service_tags %}
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'home' %}l">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">System</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Settings</li>
+                    </ul>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    <!-- [ breadcrumb ] end -->
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+    <!-- [ Main Content ] start -->
+    <div class="row">
+        <!-- [ sample-page ] start -->
+        <div class="col-sm-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                               href="#profile-1"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-briefcase me-2"></i>Services
+                            </a>
+                        </li>
+
+
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-6" data-bs-toggle="tab" href="#profile-6"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-settings me-2"></i>Company Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="profile-tab-7" data-bs-toggle="tab" href="#profile-7"
+                               role="tab"
+                               aria-selected="true">
+                                <i class="ti ti-brand-google-drive me-2"></i>Google Drive
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                             aria-labelledby="profile-tab-1">
+                            <div class="row">
+                                <div class="col-lg-5 col-xxl-5">
+                                    <div class="card">
+                                        <div class="card-header d-flex">
+                                            <!-- Add Service Button + Modal -->
+                                            <button class="btn btn-success btn-sm my-2 me-2"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addServiceModal">Add Service
+                                            </button>
+                                            <button type="button" class="btn btn-sm my-2 btn-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addSubServiceModal">
+                                                Add SubService
+                                            </button>
+                                        </div>
+                                        <div class="card-body position-relative">
+                                            <div class="position-absolute end-0 top-0 p-3">
+                                                        <span class="badge bg-primary">
+                                                            services
+
+
+                                                        </span>
+
+                                                <!-- Service Modal -->
+                                                <div class="modal fade" id="addServiceModal" tabindex="-1"
+                                                     aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <form method="post">
+                                                            {% csrf_token %}
+                                                            <div class="modal-content">
+                                                                <div class="modal-header"><h5
+                                                                        class="modal-title">Add Service</h5>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    {{ service_form.as_p }}
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="submit" name="add_service"
+                                                                            class="btn btn-primary">Save
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+                                            <!-- Modal for adding a new SubService -->
+                                            <div class="modal fade" id="addSubServiceModal" tabindex="-1"
+                                                 aria-labelledby="addSubServiceModalLabel"
+                                                 aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title"
+                                                                id="addSubServiceModalLabel">Add New
+                                                                SubService</h5>
+                                                            <button type="button" class="btn-close"
+                                                                    data-bs-dismiss="modal"
+                                                                    aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <!-- Form to add SubService -->
+                                                            <form method="post" id="subserviceForm">
+                                                                {% csrf_token %}
+                                                                {{ subservice_form.as_p }}
+                                                                <button type="submit" name="add_subservice"
+                                                                        class="btn btn-primary">Save
+                                                                    SubService
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Edit SubService Modal -->
+                                            <div class="modal fade" id="editSubserviceModal" tabindex="-1"
+                                                 role="dialog" aria-labelledby="editSubserviceModalLabel"
+                                                 aria-hidden="true">
+                                                <div class="modal-dialog" role="document">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title"
+                                                                id="editSubserviceModalLabel">Edit
+                                                                SubService</h5>
+                                                            <button type="button" class="btn-close"
+                                                                    data-bs-dismiss="modal"
+                                                                    aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <form method="POST"
+                                                                  action="{% url 'management' %}">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="subservice_id"
+                                                                       id="edit_subservice_id">
+
+                                                                <div class="mb-3">
+                                                                    <label for="edit_name">Name</label>
+                                                                    <input type="text" name="name"
+                                                                           id="edit_name"
+                                                                           class="form-control">
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="edit_department">Department</label>
+                                                                    <input type="text" name="department"
+                                                                           id="edit_department"
+                                                                           class="form-control">
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="edit_description">Description</label>
+                                                                    <textarea name="description"
+                                                                              id="edit_description"
+                                                                              class="form-control"></textarea>
+                                                                </div>
+                                                                <div class="mb-3">
+                                                                    <label for="edit_price">Price</label>
+                                                                    <input type="number" name="price"
+                                                                           id="edit_price"
+                                                                           class="form-control">
+                                                                </div>
+
+                                                                <button type="submit" name="edit_subservice"
+                                                                        class="btn btn-primary">Save Changes
+                                                                </button>
+                                                            </form>
+
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+
+                                            <!-- Table to display existing SubServices -->
+                                            <h3>Existing SubServices</h3>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-striped">
+                                                    <thead class="table-light">
+
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Department</th>
+                                                        <th>Description</th>
+                                                        <th>Price</th>
+                                                        <th>edit</th>
+                                                        <th>delete</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                    {% for subservice in subservices %}
+                                                        <tr>
+                                                            <td>{{ subservice.name }}</td>
+                                                            <td>{{ subservice.department }}</td>
+                                                            <td>{{ subservice.description }}</td>
+                                                            <td>{{ subservice.price }}</td>
+                                                            <td><!-- Edit Button that triggers the modal -->
+                                                                <button class="btn btn-primary"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#editSubserviceModal"
+                                                                        data-id="{{ subservice.id }}"
+                                                                        data-name="{{ subservice.name }}"
+                                                                        data-department="{{ subservice.department }}"
+                                                                        data-price="{{ subservice.price }}"
+                                                                        data-description="{{ subservice.description }}">
+                                                                    Edit
+                                                                </button>
+                                                            </td>
+                                                            <td>
+
+                                                                <form action="{% url 'delete_subservice' subservice.id %}"
+                                                                      method="post" style="display:inline;">
+                                                                    {% csrf_token %}
+                                                                    <button type="submit"
+                                                                            class="btn btn-danger btn-sm">
+                                                                        Delete
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="col-lg-7 col-xxl-7">
+                                    <div class="card">
+                                        <div class="card-header pb-0">
+                                            <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap"
+                                                id="serviceTabs" role="tablist"
+                                                style="white-space: nowrap;">
+                                                {% for service in services %}
+                                                    <li class="nav-item" role="presentation">
+                                                        <a class="nav-link {% if forloop.first %}active{% endif %}"
+                                                           id="tab-{{ service.id }}"
+                                                           data-bs-toggle="tab"
+                                                           href="#service-{{ service.id }}"
+                                                           role="tab"
+                                                           aria-controls="service-{{ service.id }}"
+                                                           aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                                                            {{ service.name }}
+                                                        </a>
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+
+                                        <div class="card-body">
+                                            <div class="tab-content" id="serviceTabsContent">
+                                                {% for service in services %}
+                                                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+                                                         id="service-{{ service.id }}"
+                                                         role="tabpanel"
+                                                         aria-labelledby="tab-{{ service.id }}">
+
+                                                        <div class="card mb-3">
+                                                            <!-- inside your service card-header, next to Add Process -->
+                                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                                <h5 class="mb-0">{{ service.name }}</h5>
+
+                                                                <div>
+                                                                    {% if service.category != 'ground' %}
+                                                                        <button class="btn btn-primary btn-sm"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#addProcessModal-{{ service.id }}">
+                                                                            Add Process
+                                                                        </button>
+                                                                    {% endif %}
+
+                                                                    <button class="btn btn-outline-secondary btn-sm"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#editServiceModal-{{ service.id }}"
+                                                                            data-id="{{ service.id }}"
+                                                                            data-name="{{ service.name }}"
+                                                                            data-description="{{ service.description }}"
+                                                                            data-total_price="{{ service.total_price }}"
+                                                                            data-category="{{ service.category }}">
+                                                                        Edit Service
+                                                                    </button>
+
+                                                                </div>
+                                                            </div>
+
+
+                                                            <div class="card-body">
+                                                                <p>
+                                                                    <strong>Description:</strong> {{ service.description }}
+                                                                </p>
+                                                                <p>
+                                                                    <strong>Total Price:</strong>
+                                                                    KSH {{ service.total_price }}
+                                                                </p>
+
+                                                                {% if service.processes.exists %}
+                                                                    <h6>Processes:</h6>
+                                                                    <div class="table-responsive">
+                                                                        <table class="table table-bordered table-striped">
+                                                                            <thead class="table-light">
+                                                                            <tr>
+                                                                                <th>Step</th>
+                                                                                <th>Process Name</th>
+                                                                                <th>Description</th>
+                                                                                <th>Cost (KSH)</th>
+                                                                                <th>Message</th>
+                                                                                <th>Edit</th>
+                                                                            </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                            {% for process in service.processes.all %}
+                                                                                <tr>
+                                                                                    <td>{{ process.step_order }}</td>
+                                                                                    <td>{{ process.name }}</td>
+                                                                                    <td>{{ process.description }}</td>
+                                                                                    <td>{{ process.cost }}</td>
+                                                                                    <td>
+                                                                                        <!-- Button to trigger modal -->
+                                                                                        <button class="btn btn-sm btn-outline-info"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#messageModal-{{ process.id }}">
+                                                                                            View
+                                                                                        </button>
+
+
+                                                                                        <!-- Modal -->
+                                                                                        <div class="modal fade"
+                                                                                             id="messageModal-{{ process.id }}"
+                                                                                             tabindex="-1"
+                                                                                             aria-labelledby="messageModalLabel-{{ process.id }}"
+                                                                                             aria-hidden="true">
+                                                                                            <div class="modal-dialog">
+                                                                                                <div class="modal-content">
+                                                                                                    <div class="modal-header">
+                                                                                                        <h5 class="modal-title"
+                                                                                                            id="messageModalLabel-{{ process.id }}">
+                                                                                                            Message
+                                                                                                            for: {{ process.name }}
+                                                                                                        </h5>
+                                                                                                        <button type="button"
+                                                                                                                class="btn-close"
+                                                                                                                data-bs-dismiss="modal"
+                                                                                                                aria-label="Close"></button>
+                                                                                                    </div>
+                                                                                                    <div class="modal-body">
+                                                                                                        <p>{{ process.message }}</p>
+                                                                                                    </div>
+                                                                                                    <div class="modal-footer">
+                                                                                                        <button type="button"
+                                                                                                                class="btn btn-secondary btn-sm"
+                                                                                                                data-bs-dismiss="modal">
+                                                                                                            Close
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td><!-- Edit Button -->
+                                                                                        <button class="btn btn-sm btn-primary"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#editProcessModal"
+                                                                                                data-id="{{ process.id }}"
+                                                                                                data-name="{{ process.name }}"
+                                                                                                data-description="{{ process.description }}"
+                                                                                                data-cost="{{ process.cost }}"
+                                                                                                data-step_order="{{ process.step_order }}"
+                                                                                                data-message="{{ process.message }}">
+                                                                                            Edit
+                                                                                        </button>
+
+                                                                                    </td>
+                                                                                </tr>
+                                                                            {% endfor %}
+
+
+
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                {% else %}
+                                                                    <p> No processes for this service</p>
+                                                                {% endif %}
+                                                            </div>
+
+                                                        </div>
+                                                        <!-- Edit Service Modal -->
+                                                        <div class="modal fade"
+                                                             id="editServiceModal-{{ service.id }}"
+                                                             tabindex="-1" aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <form method="POST" action="{% url 'management' %}">
+                                                                    {% csrf_token %}
+                                                                    <div class="modal-content">
+                                                                        <div class="modal-header">
+                                                                            <h5 class="modal-title">Edit
+                                                                                Service: {{ service.name }}</h5>
+                                                                            <button type="button" class="btn-close"
+                                                                                    data-bs-dismiss="modal"></button>
+                                                                        </div>
+                                                                        <div class="modal-body">
+                                                                            <input type="hidden" name="service_id"
+                                                                                   value="{{ service.id }}">
+
+                                                                            {# Render a fresh instance of the form, bound to the service #}
+                                                                            {% bound_service_form service as service_form %}
+                                                                            {{ service_form.as_p }}
+                                                                        </div>
+                                                                        <div class="modal-footer">
+                                                                            <button type="submit" name="edit_service"
+                                                                                    class="btn btn-primary">
+                                                                                Save Changes
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+
+
+                                                        <!-- Add Process Modal -->
+                                                        <div class="modal fade"
+                                                             id="addProcessModal-{{ service.id }}"
+                                                             tabindex="-1"
+                                                             aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <form method="post">
+                                                                    {% csrf_token %}
+                                                                    <div class="modal-content">
+                                                                        <div class="modal-header">
+                                                                            <h5 class="modal-title">Add
+                                                                                Process
+                                                                                for {{ service.name }}</h5>
+                                                                            <button type="button"
+                                                                                    class="btn-close"
+                                                                                    data-bs-dismiss="modal"
+                                                                                    aria-label="Close"></button>
+                                                                        </div>
+                                                                        <div class="modal-body">
+                                                                            {{ process_form.as_p }}
+                                                                            <input type="hidden"
+                                                                                   name="service"
+                                                                                   value="{{ service.id }}">
+                                                                        </div>
+                                                                        <div class="modal-footer">
+                                                                            <button type="submit"
+                                                                                    name="add_process"
+                                                                                    class="btn btn-primary">
+                                                                                Save
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        </div>
+
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                            </div>
+                        </div>
+
+                        <!-- Global Edit Process Modal -->
+                        <div class="modal fade"
+                             id="editProcessModal"
+                             tabindex="-1"
+                             aria-labelledby="editProcessModalLabel"
+                             aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{% url 'management' %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="editProcessModalLabel">Edit Process</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <input type="hidden" name="process_id" id="edit_process_id">
+                                            <div class="mb-3">
+                                                <label for="edit_process_name">Name</label>
+                                                <input type="text" name="name" id="edit_process_name"
+                                                       class="form-control">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="edit_process_description">Description</label>
+                                                <textarea name="description" id="edit_process_description"
+                                                          class="form-control"></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="edit_process_cost">Cost (KSH)</label>
+                                                <input type="number" name="cost" id="edit_process_cost"
+                                                       class="form-control">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="edit_process_step_order">Step Order</label>
+                                                <input type="number" name="step_order" id="edit_process_step_order"
+                                                       class="form-control">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="edit_process_message">Message</label>
+                                                <textarea name="message" id="edit_process_message"
+                                                          class="form-control"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="submit" name="edit_process" class="btn btn-primary">Save
+                                                Changes
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="profile-6" role="tabpanel"
+                             aria-labelledby="profile-tab-6">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+
+                                        <div class="card mb-4">
+                                            <div class="card-header">
+                                                <h5 class="mb-0">Company Settings</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                {% if settings_form %}
+                                                    <form method="POST" enctype="multipart/form-data"
+                                                          action="{% url 'update_site_settings' %}"
+                                                          class="row g-3">
+                                                        {% csrf_token %}
+
+                                                        <!-- Company Name -->
+                                                        <div class="col-md-6">
+                                                            <label for="{{ settings_form.company_name.id_for_label }}"
+                                                                   class="form-label">Company Name</label>
+                                                            {{ settings_form.company_name }}
+                                                            {{ settings_form.company_name.errors }}
+                                                        </div>
+
+                                                        <!-- Email -->
+                                                        <!-- Email -->
+                                                        <div class="col-md-6">
+                                                            <label for="{{ settings_form.company_email.id_for_label }}" class="form-label">Company
+                                                                Email</label>
+                                                             {{ settings_form.company_email }}
+                                                            {{ settings_form.company_email.errors }}
+                                                        </div>
+
+
+                                                        <!-- Phone -->
+                                                        <div class="col-md-6">
+                                                            <label for="{{ settings_form.company_phone.id_for_label }}"
+                                                                   class="form-label">Phone Number</label>
+                                                            {{ settings_form.company_phone }}
+                                                            {{ settings_form.company_phone.errors }}
+                                                        </div>
+
+                                                        <!-- Tagline -->
+                                                        <div class="col-12">
+                                                            <label for="{{ settings_form.tagline.id_for_label }}"
+                                                                   class="form-label">Tagline</label>
+                                                            {{ settings_form.tagline }}
+                                                            {{ settings_form.tagline.errors }}
+                                                        </div>
+
+                                                        <!-- Logo Upload -->
+                                                        <div class="col-md-6">
+                                                            <label for="{{ settings_form.logo.id_for_label }}"
+                                                                   class="form-label">Logo</label>
+                                                            {% if settings and settings.logo %}
+                                                                <div class="mb-2">
+                                                                    <img src="{{ settings.logo.url }}"
+                                                                         alt="Current logo"
+                                                                         class="img-fluid"
+                                                                         style="max-height: 80px;">
+                                                                </div>
+                                                            {% endif %}
+                                                            {{ settings_form.logo }}
+                                                            {{ settings_form.logo.errors }}
+                                                        </div>
+
+                                                        <!-- Stamp/Signature Upload -->
+                                                        <div class="col-md-6">
+                                                            <label for="{{ settings_form.stamp_signature.id_for_label }}"
+                                                                   class="form-label">Stamp /
+                                                                Signature</label>
+                                                            {% if settings and settings.stamp_signature %}
+                                                                <div class="mb-2">
+                                                                    <img src="{{ settings.stamp_signature.url }}"
+                                                                         alt="Current stamp"
+                                                                         class="img-fluid"
+                                                                         style="max-height: 80px;">
+                                                                </div>
+                                                            {% endif %}
+                                                            {{ settings_form.stamp_signature }}
+                                                            {{ settings_form.stamp_signature.errors }}
+                                                        </div>
+
+                                                        <!-- Submit -->
+                                                        <div class="col-12 text-end">
+                                                            <button type="submit" class="btn btn-success">
+                                                                <i class="fas fa-save me-1"></i> Save
+                                                                Settings
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                {% else %}
+                                                    <p class="text-danger">Site settings form could not be
+                                                        loaded.</p>
+                                                {% endif %}
+                                            </div>
+
+                                        </div>
+
+                                        <div class="card-body">
+                                            <h6 class="mb-4">Setup Email Notification</h6>
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <div>
+                                                    <p class="text-muted mb-0">Email Notification</p>
+                                                </div>
+                                                <div class="form-check form-switch p-0">
+                                                    <input class="m-0 form-check-input h5 position-relative"
+                                                           type="checkbox" role="switch" checked="">
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                                <div>
+                                                    <p class="text-muted mb-0">Send Copy To Personal
+                                                        Email</p>
+                                                </div>
+                                                <div class="form-check form-switch p-0">
+                                                    <input class="m-0 form-check-input h5 position-relative"
+                                                           type="checkbox" role="switch">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+
+                                        <div class="card shadow-sm mb-4">
+                                            <div class="card-header bg-green-300 text-white">
+                                                <h5 class="mb-0">SMS Provider Settings</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <form method="post" action="{% url 'update_sms_token' %}">
+                                                    {% csrf_token %}
+
+                                                    <div class="mb-3">
+                                                        <label for="id_api_token" class="form-label">API
+                                                            Token</label>
+                                                        <input type="text" name="api_token"
+                                                               class="form-control"
+                                                               id="id_api_token"
+                                                               value="{{ sms_token_form.instance.api_token }}"
+                                                               placeholder="Enter API Token">
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label for="id_sender_id" class="form-label">Sender
+                                                            ID</label>
+                                                        <input type="text" name="sender_id"
+                                                               class="form-control"
+                                                               id="id_sender_id"
+                                                               value="{{ sms_token_form.instance.sender_id }}"
+                                                               placeholder="Enter Sender ID">
+                                                    </div>
+
+                                                    <button type="submit" class="btn btn-success">Update
+                                                        Token
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="container mt-5">
+                                        <div class="card shadow border-0">
+                                            <div class="card-header bg-green-300 text-white">
+                                                <h5 class="mb-0">Email Settings</h5>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                         <div class="tab-pane" id="profile-7" role="tabpanel"
+                             aria-labelledby="profile-tab-7">
+                            <div class="row">
+                               {% include 'Management/partials/_google_drive_tab.html' %}
+
+                               
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- [ sample-page ] end -->
+            </div>
+            <!-- [ Main Content ] end -->
+        </div>
+    </div>
+    <!-- [ Main Content ] end -->
+
+
+
+
+
+
+
+
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // --- Edit Subservice Modal ---
+            const modal = document.getElementById('editSubserviceModal');
+            if (modal) {
+                modal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    document.getElementById('edit_subservice_id').value = button.getAttribute('data-id');
+                    document.getElementById('edit_name').value = button.getAttribute('data-name');
+                    document.getElementById('edit_department').value = button.getAttribute('data-department');
+                    document.getElementById('edit_description').value = button.getAttribute('data-description');
+                    document.getElementById('edit_price').value = button.getAttribute('data-price');
+                });
+            }
+
+            // --- Edit Process Modal ---
+
+            const processModal = document.getElementById('editProcessModal');
+            if (processModal) {
+                processModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    document.getElementById('edit_process_id').value = button.getAttribute('data-id');
+                    document.getElementById('edit_process_name').value = button.getAttribute('data-name');
+                    document.getElementById('edit_process_description').value = button.getAttribute('data-description');
+                    document.getElementById('edit_process_cost').value = button.getAttribute('data-cost');
+                    document.getElementById('edit_process_step_order').value = button.getAttribute('data-step_order');
+                    document.getElementById('edit_process_message').value = button.getAttribute('data-message');
+                });
+            }
+
+
+            // --- Add Service Modal ---
+            const addModal = document.getElementById('addServiceModal');
+            if (addModal) {
+                const cat = addModal.querySelector('select[name="category"]');
+                cat.addEventListener('change', () => toggleDispatchField(addModal));
+                toggleDispatchField(addModal);
+            }
+
+            // --- Edit Service Modals ---
+            document.querySelectorAll('[id^="editServiceModal-"]').forEach(modalEl => {
+                modalEl.addEventListener('show.bs.modal', e => {
+                    const btn = e.relatedTarget;
+                    const form = modalEl.querySelector('form');
+                    form.querySelector('input[name="service_id"]').value = btn.dataset.id;
+                    ['name', 'description', 'total_price', 'category'].forEach(field => {
+                        const el = form.querySelector(`[name="${field}"]`);
+                        if (el) el.value = btn.dataset[field];
+                    });
+
+                    const cat = form.querySelector('select[name="category"]');
+                    cat.addEventListener('change', () => toggleDispatchField(modalEl));
+                    toggleDispatchField(modalEl);
+                });
+            });
+
+            document.addEventListener("DOMContentLoaded", function () {
+                // Handle Edit Process Modal
+                const editProcessModal = document.getElementById('editProcessModal');
+                if (editProcessModal) {
+                    editProcessModal.addEventListener('show.bs.modal', function (event) {
+                        const button = event.relatedTarget;
+
+                        document.getElementById('edit_process_id').value = button.getAttribute('data-id');
+                        document.getElementById('edit_process_name').value = button.getAttribute('data-name');
+                        document.getElementById('edit_process_description').value = button.getAttribute('data-description');
+                        document.getElementById('edit_process_cost').value = button.getAttribute('data-cost');
+                        document.getElementById('edit_process_step_order').value = button.getAttribute('data-step_order');
+                        document.getElementById('edit_process_message').value = button.getAttribute('data-message');
+                    });
+                }
+            });
+
+
+            // --- Dispatch Message Toggle ---
+            function toggleDispatchField(modalEl) {
+                const cat = modalEl.querySelector('select[name="category"]');
+                const dispatchFieldP = modalEl.querySelector('[name="dispatch_message"]')?.closest('p');
+                if (!dispatchFieldP) return;
+
+                if (cat.value === 'ground') {
+                    dispatchFieldP.style.display = '';
+                } else {
+                    dispatchFieldP.style.display = 'none';
+                    modalEl.querySelector('[name="dispatch_message"]').value = '';
+                }
+            }
+        });
+
+    </script>
+
+
+
+
+
+
+
+
+
+{% endblock %}
+
+{% block scripts %}
+    {#  <script>#}
+    {#                    document.addEventListener("DOMContentLoaded", function () {#}
+    {#                        const modal = document.getElementById('editSubserviceModal');#}
+    {##}
+    {#                        modal.addEventListener('show.bs.modal', function (event) {#}
+    {#                            const button = event.relatedTarget;#}
+    {##}
+    {#                            // Extract data from the button#}
+    {#                            const id = button.getAttribute('data-id');#}
+    {#                            const name = button.getAttribute('data-name');#}
+    {#                            const department = button.getAttribute('data-department');#}
+    {#                            const description = button.getAttribute('data-description');#}
+    {#                            const price = button.getAttribute('data-price');#}
+    {##}
+    {#                            // Populate the form fields inside the modal#}
+    {#                            document.getElementById('edit_subservice_id').value = id;#}
+    {#                            document.getElementById('edit_name').value = name;#}
+    {#                            document.getElementById('edit_department').value = department;#}
+    {#                            document.getElementById('edit_description').value = description;#}
+    {#                            document.getElementById('edit_price').value = price;#}
+    {#                        });#}
+    {#                    });#}
+    {#                </script>#}
+    {#                <script>#}
+    {#                    document.addEventListener("DOMContentLoaded", function () {#}
+    {#                        const processModal = document.getElementById('editProcessModal');#}
+    {##}
+    {#                        processModal.addEventListener('show.bs.modal', function (event) {#}
+    {#                            const button = event.relatedTarget;#}
+    {##}
+    {#                            // Get process data from button#}
+    {#                            document.getElementById('edit_process_id').value = button.getAttribute('data-id');#}
+    {#                            document.getElementById('edit_process_name').value = button.getAttribute('data-name');#}
+    {#                            document.getElementById('edit_process_description').value = button.getAttribute('data-description');#}
+    {#                            document.getElementById('edit_process_cost').value = button.getAttribute('data-cost');#}
+    {#                            document.getElementById('edit_process_step_order').value = button.getAttribute('data-step_order');#}
+    {#                            document.getElementById('edit_process_message').value = button.getAttribute('data-message');#}
+    {#                        });#}
+    {#                    });#}
+    {#                </script>#}
+    {#                <script>#}
+    {#                    // Toggles the <p> around dispatch_message#}
+    {#                    function toggleDispatchField(modalEl) {#}
+    {#                        const cat = modalEl.querySelector('select[name="category"]');#}
+    {#                        const dispatchFieldP = modalEl.querySelector('[name="dispatch_message"]')#}
+    {#                            .closest('p');#}
+    {#                        if (!dispatchFieldP) return;#}
+    {##}
+    {#                        if (cat.value === 'ground') {#}
+    {#                            dispatchFieldP.style.display = '';#}
+    {#                        } else {#}
+    {#                            dispatchFieldP.style.display = 'none';#}
+    {#                            // clear its value when hidden#}
+    {#                            modalEl.querySelector('[name="dispatch_message"]').value = '';#}
+    {#                        }#}
+    {#                    }#}
+    {##}
+    {#                    // Add‐Service modal#}
+    {#                    const addModal = document.getElementById('addServiceModal');#}
+    {#                    addModal.addEventListener('show.bs.modal', () => {#}
+    {#                        const cat = addModal.querySelector('select[name="category"]');#}
+    {#                        cat.addEventListener('change', () => toggleDispatchField(addModal));#}
+    {#                        toggleDispatchField(addModal);#}
+    {#                    });#}
+    {##}
+    {##}
+    {#                    // For all Edit-Service modals#}
+    {#                    document.querySelectorAll('[id^="editServiceModal-"]').forEach(modalEl => {#}
+    {#                        // your existing population logic...#}
+    {#                        modalEl.addEventListener('show.bs.modal', e => {#}
+    {#                            const btn = e.relatedTarget;#}
+    {#                            const svcId = btn.dataset.id;#}
+    {#                            const form = modalEl.querySelector('form');#}
+    {#                            form.querySelector('input[name="service_id"]').value = svcId;#}
+    {#                            ['name', 'description', 'total_price', 'category'].forEach(field => {#}
+    {#                                const el = form.querySelector(`[name="${field}"]`);#}
+    {#                                if (el) el.value = btn.dataset[field];#}
+    {#                            });#}
+    {##}
+    {#                            // now wire & init dispatch toggle#}
+    {#                            const cat = form.querySelector('select[name="category"]');#}
+    {#                            cat.addEventListener('change', () => toggleDispatchField(modalEl));#}
+    {#                            toggleDispatchField(modalEl);#}
+    {#                        });#}
+    {#                    });#}
+    {#                </script>#}
+{% endblock %}

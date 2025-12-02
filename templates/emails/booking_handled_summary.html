@@ -1,0 +1,11 @@
+<!doctype html>
+<html>
+  <body>
+    <h2>Booking #{{ booking.id }} handled</h2>
+    <p><strong>Service:</strong> {{ service_name }}</p>
+    <p><strong>Client:</strong> {{ client_name }}</p>
+    <p><strong>Handled by:</strong> {{ handled_by }}</p>
+    <p><strong>Handled at:</strong> {{ handled_at }}</p>
+    <p><a href="{{ SITE_DOMAIN }}/bookings/{{ booking.id }}/details/">View booking details</a></p>
+  </body>
+</html>

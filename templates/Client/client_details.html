@@ -1,0 +1,2145 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+{% load custom_filters %}
+{% load service_extras %}
+{% load client_extras %}
+{% load document_tags %}
+
+
+
+{% block body %}
+
+
+    <!-- [ Main Content ] start -->
+    <div class="pc-container">
+    <div class="pc-content">
+    <!-- [ breadcrumb ] start -->
+    <div class="page-header">
+        <div class="page-block">
+            <div class="row align-items-center">
+                <div class="col-md-12">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="../dashboard/index.html">Home</a></li>
+                        <li class="breadcrumb-item"><a href="javascript: void(0)">Client</a></li>
+                        <li class="breadcrumb-item" aria-current="page">Profile</li>
+                    </ul>
+                </div>
+                
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- [ breadcrumb ] end -->
+
+    <div id="booking-messages" class="container-fluid col-lg-12">
+    <!-- AJAX booking messages will appear here -->
+</div>
+    <div class="container-fluid col-lg-12">
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'success' %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            {% elif message.tags == 'info' %}
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {% else %}
+                <div class="alert alert-secondary alert-dismissible fade show" role="alert">
+            {% endif %}
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- [ Main Content ] start -->
+<div class="row">
+    <!-- [ sample-page ] start -->
+    <div class="col-sm-12">
+        <div class="card">
+            <div class="card-header pb-0">
+                <ul class="nav nav-tabs profile-tabs overflow-auto flex-nowrap" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab"
+                           href="#profile-1"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-user me-2"></i>Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-file-text me-2"></i>Documets
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-id me-2"></i>Account
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-clock me-2"></i>Site Bookings
+                        </a>        
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" id="profile-tab-6" data-bs-toggle="tab" href="#profile-6"
+                           role="tab"
+                           aria-selected="true">
+                            <i class="ti ti-message me-2"></i>Messages
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!--profile-->
+                    <div class="tab-pane show active" id="profile-1" role="tabpanel"
+                         aria-labelledby="profile-tab-1">
+                        <div class="row">
+            <div class="col-lg-4 col-xxl-3">
+            <div class="card">
+                <div class="card-body position-relative">
+                <div class="profile-card">
+                    <!-- HEADER: background image area -->
+                    <div class="profile-header text-white position-relative">
+                    <!-- Header text -->
+                    <div class="header-text">
+                        <h5 class="mb-0 text-white">{{ client.first_name }} {{ client.last_name }}</h5>
+                        <p class="text-white-50 text-sm mb-0">Client</p>
+                    </div>
+
+                    <!-- Fading overlay -->
+                    <div class="fade-overlay"></div>
+                    </div>
+
+                    <!-- Avatar with Edit Button -->
+                    <div class="avatar-wrapper">
+                    <div class="chat-avatar">
+                        <img
+                        class="rounded-circle img-fluid avatar-img"
+                        src="{% if client.profile_pic %}{{ client.get_profile_pic_url }}{% else %}{% static 'assets/images/user/avatar-5.jpg' %}{% endif %}"
+                        alt="{{ client.first_name }} {{ client.last_name }}">
+                        
+                        <!-- Edit button on avatar -->
+                        <button class="btn btn-sm avatar-edit-btn"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editClientModal{{ client.id }}"
+                                aria-label="Edit Client">
+                        <i class="ti ti-pencil"></i>
+                        </button>
+                    </div>
+                    </div>
+
+                    <!-- FIRST hr (separates header from details) -->
+                    <hr class="my-3">
+
+                    <!-- Stats row -->
+                   <div class="row g-0 py-2 mt-3 bg-light bg-opacity-50 rounded-3 border border-secondary border-opacity-10">
+    
+                        <div class="col-4 text-center px-1">
+                            <div class="fw-bolder text-dark fs-6">{{ client_service_summary.active_services }}</div>
+                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Active</div>
+                        </div>
+
+                        <div class="col-4 text-center px-1 border-start border-end border-secondary border-opacity-10">
+                            <div class="fw-bolder text-dark fs-6">{{ client_service_summary.completed_services }}</div>
+                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Done</div>
+                        </div>
+
+                        <div class="col-4 text-center px-1">
+                            <div class="fw-bolder text-danger fs-6 text-break" title="{{ client_service_summary.total_balance }}">
+                                {{ client_service_summary.total_balance }}
+                            </div>
+                            <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem; letter-spacing: 0.5px;">Balance</div>
+                        </div>
+
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Contact Info -->
+                    <div class="bg-light bg-opacity-50 rounded-3 p-3 mx-2 mb-3 border border-secondary border-opacity-10">
+    
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0 text-primary me-3">
+                                <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                                    <i class="ti ti-mail"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 overflow-hidden">
+                                <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Email</p>
+                                <h6 class="mb-0 text-truncate text-dark" title="{{ client.email }}" style="font-size: 0.9rem;">
+                                    {{ client.email }}
+                                </h6>
+                            </div>
+                        </div>
+
+                        <div class="row g-0 mb-3">
+                            <div class="col-7 border-end border-secondary border-opacity-10 pe-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="ti ti-phone text-muted me-2 fs-5"></i>
+                                    <div>
+                                        <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Phone</p>
+                                        <span class="text-dark fw-bold small">{{ client.phone }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-5 ps-3">
+                                <div class="d-flex flex-column justify-content-center">
+                                    <p class="mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Status</p>
+                                    <div>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">
+                                            Active
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
+                            <i class="ti ti-map-pin text-muted me-2 mt-1"></i>
+                            <span class="text-muted small lh-sm mt-1">Location / Address</span>
+                        </div>
+
+                    </div>
+
+                    <!-- Modal -->
+                    <div class="modal fade" id="editClientModal{{ client.id }}" tabindex="-1"
+                        aria-labelledby="editClientModalLabel{{ client.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                        <!-- Edit Modal for a client -->
+                                <form method="POST" action="{% url 'edit_client' client.id %}" class="edit-client-form" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <div class="modal-header bg-orange-400 text-white">
+                                    <h5 class="modal-title" id="editClientModalLabel{{ client.id }}">Edit Client</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+
+                                <div class="modal-body">
+                                    {% get_client_form client as form %}
+                                    <!-- show current avatar if available -->
+                                    {% if client.profile_pic %}
+                                    <div class="mb-2 text-center">
+                                        <img src="{{ client.profile_pic.url }}" alt="avatar" class="img-thumbnail" style="max-width:120px;">
+                                    </div>
+                                    {% endif %}
+                                    {{ form.as_p }}
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                </div>
+                                </form>
+
+                        </div>
+                    </div>
+                    </div>
+
+                </div>
+                </div>
+            </div>
+            </div>
+
+                            <div class="col-lg-8 col-xxl-9">
+
+
+                                <div class="card" style="height: 600px; overflow-y: auto;">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0 text-capitalize text-orange-800">
+                                            {{ client.first_name }} {{ client.last_name }}'s Services
+                                        </h5>
+                                        {% if perms.easydocs.add_clientservice %}
+                                            <button class="btn btn-sm btn-success d-flex align-items-center br-5"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#addClientServiceModal">
+                                                <i class="ti ti-circle-plus  me-1 "></i> Service
+                                            </button>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="accordion" id="clientServiceAccordion">
+                                        {% for cs in all_services %}
+                                            <div class="accordion-item mb-3">
+                                                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                                                    <button class="accordion-button bg-green-100 d-flex flex-column align-items-start gap-1 {% if not forloop.first %}collapsed{% endif %}"
+                                                            type="button"
+                                                            data-bs-toggle="collapse"
+                                                            data-bs-target="#collapse{{ forloop.counter }}"
+                                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                                                            aria-controls="collapse{{ forloop.counter }}">
+
+                                                                <span class="d-flex align-items-center w-100">
+                                                                    <span class="badge me-2
+                                                                        {% if cs.status == 'completed' %}bg-success
+                                                                        {% elif cs.status == 'collected' %}bg-primary
+                                                                        {% else %}bg-orange-400{% endif %}">
+                                                                        {{ cs.get_status_display }}
+                                                                    </span>
+                                                                    <strong>{{ cs.service.name }}</strong> - {{ cs.land_description }}
+                                                                </span>
+
+
+                                                    </button>
+                                                </h2>
+
+
+                                                <div id="collapse{{ forloop.counter }}"
+                                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                                     aria-labelledby="heading{{ forloop.counter }}"
+                                                     data-bs-parent="#clientServiceAccordion">
+                                                    <div class="accordion-body">
+
+                                                        <div class="row align-items-center mb-3">
+                                                            <div class="col-12 col-md-6 mb-2 mb-md-0">
+                                                                <small class="text-muted d-block">
+                                                                    <strong class="text-orange-800">Requested At:</strong>
+                                                                    {{ cs.requested_at|date:"M d, Y H:i" }}
+                                                                </small>
+                                                            </div>
+                                                            <div class="col-12 col-md-6 text-md-end">
+                                                                <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
+                                                                    {% if perms.easydocs.add_clientsubservice %}
+                                                                        <button
+                                                                            type="button"
+                                                                            class="btn btn-sm bg-green-200 br-3"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#addSubServiceModal"
+                                                                            data-service-id="{{ cs.id }}"
+                                                                            data-service-name="{{ cs.service.name|escape }}"
+                                                                            >
+                                                                            <i class="ti ti-circle-plus"></i>SubService
+                                                                            </button>
+
+                                                                    {% endif %}
+                                                                    {% if cs.service %}
+                                                                     <div>
+                                                                        <button
+                                                                        type="button"
+                                                                        class="btn btn-sm btn-success br-3 open-booking-modal"
+                                                                        data-action="create"
+                                                                        data-url="{% url 'booking_create' cs.id %}"
+                                                                        data-client-name="{{ cs.client.first_name }}"
+                                                                        data-service-name="{{ cs.service.name }}"
+                                                                        data-service-id="{{ cs.id }}"
+                                                                        data-service-id-label="{{ cs.service.name }}">  {# optional label fallback #}
+                                                                        <i class="ti ti-circle-plus me-1 txt-white"></i> Booking
+                                                                        </button>
+                                                                    </div>
+                                                                    
+                                                                        
+                                                                    {% endif %}
+
+                                                                    {% if perms.easydocs.change_clientservice %}
+                                                                        <button
+                                                                                class="btn btn-sm btn-primary edit-client-service-btn br-3"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#editClientServiceModal"
+
+                                                                                data-client-service-id="{{ cs.id }}"
+                                                                                data-client-name="{{ cs.client.first_name }} {{ cs.client.last_name }}"
+                                                                                data-client-phone="{{ cs.client.phone }}"
+
+                                                                                data-category="{{ cs.service.category }}"
+                                                                                data-service-id="{{ cs.service.id }}"
+
+                                                                                data-land-description="{{ cs.land_description|default_if_none:'' }}"
+                                                                                data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
+
+                                                                                data-scheduled-date="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.scheduled_date|date:'Y-m-d\\TH:i' }}{% endif %}"
+                                                                                data-dispatch-preview="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.dispatch_message|default:'' }}{% endif %}"
+
+                                                                                data-ps-ids="{% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                                data-ps-costs="{% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                            >
+                                                                                <i class="ti ti-pencil"></i> Edit
+                                                                            </button>
+
+                                                                    {% endif %}
+
+                                                                    {% if perms.easydocs.delete_clientservice %}
+
+                                                                        <button
+                                                                                class="btn btn-sm btn-danger br-3"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#deleteClientServiceModal"
+                                                                                data-csid="{{ cs.id }}"
+                                                                                data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}">
+                                                                            <i class="ti ti-trash"></i>
+                                                                        </button>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+
+                                                        <div class="row g-3 mt-3">
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-100 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase  text-green-800 small mb-1">
+                                                                            Service Price</h6>
+                                                                        <p class="card-text text-orange-700 fs-6 fw-semibold">
+                                                                            KSH {{ cs.full_total_price }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-100  shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase text-green-800 small mb-1">
+                                                                            Sub-Services</h6>
+                                                                        <p class="card-text text-orange-700 fs-6 fw-semibold">
+                                                                            KSH {{ cs.sub_services_total }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-100 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase text-green-800 small mb-1">
+                                                                            Paid</h6>
+                                                                        <p class="card-text fs-6 text-orange-700 fw-semibold">
+                                                                            KSH {{ cs.total_paid }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-md-3">
+                                                                <div class="card bg-green-100 shadow rounded-3">
+                                                                    <div class="card-body">
+                                                                        <h6 class="card-title text-uppercase text-green-800 small mb-1">
+                                                                            Balance</h6>
+                                                                        <p class="card-text text-orange-700 fs-6 fw-semibold">
+                                                                            KSH {{ cs.total_balance }}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+
+                                                        <div class="mt-2">
+                                                            {# —————————————————————— #}
+                                                            {#     Processes Table       #}
+                                                            {# —————————————————————— #}
+                                                            {% if cs.service.category == "title" %}
+                                                                <h6 class="mt-4 text-orange-800">Processes:</h6>
+                                                                <div class="table-responsive">
+                                                                     <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                       <thead class="table-success">
+                                                                        <tr>
+                                                                            <th>
+                                                                                <div class="form-check">
+                                                                                    <input class="form-check-input" type="checkbox" id="select-all">
+                                                                                </div>
+                                                                            </th>
+                                                                            <th>Process</th>
+                                                                            <th>Cost (KSH)</th>
+                                                                            <th>Status</th>
+                                                                            <th>Update</th>
+                                                                            <th>Paid</th>
+                                                                            <th>Pending</th>
+                                                                            <th>Service Balance</th>
+                                                                            <th>Completed At</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                        {% if cs.service_processes.all %}
+                                                                            {% for sp in cs.service_processes.all %}
+                                                                                <tr>
+                                                                                    <td>
+                                                                                        <div class="form-check">
+                                                                                            <input class="form-check-input" type="checkbox" id="select-all">
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td>{{ sp.process.name }}</td>
+                                                                                    <td>{{ sp.cost }}</td>
+                                                                                    <td>
+                                                                                    <span class="badge
+                                                                                        {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
+                                                                                        {% elif sp.status == 'completed' %}bg-green-500 
+                                                                                        {% elif sp.status == 'in_progress' %}bg-orange-400
+                                                                                        {% else %}bg-secondary{% endif %}">
+                                                                                        {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}
+                                                                                            Collected
+                                                                                        {% else %}
+                                                                                            {{ sp.get_status_display }}
+                                                                                        {% endif %}
+                                                                                    </span>
+                                                                                    </td>
+
+                                                                                    <td>
+                                                                                        {% comment %} Determine if this is the final step {% endcomment %}
+                                                                                        {% if sp == cs.latest_process %}
+                                                                                            {% if cs.needs_collection %}
+                                                                                                {# Services requiring title‐deed flow #}
+                                                                                                {# {% if sp.status == 'completed' and not cs.title_deed_collection %}#}
+                                                                                                {% if sp.status == 'completed' and not cs.has_title_deed_collection %}
+                                                                                                    {% if perms.easydocs.add_titledeedcollection %}
+                                                                                                        <!-- Collect -->
+                                                                                                        <button type="button"
+                                                                                                                class="btn btn-primary btn-sm"
+                                                                                                                data-bs-toggle="modal"
+                                                                                                                data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                            <i class="bi bi-box"></i>
+                                                                                                            Collect
+                                                                                                        </button>
+                                                                                                    {% endif %}
+                                                                                                {% elif cs.has_title_deed_collection %}
+                                                                                                    {% if perms.easydocs.view_titledeedcollection %}
+                                                                                                        <!-- Already collected: View -->
+                                                                                                        <button type="button"
+                                                                                                                class="btn btn-secondary btn-sm"
+                                                                                                                data-bs-toggle="modal"
+                                                                                                                data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                            <i class="bi bi-eye"></i>
+                                                                                                            View
+                                                                                                        </button>
+                                                                                                    {% endif %}
+                                                                                                {% else %}
+                                                                                                    {% if perms.easydocs.change_clientserviceprocess %}
+                                                                                                        <!-- Final step not yet completed: Confirm -->
+                                                                                                        <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                              method="POST"
+                                                                                                              class="d-inline">
+                                                                                                            {% csrf_token %}
+                                                                                                            <button class="btn btn-sm bg-green-400 br-2 "
+                                                                                                                    type="submit">
+                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                                Confirm
+                                                                                                            </button>
+                                                                                                        </form>
+                                                                                                    {% endif %}
+                                                                                                {% endif %}
+                                                                                            {% else %}
+                                                                                                {# Non‑title services just get Complete/Done #}
+                                                                                                {% if sp.status != 'completed' %}
+                                                                                                    {% if perms.easydocs.change_clientserviceprocess %}
+                                                                                                        <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                              method="POST"
+                                                                                                              class="d-inline">
+                                                                                                            {% csrf_token %}
+                                                                                                            <button class="btn btn-sm btn-success"
+                                                                                                                    type="submit">
+                                                                                                                <i class="bi bi-check-circle"></i>
+                                                                                                                Complete
+                                                                                                            </button>
+                                                                                                        </form>
+                                                                                                    {% endif %}
+                                                                                                {% else %}
+                                                                                                    <span class="text-muted small">Done</span>
+                                                                                                {% endif %}
+                                                                                            {% endif %}
+                                                                                        {% elif sp.status == 'in_progress' %}
+                                                                                            {# In‑progress non‑last steps always get Complete #}
+                                                                                            {% if perms.easydocs.change_clientserviceprocess %}
+                                                                                                <form action="{% url 'mark_process_completed' sp.id %}"
+                                                                                                      method="POST"
+                                                                                                      class="d-inline">
+                                                                                                    {% csrf_token %}
+                                                                                                    <button class="btn btn-sm btn-success"
+                                                                                                            type="submit">
+                                                                                                        <i class="bi bi-check-circle"></i>
+                                                                                                        Complete
+                                                                                                    </button>
+                                                                                                </form>
+                                                                                            {% endif %}
+                                                                                        {% else %}
+                                                                                            <span class="text-muted small"><i
+                                                                                                    class="ti ti-list-check"></i></span>
+                                                                                        {% endif %}
+                                                                                    </td>
+
+
+                                                                                    <td>{{ sp.total_paid }}</td>
+                                                                                    <td>{{ sp.pending_amount }}</td>
+                                                                                    <td>{{ cs.total_balance }}</td>
+                                                                                    <td>{{ sp.completed_at|date:"M d, Y" }}</td>
+                                                                                </tr>
+                                                                            {% endfor %}
+                                                                        {% comment %} {% else %}
+                                                                            <tr>
+                                                                                <td colspan="9"
+                                                                                    class="text-center text-muted py-3">
+                                                                                    No processes available.
+                                                                                </td>
+                                                                            </tr> {% endcomment %}
+                                                                        {% endif %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                             {% endif %}
+                                                                {# —————————————————————— #}
+                                                                {#     Bookings Table      #}
+                                                                {# —————————————————————— #}
+                                                                <h6 class="mt-4 text-orange-800">Booking Schedule:</h6>
+                                                                <div class="table-responsive">
+                                                                       <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                        <thead class="table-success">
+                                                                        <tr>
+                                                                            <th>
+                                                                            <div class="form-check">
+                                                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                                                            </div>
+                                                                            </th>
+                                                                            <th>Service</th>
+                                                                            <th>Scheduled Date</th>
+                                                                            <th>Dispatch Message</th>
+                                                                            <th>Status</th>
+                                                                            <th>Reschedule</th>
+                                                                        </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                         {% include 'Management/partials/booking_row.html' with bookings=cs.ground_data cs=cs %}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                                
+
+
+
+
+
+                                                            {# —————————————————————— #}
+                                                            {#   Sub-Services Table     #}
+                                                            {# —————————————————————— #}
+                                                            <h6 class="mt-4 text-orange-800">Sub-Service Details:</h6>
+
+                                                            <div class="table-responsive">
+                                                           
+                                                                 <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                   <thead class="table-success">
+                                                                    <tr>
+                                                                        <th>
+                                                                            <div class="form-check">
+                                                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                                                            </div>
+                                                                        </th>
+                                                                        <th>Name</th>
+                                                                        <th>Cost</th>
+                                                                        <th>Paid</th>
+                                                                        <th>Pending</th>
+                                                                        <th>paymentStatus</th>
+                                                                        {% if perms.easydocs.change_clientsubservice %}
+                                                                            <th>edit</th>
+                                                                        {% endif %}
+                                                                        {% if perms.easydocs.delete_clientsubservice %}
+                                                                            <th>delete</th>
+                                                                        {% endif %}
+                                                                    </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                    {% if cs.sub_services.all %}
+                                                                        {% for ss in cs.sub_services.all %}
+                                                                            <tr>
+                                                                                <td>
+                                                                                    <div class="form-check">
+                                                                                            <input class="form-check-input" type="checkbox" id="select-all">
+                                                                                        </div>
+                                                                                </td>
+                                                                                <td>{{ ss.sub_service.name }}</td>
+                                                                                <td>
+                                                                                    KES {{ ss.price|floatformat:2 }}</td>
+                                                                                <td>
+                                                                                    KES {{ ss.paid_amount|floatformat:2 }}</td>
+                                                                                <td>
+                                                                                    KES {{ ss.balance|floatformat:2 }}</td>
+                                                                                <td>
+                                                                                    {% if ss.balance <= 0 %}
+                                                                                        <span class="badge bg-success">Fully Paid</span>
+                                                                                    {% else %}
+                                                                                        <span class="badge bg-warning text-dark">Pending</span>
+                                                                                    {% endif %}
+                                                                                </td>
+                                                                                {% if perms.easydocs.change_clientsubservice %}
+                                                                                    <td>
+                                                                                        <button class="btn btn-sm btn-outline-primary"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#editSubServiceModal"
+                                                                                                data-client-subservice-id="{{ ss.id }}"
+                                                                                                data-client-service-id="{{ cs.id }}"
+                                                                                                data-subservice-name="{{ ss.sub_service.name }}"
+                                                                                                data-service-name="{{ cs.service.name }}"
+                                                                                                data-department="{{ ss.sub_service.department }}"
+                                                                                                data-overridden-price="{{ ss.price|floatformat:2 }}">
+                                                                                            <i class="ti ti-pencil"></i>
+                                                                                        </button>
+
+                                                                                    </td>
+                                                                                {% endif %}
+                                                                                {% if perms.easydocs.delete_clientsubservice %}
+                                                                                    <td>
+                                                                                        <button class="btn btn-sm btn-outline-danger delete-subservice-btn"
+                                                                                                data-bs-toggle="modal"
+                                                                                                data-bs-target="#deleteSubServiceModal"
+                                                                                                data-client-subservice-id="{{ ss.id }}"
+                                                                                                data-csinfo="{{ ss.sub_service.name }} — {{ ss.client_service.land_description }}">
+                                                                                            <i class="ti ti-trash"></i>
+                                                                                        </button>
+                                                                                    </td>
+                                                                                {% endif %}
+                                                                            </tr>
+                                                                        {% endfor %}
+                                                                    {% comment %} {% else %}
+                                                                        <tr>
+                                                                            <td colspan="8"
+                                                                                class="text-center text-muted py-3">
+                                                                                No sub-services used yet.
+                                                                            </td>
+                                                                        </tr> {% endcomment %}
+                                                                    {% endif %}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                           
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Modal -->
+                                            <div class="modal fade" id="collectModal{{ cs.id }}"
+                                                 tabindex="-1"
+                                                 aria-labelledby="collectModalLabel{{ cs.id }}"
+                                                 aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title"
+                                                                id="collectModalLabel{{ cs.id }}">
+                                                                Confirm Title Deed Collection
+                                                            </h5>
+                                                            <button type="button" class="btn-close"
+                                                                    data-bs-dismiss="modal"
+                                                                    aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            {% if cs.has_title_deed_collection %}
+                                                                <div class="alert alert-warning text-start">
+                                                                    <strong>Already
+                                                                        Collected</strong><br>
+                                                                    Collected by:
+                                                                    <strong>{{ cs.title_deed_collection.collected_by }}</strong><br>
+                                                                    ID: {{ cs.title_deed_collection.id_number }}<br>
+                                                                    Phone: {{ cs.title_deed_collection.phone_number }}<br>
+                                                                    Collected
+                                                                    on: {{ cs.title_deed_collection.collected_at|date:"M d, Y H:i" }}
+                                                                </div>
+                                                            {% else %}
+                                                                <form method="POST"
+                                                                      action="{% url 'collect_title_deed' cs.id %}">
+                                                                    {% csrf_token %}
+                                                                    {{ title_deed_form.as_p }}
+
+                                                                    <script>
+                                                                        function updateMessage() {
+                                                                            const name = document.getElementById('id_collected_by')?.value.trim() || '[Name]';
+                                                                            const id = document.getElementById('id_id_number')?.value.trim() || '[ID Number]';
+                                                                            const messageTemplate = `Your title deed has been collected by ${name} (ID: ${id}).`;
+
+                                                                            const messageField = document.getElementById('id_message');  // matches default Django id
+                                                                            if (messageField) {
+                                                                                messageField.value = messageTemplate;
+                                                                            }
+                                                                        }
+
+                                                                        document.addEventListener("DOMContentLoaded", function () {
+                                                                            const nameInput = document.getElementById('id_collected_by');
+                                                                            const idInput = document.getElementById('id_id_number');
+
+                                                                            if (nameInput) nameInput.addEventListener('input', updateMessage);
+                                                                            if (idInput) idInput.addEventListener('input', updateMessage);
+                                                                        });
+                                                                    </script>
+
+
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary"
+                                                                                data-bs-dismiss="modal">Cancel
+                                                                        </button>
+                                                                        <button type="submit" class="btn btn-success">
+                                                                            Submit
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+
+                                                            {% endif %}
+                                                        </div>
+                                                        {% if cs.has_title_deed_collection %}
+                                                            <div class="modal-footer">
+                                                                <small class="text-muted">
+                                                                    Submitted by:
+                                                                    {% if cs.title_deed_collection.submitted_by %}
+                                                                        {{ cs.title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
+                                                                    {% else %}
+                                                                        <em>Unknown user</em>
+                                                                    {% endif %}
+                                                                </small>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <!--documents-->
+                    <div class="tab-pane" id="profile-2" role="tabpanel"
+                         aria-labelledby="profile-tab-2">
+                        <div class="row">
+                            <div class="col-lg-4 col-xxl-3">
+                                <div class="card">
+                                    <div class="card-body position-relative">
+                                        <!-- Contact Info -->
+                                        <div class="bg-light bg-opacity-50 rounded-3 p-3 mx-2 mb-3 border border-secondary border-opacity-10">
+                        
+                                            <div class="d-flex align-items-center mb-3">
+                                                <div class="flex-shrink-0 text-primary me-3">
+                                                    <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                                                        <i class="ti ti-mail"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-grow-1 overflow-hidden">
+                                                    <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Email</p>
+                                                    <h6 class="mb-0 text-truncate text-dark" title="{{ client.email }}" style="font-size: 0.9rem;">
+                                                        {{ client.email }}
+                                                    </h6>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-0 mb-3">
+                                                <div class="col-7 border-end border-secondary border-opacity-10 pe-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ti ti-phone text-muted me-2 fs-5"></i>
+                                                        <div>
+                                                            <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Phone</p>
+                                                            <span class="text-dark fw-bold small">{{ client.phone }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-5 ps-3">
+                                                    <div class="d-flex flex-column justify-content-center">
+                                                        <p class="mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 0.5px;">Status</p>
+                                                        <div>
+                                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1">
+                                                                Active
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex align-items-start pt-2 border-top border-secondary border-opacity-10">
+                                                <i class="ti ti-map-pin text-muted me-2 mt-1"></i>
+                                                <span class="text-muted small lh-sm mt-1">Location / Address</span>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="col-lg-8">
+                                <!-- Upload Document Modal -->
+                                <div class="modal fade" id="uploadDocModal" tabindex="-1"
+                                     aria-labelledby="uploadDocModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="POST" enctype="multipart/form-data"
+                                                  action="{% url 'upload_client_doc' client.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="uploadDocModalLabel">
+                                                        Upload
+                                                        Document</h5>
+                                                    <button type="button" class="btn-close"
+                                                            data-bs-dismiss="modal"
+                                                            aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <!-- Document Name -->
+                                                    <div class="mb-3">
+                                                        <label for="id_doc_name" class="form-label">Document
+                                                            Name</label>
+                                                        {{ doc_form.doc_name }}
+                                                    </div>
+
+                                                    <!-- Document Type with + button -->
+                                                    <div class="mb-3">
+                                                        <label for="id_doc_type" class="form-label">Document
+                                                            Type</label>
+                                                        <div class="d-flex align-items-center">
+                                                            {{ doc_form.doc_type }}
+                                                            <button type="button"
+                                                                    class="btn btn-outline-primary btn-sm ms-2"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#addDocTypeModal"
+                                                                    title="Add new document type">
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Document File -->
+                                                    <div class="mb-3">
+                                                        <label for="id_doc_file" class="form-label">Upload
+                                                            File</label>
+                                                        {{ doc_form.doc_file }}
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Cancel
+                                                    </button>
+                                                    <button type="submit" name="upload_doc"
+                                                            class="btn btn-primary">Upload
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Add DocType Modal -->
+                                <div class="modal fade" id="addDocTypeModal" tabindex="-1"
+                                     aria-labelledby="addDocTypeModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="post" action="{% url 'add_doctype' %}">
+                                                {% csrf_token %}
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="addDocTypeModalLabel">
+                                                        Add
+                                                        Document Type</h5>
+                                                    <button type="button" class="btn-close"
+                                                            data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    {{ doc_type_form.as_p }}
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary"
+                                                            data-bs-dismiss="modal">Cancel
+                                                    </button>
+                                                    <button type="submit" class="btn btn-primary">Add
+                                                        Type
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <div class="card">
+                                    
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5>Documents</h5>
+                                        <div>
+                                            <!-- Existing buttons -->
+                                            <!-- Trigger button -->
+                                                                        <button type="button" class="btn btn-success btn-sm mb-3"
+                                                                                data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                                                                            <i class="ti ti-circle-plus me-1 txt-white"></i>Document
+                                                                        </button>
+                                            
+                                            <!-- Migration Button (show only if Drive is configured) -->
+                                            {% if site_settings.google_drive_enabled %}
+                                            <form method="POST" action="{% url 'migrate_client_docs_to_drive' client.id %}" 
+                                                style="display: inline;" 
+                                                onsubmit="return confirm('Migrate all local documents to Google Drive?');">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                    <i class="ti ti-cloud-upload"></i> Migrate to Drive
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="card-body table-card">
+                                        <div class="table-responsive mt-3">
+                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                <thead class="table-success">
+                                                <tr>
+                                                    <th>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input"
+                                                                   type="checkbox"
+                                                                   id="select-all">
+                                                        </div>
+                                                    </th>
+                                                    <th>Uploaded by</th>
+                                                    <th>Name</th>
+                                                    <th>Type</th>
+                                                    <th>Storage</th>
+                                                    <th>Uploaded on</th>
+                                                    <th class="text-end">Actions</th>
+                                                    {% if perms.easydocs.delete_clientdoc %}
+                                                        <th class="text-end">Delete</th>
+                                                    {% endif %}
+
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                {% for doc in client_docs %}
+                                                    <tr>
+                                                        <td>{{ forloop.counter }}</td>
+                                                        <td>{{ doc.uploaded_by }}</td>
+                                                        <td>{{ doc.doc_name }}</td>
+                                                        <td>{{ doc.doc_type.name }}</td>
+                                                        <td>{{ doc.storage_backend|storage_badge|safe }}</td>
+                                                        <td><span
+                                                                class="badge bg-success">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <!-- View -->
+                                                            {% if doc.file_url %}
+                                                                <a href="{{ doc.file_url }}" target="_blank">View</a>
+                                                                {% else %}
+                                                                <span class="text-muted">No file</span>
+                                                                {% endif %}
+
+                                                                {# WhatsApp link: only render if file_url exists and URL-encode it #}
+                                                                {% if doc.file_url %}
+                                                                <a href="https://wa.me/{{ client.phone }}?text=Hello {{ client.first_name }}, here is your document: {{ doc.file_url|urlencode }}"
+                                                                    target="_blank"
+                                                                    class="btn btn-sm btn-outline-success"
+                                                                    title="WhatsApp">
+                                                                    <i class="ti ti-brand-whatsapp"></i>
+                                                                </a>
+                                                                {% endif %}
+
+                                                            <!-- Email -->
+                                                            {% if client.email %}
+                                                                <form method="post"
+                                                                      action="{% url 'send_doc_email_to_client' client.id doc.id %}"
+                                                                      style="display:inline;">
+                                                                    {% csrf_token %}
+                                                                    <button class="btn btn-sm btn-outline-danger"
+                                                                            title="Send Email"
+                                                                            type="submit">
+                                                                        <i class="ti ti-mail-forward"></i>
+                                                                    </button>
+                                                                </form>
+                                                            {% else %}
+                                                                <span class="text-muted">No email</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        {% if perms.easydocs.delete_clientdoc %}
+                                                            <td class="text-end">
+                                                                <form action="{% url 'delete_document' client.id doc.id %}"
+                                                                      method="post" style="display:inline;">
+                                                                    {% csrf_token %}
+                                                                    <button class="btn btn-sm btn-outline-danger"
+                                                                            type="submit"
+                                                                            onclick="return confirm('Are you sure you want to delete this document?')">
+                                                                        Delete
+                                                                    </button>
+                                                                </form>
+                                                            </td>
+                                                        {% endif %}
+                                                    </tr>
+
+                                                {% endfor %}
+
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </div>
+                    {% if perms.easydocs.view_payment %}
+                        <!--account-->
+                        <div class="tab-pane" id="profile-3" role="tabpanel"
+                             aria-labelledby="profile-tab-3">
+
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <!-- Tabs in Card Header -->
+                                        <ul class="nav nav-tabs card-header-tabs" id="paymentTabs"
+                                            role="tablist">
+                                            <li class="nav-item" role="presentation">
+                                                <a class="nav-link active" id="payments-tab"
+                                                   data-bs-toggle="tab"
+                                                   href="#payments" role="tab" aria-controls="payments"
+                                                   aria-selected="true">
+                                                    Reciepts
+                                                </a>
+                                            </li>
+                                            <li class="nav-item" role="presentation">
+                                                <a class="nav-link" id="receipts-tab" data-bs-toggle="tab"
+                                                   href="#receipts" role="tab" aria-controls="receipts"
+                                                   aria-selected="false">
+                                                    Payments
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab Content -->
+                            <div class="tab-content" id="paymentTabsContent">
+
+                                <!-- ================== PAYMENTS TAB ================== -->
+                                <div class="tab-pane fade show active" id="payments" role="tabpanel"
+                                     aria-labelledby="payments-tab">
+
+
+                                    <div class="row">
+                                        <div class="col-lg-8">
+
+                                            <!-- Services List Card -->
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                                                    <h5>Services list</h5>
+                                                    {% if perms.easydocs.add_payment %}
+                                                        <button class="btn btn-sm bg-green-200"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addPaymentModal">
+                                                            <i class="ti ti-report-money"></i> Record
+                                                            Service
+                                                            Payment
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive mt-3">
+                                                        <table id="serviceListTable"
+                                                               class="datatable table table-striped table-hover dt-responsive nowrap">
+                                                            <thead class="table-success">
+                                                            <tr>
+                                                                <th>
+                                                                    <input type="checkbox" id="select-all">
+                                                                </th>
+                                                                <th>Land Description</th>
+                                                                <th>Service</th>
+                                                                <th>Requested At</th>
+                                                                <th>Total Paid</th>
+                                                                <th>Pending Balance</th>
+                                                                <th class="text-end">Receipt</th>
+                                                                <th class="text-end">Details</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for service in all_services %}
+                                                                <tr class="service-row"
+                                                                    data-requested-at="{{ service.requested_at|date:'U' }}"
+                                                                    data-detail="{{ service|get_service_detail_json }}"
+                                                                    data-receipt-url="{% url 'download_receipt' service.id %}">
+                                                                    <td>{{ forloop.counter }}</td>
+                                                                    <td>{{ service.land_description }}</td>
+                                                                    <td>{{ service.service.name }}</td>
+                                                                    <td class="text-end">
+                                                                        <span class="badge bg-success">{{ service.requested_at|date:"M d, Y H:i" }}</span>
+                                                                    </td>
+                                                                    <td>KSH {{ service.total_paid }}</td>
+                                                                    <td>KSH {{ service.total_balance }}</td>
+                                                                    <td>
+                                                                        <button class="btn btn-outline-secondary btn-receipt">
+                                                                            <i class="fas fa-receipt"></i>
+                                                                            Receipt
+                                                                        </button>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-primary btn-view">
+                                                                            View
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-4">
+                                            <!-- Service Detail Card -->
+                                            <div class="card">
+                                                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                                                    <h5 class="mb-0">Service Detail for:</h5>
+                                                    <p class="mb-0 text-muted small flex-grow-1 text-center">
+                                                        💡 Tip: Click <strong>"View"</strong> in the service
+                                                        list
+                                                        to update or view full details.
+                                                    </p>
+                                                    <button id="detailReceiptBtn"
+                                                            class="btn btn-sm btn-outline-secondary"
+                                                            data-receipt-url=""
+                                                            title="Preview & Print Receipt">
+                                                        <i class="fas fa-receipt"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p><strong>Land Description:</strong> <span
+                                                            id="detail-land">Loading...</span></p>
+                                                    <p><strong>Service Name:</strong> <span
+                                                            id="detail-title">Loading...</span>
+                                                    </p>
+                                                    <p><strong>Requested At:</strong> <span
+                                                            id="detail-requested">Loading...</span></p>
+                                                    <p><strong>Total Paid:</strong> <span
+                                                            id="detail-paid">Loading...</span>
+                                                    </p>
+                                                    <p><strong>Pending Balance:</strong> <span
+                                                            id="detail-balance">Loading...</span></p>
+                                                    <h6>Processes</h6>
+                                                    <ul id="detail-processes"
+                                                        class="list-group list-group-flush"></ul>
+                                                    <h6 class="mt-4">Sub-Services</h6>
+                                                    <ul id="detail-subservices"
+                                                        class="list-group list-group-flush"></ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ================== RECEIPTS TAB ================== -->
+                                <div class="tab-pane fade" id="receipts" role="tabpanel"
+                                     aria-labelledby="receipts-tab">
+                                    <div class="row">
+                                        <!-- Master (Summary + Filter) -->
+                                        <div class="col-lg-8">
+                                            <div class="card mb-3">
+
+                                                <!-- Header -->
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h5 class="mb-0">Filter & Payments</h5>
+                                                    {% if perms.easydocs.add_payment %}
+                                                        <button class="btn btn-sm btn-primary"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#addPaymentModal">
+                                                            <i class="fas fa-money-bill-wave"></i> Record
+                                                            Service
+                                                            Payment
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+
+
+                                                <!-- Payment History Table -->
+                                                <div class="card-body p-0"
+                                                     style="height: 600px; overflow-y: auto;">
+                                                    <div class="accordion" id="paymentHistoryAccordion">
+                                                        {% for payment in flat_payment_history %}
+                                                            <!-- Add class 'service-row' and move data-receipt-url here -->
+                                                            <div class="accordion-item mb-3 service-row"
+                                                                 data-receipt-url="{% url 'download_receipt' payment.service_id %}">
+                                                                <h2 class="accordion-header"
+                                                                    id="heading{{ forloop.counter }}">
+                                                                    <button class="accordion-button collapsed"
+                                                                            type="button"
+                                                                            data-bs-toggle="collapse"
+                                                                            data-bs-target="#collapse{{ forloop.counter }}"
+                                                                            aria-expanded="false"
+                                                                            aria-controls="collapse{{ forloop.counter }}">
+                                                                        <div class="d-flex w-100 justify-content-between">
+                                                                            <div>
+                                                                                <strong>{{ payment.service_label }}</strong>
+                                                                                <small class="text-muted">|
+                                                                                    Total:
+                                                                                    KES {{ payment.total_amount|floatformat:2 }}</small>
+                                                                            </div>
+                                                                            <div class="text-end">
+                                                                            <span class="me-3">Paid: <strong
+                                                                                    class="text-success">KES {{ payment.total_paid|floatformat:2 }}</strong></span>
+                                                                                <span>Balance: <strong
+                                                                                        class="text-danger">KES {{ payment.pending_balance|floatformat:2 }}</strong></span>
+                                                                                <span class="badge
+                                {% if payment.payment_status == 'Fully Paid' %}bg-success
+                                {% else %}bg-warning text-dark{% endif %}
+                                ms-3">
+                                {{ payment.payment_status }}
+                            </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </button>
+                                                                </h2>
+
+                                                                <div id="collapse{{ forloop.counter }}"
+                                                                     class="accordion-collapse collapse"
+                                                                     aria-labelledby="heading{{ forloop.counter }}"
+                                                                     data-bs-parent="#paymentHistoryAccordion">
+                                                                    <div class="accordion-body">
+
+                                                                        <h6 class="mb-2">📅 Payment
+                                                                            Transactions</h6>
+                                                                        <div class="table-responsive mb-4">
+                                                                            <table class="table table-sm table-bordered mb-0">
+                                                                                <thead class="table-light">
+                                                                                <tr>
+                                                                                    <th>Date</th>
+                                                                                    <th>Amount Paid</th>
+                                                                                    <th>Method</th>
+                                                                                    <th>Txnid</th>
+                                                                                    <th>Service Balance</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for pb in payment.payment_breakdown %}
+                                                                                    <tr>
+                                                                                        <td>{{ pb.date }}</td>
+                                                                                        <td>
+                                                                                            KES {{ pb.amount|floatformat:2 }}</td>
+                                                                                        <td>{{ pb.method }}</td>
+                                                                                        <td>{{ pb.reference }}</td>
+                                                                                        <td>
+                                                                                            KES {{ pb.remaining_balance|floatformat:2 }}</td>
+                                                                                    </tr>
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <h6 class="mb-2">⚙️ Allocation
+                                                                            Details</h6>
+                                                                        <div class="table-responsive">
+                                                                            <table class="table table-sm table-bordered mb-0">
+                                                                                <thead class="table-light">
+                                                                                <tr>
+                                                                                    <th>Process / Sub-Service
+                                                                                    </th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Service Balance</th>
+                                                                                    <th>Status</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for alloc in payment.allocations %}
+                                                                                    <tr>
+                                                                                        <td>{{ alloc.name }}</td>
+                                                                                        <td>
+                                                                                            KES {{ alloc.amount|floatformat:2 }}</td>
+                                                                                        <td>
+                                                                                            KES {{ alloc.remaining_balance|floatformat:2 }}</td>
+                                                                                        <td>
+                                                                                            {% if alloc.status %}
+                                                                                                <span class="badge
+                                                {% if alloc.status == 'Fully Paid' %}bg-success
+                                                {% else %}bg-warning text-dark{% endif %}">
+                                                {{ alloc.status }}
+                                            </span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+
+                                                                        <!-- Receipt Button -->
+                                                                        <div class="d-flex justify-content-end mt-3">
+                                                                            <button class="btn btn-outline-secondary btn-receipt">
+                                                                                <i class="fas fa-receipt"></i>
+                                                                                Receipt
+                                                                            </button>
+                                                                        </div>
+
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        {% empty %}
+                                                            <p class="text-center text-muted">No payment history
+                                                                available.</p>
+                                                        {% endfor %}
+                                                    </div>
+
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+
+                                        <!-- Detail Panel -->
+                                        <!-- Detail Panel -->
+                                        <div class="col-lg-4">
+                                            <div class="card" id="serviceDetailCard">
+                                                <div class="card-header bg-primary text-white">
+                                                    <h5 class="mb-0" id="detailServiceName">Select a
+                                                        service</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="mb-3">
+                                                        <strong>Total Paid:</strong>
+                                                        <span class="float-end text-success fw-bold"
+                                                              id="detailTotalPaid">—</span>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <strong>Pending Balance:</strong>
+                                                        <span class="float-end text-danger fw-bold"
+                                                              id="detailBalance">—</span>
+                                                    </div>
+                                                    <hr>
+                                                    <h6 class="fw-bold mb-2">Installments</h6>
+                                                    <ul class="list-group list-group-flush"
+                                                        id="detailPaymentsList">
+                                                        <li class="list-group-item text-muted">Click “View
+                                                            Installments” or a specific payment.
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                {#                            <!-- Embed initial grouped_payments as JSON -->#}
+                                {#                            {{ grouped_payments|json_script:"gpData" }}#}
+
+
+                            </div>
+
+
+                        </div>
+                    {% endif %}
+
+                    <div class="tab-pane" id="profile-4" role="tabpanel"
+                         aria-labelledby="profile-tab-4">
+                        <div class="row">
+
+                            <div class="card mt-4">
+                            <div class="card-header">
+                                <i class="fas fa-calendar-alt me-2"></i> Client Bookings
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                  {% include "Management/partials/all_bookings_table.html" with all_services=all_services %}
+                                </div>
+                            </div>
+                            </div>
+
+                            
+                           
+                          
+
+
+                        </div>
+                    </div>
+                    <!--messages-->
+                    {% if perms.easydocs.view_messagelog %}
+                        <div class="tab-pane" id="profile-6" role="tabpanel"
+                             aria-labelledby="profile-tab-6">
+                            <div class="row">
+
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>SMS LOGS</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <form method="post"
+                                                  action="{% url 'send_client_sms' client_id=client.id %}">
+                                                {% csrf_token %}
+                                                {{ client_sms_form.as_p }}
+                                                <button type="submit" name="send_sms" class="btn btn-primary">Send
+                                                    SMS
+                                                </button>
+                                            </form>
+
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5>SMS LOGS</h5>
+                                        </div>
+                                        <div class="card-body">
+
+
+                                            {% if message_logs %}
+                                                <div class="table-responsive mt-3">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                        <thead class="table-success">
+                                                        <tr>
+                                                            <th>Date</th>
+                                                            <th>Phone</th>
+                                                            <th>Message</th>
+                                                            <th>Send Status</th>
+                                                            <th>Delivery Status</th>
+                                                            <th>Error</th>
+                                                        </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                        {% for log in message_logs %}
+                                                            <tr>
+                                                                <td>{{ log.timestamp|date:"M d, Y - H:i" }}</td>
+                                                                <td>{{ log.phone }}</td>
+                                                                <td>{{ log.message|truncatechars:60 }}</td>
+                                                                <td>
+                        <span class="badge bg-{{ log.send_status|yesno:'success,danger' }}">
+                            {{ log.send_status|title }}
+                        </span>
+                                                                </td>
+                                                                <td>
+                                                                    {% if log.delivery_status %}
+                                                                        <span class="badge bg-secondary">{{ log.delivery_status|title }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">N/A</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if log.error_details %}
+                                                                        <span class="text-danger">{{ log.error_details }}</span>
+                                                                    {% else %}
+                                                                        <span class="text-muted">None</span>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            {% else %}
+                                                <div class="alert alert-info mt-3">
+                                                    No SMS logs found for this client.
+                                                </div>
+                                            {% endif %}
+
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- [ sample-page ] end -->
+</div>
+<!-- [ Main Content ] end -->
+</div>
+</div>
+
+    <!-- Add Client Service Modal -->
+    <div class="modal fade" data-client-name="{{ client.first_name }}" id="addClientServiceModal" tabindex="-1"
+         aria-labelledby="addClientServiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'client-service' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="add_client_service" value="1">
+                    <input type="hidden" name="client" value="{{ client.id }}">
+
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="addClientServiceModalLabel">Assign Service
+                            to {{ client.first_name }} {{ client.first_name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- Read‑only client -->
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label">Client Name</label>
+                                <input class="form-control"
+                                       value="{{ client.first_name }} {{ client.last_name }}" readonly>
+                            </div>
+                            <div class="col">
+                                <label class="form-label">Phone</label>
+                                <input class="form-control" value="{{ client.phone }}" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Category & Service -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ client_service_form.category.label_tag }}
+                                {{ client_service_form.category }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ client_service_form.service.label_tag }}
+                                {{ client_service_form.service }}
+                            </div>
+                        </div>
+
+                        <!-- Process override table -->
+                        <div class="mt-4 processCostSection" style="display:none;">
+                            <h6>Customize Service Processes</h6>
+                            <table class="table table-bordered">
+                                <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Custom Cost (Ksh)</th>
+                                </tr>
+                                </thead>
+                                <tbody class="processTableBody"></tbody>
+                                <tfoot>
+                                <tr>
+                                    <td><strong>Total</strong></td>
+                                    <td><strong class="totalCost">0.00</strong></td>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Override total price if no processes -->
+                        {% comment %} <div class="mt-4 totalPriceOverride" style="display:none;">
+                            <label for="overrideTotalPrice" class="form-label">Override Total Price
+                                (Ksh)</label>
+                            <input type="number" step="0.01" name="overridden_total_price"
+                                   class="form-control overrideTotalPrice" id="overrideTotalPrice">
+                        </div> {% endcomment %}
+                        <!-- For both Add and Edit modals -->
+                        <div class="mt-4 totalPriceOverride" style="display:none;">
+                            <label for="overrideTotalPrice" class="form-label">Client Price (KES)</label>
+                            <input type="number" step="0.01" name="override_total_price"
+                                class="form-control overrideTotalPrice" id="overrideTotalPrice"
+                                value="{% if current_service and current_service.service.category == 'ground' %}{{ current_service.overridden_total_price|default:current_service.service.total_price }}{% endif %}">
+                            <small class="form-text text-muted">
+                                Institution Cost: <span class="institution-cost">0.00</span> KES
+                            </small>
+                        </div>
+
+                        <!-- Land description -->
+                        <div class="mt-4">
+                            {{ client_service_form.land_description.label_tag }}
+                            {{ client_service_form.land_description }}
+                        </div>
+                        <!-- inside both Add & Edit modals, below land description -->
+                        <!-- Instead of manual markup, do this: -->
+                        <div id="groundFields" style="display:none; margin-top:1rem;">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    {{ client_service_form.scheduled_date.label_tag }}
+                                    {{ client_service_form.scheduled_date }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ client_service_form.dispatch_preview.label_tag }}
+                                    {{ client_service_form.dispatch_preview }}
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i>
+                            Assign Service
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- Edit Client Service Modal -->
+    <div class="modal fade" id="editClientServiceModal" data-client-name="{{ client.first_name }}" tabindex="-1"
+         aria-labelledby="editClientServiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'client-service' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="edit_client_service" value="1">
+                    <input type="hidden" name="client" value="{{ client.id }}">
+                    <input type="hidden" name="client_service_id" id="editClientServiceId">
+
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title" id="editClientServiceModalLabel">Edit Service
+                            for {{ client.first_name }} {{ client.first_name }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- Read‑only client -->
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label class="form-label">Client Name</label>
+                                <input class="form-control" id="editClientName" readonly>
+                            </div>
+                            <div class="col">
+                                <label class="form-label">Phone</label>
+                                <input class="form-control" id="editClientPhone" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Category & Service -->
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="editCategory" class="form-label">Category</label>
+                                <select class="form-select" name="category" id="editCategory" required>
+                                    <option value="">Select Category</option>
+                                    {% for val,label in client_service_form.fields.category.choices %}
+                                        <option value="{{ val }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editService" class="form-label">Service</label>
+                                <select class="form-select" name="service" id="editService" required>
+                                    <option value="">Select Service</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Process override table -->
+                        <div class="mt-4 processCostSection" style="display:none;">
+                            <h6>Customize Service Processes</h6>
+                            <table class="table table-bordered">
+                                <thead>
+                                <tr>
+                                    <th>Process</th>
+                                    <th>Custom Cost (Ksh)</th>
+                                </tr>
+                                </thead>
+                                <tbody class="processTableBody"></tbody>
+                                <tfoot>
+                                <tr>
+                                    <td><strong>Total</strong></td>
+                                    <td><strong class="totalCost">0.00</strong></td>
+                                </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Override total price if no processes -->
+                        <div class="mt-4 totalPriceOverride" style="display:none;">
+                            <label for="editOverrideTotalPrice" class="form-label">Override Total Price
+                                (Ksh)</label>
+                            <input type="number" step="0.01" name="overridden_total_price"
+                                   class="form-control overrideTotalPrice" id="editOverrideTotalPrice">
+                        </div>
+
+                        <!-- Land description -->
+                        <div class="mt-4">
+                            <label for="editLandDescription" class="form-label">Land Description</label>
+                            <textarea name="land_description" id="editLandDescription" class="form-control"
+                                      rows="3"></textarea>
+                        </div>
+                        <!-- inside both Add & Edit modals, below land description -->
+                        <!-- Instead of manual markup, do this: -->
+                        <div class="ground-fields" style="display:none; margin-top:1rem;">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    {{ client_service_form.scheduled_date.label_tag }}
+                                    {{ client_service_form.scheduled_date }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ client_service_form.dispatch_preview.label_tag }}
+                                    {{ client_service_form.dispatch_preview }}
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save
+                            Changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <!-- Delete Client Service Modal -->
+    <div class="modal fade" id="deleteClientServiceModal" tabindex="-1"
+         aria-labelledby="deleteClientServiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'client-delete-service' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete_client_service" value="1">
+                    <input type="hidden" name="client_service_id" id="deleteClientServiceId">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteClientServiceModalLabel">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete the service:</p>
+                        <p><strong id="deleteClientServiceInfo"></strong></p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add SubService Modal -->
+    <!-- Add SubService Modal -->
+<!-- Add SubService Modal -->
+<div class="modal fade" id="addSubServiceModal" tabindex="-1" aria-labelledby="addSubServiceModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'client-add-subservice' client.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="add_client_subservice" value="1">
+        <input type="hidden" id="modal_service_id" name="client_service" value="">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="addSubServiceModalLabel">
+            Add SubService to <span id="modal_service_name"></span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Choose SubService -->
+          <div class="mb-3">
+            <label for="modal_sub_service" class="form-label">SubService</label>
+            <select id="modal_sub_service" name="sub_service" class="form-select" required>
+              <option value="">Select SubService</option>
+              {% for sub in subservices %}
+                <option
+                  value="{{ sub.id }}"
+                  data-price="{{ sub.price }}"
+                  data-dept="{{ sub.department|escape }}"
+                >
+                  {{ sub.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Department -->
+          <div class="mb-3">
+            <label for="modal_department" class="form-label">Department</label>
+            <input
+              type="text"
+              id="modal_department"
+              class="form-control"
+              readonly
+            >
+          </div>
+
+          <!-- Overridden Price -->
+          <div class="mb-3">
+            <label for="modal_overridden_price" class="form-label">Override Price (Ksh)</label>
+            <input
+              type="number"
+              step="0.01"
+              id="modal_overridden_price"
+              name="overridden_price"
+              class="form-control"
+              placeholder="Leave blank to use default"
+            >
+            <small id="modal_price_hint" class="text-muted"></small>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Add SubService
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Edit SubService Modal -->
+    <div class="modal fade" id="editSubServiceModal" tabindex="-1"
+         aria-labelledby="editSubServiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'client-edit-subservice' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="edit_client_subservice" value="1">
+                    <input type="hidden" name="client_subservice_id" id="editSubServiceId">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit SubService</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <!-- SubService Name (readonly) -->
+                        <div class="mb-3">
+                            <label class="form-label">SubService</label>
+                            <input type="text" id="editModalSubServiceName" class="form-control" readonly>
+                        </div>
+
+                        <!-- Department (readonly) -->
+                        <div class="mb-3">
+                            <label class="form-label">Department</label>
+                            <input type="text" id="editModalDepartment" class="form-control" readonly>
+                        </div>
+
+                        <!-- Overridden Price -->
+                        <div class="mb-3">
+                            <label class="form-label">Override Price (Ksh)</label>
+                            <input type="number" step="0.01" id="editModalOverriddenPrice"
+                                   name="overridden_price"
+                                   class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete SubService Confirmation Modal -->
+    <div class="modal fade" id="deleteSubServiceModal" tabindex="-1"
+         aria-labelledby="deleteSubServiceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'client-delete-subservice' client.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete_client_subservice" value="1">
+                    <input type="hidden" name="client_subservice_id" id="deleteSubServiceId">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteSubServiceModalLabel">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete this sub-service?</p>
+                        <p><strong id="deleteSubServiceInfo"></strong></p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Preview Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1"
+         aria-labelledby="receiptModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="receiptModalLabel">
+                        Receipt Preview</h5>
+                    <button type="button" class="btn-close"
+                            data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <iframe id="receiptFrame" src=""
+                            style="width:100%; height:80vh; border:none;"></iframe>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary"
+                            id="printReceiptBtn">
+                        <i class="fas fa-print"></i> Print
+                    </button>
+                    <a href="#" class="btn btn-secondary"
+                       id="downloadReceiptBtn">
+                        <i class="fas fa-download"></i> Download
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Add Payment Modal -->
+    <div class="modal fade" id="addPaymentModal" tabindex="-1"
+         aria-labelledby="addPaymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" action="{% url 'add_payment' client.id %}">
+                {% csrf_token %}
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addPaymentModalLabel">
+                            Add
+                            Payment</h5>
+                        <button type="button" class="btn-close"
+                                data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Service dropdown -->
+                        <div class="mb-3" id="serviceSelectContainer">
+                            <label for="serviceSelect" class="form-label">Select
+                                Service</label>
+                            <select class="form-select" id="serviceSelect"
+                                    name="client_service_id" required>
+                                <option value="">-- Choose Service --
+                                </option>
+                                {% for cs in client.client_services.all %}
+                                    <option value="{{ cs.id }}"
+                                            data-total="{{ cs.full_total_price }}"
+                                            data-paid="{{ cs.total_paid }}"
+                                            data-pending="{{ cs.total_balance }}">
+                                        {{ cs.service.name }}
+                                        - {{ cs.land_description }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <!-- Auto-filled fields -->
+                        <div id="serviceInfo" style="display:none;">
+                            <p><strong>Service:</strong> <span
+                                    id="serviceName"></span></p>
+                            <p><strong>Total Cost:</strong> KES <span
+                                    id="serviceTotal"></span></p>
+                            <p><strong>Total Paid:</strong> KES <span
+                                    id="servicePaid"></span></p>
+                            <p><strong>Pending Balance:</strong> KES <span
+                                    id="servicePending"></span></p>
+                        </div>
+                        <!-- Amount -->
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Amount to
+                                Pay</label>
+                            <input type="number" class="form-control"
+                                   name="amount" id="amount" step="0.01"
+                                   min="1"
+                                   required>
+                        </div>
+                        <!-- Method -->
+                        <div class="mb-3">
+                            <label for="paymentMethod" class="form-label">Payment
+                                Method</label>
+                            <select class="form-select"
+                                    name="payment_method"
+                                    id="paymentMethod" required>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer
+                                </option>
+                            </select>
+                        </div>
+                        <!-- Transaction ID -->
+                        <div class="mb-3">
+                            <label for="transactionId" class="form-label">Transaction
+                                ID (Optional)</label>
+                            <input type="text" class="form-control"
+                                   name="transaction_id" id="transactionId">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success">Submit
+                            Payment
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+<!-- Booking Modal (used for both Add & Edit) -->   
+<div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form class="booking-form" method="post" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="bookingModalLabel">Booking</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Scheduled Date</label>
+            <input type="datetime-local" name="scheduled_date" class="form-control scheduled-date-input" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Dispatch Message</label>
+            <textarea name="dispatch_message" class="form-control message-input" rows="3"></textarea>
+            <div class="form-text d-flex justify-content-between align-items-center">
+              <span>You may refine this message before sending.</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary reset-template-btn">
+                <i class="fas fa-sync-alt me-1"></i> Reset to Template
+              </button>
+            </div>
+          </div>
+
+          {# Optional: small helper text showing client & service (populated by JS) #}
+          <div class="small text-muted">
+            <span id="bookingModalClient"></span>
+            <span id="bookingModalService" class="ms-2"></span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save me-1"></i> Save Booking
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+{#<!-- page‑specific JS -->#}
+{#    <script src="{% static 'assets/js/client_details_services.js' %}" defer></script>#}
+
+{% block extra_js %}
+    {{ block.super }}
+    {# If you have page‑specific scripts beyond the two in base, include them here #}
+    <script src="{% static 'assets/js/modals/bookingModal.js' %}" defer></script>
+    <script src="{% static 'assets/js/modals/editClientModal.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% load document_tags %}
+
+
+
+{% block body %}
+
+
+    <section class="pc-container">
+        <div class="pc-content">
+            <!-- [ breadcrumb ] start -->
+            <div class="page-header">
+                <div class="page-block">
+                    <div class="row align-items-center">
+                        <div class="col-md-12">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                <li class="breadcrumb-item"><a href="javascript: void(0)">Clients</a></li>
+                                <li class="breadcrumb-item" aria-current="page">Documents</li>
+                            </ul>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+            <div class="container-fluid col-lg-12">
+                <!-- [ Header ] end -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+            </div>
+            <!-- [ breadcrumb ] end -->
+
+            <!-- [ Main Content ] start -->
+            <div class="row">
+                <!-- Config table start -->
+                <div class="col-sm-12">
+                    <div class="card card-table">
+                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+
+    <!-- Add Document Button -->
+    <button type="button" class="btn bg-green-200" data-bs-toggle="modal" data-bs-target="#documentModal">
+        <i class="ti ti-circle-plus me-1"></i> Add Document
+    </button>
+    <div>
+                <!-- Existing buttons -->
+                
+                <!-- Admin Migration Button -->
+                {% if user.is_superuser and site_settings.google_drive_enabled %}
+                <form method="POST" action="{% url 'migrate_all_docs_to_drive' %}" 
+                      style="display: inline;" 
+                      onsubmit="return confirm('Migrate ALL documents to Google Drive? This may take a while.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning btn-sm">
+                        <i class="ti ti-cloud-upload"></i> Migrate All to Drive
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+
+    {% comment %} <!-- Search Form -->
+    <form method="get" action="{% url 'document_list' %}" class="d-flex" role="search">
+      <input
+        class="form-control me-2"
+        type="search"
+        name="q"
+        placeholder="Search documents..."
+        value="{{ query|default:'' }}"
+      >
+        <button class="btn btn-outline-success" type="submit">
+            <i class="ti ti-search"></i>
+        </button>
+    </form> {% endcomment %}
+
+</div>
+
+                        <div class="card-body">
+                            <!-- Table -->
+                            <div class="table-responsive mt-3">
+                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                    <thead class="bg-green-100 ">
+                                    <tr>
+                                        <th>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                            </div>
+                                        </th>
+
+                                        <th>Document Name</th>
+                                        <th>Document Type</th>
+                                        <th>Location</th>
+                                        <th>Reference</th>
+                                        <th>Uploaded At</th>
+                                        <th>Storage</th>
+                                        <th>Action</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="documents-table-body">
+                                    {% for document in documents %}
+                                        <tr>
+                                            <td> <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="select-all">
+                                            </div>
+                                            </td>
+                                            <td>{{ document.doc_name }}</td>
+                                            <td>{{ document.doc_type.name }}</td>
+                                            <td>{{ document.location }}</td>
+                                            <td>{{ document.reference }}</td>
+                                            <td>{{ document.uploaded_at }}</td>
+                                            <td>{{ document.storage_backend|storage_badge|safe }}</td>
+                                            <td>
+                                              {% if document.file_url %}
+                                                <a href="{{ document.file_url }}" class="btn btn-info" target="_blank">View</a>
+                                              {% else %}
+                                              <span class="text-muted">No file</span>
+                                             {% endif %}
+
+                                              
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+
+
+                                </table>
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Config table end -->
+
+
+                <!-- [ Main Content ] end -->
+            </div>
+        </div>
+    </section>
+
+                        <!-- Add DocType Modal -->
+<div class="modal fade" id="addDocTypeModal" tabindex="-1" aria-labelledby="addDocTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{% url 'add_doctype' %}">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addDocTypeModalLabel">Add New Document Type</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" name="name" class="form-control" placeholder="Document type name" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Add Type</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Structure -->
+<div class="modal fade" id="documentModal" tabindex="-1" aria-labelledby="documentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="documentModalLabel">Add Document</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Document Add Form -->
+        <form id="documentAddForm" method="POST" enctype="multipart/form-data" action="{% url 'add_document' %}">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="doc_name" class="form-label">Document Name</label>
+            <input type="text" class="form-control" id="doc_name" name="doc_name" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="doc_type" class="form-label">Document Type</label>
+            <div class="input-group">
+              <select class="form-select" id="doc_type" name="doc_type" required>
+                {% for doc_type in doc_types %}
+                  <option value="{{ doc_type.id }}">{{ doc_type.name }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addDocTypeModal" title="Add new type">
+                <i class="ti ti-plus"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="location" class="form-label">Location</label>
+            <input type="text" class="form-control" id="location" name="location" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="reference" class="form-label">Reference</label>
+            <input type="text" class="form-control" id="reference" name="reference" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="doc_file" class="form-label">Upload Document</label>
+            <input type="file" class="form-control" id="doc_file" name="doc_file" required>
+        </div>
+
+
+          <button type="submit" class="btn btn-primary w-100">Save Document</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    <!-- jQuery & Select2 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+
+
+
+{% endblock %}

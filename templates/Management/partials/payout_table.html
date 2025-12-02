@@ -1,0 +1,36 @@
+
+
+<!-- Management/partials/payout_table.html -->
+<div id="payout_summary" class="mt-3">
+  <h5>Total Payouts: <span id="total_count">{{ total_count }}</span></h5>
+  <h5>Total Amount: <span id="total_amount">{{ total_amount|floatformat:2 }}</span></h5>
+</div>
+
+<table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+    <thead class="table-success">
+    <thead>
+      <tr>
+        <th>Client</th>
+        <th>SubService</th>
+        <th>Paid Amount</th>
+        <th>Added On</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ss in payout_subservices %}
+      <tr>
+        <td>{{ ss.client_service.client }}</td>
+        <td>{{ ss.sub_service.name }}</td>
+        <td>KES {{ ss.paid_amount|floatformat:2 }}</td>
+        <td>{{ ss.added_on|date:"Y-m-d" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="text-center text-muted">
+          No paid subservices found for {{ month_filter|default:"this month" }}.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

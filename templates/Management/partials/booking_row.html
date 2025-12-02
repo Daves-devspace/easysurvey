@@ -1,0 +1,59 @@
+{# templates/partials/booking_row.html #}
+
+
+      {% if bookings %}
+        {% for gd in bookings %}
+          <tr id="booking-row-{{ gd.id }}">
+            <td>
+              <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="select-all">
+              </div>
+            </td>
+            <td>{{ cs.service.name }}</td>
+            <td>{{ gd.scheduled_date|date:"M d, Y H:i" }}</td>
+            <td>
+              {% if gd.dispatch_message %}
+                <span
+                  id="msg-preview-{{ gd.id }}"
+                  class="preview-with-tooltip"
+                  data-bs-toggle="tooltip"
+                  title="{{ gd.dispatch_message|escapejs }}">
+                  {{ gd.dispatch_message|truncatechars:60 }}
+                </span>
+              {% else %}
+                <em class="text-muted">No message</em>
+              {% endif %}
+            </td>
+             <td>
+              {% if gd.handled %}
+              <span class="badge bg-primary">Handled</span>
+              {% else %}
+              <span class="badge bg-secondary">Unhandled</span>
+              {% endif %}
+            </td>
+            
+            <td class="text-end">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary open-booking-modal"
+              data-action="edit"
+              data-url="{% url 'edit_booking' gd.id %}"
+              data-booking-id="{{ gd.id }}"
+              data-scheduled="{{ gd.scheduled_date|date:'Y-m-d\\TH:i' }}"
+              data-message="{{ gd.dispatch_message|escapejs }}"
+              data-client-name="{{ cs.client.first_name }}"
+              data-service-name="{{ cs.service.name }}"
+              data-service-id="{{ cs.id }}"
+              data-service-id-label="{{ cs.service.name }}">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            </td>
+          </tr>
+        {% endfor %}
+      {% comment %} {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-3">
+            No bookings scheduled for {{ cs.service.name }}.
+          </td>
+        </tr> {% endcomment %}
+      {% endif %}

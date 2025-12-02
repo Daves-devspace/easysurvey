@@ -1,0 +1,141 @@
+# docker-compose.dev.yml
+# Development compose file — friendly for local testing.
+# - Binds repo into container for iterative development.
+# - Mounts a local service-account.json for Google Drive testing only.
+# WARNING: Do NOT commit service-account.json to your repo.
+# In production, replace bind-mount with Docker secrets.
+
+version: '3.8'
+
+services:
+  web:
+    build: .
+    entrypoint: ["/app/entrypoint.sh"]
+    #command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
+    #command: daphne -b 0.0.0.0 -p 8000 GGI.asgi:application
+    command: bash -c "daphne -b 0.0.0.0 -p 8000 GGI.asgi:application"
+    volumes:
+      - .:/app                      # dev code bind (hot reload if enabled)
+      - ./static:/app/static
+      - ./staticfiles:/app/static_files
+      - ./media:/app/media
+      # 🚨 Dev-only: bind a local service account key
+      - ./service-account.json:/run/secrets/drive/service-account.json:ro
+    env_file:
+      - .env
+    environment:
+      - RUN_MIGRATIONS=true
+      - RUN_COLLECT_STATIC=true
+      - WAIT_FOR_REDIS=true
+
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+      # Always point to where creds are mounted
+      - OAUTHLIB_INSECURE_TRANSPORT=1 
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-easydocs}
+      POSTGRES_USER: ${POSTGRES_USER:-easydocsuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-easydocsuser} -d ${POSTGRES_DB:-easydocs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build: .
+    command: celery -A GGI worker --loglevel=info
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./service-account.json:/run/secrets/drive/service-account.json:ro
+    env_file:
+      - .env
+    environment:
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  celery-beat:
+    build: .
+    command: celery -A GGI beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./service-account.json:/run/secrets/drive/service-account.json:ro
+    env_file:
+      - .env
+    environment:
+      - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
+      - GOOGLE_DRIVE_FOLDER_ID=${DRIVE_FOLDER_ID:-}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      web:
+        condition: service_started
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+      - ./static:/app/static
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    depends_on:
+      - web
+
+  flower:
+    image: mher/flower
+    command: celery --broker=redis://redis:6379/0 flower
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  static_volume:
