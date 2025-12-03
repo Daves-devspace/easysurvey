@@ -17,7 +17,40 @@ from apps.tenant_management.models import Tenant, Invoice
 # Import the new Service Layer
 from apps.tenant_management.services.payment_service import PaymentService
 from apps.tenant_management.services.billing_cycle_service import BillingCycleService
+# # --- Tenant Payment Modal ---
+# class TenantPaymentModalView(FormView):
+#     form_class = PaymentForm
+#     template_name = "tenant_management/payment_modal_stub.html"
 
+#     def dispatch(self, request, *args, **kwargs):
+#         self.tenant = get_object_or_404(Tenant, pk=kwargs.get("tenant_id"))
+#         return super().dispatch(request, *args, **kwargs)
+
+#     def form_valid(self, form):
+#         amount = form.cleaned_data["amount"]
+#         invoice_id = form.cleaned_data.get("invoice_id")
+#         reference = form.cleaned_data.get("reference")
+#         method = form.cleaned_data.get("method") or "Mpesa"
+
+#         invoice = None
+#         if invoice_id:
+#             invoice = Invoice.objects.filter(pk=invoice_id, tenant=self.tenant).first()
+#             if invoice and invoice.is_paid:
+#                 invoice = None
+
+#         try:
+#             PaymentService.process_payment(
+#                 tenant=self.tenant,
+#                 amount=amount,
+#                 reference=reference,
+#                 method=method,
+#                 invoice=invoice
+#             )
+#             messages.success(self.request, f"Payment of {amount} processed successfully.")
+#         except Exception as e:
+#             messages.error(self.request, f"Payment failed: {str(e)}")
+        
+#         return redirect(self.request.META.get("HTTP_REFERER", "/"))
 
 class TenantPaymentModalView(FormView):
     """

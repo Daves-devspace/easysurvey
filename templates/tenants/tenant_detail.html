@@ -4,7 +4,7 @@
 
 {% block extra_css %}
 <style>
-    /* --- EXISTING STAT CARD STYLES --- */
+    /* --- STAT CARD STYLES --- */
     .stat-card {
         background: #fff;
         border-radius: 8px;
@@ -16,6 +16,8 @@
         border-left: 4px solid transparent;
         box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         transition: transform 0.2s;
+        overflow: hidden;
+        position: relative;
     }
     .stat-card:hover { transform: translateY(-2px); }
     .stat-card.border-blue { border-left-color: #3b82f6; }
@@ -30,43 +32,46 @@
         font-size: 1.5rem; flex-shrink: 0;
     }
     .stat-card .label {
-        font-size: 0.875rem; color: #6c757d; font-weight: 500;
+        font-size: 0.75rem; color: #6c757d; font-weight: 600;
         text-transform: uppercase; letter-spacing: 0.5px;
+        margin-bottom: 0;
     }
     .stat-card .value {
-        font-size: 1.25rem; font-weight: 700; color: #1f2937;
+        font-size: 1.5rem;
+        font-weight: 700; color: #1f2937;
         line-height: 1.2; margin-top: 4px;
+        word-wrap: break-word;
     }
+    
+    /* Responsive Font Size for Large Numbers */
+    @media (max-width: 1400px) {
+        .stat-card .value { font-size: 1.25rem; }
+    }
+
     .stat-card .small-badge {
-        font-size: 0.7rem; padding: 4px 8px; border-radius: 12px; text-transform: uppercase;
+        font-size: 0.65rem; padding: 4px 8px; border-radius: 12px; text-transform: uppercase;
     }
 
     /* --- PROFILE CARD STYLES --- */
     .profile-card { background: #fff; overflow: hidden; }
-    
     .profile-header {
         background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
         height: 130px; border-radius: 8px 8px 0 0;
         padding: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start;
     }
-    
     .fade-overlay {
         position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
         border-radius: 8px 8px 0 0; pointer-events: none;
     }
-
     .avatar-wrapper {
         position: relative; margin-top: -50px; display: flex; justify-content: center; margin-bottom: 1rem;
     }
-
     .chat-avatar { position: relative; display: inline-block; }
-
     .avatar-img {
         width: 100px; height: 100px; object-fit: cover;
         border: 4px solid #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background-color: #fff;
     }
-
     .avatar-edit-btn {
         position: absolute; bottom: 0; right: 0; width: 32px; height: 32px;
         border-radius: 50%; background: #fff; border: 1px solid #e2e8f0;
@@ -76,19 +81,22 @@
     .avatar-edit-btn:hover { background: #f1f5f9; color: #334155; }
     .header-text h5 { font-weight: 600; letter-spacing: 0.3px; }
 
-    /* --- AUDIT LOG STYLES --- */
-    .audit-row-source {
-        background-color: rgba(34, 197, 94, 0.05); /* Light Green tint for Receipts */
-        border-left: 4px solid #22c55e;
+    /* --- AUDIT & INVOICE STYLES --- */
+    .audit-row-source { background-color: rgba(34, 197, 94, 0.03); border-left: 3px solid #22c55e !important; }
+    .audit-row-dest { border-left: 3px solid #3b82f6 !important; }
+    .badge-audit { font-size: 0.7rem; padding: 5px 8px; border-radius: 4px; letter-spacing: 0.3px; }
+    .audit-date { font-size: 0.8rem; color: #6c757d; }
+    .audit-amount { font-family: 'Courier New', monospace; font-weight: 600; }
+
+    /* Inner Invoice Table */
+    .invoice-details-container {
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
     }
-    .audit-row-dest {
-        border-left: 4px solid #3b82f6; /* Blue border for Allocations */
-    }
-    .badge-audit {
-        font-size: 0.75em;
-        padding: 5px 8px;
-        border-radius: 4px;
-    }
+    .invoice-item-row td { vertical-align: top; border-color: #e9ecef; }
+    .detail-label { font-size: 0.75rem; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; font-weight: 600;}
+    .detail-value { font-size: 0.85rem; color: #212529; }
 </style>
 {% endblock %}
 
@@ -132,7 +140,6 @@
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-2"><i class="ti ti-file-text me-2"></i>Invoices</a></li>
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-3"><i class="ti ti-receipt me-2"></i>Payments</a></li>
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-4"><i class="ti ti-dashboard me-2"></i>Readings</a></li>
-                            <!-- NEW ACCOUNTING TAB -->
                             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-accounting"><i class="ti ti-book me-2"></i>Accounting Audit</a></li>
                         </ul>
                     </div>
@@ -149,7 +156,6 @@
                                         <div class="card h-100 border-0 shadow-sm">
                                             <div class="card-body position-relative p-0">
                                                 <div class="profile-card">
-                                                    <!-- Header -->
                                                     <div class="profile-header text-white position-relative">
                                                         <div class="header-text z-1">
                                                             <h5 class="mb-0 text-white">{{ tenant.full_name }}</h5>
@@ -158,7 +164,6 @@
                                                         <div class="fade-overlay"></div>
                                                     </div>
 
-                                                    <!-- Avatar -->
                                                     <div class="avatar-wrapper">
                                                         <div class="chat-avatar">
                                                             <img class="rounded-circle img-fluid avatar-img"
@@ -170,16 +175,14 @@
                                                         </div>
                                                     </div>
 
-                                                    <!-- Recharge Button -->
                                                     <div class="text-center px-3 mb-3">
-                                                        <button class="btn btn-success w-100 rounded-pill" onclick="openPaymentModal()">
+                                                        <button class="btn btn-success w-100 rounded-pill shadow-sm" onclick="openPaymentModal()">
                                                             <i class="bi bi-cash-coin me-1"></i> Payment / Recharge
                                                         </button>
                                                     </div>
 
                                                     <hr class="mx-4 my-3 text-muted opacity-25">
 
-                                                    <!-- Mini Stats -->
                                                     <div class="row g-0 py-2 mx-3 bg-light bg-opacity-50 rounded-3 border border-secondary border-opacity-10">
                                                         <div class="col-3 text-center px-1">
                                                             <div class="fw-bolder text-dark fs-6">{{ total_units }}</div>
@@ -190,13 +193,13 @@
                                                             <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Leases</div>
                                                         </div>
                                                         <div class="col-3 text-center px-1 border-start border-secondary border-opacity-10">
-                                                            <div class="fw-bolder text-success fs-6 text-break" title="Unallocated Credit">
+                                                            <div class="fw-bolder text-success fs-6 text-break" title="Credit">
                                                                 {{ tenant_credit|floatformat:0 }}
                                                             </div>
                                                             <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Credit</div>
                                                         </div>
                                                         <div class="col-3 text-center px-1 border-start border-secondary border-opacity-10">
-                                                            <div class="fw-bolder {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %} fs-6" title="{{ total_balance }}">
+                                                            <div class="fw-bolder {% if total_balance > 0 %}text-danger{% else %}text-success{% endif %} fs-6 text-break" title="{{ total_balance }}">
                                                                 {{ total_balance|floatformat:0 }}
                                                             </div>
                                                             <div class="text-muted text-uppercase fw-bold" style="font-size: 0.6rem;">Due</div>
@@ -205,7 +208,6 @@
 
                                                     <hr class="mx-4 my-3 text-muted opacity-25">
 
-                                                    <!-- Contact Details -->
                                                     <div class="bg-light bg-opacity-50 rounded-3 p-3 mx-3 mb-4 border border-secondary border-opacity-10">
                                                         <div class="d-flex align-items-center mb-3">
                                                             <div class="flex-shrink-0 text-primary me-3">
@@ -213,7 +215,7 @@
                                                             </div>
                                                             <div class="flex-grow-1 overflow-hidden">
                                                                 <p class="mb-0 text-muted text-uppercase fw-bold" style="font-size: 0.65rem;">Email</p>
-                                                                <h6 class="mb-0 text-truncate text-dark" style="font-size: 0.9rem;">{{ tenant.email|default:"--" }}</h6>
+                                                                <h6 class="mb-0 text-truncate text-dark" title="{{ tenant.email }}">{{ tenant.email|default:"--" }}</h6>
                                                             </div>
                                                         </div>
                                                         <div class="row g-0 mb-3">
@@ -246,11 +248,11 @@
                                         </div>
                                     </div>
 
-                                    <!-- Leases List & Stats -->
+                                    <!-- Leases List & Stats (Right Column) -->
                                     <div class="col-lg-8">
                                         <div class="card h-100 border-0 shadow-sm">
                                             <!-- Header -->
-                                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
                                                 <h5 class="mb-0">Overview</h5>
                                                 <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#leaseModal">
                                                     <i class="bi bi-plus-lg"></i> Assign Unit
@@ -259,55 +261,61 @@
 
                                             <div class="card-body">
                                                 
-                                                <!-- STAT CARDS -->
+                                                <!-- MAJOR STAT CARDS (Responsive & 6-digit handling) -->
                                                 <div class="row g-3 mb-4">
                                                     <!-- 1. Total Rent -->
-                                                    <div class="col-sm-6 col-xl-3">
+                                                    <div class="col-6 col-md-3">
                                                         <div class="stat-card border-blue">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-primary"><i class="fas fa-file-invoice-dollar"></i></div>
-                                                                <div><p class="label mb-0">Total Rent</p><p class="value mb-0">{{ total_invoiced|floatformat:0 }}</p></div>
+                                                                <div style="min-width:0;"> 
+                                                                    <p class="label mb-0">Total Rent</p>
+                                                                    <p class="value mb-0" title="{{ total_invoiced|floatformat:2 }}">{{ total_invoiced|floatformat:0 }}</p>
+                                                                </div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light text-muted txt-sm small-badge">Invoiced</span></div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Invoiced</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 2. Total Held Deposit -->
-                                                    <div class="col-sm-6 col-xl-3">
+                                                    <div class="col-6 col-md-3">
                                                         <div class="stat-card border-green">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-success"><i class="fas fa-piggy-bank"></i></div>
-                                                                <div><p class="label mb-0">Depo Held</p><p class="value mb-0">{{ total_deposit_held|floatformat:0 }}</p></div>
+                                                                <div style="min-width:0;">
+                                                                    <p class="label mb-0">Dep. Held</p>
+                                                                    <p class="value mb-0" title="{{ total_deposit_held|floatformat:2 }}">{{ total_deposit_held|floatformat:0 }}</p>
+                                                                </div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">Refundable</span></div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Refundable</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 3. Total Leases -->
-                                                    <div class="col-sm-6 col-xl-3">
+                                                    <div class="col-6 col-md-3">
                                                         <div class="stat-card border-orange">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-warning"><i class="fas fa-file-contract"></i></div>
-                                                                <div><p class="label mb-0">Total Leases</p><p class="value mb-0">{{ leases_data|length }}</p></div>
+                                                                <div><p class="label mb-0">Leases</p><p class="value mb-0">{{ leases_data|length }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">History</span></div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">History</span></div>
                                                         </div>
                                                     </div>
                                                     <!-- 4. Total Units -->
-                                                    <div class="col-sm-6 col-xl-3">
+                                                    <div class="col-6 col-md-3">
                                                         <div class="stat-card border-red">
                                                             <div class="meta">
                                                                 <div class="icon bg-light text-danger"><i class="fas fa-building"></i></div>
-                                                                <div><p class="label mb-0">Total Units</p><p class="value mb-0">{{ total_units }}</p></div>
+                                                                <div><p class="label mb-0">Units</p><p class="value mb-0">{{ total_units }}</p></div>
                                                             </div>
-                                                            <div class="text-end"><span class="badge bg-light txt-sm text-muted small-badge">Occupied</span></div>
+                                                            <div class="text-end"><span class="badge bg-light text-muted small-badge">Occupied</span></div>
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <!-- Leases Table -->
-                                                <h6 class="mb-3 text-muted"><i class="fas fa-list me-2"></i>Lease Details</h6>
+                                                <h6 class="mb-3 text-muted small fw-bold text-uppercase"><i class="fas fa-list me-2"></i>Lease Details</h6>
                                                 <div class="table-responsive mt-3">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                                        <thead class="bg-green-100 ">
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+                                                        <thead class="bg-light">
                                                             <tr>
                                                                 <th>Unit</th><th>Property</th><th>Rent</th><th>Balance</th><th>Deposit</th><th>Meter</th><th>Status</th>
                                                             </tr>
@@ -320,9 +328,9 @@
                                                                 <td>{{ ld.rent_amount|floatformat:0 }}</td>
                                                                 <td>
                                                                     {% if ld.balance > 0 %}
-                                                                        <span class="text-danger fw-bold">{{ ld.balance|floatformat:2 }}</span>
+                                                                        <span class="text-danger fw-bold">{{ ld.balance|floatformat:0 }}</span>
                                                                     {% elif ld.balance < 0 %}
-                                                                        <span class="text-success fw-bold">CR {{ ld.balance_abs|floatformat:2 }}</span>
+                                                                        <span class="text-success fw-bold">CR {{ ld.balance_abs|floatformat:0 }}</span>
                                                                     {% else %}
                                                                         <span class="text-muted">-</span>
                                                                     {% endif %}
@@ -330,22 +338,14 @@
                                                                 <td>
                                                                     {% if ld.deposit > 0 %}
                                                                         {% if ld.deposit_held >= ld.deposit %}
-                                                                            <span class="badge bg-success" title="Fully Paid"><i class="bi bi-check-circle me-1"></i> {{ ld.deposit|floatformat:0 }}</span>
-                                                                        {% elif ld.deposit_held > 0 %}
-                                                                            <span class="badge bg-warning text-dark" title="Partially Paid">{{ ld.deposit_held|floatformat:0 }} / {{ ld.deposit|floatformat:0 }}</span>
+                                                                            <span class="badge bg-success" title="Paid"><i class="bi bi-check-circle"></i></span>
                                                                         {% else %}
-                                                                            <span class="badge bg-danger" title="Unpaid">Pending: {{ ld.deposit|floatformat:0 }}</span>
+                                                                            <span class="badge bg-warning text-dark">{{ ld.deposit_held|floatformat:0 }}</span>
                                                                         {% endif %}
-                                                                    {% else %}
-                                                                        <span class="text-muted">-</span>
-                                                                    {% endif %}
+                                                                    {% else %}-{% endif %}
                                                                 </td>
                                                                 <td>
-                                                                    {% if ld.current_meter %}
-                                                                        <span class="badge bg-secondary">{{ ld.current_meter }}</span>
-                                                                    {% else %}
-                                                                        <span class="text-muted">-</span>
-                                                                    {% endif %}
+                                                                    {% if ld.current_meter %}{{ ld.current_meter }}{% else %}-{% endif %}
                                                                 </td>
                                                                 <td>
                                                                     {% if ld.status == 'Active' %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Expired</span>{% endif %}
@@ -363,23 +363,28 @@
                                 </div>
                             </div>
 
-                            <!-- TAB 2: Invoices -->
+                            <!-- TAB 2: Invoices (Updated with Collapsible Items) -->
                             <div class="tab-pane fade" id="profile-2">
                                 <div class="card border-0 shadow-sm">
                                     <div class="card-header bg-white">
                                         <h5 class="mb-0">Invoice History</h5>
                                     </div>
                                     <div class="table-responsive mt-3">
-                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                            <thead class="bg-green-100 ">
+                                        <table class="table table-striped table-hover align-middle">
+                                            <thead class="bg-light">
                                                 <tr>
                                                     <th>#</th><th>Date</th><th>Period</th><th>Total</th><th>Balance</th><th>Status</th><th class="text-end">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {% for inv in invoices %}
+                                                <!-- Main Row -->
                                                 <tr>
-                                                    <td><a href="#" class="text-decoration-none fw-bold">#{{ inv.id }}</a></td>
+                                                    <td>
+                                                        <a href="#" class="text-decoration-none fw-bold text-dark d-flex align-items-center" data-bs-toggle="collapse" data-bs-target="#invoiceDetails{{ inv.id }}">
+                                                            <i class="bi bi-chevron-right small text-muted me-2"></i>#{{ inv.id }}
+                                                        </a>
+                                                    </td>
                                                     <td>{{ inv.created_at|date:"d M Y" }}</td>
                                                     <td>{{ inv.billing_period_start|date:"M Y" }}</td>
                                                     <td>{{ inv.total_amount }}</td>
@@ -390,11 +395,97 @@
                                                         {% if inv.is_paid %}<span class="badge bg-success">Paid</span>{% else %}<span class="badge bg-warning text-dark">Pending</span>{% endif %}
                                                     </td>
                                                     <td class="text-end">
-                                                        {% if not inv.is_paid %}
-                                                            <button class="btn btn-sm btn-outline-success" onclick="openPaymentModal('{{ inv.id }}', '{{ inv.balance }}')">Pay</button>
-                                                        {% else %}
-                                                            <button class="btn btn-sm btn-light" disabled><i class="bi bi-check"></i></button>
-                                                        {% endif %}
+                                                        <div class="btn-group">
+                                                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#invoiceDetails{{ inv.id }}">
+                                                                Detail
+                                                            </button>
+                                                            {% if not inv.is_paid %}
+                                                                <button class="btn btn-sm btn-success" onclick="openPaymentModal('{{ inv.id }}', '{{ inv.balance }}')">Pay</button>
+                                                            {% else %}
+                                                                <button class="btn btn-sm btn-light" disabled><i class="bi bi-check"></i></button>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <!-- Collapsible Detail Row (UPDATED) -->
+                                                <tr class="collapse bg-white" id="invoiceDetails{{ inv.id }}">
+                                                    <td colspan="7" class="p-0 border-0">
+                                                        <div class="invoice-details-container p-4">
+                                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                                <h6 class="text-primary fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Invoice Breakdown</h6>
+                                                                <small class="text-muted">Due Date: {{ inv.due_date|date:"d M Y" }}</small>
+                                                            </div>
+                                                            
+                                                            <table class="table table-sm table-bordered bg-white mb-0 w-100">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th class="detail-label" style="width: 70%;">Description</th>
+                                                                        <th class="detail-label text-end">Amount</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {% for line in inv.lines.all %}
+                                                                    <tr class="invoice-item-row">
+                                                                        <td>
+                                                                            <div class="d-flex align-items-start">
+                                                                                <div class="me-2 mt-1">
+                                                                                    {% if line.line_type == 'RENT' %}
+                                                                                        <i class="bi bi-house-door-fill text-primary"></i>
+                                                                                    {% elif line.line_type == 'WATER' %}
+                                                                                        <i class="bi bi-droplet-fill text-info"></i>
+                                                                                    {% elif line.line_type == 'DEPOSIT' %}
+                                                                                        <i class="bi bi-safe-fill text-warning"></i>
+                                                                                    {% else %}
+                                                                                        <i class="bi bi-tag-fill text-secondary"></i>
+                                                                                    {% endif %}
+                                                                                </div>
+                                                                                <div>
+                                                                                    <div class="fw-semibold text-dark">{{ line.description }}</div>
+                                                                                    
+                                                                                    <div class="small text-muted mt-1">
+                                                                                        <!-- RENT Details -->
+                                                                                        {% if line.line_type == 'RENT' %}
+                                                                                            <span><i class="bi bi-calendar-range me-1"></i> Period: <strong>{{ inv.billing_period_start|date:"d M Y" }}</strong> to <strong>{{ inv.billing_period_end|date:"d M Y" }}</strong></span>
+                                                                                        
+                                                                                        <!-- WATER Details -->
+                                                                                        {% elif line.line_type == 'WATER' and line.meter_reading %}
+                                                                                            <div class="d-flex flex-column gap-1 mt-1">
+                                                                                                <!-- Date Range: From Start of Month to Actual Reading Date -->
+                                                                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                                                                    <span class="badge bg-light text-secondary border" title="Previous Reading Date">
+                                                                                                        <i class="bi bi-calendar me-1"></i> {{ inv.billing_period_start|date:"d M Y" }}
+                                                                                                        <span class="text-dark fw-bold ms-1">[{{ line.meter_reading.previous_reading }}]</span>
+                                                                                                    </span>
+                                                                                                    <i class="bi bi-arrow-right small text-muted"></i>
+                                                                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle" title="Current Reading Date">
+                                                                                                        <i class="bi bi-calendar-check me-1"></i> {{ line.meter_reading.reading_date|date:"d M Y" }}
+                                                                                                        <span class="fw-bold ms-1">[{{ line.meter_reading.current_reading }}]</span>
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                                
+                                                                                                <div class="d-flex gap-2 align-items-center text-info small fw-semibold">
+                                                                                                    <span><i class="bi bi-speedometer2 me-1"></i> Usage: {{ line.meter_reading.usage }} m³</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        {% endif %}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td class="text-end align-middle">
+                                                                            <span class="detail-value fw-bold">{{ line.amount }}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                </tbody>
+                                                                <tfoot class="table-light">
+                                                                    <tr>
+                                                                        <th class="text-end">Total</th>
+                                                                        <th class="text-end fs-6">{{ inv.total_amount }}</th>
+                                                                    </tr>
+                                                                </tfoot>
+                                                            </table>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                                 {% empty %}
@@ -413,8 +504,8 @@
                                         <h5 class="mb-0">Payment History</h5>
                                     </div>
                                     <div class="table-responsive mt-3">
-                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                            <thead class="bg-green-100 ">
+                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+                                            <thead class="bg-light">
                                                 <tr>
                                                     <th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Allocated To</th>
                                                 </tr>
@@ -446,8 +537,8 @@
                                         <h5 class="mb-0">Meter Reading History</h5>
                                     </div>
                                     <div class="table-responsive mt-3">
-                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-                                            <thead class="bg-green-100 ">
+                                        <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+                                            <thead class="bg-light">
                                                 <tr>
                                                     <th>Date</th><th>Unit</th><th>Previous</th><th>Current</th><th>Usage</th>
                                                 </tr>
@@ -475,10 +566,10 @@
                                 <div class="card border-0 shadow-sm">
                                     <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                         <h5 class="mb-0">Full Audit Trail</h5>
-                                        <small class="text-muted">Shows Source (Receipts) and Destinations (Allocations)</small>
+                                        <small class="text-muted">Tracking Source (Money In) vs Destination (Applied)</small>
                                     </div>
                                     <div class="table-responsive">
-                                        <table class="datatable display table table-hover mb-0 align-middle" style="font-size: 0.9rem;">
+                                        <table class="datatable display table table-hover mb-0 align-middle w-100" style="font-size: 0.9rem;">
                                             <thead class="table-light">
                                                 <tr>
                                                     <th>ID</th>
@@ -491,45 +582,53 @@
                                             </thead>
                                             <tbody>
                                                 {% for log in audit_logs %}
-                                                    <!-- Determine if Source or Destination based on properties -->
                                                     {% if log.payment_type == 'MIXED' or 'Allocation' not in log.reference and 'Credit' not in log.reference %}
                                                         <tr class="audit-row-source">
                                                             <td><span class="text-muted">#{{ log.id }}</span></td>
-                                                            <td>{{ log.payment_date|date:"d M Y H:i" }}</td>
-                                                            <td><span class="badge bg-success-subtle text-success border border-success badge-audit">📥 Source (Receipt)</span></td>
+                                                            <td><span class="audit-date">{{ log.payment_date|date:"d M Y H:i" }}</span></td>
                                                             <td>
-                                                                <strong>Received Funds</strong><br>
-                                                                <small class="text-muted">Ref: {{ log.reference }}</small>
+                                                                <span class="badge bg-success-subtle text-success border border-success badge-audit">
+                                                                    <i class="bi bi-box-arrow-in-down me-1"></i> Receipt
+                                                                </span>
                                                             </td>
-                                                            <td class="text-end fw-bold text-success">+ {{ log.amount }}</td>
-                                                            <td class="text-end">{{ log.method }}</td>
+                                                            <td>
+                                                                <strong>Funds Received</strong>
+                                                                <div class="small text-muted">Ref: {{ log.reference|default:"-" }}</div>
+                                                            </td>
+                                                            <td class="text-end audit-amount text-success">+ {{ log.amount }}</td>
+                                                            <td class="text-end small">{{ log.method }}</td>
                                                         </tr>
                                                     {% else %}
                                                         <tr class="audit-row-dest">
                                                             <td><span class="text-muted">#{{ log.id }}</span></td>
-                                                            <td>{{ log.payment_date|date:"d M Y H:i" }}</td>
+                                                            <td><span class="audit-date">{{ log.payment_date|date:"d M Y H:i" }}</span></td>
                                                             <td>
                                                                 {% if log.payment_type == 'CREDIT' %}
-                                                                    <span class="badge bg-info-subtle text-info border border-info badge-audit">💾 Stored Credit</span>
+                                                                    <span class="badge bg-info-subtle text-info border border-info badge-audit">
+                                                                        <i class="bi bi-wallet2 me-1"></i> Stored Credit
+                                                                    </span>
                                                                 {% else %}
-                                                                    <span class="badge bg-primary-subtle text-primary border border-primary badge-audit">↘ Ledger (Applied)</span>
+                                                                    <span class="badge bg-primary-subtle text-primary border border-primary badge-audit">
+                                                                        <i class="bi bi-arrow-return-right me-1"></i> Applied
+                                                                    </span>
                                                                 {% endif %}
                                                             </td>
                                                             <td>
                                                                 {% if log.invoice %}
-                                                                    Applied to <strong>Invoice #{{ log.invoice.id }}</strong> ({{ log.payment_type }})
+                                                                    Applied to <strong>Invoice #{{ log.invoice.id }}</strong>
+                                                                    <span class="badge bg-secondary-subtle text-dark ms-1">{{ log.payment_type }}</span>
                                                                 {% else %}
-                                                                    Unallocated Credit
+                                                                    Stored in Tenant Wallet
                                                                 {% endif %}
                                                                 <br>
                                                                 <small class="text-muted">{{ log.reference }}</small>
                                                             </td>
-                                                            <td class="text-end text-muted">{{ log.amount }}</td>
-                                                            <td class="text-end"><span class="text-muted">Internal</span></td>
+                                                            <td class="text-end audit-amount text-muted">{{ log.amount }}</td>
+                                                            <td class="text-end small text-muted">Internal</td>
                                                         </tr>
                                                     {% endif %}
                                                 {% empty %}
-                                                    <tr><td colspan="6" class="text-center py-4">No transaction history found.</td></tr>
+                                                    <tr><td colspan="6" class="text-center py-4 text-muted">No transaction history found.</td></tr>
                                                 {% endfor %}
                                             </tbody>
                                         </table>
@@ -546,6 +645,7 @@
     </div>
 </div>
 
+<!-- Modals [Unchanged] -->
 <!-- Shared Payment Modal -->
 <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">

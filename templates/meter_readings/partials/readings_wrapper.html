@@ -13,8 +13,7 @@
     <tbody id="meterReadingsBody">
       {% for item in meter_readings %}
         {% include 'meter_readings/partials/reading_row.html' with item=item %}
-      {% empty %}
-        <tr><td colspan="9">No units found.</td></tr>
+    
       {% endfor %}
     </tbody>
   </table>

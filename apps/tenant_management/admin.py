@@ -95,7 +95,7 @@ class LeaseAdmin(admin.ModelAdmin):
 
 @admin.register(MeterReading)
 class MeterReadingAdmin(admin.ModelAdmin):
-    list_display = ("unit", "reading_date", "previous_reading", "current_reading", "usage", "amount")
+    list_display = ("unit", "reading_date", "previous_reading", "current_reading","rate_per_cubic_meter", "usage", "amount")
     list_filter = ("unit__property", "reading_date")
     search_fields = ("unit__unit_number", "unit__property__name")
     ordering = ("-reading_date",)

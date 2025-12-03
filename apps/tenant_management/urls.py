@@ -16,6 +16,7 @@ from .views import (
     PropertyUpdateView,
     PropertyDeleteView,
     PropertyReadingsPartialView,
+    PropertyPaymentsPartialView,
     
 )
 from apps.tenant_management.tenants.payments import TenantPaymentModalView,ManualInvoiceGenerationView
@@ -31,6 +32,7 @@ urlpatterns = [
     path('delete/<int:pk>/', PropertyDeleteView.as_view(), name='property-delete'),
     
     path('properties/<int:pk>/', PropertyDetailView.as_view(), name='property_detail'),
+    path('properties/<int:pk>/payments-filter/', PropertyPaymentsPartialView.as_view(), name='property_payments_filter'),
     path("properties/<int:pk>/readings/", PropertyReadingsPartialView.as_view(), name="property_readings_partial"),
     
     path('properties/<int:pk>/units/', UnitListView.as_view(), name='unit_list'),

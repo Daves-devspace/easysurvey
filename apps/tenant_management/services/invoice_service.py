@@ -51,38 +51,27 @@ class InvoiceService(BaseService):
 
     @classmethod
     def upsert_water_invoice_line_from_reading(cls, reading, billing_month_date=None):
-        """
-        Generate Water charge for the PAST period (Water Back).
-        Attached to the CURRENT invoice.
-        """
         lease = Lease.objects.filter(unit=reading.unit, is_active=True).select_related('tenant').first()
-        if not lease:
-            return None
+        if not lease: return None
 
-        # 1. Determine Target Invoice
-        # If reading is Feb 3rd, we generally want this on the Feb Invoice.
         target_date = billing_month_date or reading.reading_date
         invoice = BillingService.get_or_create_monthly_invoice(lease.tenant, target_date)
 
-        # 2. Calculate Amount
-        amount = q((reading.usage or 0) * (reading.rate_per_cubic_meter or 0))
+        # --- ROBUST CALCULATION ---
+        # We trust the values stored on the reading object by the Signal
+        usage = reading.usage or Decimal('0.00')
+        rate = reading.rate_per_cubic_meter or Decimal('0.00')
+        amount = q(usage * rate)
 
-        # 3. Determine correct description (The "Previous Month" Logic)
-        # If invoice is Feb, usage was likely Jan.
-        # We look at the reading date to be accurate.
         usage_month_str = reading.reading_date.strftime('%b %Y')
-        description = f"Water usage ({usage_month_str}) - {reading.usage}m³"
+        description = f"Water usage ({usage_month_str}) - {usage}m³"
 
-        # 4. Create Line
         line, created = InvoiceLine.objects.get_or_create(
             invoice=invoice,
             lease=lease,
             line_type=InvoiceLine.LINE_WATER,
-            meter_reading=reading, # Link strictly to reading to avoid duplicates
-            defaults={
-                "description": description,
-                "amount": amount,
-            }
+            meter_reading=reading,
+            defaults={"description": description, "amount": amount}
         )
 
         if not created and line.amount != amount:
@@ -90,10 +79,6 @@ class InvoiceService(BaseService):
             line.save(update_fields=["amount"])
 
         invoice.recalc_total()
-        
-        # 5. Attempt Auto-Finalize? 
-        # Usually we don't finalize here, we let the Batch Job do it on Billing Day.
-        # But we update status to reflect water is present.
         invoice.update_status_for_lease(lease)
         
         return line
