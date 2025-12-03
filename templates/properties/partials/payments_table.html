@@ -1,0 +1,39 @@
+<!-- Partial for Payments Table Body -->
+{% for payment in property_payments %}
+<tr>
+    <td>{{ payment.payment_date|date:"d M Y H:i" }}</td>
+    <td>
+        {% if payment.tenant %}
+            <a href="{% url 'tenant_detail' payment.tenant.id %}" class="text-decoration-none">
+                {{ payment.tenant.full_name }}
+            </a>
+        {% else %}
+            <span class="text-muted">Unknown</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if payment.invoice %}
+            <span class="badge bg-light text-dark border">Inv #{{ payment.invoice.id }}</span>
+        {% else %}
+            <span class="badge bg-info bg-opacity-10 text-info border border-info">Unallocated</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if payment.payment_type == 'RENT' %}
+            <span class="badge bg-primary-subtle text-primary">Rent</span>
+        {% elif payment.payment_type == 'DEPOSIT' %}
+            <span class="badge bg-warning-subtle text-warning">Deposit</span>
+        {% elif payment.payment_type == 'CREDIT' %}
+            <span class="badge bg-success-subtle text-success">Credit</span>
+        {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">{{ payment.payment_type }}</span>
+        {% endif %}
+    </td>
+    <td>{{ payment.method }}</td>
+    <td><small class="text-muted">{{ payment.reference|default:"-" }}</small></td>
+    <td class="text-end fw-bold">
+        {{ payment.amount|floatformat:2 }}
+    </td>
+</tr>
+
+{% endfor %}

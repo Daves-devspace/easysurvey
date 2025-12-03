@@ -263,7 +263,11 @@ class TenantListView(ListView):
 
 
 
+# --- Tenant Detail View ---
 class TenantDetailView(DetailView):
+    """
+    Comprehensive Dashboard for a single Tenant.
+    """
     model = Tenant
     template_name = "tenants/tenant_detail.html"
     context_object_name = "tenant"
@@ -278,8 +282,10 @@ class TenantDetailView(DetailView):
         ctx['leases_data'] = leases_data
         ctx.update(aggregates)
 
-        # 2. Invoices
-        ctx['invoices'] = Invoice.objects.filter(tenant=tenant).order_by("-billing_period_start")
+        # 2. Invoices (Updated with PREFETCH for lines)
+        ctx['invoices'] = Invoice.objects.filter(tenant=tenant)\
+            .prefetch_related('lines')\
+            .order_by("-billing_period_start")
         
         # 3. User-Friendly Payments (Hides Master Splits)
         ctx['payments'] = Payment.objects.filter(tenant=tenant)\
@@ -287,10 +293,10 @@ class TenantDetailView(DetailView):
             .select_related("invoice")\
             .order_by("-payment_date")
             
-        # 4. NEW: Full Audit Log (Shows EVERYTHING: Sources & Destinations)
+        # 4. Full Audit Log (Shows Source & Destination)
         ctx['audit_logs'] = Payment.objects.filter(tenant=tenant)\
             .select_related("invoice")\
-            .order_by("-payment_date", "-id") # Newest first
+            .order_by("-payment_date", "-id")
             
         # 5. Meter Readings
         ctx['meter_readings'] = MeterReading.objects.filter(

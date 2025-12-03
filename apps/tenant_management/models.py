@@ -160,6 +160,9 @@ class MeterReading(models.Model):
     )
     previous_reading = models.DecimalField(max_digits=10, decimal_places=2)
     current_reading = models.DecimalField(max_digits=10, decimal_places=2,null=True, blank=True)
+    
+    previous_reading_date = models.DateField(null=True, blank=True, help_text="The date the previous reading was taken")
+    
     usage = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False, null=True, blank=True)
     rate_per_cubic_meter = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, editable=False)

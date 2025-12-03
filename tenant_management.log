@@ -30,3 +30,43 @@
 2025-11-25 16:39:24 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
 2025-11-25 17:17:51 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
 2025-11-25 17:17:51 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Applying credit to invoice 3 for tenant David Maina
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Applying credit to invoice 4 for tenant David Maina
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Applying credit to invoice 5 for tenant David 4
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Credit application completed for tenant David 4
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Applying credit to invoice 5 for tenant David 4
+2025-11-29 12:37:08 INFO [tenant_management.payment_service] Credit application completed for tenant David 4
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Applying credit to invoice 3 for tenant David Maina
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Applying credit to invoice 4 for tenant David Maina
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Applying credit to invoice 5 for tenant David 4
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Credit application completed for tenant David 4
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Applying credit to invoice 5 for tenant David 4
+2025-11-29 12:37:43 INFO [tenant_management.payment_service] Credit application completed for tenant David 4
+2025-11-29 13:34:05 INFO [tenant_management.payment_service] Applying credit to invoice 6 for tenant David Maina
+2025-11-29 13:34:05 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 14:50:58 INFO [tenant_management.payment_service] Applying credit to invoice 7 for tenant David Maina
+2025-11-29 14:50:58 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 14:54:29 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-11-29 14:54:29 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-11-29 14:56:38 INFO [tenant_management.payment_service] Starting payment processing for tenant David 4
+2025-11-29 14:56:38 INFO [tenant_management.payment_service] Payment processing completed for tenant David 4
+2025-11-29 15:00:46 INFO [tenant_management.payment_service] Applying credit to invoice 8 for tenant David Mainas
+2025-11-29 15:00:46 INFO [tenant_management.payment_service] No available credit for tenant David Mainas
+2025-11-29 15:44:03 INFO [tenant_management.payment_service] Applying credit to invoice 9 for tenant David Maina
+2025-11-29 15:44:03 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 15:55:34 INFO [tenant_management.payment_service] Applying credit to invoice 10 for tenant David Maina
+2025-11-29 15:55:34 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 16:22:14 INFO [tenant_management.payment_service] Applying credit to invoice 11 for tenant David Maina
+2025-11-29 16:22:14 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 17:05:42 INFO [tenant_management.payment_service] Applying credit to invoice 12 for tenant David Maina
+2025-11-29 17:05:42 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 17:17:00 INFO [tenant_management.payment_service] Applying credit to invoice 13 for tenant David Maina
+2025-11-29 17:17:00 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 17:46:07 INFO [tenant_management.payment_service] Applying credit to invoice 14 for tenant David Maina
+2025-11-29 17:46:07 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-11-29 18:26:28 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-11-29 18:26:28 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina

@@ -1,12 +1,9 @@
-# forms.py
-from django import forms
-from .models import Unit, Property, Lease, MeterReading
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import Tenant, Unit, Lease, Property, MeterReading, WaterCompany,Payment
 from decimal import Decimal
 from datetime import date as dt_date
+from .models import Tenant, Unit, Lease, Property, MeterReading, WaterCompany, Payment
 
 class UnitForm(forms.ModelForm):
     class Meta:
@@ -25,34 +22,13 @@ class PropertyForm(forms.ModelForm):
         fields = ['name', 'location', 'water_policy', 'water_company']
 
         widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter property name',
-            }),
-            'location': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Enter property location',
-            }),
-            'water_policy': forms.Select(attrs={
-                'class': 'form-select',
-            }),
-            'water_company': forms.Select(attrs={
-                'class': 'form-select',
-            }),
-        }
-
-        help_texts = {
-            'name': 'The name used to identify the property.',
-            'location': 'Describe the physical address or location.',
-            'water_policy': 'Choose how water billing should be handled: shared, metered, or prepaid.',
-            'water_company': 'Select the water company that supplies this property.',
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter property name'}),
+            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter property location'}),
+            'water_policy': forms.Select(attrs={'class': 'form-select'}),
+            'water_company': forms.Select(attrs={'class': 'form-select'}),
         }
 
     def clean(self):
-        """
-        Custom validation.
-        If water_policy is 'meter', ensure the selected water company has an active rate.
-        """
         cleaned_data = super().clean()
         policy = cleaned_data.get('water_policy')
         company = cleaned_data.get('water_company')
@@ -64,11 +40,9 @@ class PropertyForm(forms.ModelForm):
                     'water_company',
                     f"{company.name} does not have an active water rate. Please add one before assigning."
                 )
-
         return cleaned_data
-    
-    
-    
+
+
 class LeaseForm(forms.ModelForm):
     class Meta:
         model = Lease
@@ -76,11 +50,6 @@ class LeaseForm(forms.ModelForm):
         widgets = {
             'start_date': forms.DateInput(attrs={'type': 'date'}),
         }
-        
-        
-
-
-
 
 
 class TenantCreationForm(forms.ModelForm):
@@ -89,38 +58,23 @@ class TenantCreationForm(forms.ModelForm):
         fields = ['full_name', 'phone_number', 'email', 'national_id']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter full name', 'required': True}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254712345678', 'pattern': r'^\+?254[0-9]{9}$', 'title': 'Enter valid Kenyan phone number'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+254712345678'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tenant@example.com (optional)'}),
-            'national_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter national ID number', 'maxlength': '20'}),
+            'national_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'National ID'}),
         }
-
-    def __init__(self, *args, **kwargs):
-        self.property = kwargs.pop('property', None)
-        super().__init__(*args, **kwargs)
 
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number')
-        if not phone:
-            return phone
-
-        # Normalize phone number
-        phone = phone.replace(' ', '').replace('-', '')
-        if phone.startswith('0'):
-            phone = '+254' + phone[1:]
-        elif not phone.startswith('+254'):
-            phone = '+254' + phone.lstrip('+')
-
-        if not phone.startswith('+254') or len(phone) != 13:
-            raise ValidationError("Please enter a valid Kenyan phone number")
-
+        if phone:
+            phone = phone.replace(' ', '').replace('-', '')
+            if phone.startswith('0'):
+                phone = '+254' + phone[1:]
         return phone
 
     def clean_national_id(self):
         nid = self.cleaned_data.get('national_id')
         if nid:
             nid = ''.join(filter(str.isdigit, nid))
-            if not (7 <= len(nid) <= 8):
-                raise ValidationError("National ID must be 7-8 digits")
         return nid
 
 
@@ -175,23 +129,22 @@ class CombinedTenantLeaseForm(forms.Form):
             phone = phone.replace(' ', '').replace('-', '')
             if phone.startswith('0'):
                 phone = '+254' + phone[1:]
-            if Tenant.objects.filter(phone_number=phone).exists():
-                raise ValidationError("A tenant with this phone already exists.")
         return phone
 
     def clean_national_id(self):
         nid = self.cleaned_data.get('national_id')
         if nid:
             nid = ''.join(filter(str.isdigit, nid))
-            if Tenant.objects.filter(national_id=nid).exists():
-                raise ValidationError("A tenant with this national ID already exists.")
         return nid
 
     def clean(self):
         cleaned = super().clean()
         prop_id = cleaned.get('property')
         unit_id = cleaned.get('unit')
+        phone = cleaned.get('phone_number')
+        nid = cleaned.get('national_id')
 
+        # 1. Unit/Property Validation
         if prop_id is None or not Property.objects.filter(pk=prop_id).exists():
             raise ValidationError("Invalid property selected.")
 
@@ -207,6 +160,15 @@ class CombinedTenantLeaseForm(forms.Form):
 
         if unit.is_occupied:
             raise ValidationError("Selected unit is already occupied.")
+
+        # 2. Property-Scoped Tenant Uniqueness
+        if prop_id and phone:
+            if Tenant.objects.filter(property_id=prop_id, phone_number=phone).exists():
+                self.add_error('phone_number', "A tenant with this phone already exists in this property.")
+        
+        if prop_id and nid:
+            if Tenant.objects.filter(property_id=prop_id, national_id=nid).exists():
+                self.add_error('national_id', "A tenant with this National ID already exists in this property.")
 
         return cleaned
 
@@ -265,7 +227,6 @@ class LeaseCreationForm(forms.ModelForm):
         unit = self.cleaned_data.get('unit')
         
         if deposit is not None and unit:
-            # FIX: Convert floats to Decimal for calculation
             min_dep = unit.rent_amount * Decimal("0.5")
             max_dep = unit.rent_amount * Decimal("3.0")
             
@@ -277,7 +238,6 @@ class LeaseCreationForm(forms.ModelForm):
         return deposit
 
 
-
 class BillingPeriodMixin(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -285,7 +245,7 @@ class BillingPeriodMixin(forms.Form):
             self.fields["billing_period"] = forms.DateField(
                 required=True,
                 widget=forms.DateInput(attrs={"type": "month"}),
-                input_formats=["%Y-%m"],  # <-- Accept "YYYY-MM" from type="month"
+                input_formats=["%Y-%m"],
                 help_text="Billing month this reading belongs to",
             )
 
@@ -299,15 +259,13 @@ class BillingPeriodMixin(forms.Form):
 
     def clean_billing_period(self):
         val = self.cleaned_data["billing_period"]
-        # Ensure day is always 1
         return val.replace(day=1)
-
 
 
 class MeterReadingCreateForm(BillingPeriodMixin, forms.ModelForm):
     class Meta:
         model = MeterReading
-        fields = [ "previous_reading"]
+        fields = ["previous_reading"]
         widgets = {
             "previous_reading": forms.NumberInput(attrs={"step": "0.01", "min": "0"})
         }
@@ -322,12 +280,28 @@ class MeterReadingCreateForm(BillingPeriodMixin, forms.ModelForm):
 
 
 class MeterReadingUpdateForm(BillingPeriodMixin, forms.ModelForm):
+    """
+    Form for adding a new reading (bill) when a previous reading already exists.
+    """
     class Meta:
         model = MeterReading
-        fields = ["current_reading"]
+        fields = ["previous_reading", "current_reading"] 
         widgets = {
+            "previous_reading": forms.NumberInput(attrs={
+                "step": "0.01", 
+                "min": "0", 
+                "readonly": "readonly", 
+                "class": "form-control bg-light"
+            }),
             "current_reading": forms.NumberInput(attrs={"step": "0.01", "min": "0"})
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # FIX: Make previous_reading optional during validation.
+        # Since it is readonly in HTML, some browsers might not submit it, 
+        # or we rely on the view to set it from the database history.
+        self.fields['previous_reading'].required = False
 
     def clean_current_reading(self):
         v = self.cleaned_data.get("current_reading")
@@ -356,7 +330,6 @@ class PaymentForm(forms.Form):
 
     def clean_amount(self):
         val = self.cleaned_data["amount"]
-        # Django DecimalField already validates range and scale. Extra checks can go here.
         if val <= 0:
             raise forms.ValidationError("Amount must be greater than 0")
         return val
