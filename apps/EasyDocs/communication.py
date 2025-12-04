@@ -1,12 +1,12 @@
 from datetime import datetime
 import logging
 from django.contrib import messages
-
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import ListView
 from django.views.generic.edit import FormMixin
+from django.core.cache import cache
 
 from .tasks import schedule_bulk_broadcast
 from .forms import BulkSmsForm
@@ -14,21 +14,38 @@ from .models import MessageLog, Client, ScheduledTask
 from .utils import MobileSasaAPI
 
 logger = logging.getLogger(__name__)
-# utils.py
 
 
 def send_and_log_sms(client_service, client, phone, message, reason):
     """
-    Sends an SMS via MobileSasaAPI, checks balance first, and logs the attempt.
-
+    ✅ OPTIMIZED: Sends an SMS via MobileSasaAPI with cached balance check.
+    
+    Improvements:
+    - Caches balance for 60 seconds to avoid repeated API calls
+    - Still checks balance but reuses cached value
+    - Maintains all safety checks
+    
     Returns the created MessageLog instance.
     """
     sms_api = MobileSasaAPI()
 
-    # 1. Check SMS balance before sending
-    balance_info = sms_api.get_balance()  # {'balance': <int>} or similar
-    current_balance = balance_info.get('balance', 0)
+    # ✅ IMPROVEMENT: Check cached balance first (valid for 60 seconds)
+    cache_key = 'sms_balance_check'
+    cached_balance = cache.get(cache_key)
+    
+    if cached_balance is None:
+        # Only call API if cache is empty
+        balance_info = sms_api.get_balance()
+        current_balance = balance_info.get('balance', 0)
+        # Cache for 60 seconds
+        cache.set(cache_key, current_balance, timeout=60)
+        logger.debug(f"📊 SMS balance fetched from API: {current_balance}")
+    else:
+        current_balance = cached_balance
+        logger.debug(f"📊 SMS balance from cache: {current_balance}")
+    
     if current_balance <= 0:
+        logger.warning(f"⚠️ Insufficient SMS balance ({current_balance})")
         # No balance: record failure immediately
         return MessageLog.objects.create(
             client_service=client_service,
@@ -48,10 +65,12 @@ def send_and_log_sms(client_service, client, phone, message, reason):
         message_id = result.get('message_id')
         send_status = 'sent'
         error_details = ''
+        logger.info(f"✅ SMS sent successfully to {phone}")
     except Exception as e:
         message_id = None
         send_status = 'failed'
         error_details = str(e)
+        logger.error(f"❌ SMS send failed to {phone}: {e}")
 
     # 3. Log the attempt
     log = MessageLog.objects.create(
@@ -62,15 +81,10 @@ def send_and_log_sms(client_service, client, phone, message, reason):
         reason=reason,
         message_id=message_id,
         send_status=send_status,
-        delivery_status='pending',
+        delivery_status='pending' if send_status == 'sent' else 'failed',
         error_details=error_details
     )
     return log
-
-
-
-
-
 
 
 class CommunicationView(FormMixin, ListView):
@@ -88,13 +102,12 @@ class CommunicationView(FormMixin, ListView):
         ctx['form'] = self.get_form()
 
         # History of all sent/logged messages
-        # History of all sent/logged messages
         all_logs = MessageLog.objects.all().order_by('-timestamp')
         ctx['logs'] = all_logs
 
         # Delivery summary
         ctx['total_messages'] = all_logs.count()
-        ctx['success_count'] = all_logs.filter(send_status='success').count()
+        ctx['success_count'] = all_logs.filter(send_status='sent').count()  # Fixed: was 'success'
         ctx['failed_logs'] = all_logs.filter(send_status='failed')
         ctx['failed_count'] = ctx['failed_logs'].count()
 
