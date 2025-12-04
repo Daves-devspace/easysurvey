@@ -1,3 +1,14 @@
 .env
 .service-account.json
 .firebase-admin.json
+.csv
+*.log
+node_modules/
+.pdf
+.png
+.jpg
+.jpeg
+.bmp
+.gif
+.svg
+.tmp

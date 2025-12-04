@@ -12,6 +12,7 @@ Production Smart Chatbot - Maximum Intelligence
 import json
 import hashlib
 import time
+import os  # <--- ADD THIS
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass, asdict
@@ -31,17 +32,23 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class Config:
-    # HuggingFace (for semantic search)
+    # HuggingFace
     HF_API_KEY = getattr(settings, "HF_API_KEY", "")
     HF_SIMILARITY_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     HF_ZERO_SHOT_MODEL = "facebook/bart-large-mnli"
-    HF_SIMILARITY_URL = f"https://api-inference.huggingface.co/models/{HF_SIMILARITY_MODEL}"
-    HF_ZERO_SHOT_URL = f"https://api-inference.huggingface.co/models/{HF_ZERO_SHOT_MODEL}"
     
-    # OpenRouter (for refinement)
+    # --- UPDATED URLS (Added /hf-inference/) ---
+    # The 'router' endpoint requires 'hf-inference' in the path
+    HF_SIMILARITY_URL = f"https://router.huggingface.co/hf-inference/models/{HF_SIMILARITY_MODEL}"
+    HF_ZERO_SHOT_URL = f"https://router.huggingface.co/hf-inference/models/{HF_ZERO_SHOT_MODEL}"
+    
+    # OpenRouter
     OPENROUTER_KEY = getattr(settings, "OPENROUTER_KEY", "")
     OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
     OPENROUTER_MODEL = "mistralai/mistral-7b-instruct:free"
+    
+    # Domain
+    SITE_DOMAIN = os.getenv("SITE_DOMAIN", "http://localhost:8080")
     
     # Files
     BASE_DIR = getattr(settings, "BASE_DIR", Path("."))
@@ -54,15 +61,15 @@ class Config:
     CACHE_TTL = 3600
     
     # Intelligence Thresholds
-    SIMILARITY_MIN_SCORE = 0.30  # Absolute minimum
-    MEDIUM_CONFIDENCE = 0.60  # Ask for clarification below this
-    HIGH_CONFIDENCE_SCORE = 0.75  # Refine above this
+    SIMILARITY_MIN_SCORE = 0.25
+    MEDIUM_CONFIDENCE = 0.60
+    HIGH_CONFIDENCE_SCORE = 0.75
     
     # Features
     ENABLE_REFINEMENT = True
-    REFINE_HIGH_CONFIDENCE_ONLY = True
-    ENABLE_CLARIFICATION = True  # Ask questions when unsure
-    ENABLE_ONBOARDING = True  # Detect new users
+    REFINE_HIGH_CONFIDENCE_ONLY = False 
+    ENABLE_CLARIFICATION = True
+    ENABLE_ONBOARDING = True
 
 config = Config()
 
@@ -150,6 +157,9 @@ class CacheManager:
     def get_intent(text: str) -> Optional[Intent]:
         key = f"int:v3:{CacheManager.hash_key(text)}"
         data = cache.get(key)
+        # If data is already an Intent object (rare but possible in local mem), return it
+        if isinstance(data, Intent):
+            return data
         return Intent(**data) if data else None
     
     @staticmethod
@@ -172,7 +182,14 @@ class CacheManager:
     def get_response(query: str, username: str = "") -> Optional[BotResponse]:
         key = f"response:v3:{CacheManager.hash_key(query)}:{username[:10]}"
         data = cache.get(key)
+        
         if data:
+            # --- THE FIX IS HERE ---
+            # We must verify if 'intent' is a dict and convert it back to an Intent object
+            if isinstance(data.get('intent'), dict):
+                data['intent'] = Intent(**data['intent'])
+            # -----------------------
+
             response = BotResponse(**data)
             response.cached = True
             return response
@@ -229,33 +246,61 @@ class HuggingFaceClient:
         payload = {"inputs": text, "parameters": {"candidate_labels": labels}}
         return cls._post(config.HF_ZERO_SHOT_URL, payload)
 
+
+
+
 class OpenRouterClient:
     @staticmethod
-    def refine(query: str, answer: str) -> Optional[str]:
+    def refine(query: str, answer: str, history: List[Dict] = None) -> Optional[str]:
+        # Fail fast if key or feature is missing
         if not config.OPENROUTER_KEY or not config.ENABLE_REFINEMENT:
             return None
         
         headers = {
             "Authorization": f"Bearer {config.OPENROUTER_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": config.SITE_DOMAIN,
+            "X-Title": "LiorixDigital Support Bot", 
         }
         
+        # 1. Start with the System Persona
         messages = [
             {
                 "role": "system",
-                "content": "Rephrase the answer naturally and conversationally while keeping all key information. Be concise (2-3 sentences). Don't add new info."
-            },
-            {
-                "role": "user",
-                "content": f"User asked: {query}\n\nAnswer: {answer}\n\nRephrase naturally:"
+                "content": (
+                    "You are 'Lio', the AI IT Support Specialist for LiorixDigital. "
+                    "Your goal is to be the 'tech-savvy friend'—knowledgeable, efficient, and encouraging. "
+                    "Instructions: "
+                    "1. Context matters: Use the 'Chat History' to understand what the user is replying to (e.g., if they say 'No', check if you just asked them a question). "
+                    "2. If the user says 'No' or 'Thanks' and the conversation seems done, simply say goodbye politely. "
+                    "3. Otherwise, use the 'Technical Answer' to help the user. "
+                    "4. Keep it concise."
+                )
             }
         ]
+
+        # 2. Inject Chat History (The "Memory")
+        # We take the last 3 turns so Lio remembers the immediate context
+        if history:
+            for turn in history[-3:]: 
+                if turn.get('query'):
+                    messages.append({"role": "user", "content": turn['query']})
+                if turn.get('answer'):
+                    # Strip the bot name if it exists to save tokens
+                    clean_ans = turn['answer'].replace("Lio:", "").strip()
+                    messages.append({"role": "assistant", "content": clean_ans})
+
+        # 3. Add the Current Request
+        messages.append({
+            "role": "user",
+            "content": f"Current User Query: {query}\n\nTechnical Knowledge Base Data: {answer}\n\nResponse as Lio:"
+        })
         
         payload = {
-            "model": config.OPENROUTER_MODEL,
+            "model": "mistralai/mistral-7b-instruct:free", 
             "messages": messages,
-            "max_tokens": 200,
-            "temperature": 0.3
+            "max_tokens": 300, 
+            "temperature": 0.6 
         }
         
         try:
@@ -268,7 +313,6 @@ class OpenRouterClient:
         except Exception as e:
             logger.warning(f"OpenRouter failed: {e}")
         return None
-
 # ============================================================================
 # Smart Intent Detection
 # ============================================================================
@@ -568,6 +612,14 @@ class ChatBot:
         # Get conversation context
         context = SessionManager.get_context(username) if username else {}
         
+        # --- FIX: Define last_topic HERE so it is always safe to use ---
+        last_topic = context.get("last_topic", "")
+        # -------------------------------------------------------------
+        
+        # Get full history list for the AI
+        session = SessionManager.get_session(username)
+        full_history = session.get("conversation_history", [])
+
         # Detect intent with context
         intent = IntentDetector.detect(query, context)
         
@@ -611,7 +663,7 @@ class ChatBot:
         
         # CRITICAL: Check for pronouns/references before regular search
         has_pronouns = cls._has_contextual_pronouns(query)
-        last_topic = context.get("last_topic", "")
+        # (last_topic is already defined at the top now)
         
         if has_pronouns and last_topic:
             # User is referring to previous topic - use context automatically
@@ -626,16 +678,28 @@ class ChatBot:
         search_result = SemanticSearch.search(query)
         topic = cls._extract_topic(query)
         
-        # Check confidence and decide
-        if not search_result.answer or search_result.score < config.SIMILARITY_MIN_SCORE:
+        # --- HUMAN CONTEXT LOGIC ---
+        # If confidence is low (like "No"), let Lio handle it via history
+        is_low_confidence = not search_result.answer or search_result.score < config.SIMILARITY_MIN_SCORE
+        
+        if is_low_confidence and full_history:
+             # We pass an empty "Technical Answer" since the search failed
+            refined = OpenRouterClient.refine(query, "No technical data found. Respond conversationally based on history.", full_history)
+            if refined:
+                response = cls._create_response(refined, 0.5, intent, "conversational_flow", {})
+                # Save this interaction so the memory chain continues
+                SessionManager.update_context(username, query, intent.label, topic or last_topic, refined)
+                return response
+
+        # Check confidence and decide (Generic Fallback)
+        if is_low_confidence:
             fallback = cls._smart_fallback(query, username, intent)
             response = cls._create_response(fallback, search_result.score, intent, "smart_fallback", {})
             CacheManager.set_response(query, response, username)
             return response
         
-        # Medium confidence - ONLY ask for clarification if NO clear topic context
+        # Medium confidence clarification check
         if config.ENABLE_CLARIFICATION and search_result.score < config.MEDIUM_CONFIDENCE:
-            # If user was just talking about a topic, DON'T ask for clarification
             if not (last_topic and cls._query_relates_to_topic(query, last_topic)):
                 clarification = cls._ask_clarification(query, search_result, topic)
                 response = cls._create_response(
@@ -643,7 +707,6 @@ class ChatBot:
                     {"matched_question": search_result.question}
                 )
                 return response
-            # If query relates to last topic, continue with answer
             logger.info(f"Medium confidence but relates to topic '{last_topic}' - answering directly")
         
         # High confidence - provide answer
@@ -653,7 +716,8 @@ class ChatBot:
         # Refine if very high confidence
         if (config.ENABLE_REFINEMENT and config.OPENROUTER_KEY and 
             search_result.score >= config.HIGH_CONFIDENCE_SCORE):
-            if refined := OpenRouterClient.refine(query, search_result.answer):
+            # Pass history here too!
+            if refined := OpenRouterClient.refine(query, search_result.answer, full_history):
                 final_answer = refined
                 method = f"refined_{method}"
         
@@ -676,6 +740,7 @@ class ChatBot:
         CacheManager.set_response(query, response, username)
         return response
     
+    
     @classmethod
     def _has_contextual_pronouns(cls, query: str) -> bool:
         """Check if query contains pronouns that refer to previous context"""
@@ -685,6 +750,8 @@ class ChatBot:
         contextual_pronouns = [
             # At start of sentence
             "they ", "them ", "it ", "that ", "this ", "these ", "those ",
+            # ADDED "how" to this list:
+            "how ", "how?", "how works", 
             # Questions starting with pronouns
             "are they", "is it", "does it", "do they", "can they", "will they",
             "how are they", "how is it", "how does it", "how do they",
@@ -692,6 +759,10 @@ class ChatBot:
             "where are they", "where is it"
         ]
         
+        # Also check for exact single word matches
+        if lower in ["how", "how?", "why", "why?", "where", "where?"]:
+            return True
+            
         return any(lower.startswith(pron) or f" {pron}" in f" {lower}" for pron in contextual_pronouns)
     
     @classmethod
