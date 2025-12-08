@@ -12,3 +12,5 @@ node_modules/
 .gif
 .svg
 .tmp
+*.pyc
+__pycache__/
