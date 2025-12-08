@@ -76,6 +76,7 @@ def log_model_save(sender, instance, created, **kwargs):
     - Skips writing while DB/migrations are running (table not present),
     - Avoids infinite loop without importing AuditLog at module import time,
     - Defensively handles errors so migrations/tests don't fail.
+    - ✅ FIXED: Handles models with UUID or non-integer primary keys
     """
 
     # 1) Skip AuditLog itself (avoid infinite loop) by checking model_name/app_label
@@ -85,6 +86,11 @@ def log_model_save(sender, instance, created, **kwargs):
 
         # Skip Django internal models
         if sender._meta.app_label in {"sessions", "admin", "contenttypes", "auth"}:
+            return
+        
+        # ✅ NEW: Skip models with non-integer primary keys (like ScheduledTask with UUID)
+        if sender._meta.model_name == "scheduledtask":
+            logger.debug("Skipping AuditLog for ScheduledTask (UUID primary key)")
             return
 
     # 2) Quick DB readiness check: ensure audit table exists before attempting writes
@@ -113,14 +119,24 @@ def log_model_save(sender, instance, created, **kwargs):
     except Exception:
         user = None
 
+    # ✅ NEW: Validate object_id is an integer
+    try:
+        object_id = int(instance.pk)
+    except (ValueError, TypeError):
+        logger.debug(
+            f"Skipping AuditLog for {sender.__name__} - "
+            f"primary key '{instance.pk}' is not an integer"
+        )
+        return
+
     # 5) Create audit entry inside try/except so any DB race doesn't break migrations/tests
     try:
         AuditLog.objects.create(
             user=user,
             action="create" if created else "update",
             model_name=sender.__name__ if hasattr(sender, "__name__") else str(sender),
-            object_id=getattr(instance, "pk", None),
-            description=f"{'Created' if created else 'Updated'} {sender.__name__ if hasattr(sender, '__name__') else sender} #{getattr(instance, 'pk', None)}",
+            object_id=object_id,  # ✅ Now safely validated as integer
+            description=f"{'Created' if created else 'Updated'} {sender.__name__ if hasattr(sender, '__name__') else sender} #{object_id}",
         )
     except (ProgrammingError, OperationalError) as db_err:
         logger.warning("Failed to write AuditLog due to DB error (possibly race during migrations): %s", db_err)
@@ -130,20 +146,42 @@ def log_model_save(sender, instance, created, **kwargs):
 
 @receiver(post_delete)
 def log_model_delete(sender, instance, **kwargs):
+    """
+    ✅ FIXED: Handle models with UUID or non-integer primary keys
+    """
     from .models import AuditLog  # local import to avoid import-time side-effects
+    
     if sender == AuditLog:
         return
     
     if sender._meta.app_label in ["sessions", "admin", "contenttypes", "auth"]:
         return
     
-    AuditLog.objects.create(
-        user=get_user(),
-        action="delete",
-        model_name=sender.__name__,
-        object_id=instance.pk,
-        description=f"Deleted {sender.__name__} #{instance.pk}",
-    )
+    # ✅ NEW: Skip ScheduledTask (UUID primary key)
+    if sender._meta.model_name == "scheduledtask":
+        logger.debug("Skipping AuditLog delete for ScheduledTask (UUID primary key)")
+        return
+    
+    # ✅ NEW: Validate object_id is an integer
+    try:
+        object_id = int(instance.pk)
+    except (ValueError, TypeError):
+        logger.debug(
+            f"Skipping AuditLog for {sender.__name__} delete - "
+            f"primary key '{instance.pk}' is not an integer"
+        )
+        return
+    
+    try:
+        AuditLog.objects.create(
+            user=get_user(),
+            action="delete",
+            model_name=sender.__name__,
+            object_id=object_id,  # ✅ Now safely validated as integer
+            description=f"Deleted {sender.__name__} #{object_id}",
+        )
+    except Exception as exc:
+        logger.exception("Unexpected error while deleting AuditLog (skipping). %s", exc)
 
 
 

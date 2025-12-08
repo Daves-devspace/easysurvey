@@ -1,4 +1,4 @@
-# core/tasks.py - COMPLETE OPTIMIZED VERSION
+# core/tasks.py
 
 from datetime import datetime, timedelta
 import time
@@ -74,7 +74,7 @@ def retry_failed_sms(log_id=None):
 @shared_task(bind=True)
 def _send_chunk(self, template, client_ids):
     """
-    ✅ OPTIMIZED VERSION:
+    ✅ OPTIMIZED VERSION (BUG FIXED):
     - Single balance check per chunk (not per message)
     - Bulk database writes (100x faster)
     - Rate limiting between API calls
@@ -83,9 +83,11 @@ def _send_chunk(self, template, client_ids):
     """
     logger.info(f"📤 Processing chunk of {len(client_ids)} clients")
     
+    # ✅ FIX: Create API instance OUTSIDE try block so it's always available
+    api = MobileSasaAPI()
+    
     # ✅ IMPROVEMENT #1: Single balance check per chunk
     try:
-        api = MobileSasaAPI()
         balance_info = api.get_balance()
         current_balance = balance_info.get('balance', 0)
         
