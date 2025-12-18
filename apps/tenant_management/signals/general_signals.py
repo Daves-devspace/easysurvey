@@ -8,7 +8,8 @@ from ..models import (
     Lease, Unit, Invoice, InvoiceLine, Payment, Receipt, MeterReading, Deposit
 )
 from apps.tenant_management.utils import get_applicable_rate_for_date
-from apps.tenant_management.services.payment_service import PaymentService
+# PaymentService import removed to avoid circular import if needed, but safe here if used carefully.
+# NOTE: The auto_apply signal is removed to fix the race condition.
 
 logger = logging.getLogger(__name__)
 CENTS = Decimal('0.01')
@@ -20,61 +21,6 @@ def _quantize(value: Decimal) -> Decimal:
         except: return Decimal('0.00')
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
-# --- CRITICAL FIX: METER READING CALCULATION ---
-@receiver(pre_save, sender=MeterReading)
-def compute_meter_reading(sender, instance, **kwargs):
-    """
-    Ensures Usage, Rate, and Amount are calculated BEFORE saving to DB.
-    """
-    try:
-        if not getattr(instance, "unit", None): return
-
-        # 1. Ensure Previous Reading
-        if instance.previous_reading is None:
-            last = MeterReading.objects.filter(unit=instance.unit).exclude(pk=instance.pk).order_by("-reading_date").first()
-            instance.previous_reading = last.current_reading if (last and last.current_reading is not None) else Decimal('0.00')
-
-        # 2. Handle Incomplete Readings (e.g. partial entry)
-        if instance.current_reading is None:
-            instance.usage = None
-            instance.amount = None
-            return
-
-        # 3. Calculate Usage
-        prev = _quantize(instance.previous_reading)
-        curr = _quantize(instance.current_reading)
-        usage = curr - prev
-        
-        # Logic: If usage is negative (meter rollover?), floor at 0 for now
-        if usage < 0: 
-            usage = Decimal('0.00')
-        
-        instance.usage = usage
-
-        # 4. Fetch Rate & Calculate Amount
-        reading_date = getattr(instance, 'reading_date', None) or timezone.now().date()
-        water_company = instance.unit.property.water_company
-        
-        # DEFAULT to 0.00 if no rate found
-        rate_val = Decimal('0.00')
-        
-        if water_company:
-            rate_obj = get_applicable_rate_for_date(water_company, reading_date)
-            if rate_obj:
-                rate_val = _quantize(rate_obj.rate_per_cubic_meter)
-            else:
-                logger.warning(f"⚠️ No Active WaterRate found for {water_company.name} on {reading_date}. Billing 0.")
-        
-        instance.rate_per_cubic_meter = rate_val
-        instance.amount = _quantize(usage * rate_val)
-
-    except Exception:
-        logger.exception("Error computing MeterReading inside Signal")
-        # Safety fallback
-        instance.usage = instance.usage or Decimal('0.00')
-        instance.amount = instance.amount or Decimal('0.00')
-
-# --- Keep other signals unchanged (Lease, Invoice, etc) ---
 @receiver(post_save, sender=Lease)
 def mark_unit_occupied(sender, instance, created, **kwargs):
     if created and instance.is_active:
@@ -116,6 +62,35 @@ def handle_payment_unified(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"Error processing payment {instance.pk}: {e}")
 
+@receiver(pre_save, sender=MeterReading)
+def compute_meter_reading(sender, instance, **kwargs):
+    try:
+        if not getattr(instance, "unit", None): return
+        if instance.previous_reading is None:
+            last = MeterReading.objects.filter(unit=instance.unit).exclude(pk=instance.pk).order_by("-reading_date").first()
+            instance.previous_reading = last.current_reading if (last and last.current_reading is not None) else Decimal('0.00')
+        if instance.current_reading is None:
+            instance.usage = None; instance.amount = None
+            return
+        prev = _quantize(instance.previous_reading)
+        curr = _quantize(instance.current_reading)
+        usage = curr - prev
+        if usage < 0: usage = Decimal('0.00')
+        instance.usage = usage
+        reading_date = getattr(instance, 'reading_date', None) or timezone.now().date()
+        water_company = instance.unit.property.water_company
+        rate_val = Decimal('0.00')
+        if water_company:
+            rate_obj = get_applicable_rate_for_date(water_company, reading_date)
+            if rate_obj: rate_val = _quantize(rate_obj.rate_per_cubic_meter)
+            else: logger.warning(f"⚠️ No Active WaterRate found for {water_company.name} on {reading_date}. Billing 0.")
+        instance.rate_per_cubic_meter = rate_val
+        instance.amount = _quantize(usage * rate_val)
+    except Exception:
+        logger.exception("Error computing MeterReading inside Signal")
+        instance.usage = instance.usage or Decimal('0.00')
+        instance.amount = instance.amount or Decimal('0.00')
+
 @receiver(post_save, sender=MeterReading)
 def meterreading_post_save(sender, instance, created, **kwargs):
     try:
@@ -140,11 +115,6 @@ def create_deposit_record_for_lease(sender, instance, created, **kwargs):
     if not created or not getattr(instance, 'deposit_amount', None): return
     if Deposit.objects.filter(lease=instance, tenant=instance.tenant).exists(): return
     Deposit.objects.create(lease=instance, tenant=instance.tenant, amount=instance.deposit_amount, amount_held=Decimal("0.00"), notes=f"Deposit for {instance.pk}")
-
-@receiver(post_save, sender=Invoice)
-def auto_apply_credit_and_deposit(sender, instance, created, **kwargs):
-    if not created: return
-    PaymentService.apply_credit_to_invoice(instance.tenant, instance)
 
 @receiver(pre_save, sender=Lease)
 def refund_deposit_on_lease_end(sender, instance, **kwargs):

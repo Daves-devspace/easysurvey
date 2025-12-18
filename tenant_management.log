@@ -70,3 +70,370 @@
 2025-11-29 17:46:07 INFO [tenant_management.payment_service] No available credit for tenant David Maina
 2025-11-29 18:26:28 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
 2025-11-29 18:26:28 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-12-09 11:28:21 INFO [tenant_management.payment_service] Applying credit to invoice 1 for tenant David Maina
+2025-12-09 11:28:21 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-09 11:30:01 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-12-09 11:30:01 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-12-09 11:30:54 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-12-09 11:30:54 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-12-09 11:35:50 INFO [tenant_management.payment_service] Applying credit to invoice 2 for tenant David Maina
+2025-12-09 11:35:50 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-15 13:11:38 INFO [tenant_management.payment_service] Applying credit to invoice 35 for tenant David Maina
+2025-12-15 13:11:38 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-15 13:13:36 INFO [tenant_management.payment_service] Applying credit to invoice 36 for tenant David Maina
+2025-12-15 13:13:36 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-15 13:30:36 INFO [tenant_management.payment_service] Applying credit to invoice 37 for tenant David Maina
+2025-12-15 13:30:36 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-15 13:30:36 ERROR [tenant_management.services] Integrity error in operation: duplicate key value violates unique constraint "tenant_management_invoic_tenant_id_billing_period_a10974a7_uniq"
+DETAIL:  Key (tenant_id, billing_period_start, billing_period_end)=(35, 2025-11-01, 2025-12-01) already exists.
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UniqueViolation: duplicate key value violates unique constraint "tenant_management_invoic_tenant_id_billing_period_a10974a7_uniq"
+DETAIL:  Key (tenant_id, billing_period_start, billing_period_end)=(35, 2025-11-01, 2025-12-01) already exists.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/app/apps/tenant_management/services/__init__.py", line 73, in execute_with_retry
+    result = operation(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/apps/tenant_management/services/billing_service.py", line 37, in operation
+    return Invoice.objects.create(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 663, in create
+    obj.save(force_insert=True, using=self.db)
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/base.py", line 902, in save
+    self.save_base(
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/base.py", line 1008, in save_base
+    updated = self._save_table(
+              ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/base.py", line 1169, in _save_table
+    results = self._do_insert(
+              ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/base.py", line 1210, in _do_insert
+    return manager._insert(
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/query.py", line 1854, in _insert
+    return query.get_compiler(using=using).execute_sql(returning_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/models/sql/compiler.py", line 1881, in execute_sql
+    cursor.execute(sql, params)
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sentry_sdk/utils.py", line 1811, in runner
+    return sentry_patched_function(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sentry_sdk/integrations/django/__init__.py", line 651, in execute
+    result = real_execute(self, sql, params)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/usr/local/lib/python3.12/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+django.db.utils.IntegrityError: duplicate key value violates unique constraint "tenant_management_invoic_tenant_id_billing_period_a10974a7_uniq"
+DETAIL:  Key (tenant_id, billing_period_start, billing_period_end)=(35, 2025-11-01, 2025-12-01) already exists.
+
+2025-12-15 13:55:04 INFO [tenant_management.payment_service] Starting payment processing for tenant David Maina
+2025-12-15 13:55:04 INFO [tenant_management.payment_service] Payment processing completed for tenant David Maina
+2025-12-15 18:21:47 INFO [tenant_management.payment_service] Applying credit to invoice 39 for tenant Uriel Myers
+2025-12-15 18:21:47 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-15 18:22:09 INFO [tenant_management.payment_service] Applying credit to invoice 40 for tenant Uriel Myers
+2025-12-15 18:22:09 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-15 22:29:44 INFO [tenant_management.payment_service] Applying credit to invoice 41 for tenant Inga Wilkins
+2025-12-15 22:29:44 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-15 22:31:16 INFO [tenant_management.payment_service] Applying credit to invoice 42 for tenant Inga Wilkins
+2025-12-15 22:31:16 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-15 22:32:16 INFO [tenant_management.payment_service] Starting payment processing for tenant Inga Wilkins
+2025-12-15 22:32:16 INFO [tenant_management.payment_service] Payment processing completed for tenant Inga Wilkins
+2025-12-17 18:40:34 INFO [tenant_management.payment_service] Applying credit to invoice 43 for tenant Aspen Blackburn
+2025-12-17 18:40:34 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-17 18:44:55 INFO [tenant_management.payment_service] Starting payment processing for tenant Aspen Blackburn
+2025-12-17 18:44:55 INFO [tenant_management.payment_service] Payment processing completed for tenant Aspen Blackburn
+2025-12-17 19:15:58 INFO [tenant_management.payment_service] Applying credit to invoice 44 for tenant Martina Chambers
+2025-12-17 19:15:58 INFO [tenant_management.payment_service] No available credit for tenant Martina Chambers
+2025-12-17 19:17:21 INFO [tenant_management.payment_service] Starting payment processing for tenant Martina Chambers
+2025-12-17 19:17:21 INFO [tenant_management.payment_service] Payment processing completed for tenant Martina Chambers
+2025-12-18 10:45:08 INFO [tenant_management.payment_service] Applying credit to invoice 45 for tenant Audra Brennan
+2025-12-18 10:45:08 INFO [tenant_management.payment_service] No available credit for tenant Audra Brennan
+2025-12-18 10:45:46 INFO [tenant_management.payment_service] Starting payment processing for tenant Audra Brennan
+2025-12-18 10:45:47 INFO [tenant_management.payment_service] Payment processing completed for tenant Audra Brennan
+2025-12-18 10:45:57 INFO [tenant_management.payment_service] Starting payment processing for tenant Audra Brennan
+2025-12-18 10:45:57 INFO [tenant_management.payment_service] Payment processing completed for tenant Audra Brennan
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 10:46:55 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:05:59 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:05:59 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:08:57 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:10:07 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:10:10 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:10:12 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:16 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:10:17 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:10:24 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 46 for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 47 for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 48 for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant David Maina
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 51 for tenant Aspen Blackburn
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant Aspen Blackburn
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 52 for tenant Martina Chambers
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Credit application completed for tenant Martina Chambers
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 53 for tenant Audra Brennan
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Credit application completed for tenant Audra Brennan
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] Applying credit to invoice 54 for tenant Silas Mayo
+2025-12-18 11:13:24 INFO [tenant_management.payment_service] No available credit for tenant Silas Mayo
+2025-12-18 11:19:25 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:19:25 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:19:25 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:19:25 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:20:40 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:20:40 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:20:40 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:20:40 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:20:49 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:20:49 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:20:49 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:20:49 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:22:10 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:22:10 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:22:10 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:22:10 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:22:35 INFO [tenant_management.payment_service] Applying credit to invoice 49 for tenant Uriel Myers
+2025-12-18 11:22:35 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:22:35 INFO [tenant_management.payment_service] Applying credit to invoice 50 for tenant Inga Wilkins
+2025-12-18 11:22:35 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:27:06 INFO [tenant_management.payment_service] Applying credit to invoice 55 for tenant Uriel Myers
+2025-12-18 11:27:06 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:27:06 INFO [tenant_management.payment_service] Applying credit to invoice 55 for tenant Uriel Myers
+2025-12-18 11:27:06 INFO [tenant_management.payment_service] No available credit for tenant Uriel Myers
+2025-12-18 11:27:07 INFO [tenant_management.payment_service] Applying credit to invoice 42 for tenant Inga Wilkins
+2025-12-18 11:27:07 INFO [tenant_management.payment_service] No available credit for tenant Inga Wilkins
+2025-12-18 11:30:05 INFO [tenant_management.payment_service] Applying credit to invoice 56 for tenant Edward Wilder
+2025-12-18 11:30:05 INFO [tenant_management.payment_service] No available credit for tenant Edward Wilder
+2025-12-18 11:33:59 INFO [tenant_management.payment_service] Applying credit to invoice 57 for tenant Christopher Mcintyre
+2025-12-18 11:33:59 INFO [tenant_management.payment_service] No available credit for tenant Christopher Mcintyre
+2025-12-18 11:34:44 INFO [tenant_management.payment_service] Applying credit to invoice 58 for tenant Edward Wilder
+2025-12-18 11:34:44 INFO [tenant_management.payment_service] No available credit for tenant Edward Wilder
+2025-12-18 11:34:44 INFO [tenant_management.payment_service] Applying credit to invoice 58 for tenant Edward Wilder
+2025-12-18 11:34:44 INFO [tenant_management.payment_service] No available credit for tenant Edward Wilder
+2025-12-18 12:05:33 INFO [tenant_management.payment_service] Applying credit to invoice 59 for tenant Yoshi Fry
+2025-12-18 12:05:33 INFO [tenant_management.payment_service] No available credit for tenant Yoshi Fry
+2025-12-18 12:23:31 INFO [tenant_management.payment_service] Starting payment processing for tenant Yoshi Fry
+2025-12-18 12:23:31 INFO [tenant_management.payment_service] Payment processing completed for tenant Yoshi Fry
+2025-12-18 12:43:31 INFO [tenant_management.payment_service] Starting payment processing for tenant Yoshi Fry
+2025-12-18 12:43:32 INFO [tenant_management.payment_service] Payment processing completed for tenant Yoshi Fry
+2025-12-18 12:43:59 INFO [tenant_management.payment_service] Starting payment processing for tenant Yoshi Fry
+2025-12-18 12:43:59 INFO [tenant_management.payment_service] Payment processing completed for tenant Yoshi Fry
+2025-12-18 12:46:48 INFO [tenant_management.payment_service] Applying credit to invoice 60 for tenant Hasad Nicholson
+2025-12-18 12:46:48 INFO [tenant_management.payment_service] No available credit for tenant Hasad Nicholson
+2025-12-18 12:47:15 INFO [tenant_management.payment_service] Starting payment processing for tenant Hasad Nicholson
+2025-12-18 12:47:15 INFO [tenant_management.payment_service] Payment processing completed for tenant Hasad Nicholson
+2025-12-18 13:55:38 INFO [tenant_management.payment_service] Applying credit to invoice 61 for tenant Colorado Gilliam
+2025-12-18 13:55:38 INFO [tenant_management.payment_service] No available credit for tenant Colorado Gilliam
+2025-12-18 13:56:11 INFO [tenant_management.payment_service] Starting payment processing for tenant Colorado Gilliam
+2025-12-18 13:56:11 INFO [tenant_management.payment_service] Payment processing completed for tenant Colorado Gilliam
+2025-12-18 13:57:21 INFO [tenant_management.payment_service] Applying credit to invoice 62 for tenant Colorado Gilliam
+2025-12-18 13:57:21 INFO [tenant_management.payment_service] Credit application completed for tenant Colorado Gilliam
+2025-12-18 13:58:10 INFO [tenant_management.payment_service] Starting payment processing for tenant Colorado Gilliam
+2025-12-18 13:58:10 INFO [tenant_management.payment_service] Payment processing completed for tenant Colorado Gilliam
+2025-12-18 14:11:32 INFO [tenant_management.payment_service] Applying credit to invoice 63 for tenant Quinn Guzman
+2025-12-18 14:11:32 INFO [tenant_management.payment_service] No available credit for tenant Quinn Guzman
+2025-12-18 14:12:00 INFO [tenant_management.payment_service] Starting payment processing for tenant Quinn Guzman
+2025-12-18 14:12:00 INFO [tenant_management.payment_service] Payment processing completed for tenant Quinn Guzman
+2025-12-18 14:12:14 INFO [tenant_management.payment_service] Starting payment processing for tenant Quinn Guzman
+2025-12-18 14:12:14 INFO [tenant_management.payment_service] Payment processing completed for tenant Quinn Guzman
+2025-12-18 14:13:28 INFO [tenant_management.payment_service] Applying credit to invoice 64 for tenant Quinn Guzman
+2025-12-18 14:13:28 INFO [tenant_management.payment_service] Credit application completed for tenant Quinn Guzman
+2025-12-18 14:34:44 INFO [tenant_management.payment_service] Applying credit to invoice 65 for tenant Kelly Garrett
+2025-12-18 14:34:44 INFO [tenant_management.payment_service] No available credit for tenant Kelly Garrett
+2025-12-18 14:35:27 INFO [tenant_management.payment_service] Starting payment processing for tenant Kelly Garrett
+2025-12-18 14:35:28 INFO [tenant_management.payment_service] Payment processing completed for tenant Kelly Garrett
+2025-12-18 14:47:03 INFO [tenant_management.payment_service] Applying credit to invoice 66 for tenant Addison Hampton
+2025-12-18 14:47:03 INFO [tenant_management.payment_service] No available credit for tenant Addison Hampton
+2025-12-18 14:47:35 INFO [tenant_management.payment_service] Starting payment processing for tenant Addison Hampton
+2025-12-18 14:47:35 INFO [tenant_management.payment_service] Payment processing completed for tenant Addison Hampton
+2025-12-18 15:22:07 INFO [tenant_management.payment_service] Applying credit to invoice 67 for tenant Kelly Garrett
+2025-12-18 15:22:07 INFO [tenant_management.payment_service] Credit application completed for tenant Kelly Garrett
+2025-12-18 15:41:42 INFO [tenant_management.payment_service] Applying credit to invoice 68 for tenant Asher Russo
+2025-12-18 15:41:42 INFO [tenant_management.payment_service] No available credit for tenant Asher Russo
+2025-12-18 15:41:42 INFO [tenant_management.payment_service] Applying credit to invoice 68 for tenant Asher Russo
+2025-12-18 15:41:42 INFO [tenant_management.payment_service] No available credit for tenant Asher Russo
+2025-12-18 15:42:08 INFO [tenant_management.payment_service] Starting payment processing for tenant Asher Russo
+2025-12-18 15:42:08 INFO [tenant_management.payment_service] Payment processing completed for tenant Asher Russo
+2025-12-18 15:42:27 INFO [tenant_management.payment_service] Starting payment processing for tenant Asher Russo
+2025-12-18 15:42:27 INFO [tenant_management.payment_service] Payment processing completed for tenant Asher Russo
+2025-12-18 15:43:00 INFO [tenant_management.payment_service] Applying credit to invoice 69 for tenant Asher Russo
+2025-12-18 15:43:00 INFO [tenant_management.payment_service] Credit application completed for tenant Asher Russo

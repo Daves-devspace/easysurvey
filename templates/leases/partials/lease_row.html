@@ -1,16 +1,47 @@
 <tr id="lease-row-{{ row.lease_obj.id }}">
-  <td>{{ row.tenant.full_name }}</td>
-  <td>{{ row.unit.unit_number }}</td>
-  <td>Ksh {{ row.rent_amount }}</td>
-  <td>Ksh {{ row.balance }}</td>
-  <td>{% if row.current_meter %}{{ row.current_meter }}{% else %}&mdash;{% endif %}</td>
-  <td>{{ row.lease_start }} - {{ row.lease_end|default:"ongoing" }}</td>
   <td>
-    <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+      <div class="d-flex align-items-center">
+        <span class="avatar avatar-xs bg-primary-subtle text-primary rounded-circle me-2 fw-bold d-none d-md-flex align-items-center justify-content-center">
+            {{ row.tenant.full_name|slice:":1" }}
+        </span>
+        {{ row.tenant.full_name }}
+      </div>
+  </td>
+  <td>{{ row.unit.unit_number }}</td>
+  <td>Ksh {{ row.rent_amount|floatformat:0 }}</td>
+  
+  <!-- Balance Column -->
+  <td>
+      {% if row.balance > 0 %}
+          <span class="text-danger fw-bold">Ksh {{ row.balance|floatformat:2 }}</span>
+      {% elif row.balance < 0 %}
+          <span class="text-success fw-bold">CR {{ row.balance_abs|floatformat:2 }}</span>
+      {% else %}
+          <span class="badge bg-light text-success border border-success-subtle">Cleared</span>
+      {% endif %}
+  </td>
 
+  <!-- Meter Column Logic -->
+  <td>
+      {% if property_obj.water_policy == 'prepaid' or row.unit.property.water_policy == 'prepaid' %}
+          <span class="badge bg-info-subtle text-info border border-info-subtle">Prepaid</span>
+      {% else %}
+          {% if row.current_meter %}{{ row.current_meter }}{% else %}-{% endif %}
+      {% endif %}
+  </td>
 
-    <button class="btn btn-sm btn-success">
-        <i class="fas fa-comment"></i>Send reminder
-    </button>
+  <td>
+      {{ row.lease_start }} 
+      <span class="text-muted small">-</span> 
+      {{ row.lease_end|default:"ongoing" }}
+  </td>
+  
+  <td>
+    <div class="d-flex gap-1">
+        <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+        <button class="btn btn-sm btn-success">
+            <i class="fas fa-comment"></i> Send reminder
+        </button>
+    </div>
   </td>
 </tr>

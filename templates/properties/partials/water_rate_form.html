@@ -1,0 +1,37 @@
+{% load widget_tweaks %}
+<form method="post" action="{{ request.path }}">
+    {% csrf_token %}
+    <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">Water Company</label>
+            {% render_field form.water_company class="form-select" %}
+            <div class="text-danger small">{{ form.water_company.errors }}</div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Rate (KES / m³)</label>
+                {% render_field form.rate_per_cubic_meter class="form-control" %}
+                <div class="text-danger small">{{ form.rate_per_cubic_meter.errors }}</div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Effective Date</label>
+                {% render_field form.effective_from class="form-control" %}
+                <div class="text-danger small">{{ form.effective_from.errors }}</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                {% render_field form.is_active class="form-check-input" %}
+                <label class="form-check-label" for="id_is_active">Set as Active Rate</label>
+            </div>
+            <div class="form-text small">Activating this will deactivate other rates for this company.</div>
+            <div class="text-danger small">{{ form.is_active.errors }}</div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-success">Save Rate</button>
+    </div>
+</form>

@@ -1,5 +1,12 @@
 <tr id="tenant-row-{{ row.tenant.id }}" class="{% if row.unleased %}table-warning{% endif %}">
-  <td>{{ row.tenant.full_name }}</td>
+  <td>
+      <div class="d-flex align-items-center">
+        <span class="avatar avatar-xs bg-primary-subtle text-primary rounded-circle me-2 fw-bold d-none d-md-flex align-items-center justify-content-center">
+            {{ row.tenant.full_name|slice:":1" }}
+        </span>
+        {{ row.tenant.full_name }}
+      </div>
+  </td>
   <td>
     {% if row.unit %}
       {{ row.unit.unit_number }}
@@ -8,31 +15,51 @@
     {% endif %}
   </td>
   <td>{% if row.rent_amount %}Ksh {{ row.rent_amount }}{% else %}&mdash;{% endif %}</td>
-  <td>{% if row.balance is not None %}Ksh {{ row.balance }}{% else %}&mdash;{% endif %}</td>
-  <td>{% if row.current_meter %}{{ row.current_meter }}{% else %}&mdash;{% endif %}</td>
+  <td>
+      {% if row.balance > 0 %}
+          <span class="text-danger fw-bold">Ksh {{ row.balance }}</span>
+      {% elif row.balance < 0 %}
+          <span class="text-success fw-bold">CR {{ row.balance_abs }}</span>
+      {% else %}
+          <span class="badge bg-light text-success border border-success-subtle">Cleared</span>
+      {% endif %}
+  </td>
+  
+  <!-- Meter Column Logic -->
+  {% if property_obj.water_policy == 'prepaid' or row.property.water_policy == 'prepaid' %}
+    <td>
+      <span class="badge bg-info-subtle text-info border border-info-subtle">Prepaid</span>
+    </td>
+  {% else %}
+    <td>
+        {% if row.current_meter %}{{ row.current_meter }}{% else %}&mdash;{% endif %}
+    </td>
+  {% endif %}
+
   <td>
     {% if row.lease_start %}
-      {{ row.lease_start }} - {{ row.lease_end|default:"ongoing" }}
+      <span class="small">{{ row.lease_start }}</span> <span class="text-muted small">-</span> 
+      <span class="small">{% if row.lease_end %}{{ row.lease_end }}{% else %}ongoing{% endif %}</span>
     {% else %}
       &mdash;
     {% endif %}
   </td>
   <td>
-    <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
+    <div class="d-flex gap-1">
+        <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
 
-    <button class="btn btn-sm btn-outline-primary"
-        data-crud-action="edit"
-        data-crud-url="{% url 'tenant_edit' property_obj.id row.tenant.id %}"
-        data-title="Edit Tenant">
-    Edit
-</button>
+        <button class="btn btn-sm btn-outline-primary"
+            data-crud-action="edit"
+            data-crud-url="{% url 'tenant_edit' row.tenant.id %}"
+            data-title="Edit Tenant">
+        Edit
+        </button>
 
-    <button class="btn btn-sm btn-outline-danger"
-        data-crud-action="delete"
-        data-crud-url="{% url 'tenant_delete' property_id=property_obj.id pk=row.tenant.id %}">
-    Delete
-   </button>
-
-
+        <button class="btn btn-sm btn-outline-danger"
+            data-crud-action="delete"
+            data-crud-url="{% url 'tenant_delete' property_id=property_obj.id pk=row.tenant.id %}">
+        Delete
+        </button>
+    </div>
   </td>
 </tr>

@@ -5,25 +5,26 @@ from django.contrib import messages
 from django.views.generic import CreateView, ListView, DetailView, UpdateView, DeleteView
 from django.views.generic.edit import FormView
 from django.urls import reverse, reverse_lazy
-from django.http import JsonResponse, HttpResponseRedirect, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.db import transaction, IntegrityError
 from django.forms import HiddenInput
 from django.template.loader import render_to_string
 from django.core.exceptions import ValidationError
+from django.utils.dateparse import parse_date
 
-from apps.tenant_management.models import Tenant, Lease, Unit, Property, MeterReading
+from apps.tenant_management.models import Tenant, Lease, Unit, Property, MeterReading, Deposit
 from apps.tenant_management.forms import (
     LeaseCreationForm,
     CombinedTenantLeaseForm
 )
 from .services import TenantLeaseService
 from apps.tenant_management.services.invoice_service import InvoiceService
+from apps.tenant_management.services.payment_service import PaymentService # NEW IMPORT
 
 logger = logging.getLogger(__name__)
 
 # ... [Helpers and TenantLeaseCreateView remain unchanged] ...
 def _build_lease_row_context(lease):
-    """Return a 'row' dict used by the lease_row partial."""
     return {
         "lease_obj": lease,
         "tenant": lease.tenant,
@@ -55,19 +56,18 @@ class TenantLeaseCreateView(FormView):
         return render_to_string(self.template_name, ctx, request=self.request)
 
     def get(self, request, *args, **kwargs):
-        form = self.form_class(initial=self.get_initial())
+        form = self.form_class(initial=self.get_initial(), property_id=self.property.id)
         return JsonResponse({"html": self._render_fragment(form)})
 
     def post(self, request, *args, **kwargs):
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        form = self.form_class(request.POST, initial=self.get_initial())
+        form = self.form_class(request.POST, initial=self.get_initial(), property_id=self.property.id)
 
         if not form.is_valid():
             if is_ajax:
                 return JsonResponse({"success": False, "html": self._render_fragment(form), "errors": form.errors}, status=400)
             return self.form_invalid(form)
 
-        # Prepare Data
         tenant_data = {
             "full_name": form.cleaned_data["full_name"],
             "phone_number": form.cleaned_data["phone_number"],
@@ -83,7 +83,6 @@ class TenantLeaseCreateView(FormView):
         }
 
         try:
-            # Call Service (Handles creation + Invoice generation + Baseline Reading)
             result = TenantLeaseService.save_tenant_with_lease(tenant_data, lease_data)
         except ValidationError as e:
             form.add_error(None, getattr(e, "message", str(e)))
@@ -106,21 +105,15 @@ class TenantLeaseCreateView(FormView):
             return JsonResponse({"success": True, "redirect": redirect_url, "message": success_message})
         return redirect(redirect_url)
 
-# ==============================================================================
-# 2. Standalone Lease Creation (Existing Tenant) - UPDATED
-# ==============================================================================
-
 class LeaseCreateView(CreateView):
     """
     Create a new lease for an EXISTING tenant.
-    Supports HTMX for modal rendering.
     """
     model = Lease
     form_class = LeaseCreationForm
     template_name = 'leases/lease_form.html'
 
     def get_template_names(self):
-        # If HTMX request, use the partial to render just the form inside the modal
         if self.request.headers.get('HX-Request'):
             return ['leases/partials/lease_form.html']
         return [self.template_name]
@@ -172,7 +165,6 @@ class LeaseCreateView(CreateView):
                 unit_obj.save(update_fields=['is_occupied'])
                 
                 if lease.deposit_amount > 0:
-                    from apps.tenant_management.models import Deposit
                     Deposit.objects.get_or_create(
                         lease=lease,
                         defaults={
@@ -192,19 +184,22 @@ class LeaseCreateView(CreateView):
                         amount=Decimal('0.00'),
                     )
 
-                InvoiceService.upsert_rent_invoice_line_for_lease(lease, billing_date=lease.start_date)
+                # 1. Create Invoice (Rent + Deposit lines created here)
+                invoice = InvoiceService.upsert_rent_invoice_line_for_lease(lease, billing_date=lease.start_date)
+                
+                # 2. FIX: Auto-Apply Credit NOW (After lines exist)
+                # This ensures rollover credit is used immediately.
+                if invoice:
+                    PaymentService.apply_credit_to_invoice(tenant, invoice)
 
         except IntegrityError:
             form.add_error(None, "Database error. Please try again.")
             return self.form_invalid(form)
 
-        # HTMX Success Handling: Refresh the page
         if self.request.headers.get('HX-Request'):
             messages.success(self.request, f'Lease created for {tenant.full_name}.')
-            # 204 No Content with HX-Refresh trigger tells HTMX to reload the full page
             return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
 
-        # Legacy AJAX / Standard POST
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             row = _build_lease_row_context(lease)
             html = render_to_string(
@@ -223,7 +218,6 @@ class LeaseCreateView(CreateView):
         return super().form_valid(form)
 
     def form_invalid(self, form):
-        # HTMX Error Handling: Re-render partial with errors
         if self.request.headers.get('HX-Request'):
             return render(self.request, 'leases/partials/lease_form.html', self.get_context_data(form=form))
 
@@ -240,7 +234,7 @@ class LeaseCreateView(CreateView):
         tenant = get_object_or_404(Tenant, pk=self.kwargs["tenant_id"])
         return reverse_lazy("tenant_detail", kwargs={"tenant_id": tenant.pk}) 
 
-# ... [Rest of classes] ...
+# ... [Rest of file: Update, Delete, List views - unchanged] ...
 class LeaseUpdateView(UpdateView):
     model = Lease
     form_class = LeaseCreationForm
@@ -259,9 +253,7 @@ class LeaseUpdateView(UpdateView):
                 old_unit = self.object.unit
 
                 with transaction.atomic():
-                    # Manage Unit Swapping if unit changed
                     if new_unit and old_unit.pk != new_unit.pk:
-                        # Lock both
                         Unit.objects.select_for_update().filter(pk__in=[old_unit.pk, new_unit.pk])
                         
                         old_unit.is_occupied = False
@@ -297,7 +289,6 @@ class LeaseDeleteView(DeleteView):
         try:
             with transaction.atomic():
                 TenantLeaseService.end_lease_and_free_unit(self.object.id)
-                # Actually delete the object after freeing unit
                 self.object.delete()
                 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -313,7 +304,6 @@ class LeaseDeleteView(DeleteView):
     def get_success_url(self):
         return reverse_lazy("property_detail", kwargs={"pk": self.object.tenant.property.pk})
 
-# ... (LeaseListView, LeaseDetailView, get_units_by_property remain standard) ...
 class LeaseListView(ListView):
     model = Lease
     template_name = 'leases/lease_list.html'
@@ -329,8 +319,30 @@ class LeaseDetailView(DetailView):
     context_object_name = 'lease'
 
 def get_units_by_property(request):
-    """API for dynamic dropdowns"""
     property_id = request.GET.get('property_id')
     units = TenantLeaseService.get_available_units(property_id) if property_id else []
     data = [{'id': u.id, 'text': f"{u.unit_number} - Ksh {u.rent_amount}"} for u in units]
     return JsonResponse({'units': data})
+
+def end_lease_view(request, lease_id):
+    if request.method == 'POST':
+        try:
+            date_str = request.POST.get('end_date')
+            apply_deposit_str = request.POST.get('apply_deposit')
+            end_date = parse_date(date_str) if date_str else None
+            apply_deposit = apply_deposit_str == 'on'
+            
+            result = TenantLeaseService.end_lease_and_free_unit(
+                lease_id, 
+                end_date=end_date, 
+                apply_deposit=apply_deposit
+            )
+            
+            if result.get('success'):
+                messages.success(request, result['message'])
+            else:
+                messages.error(request, result.get('message', 'Failed to end lease'))
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+    
+    return redirect(request.META.get('HTTP_REFERER', 'property-list'))

@@ -78,7 +78,6 @@
   padding: 1rem 1.25rem 1rem 1.25rem;
 }
 
-/* Profile Header */
 .tenant-profile-header {
   background: url("/static/assets/images/rent.jpg") center/cover no-repeat;
   position: relative;
@@ -89,10 +88,8 @@
   align-items: flex-end;
   color: #fff;
   overflow: hidden;
-  padding: 1rem 1.25rem;
-  background-color: #000; /* optional fallback behind image */
+  padding: 1rem 1.25rem 1rem 1.25rem;
 }
-
 
 /* Smooth fading overlay */
 .profile-header .fade-overlay {

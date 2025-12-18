@@ -39,6 +39,7 @@ def get_applicable_rate_for_date(water_company, on_date):
 def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = None) -> List[Dict]:
     """
     Returns list of dicts for the readings table.
+    Ensures 'rate' key is ALWAYS present.
     """
     
     # 1. Determine Billing Period
@@ -56,9 +57,7 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
     billing_end = datetime.date(year, month, last_day)
 
     # 2. Subqueries for Latest and Previous
-    # FIX: Sort by '-id' instead of '-reading_date'. 
-    # This ensures that if a Baseline (Nov 20) and a Bill (Nov 01) exist in the same month,
-    # the Bill (created later, higher ID) takes precedence.
+    # Sort by '-id' allows "Append Only" logic to work even if dates are same
     latest_reading_pk_sq = (
         MeterReading.objects
         .filter(unit=OuterRef("pk"), reading_date__range=(billing_start, billing_end))
@@ -69,11 +68,11 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
     prev_current_sq = (
         MeterReading.objects
         .filter(unit=OuterRef("pk"), reading_date__lt=billing_start)
-        .order_by("-reading_date") # Previous history still respects date
+        .order_by("-reading_date", "-id") 
         .values("current_reading")[:1]
     )
 
-    # 3. Fetch Units with Annotations
+    # 3. Fetch Units
     units_qs = (
         Unit.objects.filter(property=property_obj)
         .annotate(
@@ -111,7 +110,6 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
         if getattr(unit, "active_leases_prefetched", None):
             tenant = unit.active_leases_prefetched[0].tenant
 
-        # -- Initialize variables with Safe Defaults --
         status = "pending"
         previous_current = Decimal("0.00")
         current_val = None
@@ -120,11 +118,9 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
         rate_val = None
         reading_obj_for_template = None
 
-        # -- Logic --
         is_baseline = reading and reading.usage == Decimal('0.00')
 
         if reading and not is_baseline:
-            # CASE A: Filled Bill
             status = "filled"
             previous_current = reading.previous_reading 
             current_val = reading.current_reading
@@ -141,7 +137,6 @@ def filter_meter_readings_for_property(property_obj, month_str: Optional[str] = 
             reading_obj_for_template = reading
             
         else:
-            # CASE B: Pending or Baseline
             status = "pending"
             if is_baseline:
                 previous_current = reading.current_reading
@@ -174,9 +169,7 @@ def get_tenant_leases_data(tenant):
     Calculates financials for a specific Tenant across all their leases.
     """
     leases_qs = Lease.objects.filter(tenant=tenant).select_related("unit", "unit__property").order_by("-start_date")
-    
-    if not leases_qs.exists():
-        return [], {}
+    if not leases_qs.exists(): return [], {}
 
     lease_ids = list(leases_qs.values_list("id", flat=True))
     unit_ids = list(leases_qs.values_list("unit_id", flat=True))
@@ -184,15 +177,12 @@ def get_tenant_leases_data(tenant):
     latest_readings_map = {}
     if unit_ids:
         readings = MeterReading.objects.filter(unit__in=unit_ids).order_by('unit_id', '-reading_date').distinct('unit_id')
-        for r in readings:
-            latest_readings_map[r.unit_id] = r
+        for r in readings: latest_readings_map[r.unit_id] = r
 
     invoice_lines = list(InvoiceLine.objects.filter(lease__in=lease_ids).select_related("meter_reading", "invoice"))
     invoice_ids = {l.invoice_id for l in invoice_lines}
     
-    # Exclude Mixed payments to avoid double counting
     payments = list(Payment.objects.filter(invoice_id__in=invoice_ids).exclude(payment_type='MIXED').distinct())
-    
     deposits = list(Deposit.objects.filter(lease__in=lease_ids))
 
     lines_by_lease = defaultdict(list)
@@ -238,6 +228,8 @@ def get_tenant_leases_data(tenant):
             "deposit": deposit_required,
             "deposit_held": deposit_held,
             "status": "Active" if lease.is_active else "Expired",
+            "start_date": lease.start_date,
+            "end_date": lease.end_date,
             "total_invoiced": total_invoiced,
             "total_paid": total_paid,
             "balance": q(total_invoiced - total_paid),
@@ -249,24 +241,32 @@ def get_tenant_leases_data(tenant):
             "water_lines": water_lines,
         })
 
-    tenant_credit = LedgerEntry.objects.filter(
-        tenant=tenant, invoice__isnull=True, deposit__isnull=True
-    ).aggregate(
-        t=Coalesce(Sum("credit"), Value(Decimal("0.00")), output_field=DecimalField())
+    # --- Credit Calculation ---
+    tenant_credit = Payment.objects.filter(
+        tenant=tenant, 
+        invoice__isnull=True
+    ).exclude(payment_type='MIXED').aggregate(
+        t=Coalesce(Sum("amount"), Value(Decimal("0.00")), output_field=DecimalField())
     )["t"]
+    
+    tenant_credit = q(tenant_credit)
+
+    # --- Apply credit to Active Lease Balance for display ---
+    if tenant_credit > 0:
+        for ld in leases_data:
+            if ld['status'] == 'Active':
+                ld['balance'] -= tenant_credit
+                ld['balance_abs'] = abs(ld['balance'])
+                break 
 
     dep_qs = Deposit.objects.filter(tenant=tenant)
-    total_deposit_held = dep_qs.aggregate(
-        t=Coalesce(Sum("amount_held"), Value(Decimal("0.00")), output_field=DecimalField())
-    )["t"]
-    total_deposit_refunded = dep_qs.aggregate(
-        t=Coalesce(Sum("refunded_amount"), Value(Decimal("0.00")), output_field=DecimalField())
-    )["t"]
+    total_deposit_held = dep_qs.aggregate(t=Coalesce(Sum("amount_held"), Value(Decimal("0.00")), output_field=DecimalField()))["t"]
+    total_deposit_refunded = dep_qs.aggregate(t=Coalesce(Sum("refunded_amount"), Value(Decimal("0.00")), output_field=DecimalField()))["t"]
 
     aggregates = {
         "total_invoiced": sum(d['total_invoiced'] for d in leases_data),
         "total_paid": sum(d['total_paid'] for d in leases_data),
-        "total_balance": sum(d['balance'] for d in leases_data) - q(tenant_credit),
+        "total_balance": sum(d['balance'] for d in leases_data),
         "tenant_credit": tenant_credit,
         "total_deposit": sum(d['deposit'] for d in leases_data),
         "total_deposit_held": total_deposit_held,
@@ -282,7 +282,6 @@ def get_property_leases_data(property_obj):
         return [], {"total_invoiced": 0, "total_paid": 0, "total_balance": 0, "total_deposit": 0}
     
     lease_ids = list(leases_qs.values_list("id", flat=True))
-    
     unit_ids = [l.unit_id for l in leases_qs]
     latest_readings_map = {}
     if unit_ids:
@@ -292,10 +291,7 @@ def get_property_leases_data(property_obj):
                 latest_readings_map[r['unit_id']] = r['current_reading']
 
     invoice_lines = list(InvoiceLine.objects.filter(lease__in=lease_ids).select_related("meter_reading"))
-    
-    # Exclude Mixed payments here too
     payments = list(Payment.objects.filter(invoice__lines__lease__in=lease_ids).exclude(payment_type='MIXED').distinct())
-    
     deposits = list(Deposit.objects.filter(lease__in=lease_ids))
 
     lines_by_lease = defaultdict(list)
@@ -320,16 +316,20 @@ def get_property_leases_data(property_obj):
         total_water_amount = sum(q(l.amount) for l in water_lines)
         current_meter = latest_readings_map.get(lease.unit_id)
 
+        balance = q(total_invoiced - total_paid)
+        
         leases_data.append({
             "lease_obj": lease,
             "tenant": lease.tenant,
             "unit": lease.unit,
             "rent_amount": lease.unit.rent_amount,
             "deposit": total_deposit,
+            "deposit_held": sum(q(d.amount_held) for d in deposits_by_lease[lid]),
             "status": "Active" if lease.is_active else "Inactive",
             "total_invoiced": total_invoiced,
             "total_paid": total_paid,
-            "balance": q(total_invoiced - total_paid),
+            "balance": balance,
+            "balance_abs": abs(balance), # Added balance_abs
             "total_water_usage": total_water_usage,
             "total_water_amount": total_water_amount,
             "current_meter": current_meter,
