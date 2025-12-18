@@ -1,0 +1,30 @@
+<div class="card bg-light border-warning mb-3">
+    <div class="card-body">
+        <h6 class="card-title text-warning"><i class="ti ti-eye me-1"></i> Preview</h6>
+        
+        <div class="d-flex justify-content-between small mb-2 text-muted">
+            <span>Recipients:</span>
+            <strong>{{ recipient_count }} Tenants</strong>
+        </div>
+        <div class="d-flex justify-content-between small mb-3 text-muted">
+            <span>Est. Cost:</span>
+            <strong>KES {{ estimated_cost|floatformat:2 }}</strong>
+        </div>
+
+        <div class="p-2 bg-white border rounded small text-muted fst-italic mb-3">
+            "{{ message }}"
+        </div>
+
+        <form method="post" action="{% url 'comm_send' property.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="message" value="{{ message }}">
+            
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary w-50" onclick="document.getElementById('commPreviewContainer').innerHTML=''">Cancel</button>
+                <button type="submit" class="btn btn-sm btn-success w-50">
+                    <i class="ti ti-send me-1"></i> Confirm Send
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -21,10 +21,11 @@ from .views import (
 )
 from apps.tenant_management.tenants.payments import TenantPaymentModalView,ManualInvoiceGenerationView
 from apps.tenant_management.lease.meter_readings import MeterReadingListView, MeterReadingDeleteView, MeterReadingCreateView, MeterReadingUpdateView
+from apps.tenant_management.water.water_views import WaterCompanyCreateView, WaterCompanyUpdateView, WaterCompanyDeleteView, WaterRateCreateView, WaterRateUpdateView, WaterRateDeleteView
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
-from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView
+from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView,end_lease_view
 from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView, TenantMeterReadingsFilterView
-
+from apps.tenant_management.comm.sms_views import AnnouncementPreviewView, AnnouncementSendView
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
     path("properties/create/", PropertyCreateView.as_view(), name="property-create"),
@@ -72,8 +73,7 @@ urlpatterns = [
          TenantListView.as_view(),
          name='tenant_list'),  # List all tenants
     
-    path("properties/<int:property_id>/tenants/<int:pk>/edit/", 
-         TenantUpdateView.as_view(), name="tenant_edit"),
+    path('tenants/<int:pk>/edit/', TenantUpdateView.as_view(), name='tenant_edit'),
     
     path("properties/<int:property_id>/tenants/<int:pk>/delete/", 
          TenantDeleteView.as_view(), name="tenant_delete"),
@@ -107,6 +107,8 @@ urlpatterns = [
           LeaseUpdateView.as_view(),
           name='lease_edit'),
      
+     path('leases/<int:lease_id>/end/', end_lease_view, name='end_lease'),
+     
      path('api/units/search/', views.unit_search_json, name='unit_search_json'),
      
      
@@ -128,6 +130,18 @@ urlpatterns = [
     path('api/units-by-property/',
          get_units_by_property,
          name='units_by_property'),
+    
+    
+    path('water-companies/add/', WaterCompanyCreateView.as_view(), name='water_company_add'),
+    path('water-companies/<int:pk>/edit/', WaterCompanyUpdateView.as_view(), name='water_company_edit'),
+    path('water-companies/<int:pk>/delete/', WaterCompanyDeleteView.as_view(), name='water_company_delete'),
+
+    path('water-rates/add/', WaterRateCreateView.as_view(), name='water_rate_add'),
+    path('water-rates/<int:pk>/edit/', WaterRateUpdateView.as_view(), name='water_rate_edit'),
+    path('water-rates/<int:pk>/delete/', WaterRateDeleteView.as_view(), name='water_rate_delete'),
+    
+    path('properties/<int:pk>/comm/preview/', AnnouncementPreviewView.as_view(), name='comm_preview'),
+    path('properties/<int:pk>/comm/send/', AnnouncementSendView.as_view(), name='comm_send'),
     
     
     

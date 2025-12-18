@@ -6,6 +6,7 @@ from django.db.models import Prefetch, Q, OuterRef, Subquery, Sum, Value, FloatF
 from django.db.models.functions import Coalesce
 from django.db.models import DecimalField
 from decimal import Decimal
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from apps.tenant_management.models import Tenant, Lease, Payment, Invoice, Property, Unit, Deposit, MeterReading, InvoiceLine,LedgerEntry
 from apps.tenant_management.forms import TenantCreationForm, CombinedTenantLeaseForm
@@ -109,79 +110,32 @@ class TenantCreateView(CreateView):
 
 
 class TenantUpdateView(UpdateView):
+    """
+    Handles editing tenant details (Name, Phone, etc.).
+    Designed to work with HTMX modal.
+    """
     model = Tenant
     form_class = TenantCreationForm
-    template_name = "tenants/tenant_form.html"
+    template_name = "tenants/partials/tenant_edit_form.html"
     context_object_name = "tenant"
-
-    def get_queryset(self):
-        property_id = self.kwargs.get("property_id")
-        if property_id:
-            return Tenant.objects.filter(property_id=property_id)
-        return Tenant.objects.all()
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx["property"] = self.object.property
-        return ctx
-
-    def get_form_kwargs(self):
-        """Pass the property to the form for validation."""
-        kwargs = super().get_form_kwargs()
-        kwargs['property'] = self.object.property
-        return kwargs
+    pk_url_kwarg = 'pk'
 
     def form_valid(self, form):
-        # AJAX path: return JSON + partial for inline update
-        if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            try:
-                with transaction.atomic():
-                    self.object = form.save()
-            except IntegrityError:
-                # This should be rare since we're validating in the form
-                form.add_error(None, "A record with these details already exists.")
-                return self.form_invalid(form)
-
-            # Build the partial row context and return it
-            row = _build_tenant_row_context(self.object)
-            html = render_to_string(
-                "tenants/partials/tenant_row.html",
-                {"row": row, "property_obj": self.object.property},
-                request=self.request,
-            )
-            return JsonResponse({
-                "success": True,
-                "row_id": f"tenant-row-{self.object.id}",
-                "html": html,
-                "message": "Tenant updated successfully"
-            })
-
-        # Non-AJAX: standard POST behavior with DB-backed validation handling
-        try:
-            with transaction.atomic():
-                self.object = form.save()
-        except IntegrityError:
-            form.add_error(None, "A record with these details already exists.")
-            return self.form_invalid(form)
-
-        messages.success(self.request, f'Tenant "{self.object.full_name}" updated.')
-        return super().form_valid(form)
+        self.object = form.save()
+        messages.success(self.request, f"Tenant {self.object.full_name} updated successfully.")
+        
+        # HTMX: Refresh the page to show new details
+        if self.request.headers.get('HX-Request'):
+            return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+            
+        # Standard: Redirect to referer or tenant detail
+        return redirect(self.request.META.get('HTTP_REFERER', reverse_lazy('tenant_detail', kwargs={'tenant_id': self.object.id})))
 
     def form_invalid(self, form):
-        # For AJAX, return the rendered form fragment (so the modal can be updated)
-        if self.request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            html = render_to_string(
-                self.template_name,
-                {**self.get_context_data(), "form": form},
-                request=self.request,
-            )
-            return JsonResponse({"success": False, "html": html}, status=400)
-
+        # HTMX: Re-render partial with errors
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, self.template_name, self.get_context_data(form=form))
         return super().form_invalid(form)
-
-    def get_success_url(self):
-        return reverse_lazy("property_detail", kwargs={"pk": self.object.property.pk})
-    
     
     
 
@@ -265,9 +219,6 @@ class TenantListView(ListView):
 
 # --- Tenant Detail View ---
 class TenantDetailView(DetailView):
-    """
-    Comprehensive Dashboard for a single Tenant.
-    """
     model = Tenant
     template_name = "tenants/tenant_detail.html"
     context_object_name = "tenant"
@@ -282,36 +233,47 @@ class TenantDetailView(DetailView):
         ctx['leases_data'] = leases_data
         ctx.update(aggregates)
 
-        # 2. Invoices (Updated with PREFETCH for lines)
+        # --- FIX: Calculate 'has_metered_properties' flag ---
+        # We look at the leases_data (which comes from utils.py and contains property objects)
+        # to see if any property has a 'meter' policy.
+        has_metered_properties = False
+        if leases_data:
+             has_metered_properties = any(ld['property'].water_policy == Property.METER for ld in leases_data)
+        
+        ctx['has_metered_properties'] = has_metered_properties
+
+        # 2. Invoices
         ctx['invoices'] = Invoice.objects.filter(tenant=tenant)\
-            .prefetch_related('lines')\
+            .prefetch_related('lines', 'lines__meter_reading')\
             .order_by("-billing_period_start")
         
-        # 3. User-Friendly Payments (Hides Master Splits)
+        # 3. Payments
         ctx['payments'] = Payment.objects.filter(tenant=tenant)\
-            .exclude(payment_type='MIXED')\
+            .exclude(reference__startswith="Allocation from")\
             .select_related("invoice")\
             .order_by("-payment_date")
             
-        # 4. Full Audit Log (Shows Source & Destination)
+        # 4. Audit Log
         ctx['audit_logs'] = Payment.objects.filter(tenant=tenant)\
             .select_related("invoice")\
             .order_by("-payment_date", "-id")
             
         # 5. Meter Readings
-        ctx['meter_readings'] = MeterReading.objects.filter(
-            unit__leases__tenant=tenant
-        ).select_related("unit", "unit__property").order_by("-reading_date").distinct()
+        if has_metered_properties:
+            ctx['meter_readings'] = MeterReading.objects.filter(
+                unit__leases__tenant=tenant
+            ).select_related("unit", "unit__property").order_by("-reading_date").distinct()
+        else:
+            ctx['meter_readings'] = []
 
-        # 6. Available Units for Modal
-        properties_with_vacancies = Property.objects.prefetch_related(
-            Prefetch("units", queryset=Unit.objects.filter(is_occupied=False).order_by("unit_number"))
-        ).distinct()
+        # 6. Available Units
+        target_property = tenant.property
+        available_units_by_property = []
+        if target_property:
+             vacancies = Unit.objects.filter(property=target_property, is_occupied=False).order_by("unit_number")
+             if vacancies.exists():
+                 available_units_by_property.append({"property": target_property, "units": list(vacancies)})
         
-        available_units_by_property = [
-            {"property": p, "units": list(p.units.all())} 
-            for p in properties_with_vacancies if p.units.exists()
-        ]
         ctx['available_units_by_property'] = available_units_by_property
 
         return ctx

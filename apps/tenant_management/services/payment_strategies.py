@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from apps.tenant_management.models import Tenant, Invoice, Payment
+from django.db import transaction
+from apps.tenant_management.models import Tenant, Invoice, Payment, InvoiceLine
 from apps.tenant_management.helpers.money_helpers import quantize_money as q
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,11 +36,12 @@ class PaymentStrategy(PaymentStrategy):
     def execute(self, amount):
         amount = q(amount)
         
-        # 1. Calculate Allocations
+        # 1. Calculate Allocations (Splits Rent vs Deposit correctly)
         allocations = self._calculate_allocations(amount)
         
         # 2. OPTIMIZATION: Single Target Payment
-        # If the payment pays off exactly ONE item, create just ONE record.
+        # Only use this path if there is EXACTLY ONE allocation type.
+        # If it split into [Deposit, Rent], this condition fails (len=2), forcing the STANDARD CASE below.
         if len(allocations) == 1 and allocations[0]['amount'] == amount:
             alloc = allocations[0]
             Payment.objects.create(
@@ -47,7 +50,7 @@ class PaymentStrategy(PaymentStrategy):
                 amount=amount,
                 method=self.method,
                 reference=self.reference or "Payment received",
-                payment_type=alloc['type'] # RENT or DEPOSIT
+                payment_type=alloc['type']
             )
             
             if alloc['type'] == 'DEPOSIT':
@@ -61,11 +64,11 @@ class PaymentStrategy(PaymentStrategy):
             
             return self.get_result()
 
-        # 3. STANDARD CASE: Split Payment (Master + Children)
-        # Master Record: Holds the total cash received. NO INVOICE ID.
+        # 3. STANDARD CASE: Split Payment
+        # Create Master Record (Mix of types)
         master_payment = Payment.objects.create(
             tenant=self.tenant,
-            invoice=None, # CRITICAL: Must be None to prevent double counting in utils.py
+            invoice=None, 
             amount=amount,
             method=self.method,
             reference=self.reference or "Payment received",
@@ -106,10 +109,14 @@ class PaymentStrategy(PaymentStrategy):
         return self.get_result()
 
     def _calculate_allocations(self, amount):
+        """
+        Determines how to split the payment amount across invoices.
+        Crucially splits a single invoice payment into DEPOSIT and RENT portions if needed.
+        """
         allocations = []
         remaining = amount
         
-        # FIFO: Oldest First
+        # FIFO: Pay Oldest Invoice First
         unpaid_invoices = Invoice.objects.filter(tenant=self.tenant, is_paid=False).order_by('billing_period_start', 'id')
         
         for invoice in unpaid_invoices:
@@ -118,29 +125,59 @@ class PaymentStrategy(PaymentStrategy):
             invoice_balance = q(invoice.balance)
             if invoice_balance <= 0: continue
             
-            allocate = min(remaining, invoice_balance)
+            # Total we can apply to this invoice
+            allocate_to_invoice = min(remaining, invoice_balance)
+            current_portion = allocate_to_invoice
             
-            from apps.tenant_management.models import InvoiceLine
-            has_deposit = invoice.lines.filter(line_type=InvoiceLine.LINE_DEPOSIT).exists()
-            p_type = 'DEPOSIT' if has_deposit else 'RENT'
+            # FIX: Check if this invoice has an UNPAID DEPOSIT
+            deposit_line = invoice.lines.filter(line_type=InvoiceLine.LINE_DEPOSIT).first()
             
-            allocations.append({
-                'invoice': invoice,
-                'amount': allocate,
-                'type': p_type
-            })
-            remaining -= allocate
+            if deposit_line and deposit_line.deposit:
+                dep_obj = deposit_line.deposit
+                # Calculate how much is still owed on the deposit
+                dep_owed = q(dep_obj.amount - dep_obj.amount_held)
+                
+                if dep_owed > 0:
+                    # Allocate to Deposit first (capped by what's owed)
+                    # If Current Portion (8000) > Owed (5000), to_deposit = 5000
+                    to_deposit = min(current_portion, dep_owed)
+                    
+                    allocations.append({
+                        'invoice': invoice,
+                        'amount': to_deposit,
+                        'type': 'DEPOSIT'
+                    })
+                    
+                    # Reduce the current portion available for Rent
+                    current_portion -= to_deposit
+            
+            # Apply remainder to Rent/Water (General Balance)
+            if current_portion > 0:
+                allocations.append({
+                    'invoice': invoice,
+                    'amount': current_portion,
+                    'type': 'RENT'
+                })
+            
+            remaining -= allocate_to_invoice
             
         return allocations
 
     def _finalize_deposit(self, invoice, amount):
-        from apps.tenant_management.models import InvoiceLine, LedgerEntry
+        """Updates the Deposit model to reflect the cash held."""
+        from apps.tenant_management.models import LedgerEntry
         from django.utils import timezone
+        
         deposit_line = invoice.lines.filter(line_type=InvoiceLine.LINE_DEPOSIT).first()
         if deposit_line and deposit_line.deposit:
             deposit = deposit_line.deposit
-            deposit.amount_held = q(deposit.amount_held + amount)
-            if deposit.amount_held >= deposit.amount: deposit.paid_at = timezone.now()
+            # Ensure we don't hold more than the required amount
+            new_held = q(deposit.amount_held + amount)
+            deposit.amount_held = min(new_held, deposit.amount)
+            
+            if deposit.amount_held >= deposit.amount: 
+                deposit.paid_at = timezone.now()
+            
             deposit.save(update_fields=['amount_held', 'paid_at'])
             
             LedgerEntry.objects.create(
@@ -151,25 +188,31 @@ class PaymentStrategy(PaymentStrategy):
             )
 
 class CreditApplicationStrategy(PaymentStrategy):
+    """Strategy for applying existing tenant credits."""
     def execute(self, amount=None):
-        # FIFO Logic for Credits
         from apps.tenant_management.models import Payment
-        unallocated = Payment.objects.filter(tenant=self.tenant, invoice__isnull=True).exclude(payment_type='MIXED')
+        
+        # Get unallocated credits (FIFO)
+        unallocated = Payment.objects.filter(tenant=self.tenant, invoice__isnull=True).exclude(payment_type='MIXED').order_by('payment_date')
         
         for credit_pymt in unallocated:
             if credit_pymt.amount <= 0: continue
             
+            # Use shared allocation logic to ensure splits happen here too
             allocations = self._calculate_allocations(credit_pymt.amount)
             
             for alloc in allocations:
                 if alloc['amount'] == credit_pymt.amount:
                     credit_pymt.invoice = alloc['invoice']
                     credit_pymt.reference = f"Credit Applied to #{alloc['invoice'].id}"
+                    credit_pymt.payment_type = alloc['type'] # Update type to RENT/DEPOSIT
                     credit_pymt.save()
                 else:
+                    # Partial use: Create new record
                     Payment.objects.create(
                         tenant=self.tenant, invoice=alloc['invoice'], amount=alloc['amount'],
-                        method="Credit", reference=f"Credit from #{credit_pymt.pk}", payment_type='CREDIT',
+                        method="Credit", reference=f"Credit from #{credit_pymt.pk}", 
+                        payment_type=alloc['type'], # RENT or DEPOSIT
                         payment_date=credit_pymt.payment_date
                     )
                     credit_pymt.amount -= alloc['amount']

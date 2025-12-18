@@ -1,7 +1,24 @@
 {% extends 'Home/base.html' %}
 {% load static %}
 {% load custom_filters %}
+{% load widget_tweaks %}
 {% load unit_extras %}
+
+{% block extra_css %}
+<style>
+    /* ... [Keep existing styles] ... */
+    
+    /* Inner styles for collapsible rows */
+    .shadow-inner {
+        box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.06);
+    }
+    /* Rotate chevron on collapse */
+    .btn-link-secondary[aria-expanded="true"] .bi-chevron-right {
+        transform: rotate(90deg);
+        transition: transform 0.2s ease;
+    }
+</style>
+{% endblock %}
 
 {% block body %}
 
@@ -40,42 +57,44 @@
             <div class="col-sm-12">
                 <div class="card">
                     <div class="card-header pb-0">
-                        <div class="overflow-auto">
-                            <ul class="nav nav-tabs profile-tabs flex-nowrap" id="myTab" role="tablist">
-                                {% if perms.easydocs.view_payment %}
-                                    <li class="nav-item">
-                                        <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1" role="tab">
-                                            <i class="ti ti-zoom-money me-2"></i>Units
-                                        </a>
-                                    </li>
+                        <ul class="nav nav-tabs profile-tabs flex-nowrap" id="myTab" role="tablist">
+                            {% if perms.easydocs.view_payment %}
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="profile-tab-1" data-bs-toggle="tab" href="#profile-1" role="tab">
+                                        <i class="ti ti-zoom-money me-2"></i>Units
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% if perms.easydocs.view_expense %}
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2" role="tab">
+                                        <i class="ti ti-file-text me-2"></i>Lease & Billing
+                                    </a>
+                                </li>
+                            {% endif %}
+                            {% if request.user.is_superuser %}
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3" role="tab">
+                                        <i class="ti ti-users me-2"></i>Tenants
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4" role="tab">
+                                        <i class="ti ti-receipt me-2"></i>All Payments
+                                    </a>
+                                </li>
+                                <!-- FIX: Only show Readings tab if property is Metered -->
+                                {% if property_obj.water_policy == 'meter' %}
+                                <li class="nav-item">
+                                    <a class="nav-link" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5" role="tab">
+                                        <i class="ti ti-dashboard me-2"></i>Readings
+                                    </a>
+                                </li>
                                 {% endif %}
-                                {% if perms.easydocs.view_expense %}
-                                    <li class="nav-item">
-                                        <a class="nav-link" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2" role="tab">
-                                            <i class="ti ti-file-text me-2"></i>Lease & Billing
-                                        </a>
-                                    </li>
-                                {% endif %}
-                                {% if request.user.is_superuser %}
-                                    <li class="nav-item">
-                                        <a class="nav-link" id="profile-tab-3" data-bs-toggle="tab" href="#profile-3" role="tab">
-                                            <i class="ti ti-users me-2"></i>Tenants
-                                        </a>
-                                    </li>
-                                    <!-- NEW PAYMENTS TAB -->
-                                    <li class="nav-item">
-                                        <a class="nav-link" id="profile-tab-4" data-bs-toggle="tab" href="#profile-4" role="tab">
-                                            <i class="ti ti-receipt me-2"></i>All Payments
-                                        </a>
-                                    </li>
-                                    <li class="nav-item">
-                                        <a class="nav-link" id="profile-tab-5" data-bs-toggle="tab" href="#profile-5" role="tab">
-                                            <i class="ti ti-dashboard me-2"></i>Readings
-                                        </a>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </div>
+                            {% endif %}
+                            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#profile-comm"><i class="ti ti-broadcast me-2"></i>Communication</a></li>
+
+                        </ul>
                     </div>
 
                     <div class="card-body">
@@ -90,21 +109,17 @@
                                         <div class="card">
                                             <div class="card-header pb-0">
                                                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center my-3 gap-2">
-                                                    <div><span class="badge bg-success">Total Units: {{ units_count }}</span></div>
+                                                    <div><h5 class="mb-0 me-3">Property Details</h5><span class="badge bg-success">Total Units: {{ units_count }}</span></div>
                                                     
-                                                    <div class="d-flex align-items-center">
-                                                        <h5 class="mb-0 me-3">Property Details</h5>
-                                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#invoiceModal">
-                                                            📄 Generate Invoices
-                                                        </button>
-                                                    </div>
-
                                                     <div class="d-flex flex-wrap gap-2">
                                                         <button class="btn btn-sm btn-primary d-flex align-items-center" data-title="Add Unit" data-crud-action="create" data-crud-url="{% url 'unit_add' property_obj.id %}">
                                                             <i class="fas fa-plus me-1"></i> Unit
                                                         </button>
                                                         <button class="btn btn-sm btn-success d-flex align-items-center" data-title="Add Tenant" data-crud-action="create" data-crud-url="{% url 'tenant_create' property_obj.id %}">
                                                             <i class="fas fa-user-plus me-1"></i>Tenant
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#invoiceModal">
+                                                            📄 Generate Invoices
                                                         </button>
                                                     </div>
                                                 </div>
@@ -179,42 +194,45 @@
                                 </div>
                             </div>
 
-                            <!-- TAB 4: ALL PAYMENTS (NEW) -->
+                            <!-- TAB 4: ALL PAYMENTS [Unchanged] -->
                             <div class="tab-pane" id="profile-4" role="tabpanel">
                                 <div class="row">
                                     <div class="col-12">
-                                        <div class="card">
-                                            <div class="card-header bg-white pb-2">
+                                        <div class="card border-0 shadow-none">
+                                            <div class="card-header bg-white pb-2 px-0">
                                                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                                                     <h5 class="mb-0">Property Payments</h5>
                                                 </div>
                                             </div>
 
-                                            <div class="card-body">
+                                            <div class="card-body px-0">
                                                 <!-- Filters -->
-                                                <form class="row g-2 align-items-end mb-3 flex-wrap"
+                                                <form class="row g-2 align-items-end mb-3 flex-wrap bg-light p-3 rounded-2 border"
                                                       hx-get="{% url 'property_payments_filter' property_obj.id %}"
                                                       hx-target="#propertyPaymentsTable"
                                                       hx-trigger="change from:input, change from:select, submit">
                                                     
                                                     <div class="col-auto">
-                                                        <label class="form-label small mb-1">Month</label>
+                                                        <label class="form-label small mb-1 fw-bold text-muted">Month</label>
                                                         <input type="month" name="month" value="{{ payment_active_month }}" 
                                                                max="{% now 'Y-m' %}" class="form-control form-control-sm" />
                                                     </div>
 
                                                     <div class="col-auto">
-                                                        <label class="form-label small mb-1">Type</label>
+                                                        <label class="form-label small mb-1 fw-bold text-muted">Type</label>
                                                         <select name="payment_type" class="form-select form-select-sm">
                                                             <option value="all">All Types</option>
                                                             <option value="RENT">Rent</option>
                                                             <option value="DEPOSIT">Deposit</option>
                                                             <option value="CREDIT">Credit</option>
+                                                            <option value="MIXED">Split (Mixed)</option>
                                                         </select>
                                                     </div>
 
-                                                    <div class="col-auto">
-                                                        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                                                    <div class="col-auto ms-auto">
+                                                        <button type="submit" class="btn btn-sm btn-primary">
+                                                            <i class="bi bi-filter"></i> Filter
+                                                        </button>
                                                         <button type="button" class="btn btn-sm btn-outline-secondary"
                                                                 hx-get="{% url 'property_payments_filter' property_obj.id %}?month=&payment_type=all"
                                                                 hx-target="#propertyPaymentsTable">
@@ -224,10 +242,11 @@
                                                 </form>
 
                                                 <!-- Table -->
-                                                <div class="card-body table-responsive">
-                                                  <table class="datatable table table-striped table-hover nowrap w-100">
-                                                      <thead class="table-success">
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover align-middle mb-0">
+                                                        <thead class="table-light">
                                                             <tr>
+                                                                <th style="width: 40px;"></th> <!-- Arrow Column -->
                                                                 <th>Date</th>
                                                                 <th>Tenant</th>
                                                                 <th>Allocated To</th>
@@ -248,7 +267,9 @@
                                 </div>
                             </div>
 
-                            <!-- TAB 5: METER READINGS (Moved to 5) [Unchanged] -->
+                            <!-- TAB 5: METER READINGS (Updated) -->
+                            <!-- FIX: Only show Readings tab content if property is Metered -->
+                            {% if property_obj.water_policy == 'meter' %}
                             <div class="tab-pane" id="profile-5" role="tabpanel">
                                 <div class="row">
                                     <div class="col-12">
@@ -301,6 +322,79 @@
                                     </div>
                                 </div>
                             </div>
+                            {% endif %}
+
+                                                        <!-- TAB: Communication -->
+                            <div class="tab-pane fade" id="profile-comm" role="tabpanel">
+                                <div class="row">
+                                    <!-- Left: Announcement Form -->
+                                    <div class="col-lg-5 mb-4">
+                                        <div class="card border h-100 shadow-sm">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0 text-white"><i class="ti ti-speakerphone me-2"></i>Send Announcement</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <form hx-post="{% url 'comm_preview' property_obj.id %}" 
+                                                      hx-target="#commPreviewContainer" 
+                                                      hx-indicator="#previewSpinner">
+                                                    {% csrf_token %}
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold">Message</label>
+                                                        {% render_field announcement_form.message class="form-control" rows="5" %}
+                                                        <div class="form-text text-muted">
+                                                            Will be sent to all <strong>{{ active_tenants_count }}</strong> active tenants via SMS.
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="d-grid">
+                                                        <button type="submit" class="btn btn-primary">
+                                                            Preview Announcement <span class="htmx-indicator spinner-border spinner-border-sm ms-2" id="previewSpinner"></span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+
+                                                <!-- Preview Container -->
+                                                <div id="commPreviewContainer" class="mt-4"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right: Property Logs -->
+                                    <div class="col-lg-7 mb-4">
+                                        <div class="card border h-100 shadow-sm">
+                                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">Communication History</h6>
+                                                <span class="badge bg-secondary">{{ comm_logs.count }} Records</span>
+                                            </div>
+                                            <div class="card-body p-0 table-responsive">
+                                                <table class="table table-hover mb-0 align-middle">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th>Date</th>
+                                                            <th>Tenant</th>
+                                                            <th>Type</th>
+                                                            <th>Message</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for log in comm_logs %}
+                                                        <tr>
+                                                            <td class="small text-muted text-nowrap">{{ log.created_at|date:"d M H:i" }}</td>
+                                                            <td><a href="{% url 'tenant_detail' log.tenant.id %}" class="text-decoration-none">{{ log.tenant.full_name }}</a></td>
+                                                            <td><span class="badge bg-light text-dark border">{{ log.channel }}</span></td>
+                                                            <td class="small text-truncate" style="max-width: 200px;" title="{{ log.message }}">
+                                                                {{ log.message }}
+                                                            </td>
+                                                        </tr>
+                                                        
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                         </div>
                     </div>
@@ -310,7 +404,7 @@
     </div>
 </div>
 
-<!-- Modals [Unchanged] -->
+<!-- ... [Modals Unchanged] ... -->
 <div class="modal fade" id="meterReadingModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">

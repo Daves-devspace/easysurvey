@@ -13,12 +13,10 @@ from django.http import HttpResponseRedirect
 import logging
 from django.http import Http404 
 from apps.tenant_management.utils import filter_units_for_property
-
 from django.core.exceptions import ObjectDoesNotExist
 
 logger = logging.getLogger(__name__)
 
-# apps/tenant_management/views.py
 class UnitListView(ListView):
     model = Unit
     template_name = 'units/partials/unit_table.html'
@@ -41,14 +39,18 @@ class UnitListView(ListView):
         return ctx
 
 
-
-
-
-
 class UnitCreateView(CreateView):
     model = Unit
     form_class = UnitForm
     template_name = 'units/unit_form.html'
+
+    def get_form_kwargs(self):
+        """Pass the property object to the form to handle conditional fields."""
+        kwargs = super().get_form_kwargs()
+        if "pk" in self.kwargs:
+            property_obj = get_object_or_404(Property, pk=self.kwargs["pk"])
+            kwargs['property_obj'] = property_obj
+        return kwargs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -67,7 +69,6 @@ class UnitCreateView(CreateView):
             form.add_error("unit_number", "Unit number already exists for this property.")
             return self.form_invalid(form)
 
-        # AJAX response
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             html = render_to_string(
                 "units/partials/unit_row.html",
@@ -81,7 +82,6 @@ class UnitCreateView(CreateView):
                 "message": f'Unit "{unit.unit_number}" created successfully'
             })
 
-        # Non-AJAX fallback
         messages.success(self.request, f'Unit "{unit.unit_number}" created successfully!')
         return HttpResponseRedirect(reverse_lazy("property_detail", kwargs={"pk": property_obj.pk}))
 
@@ -95,45 +95,37 @@ class UnitCreateView(CreateView):
             return JsonResponse({"success": False, "html": html}, status=400)
 
         return super().form_invalid(form)
-    
-    
-    
+
 
 class UnitUpdateView(UpdateView):
     model = Unit
     form_class = UnitForm
     template_name = "units/unit_form.html"
     context_object_name = "unit"
+    pk_url_kwarg = 'unit_pk'
+
+    def get_form_kwargs(self):
+        """Pass the property object to the form."""
+        kwargs = super().get_form_kwargs()
+        kwargs['property_obj'] = self.object.property
+        return kwargs
 
     def get_success_url(self):
         return reverse_lazy("property_detail", kwargs={"pk": self.object.property.pk})
 
     def get_queryset(self):
-        property_id = self.kwargs.get("pk")        # property id from URL
-        unit_id = self.kwargs.get("unit_pk")       # unit id from URL
-
+        property_id = self.kwargs.get("pk")
+        unit_id = self.kwargs.get("unit_pk")
         qs = Unit.objects.all()
-        if property_id:
-            qs = qs.filter(property_id=property_id)
-        if unit_id:
-            qs = qs.filter(pk=unit_id)
-
-        # Debug logging to help trace what's being requested
-        try:
-            count = qs.count()
-        except Exception:
-            count = "<count error>"
-        logger.debug("UnitUpdateView.get_queryset property_id=%s unit_id=%s qs_count=%s",
-                     property_id, unit_id, count)
+        if property_id: qs = qs.filter(property_id=property_id)
+        if unit_id: qs = qs.filter(pk=unit_id)
         return qs
 
     def get_object(self, queryset=None):
         queryset = queryset or self.get_queryset()
         unit_id = self.kwargs.get("unit_pk")
-        if not unit_id:
-            raise Http404("No unit_pk provided in URL")
+        if not unit_id: raise Http404("No unit_pk provided in URL")
         return get_object_or_404(queryset, pk=unit_id)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -152,14 +144,13 @@ class UnitUpdateView(UpdateView):
                 return JsonResponse({
                     "success": True,
                     "html": html,
-                    "row_id": f"unit-row-{self.object.id}",  # Fixed to match template ID
+                    "row_id": f"unit-row-{self.object.id}",
                     "message": f"Unit {self.object.unit_number} updated successfully"
                 })
             except IntegrityError:
                 form.add_error("unit_number", "Unit number already exists.")
                 return self.form_invalid(form)
         
-        # Non-AJAX fallback
         messages.success(self.request, f'Unit "{self.object.unit_number}" updated successfully.')
         return super().form_valid(form)
 
@@ -174,8 +165,6 @@ class UnitUpdateView(UpdateView):
         return super().form_invalid(form)
 
 
-
-
 class UnitDeleteView(DeleteView):
     model = Unit
     template_name = "units/unit_confirm_delete.html"
@@ -184,31 +173,15 @@ class UnitDeleteView(DeleteView):
     def get_queryset(self):
         property_id = self.kwargs.get("pk")
         unit_id = self.kwargs.get("unit_pk")
-
         qs = Unit.objects.all()
-        if property_id:
-            qs = qs.filter(property_id=property_id)
-        if unit_id:
-            qs = qs.filter(pk=unit_id)
-
-        try:
-            count = qs.count()
-        except Exception:
-            count = "<count error>"
-
-        logger.debug(
-            "UnitDeleteView.get_queryset property_id=%s unit_id=%s qs_count=%s",
-            property_id,
-            unit_id,
-            count,
-        )
+        if property_id: qs = qs.filter(property_id=property_id)
+        if unit_id: qs = qs.filter(pk=unit_id)
         return qs
 
     def get_object(self, queryset=None):
         queryset = queryset or self.get_queryset()
         unit_id = self.kwargs.get("unit_pk")
-        if not unit_id:
-            raise Http404("No unit_pk provided in URL")
+        if not unit_id: raise Http404("No unit_pk provided in URL")
         return get_object_or_404(queryset, pk=unit_id)
 
     def get_context_data(self, **kwargs):
@@ -216,7 +189,6 @@ class UnitDeleteView(DeleteView):
         ctx["property"] = self.object.property
         return ctx
 
-    # AJAX GET returns rendered confirm HTML
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -228,10 +200,8 @@ class UnitDeleteView(DeleteView):
         self.object = self.get_object()
         row_id = f"unit-row-{self.object.id}"
         unit_number = self.object.unit_number
-
-        # Prevent deletion if unit has an active lease
         try:
-            lease = self.object.lease  # OneToOneField reverse accessor
+            lease = self.object.lease
         except ObjectDoesNotExist:
             lease = None
 
@@ -242,7 +212,6 @@ class UnitDeleteView(DeleteView):
             messages.error(request, error_msg)
             return HttpResponseRedirect(self.get_success_url())
 
-        # Attempt deletion
         try:
             with transaction.atomic():
                 self.object.delete()
@@ -253,7 +222,6 @@ class UnitDeleteView(DeleteView):
             messages.error(request, error_msg)
             return HttpResponseRedirect(self.get_success_url())
 
-        # Success response
         success_msg = f"Unit {unit_number} deleted successfully"
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return JsonResponse({"success": True, "row_id": row_id, "message": success_msg})
@@ -263,6 +231,3 @@ class UnitDeleteView(DeleteView):
 
     def get_success_url(self):
         return reverse_lazy("property_detail", kwargs={"pk": self.object.property.pk})
-    
-    def _render_messages(self):
-        return render_to_string("messages/messages.html", {}, request=self.request)
