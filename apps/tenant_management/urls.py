@@ -25,7 +25,7 @@ from apps.tenant_management.water.water_views import WaterCompanyCreateView, Wat
 from apps.tenant_management.units.units import UnitListView, UnitCreateView, UnitUpdateView, UnitDeleteView
 from apps.tenant_management.lease.lease import  TenantLeaseCreateView,LeaseListView, LeaseDetailView,get_units_by_property,LeaseCreateView,LeaseUpdateView,LeaseDeleteView,end_lease_view
 from apps.tenant_management.tenants.tenant import TenantCreateView, TenantListView, TenantDetailView, TenantUpdateView, TenantDeleteView, TenantInvoicesFilterView, TenantMeterReadingsFilterView
-from apps.tenant_management.comm.sms_views import AnnouncementPreviewView, AnnouncementSendView
+from apps.tenant_management.comm.sms_views import AnnouncementPreviewView, AnnouncementSendView,BulkCommPreviewView,BulkCommSendView, CommLogRetryView, CommLogRetryAllView,LeaseReminderPreviewView,LeaseReminderSendView
 urlpatterns = [
      path("properties/", PropertyListView.as_view(), name="property-list"),
     path("properties/create/", PropertyCreateView.as_view(), name="property-create"),
@@ -142,6 +142,14 @@ urlpatterns = [
     
     path('properties/<int:pk>/comm/preview/', AnnouncementPreviewView.as_view(), name='comm_preview'),
     path('properties/<int:pk>/comm/send/', AnnouncementSendView.as_view(), name='comm_send'),
+    path('comm/bulk/preview/', BulkCommPreviewView.as_view(), name='bulk_comm_preview'),
+    path('comm/bulk/send/', BulkCommSendView.as_view(), name='bulk_comm_send'),
+    
+    path('comm/retry/<int:pk>/', CommLogRetryView.as_view(), name='comm_retry'),
+    path('comm/retry-all/', CommLogRetryAllView.as_view(), name='comm_retry_all'),
+    
+    path('leases/<int:lease_id>/reminder/preview/', LeaseReminderPreviewView.as_view(), name='lease_reminder_preview'),
+    path('leases/<int:lease_id>/reminder/send/', LeaseReminderSendView.as_view(), name='lease_reminder_send'),
     
     
     

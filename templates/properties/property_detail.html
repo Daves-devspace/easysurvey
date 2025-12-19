@@ -194,78 +194,13 @@
                                 </div>
                             </div>
 
-                            <!-- TAB 4: ALL PAYMENTS [Unchanged] -->
+                        
+                             <!-- TAB 4: ALL PAYMENTS [FIXED] -->
+                            <!-- TAB 4: PAYMENTS [Fixed] -->
                             <div class="tab-pane" id="profile-4" role="tabpanel">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <div class="card border-0 shadow-none">
-                                            <div class="card-header bg-white pb-2 px-0">
-                                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                                                    <h5 class="mb-0">Property Payments</h5>
-                                                </div>
-                                            </div>
-
-                                            <div class="card-body px-0">
-                                                <!-- Filters -->
-                                                <form class="row g-2 align-items-end mb-3 flex-wrap bg-light p-3 rounded-2 border"
-                                                      hx-get="{% url 'property_payments_filter' property_obj.id %}"
-                                                      hx-target="#propertyPaymentsTable"
-                                                      hx-trigger="change from:input, change from:select, submit">
-                                                    
-                                                    <div class="col-auto">
-                                                        <label class="form-label small mb-1 fw-bold text-muted">Month</label>
-                                                        <input type="month" name="month" value="{{ payment_active_month }}" 
-                                                               max="{% now 'Y-m' %}" class="form-control form-control-sm" />
-                                                    </div>
-
-                                                    <div class="col-auto">
-                                                        <label class="form-label small mb-1 fw-bold text-muted">Type</label>
-                                                        <select name="payment_type" class="form-select form-select-sm">
-                                                            <option value="all">All Types</option>
-                                                            <option value="RENT">Rent</option>
-                                                            <option value="DEPOSIT">Deposit</option>
-                                                            <option value="CREDIT">Credit</option>
-                                                            <option value="MIXED">Split (Mixed)</option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div class="col-auto ms-auto">
-                                                        <button type="submit" class="btn btn-sm btn-primary">
-                                                            <i class="bi bi-filter"></i> Filter
-                                                        </button>
-                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
-                                                                hx-get="{% url 'property_payments_filter' property_obj.id %}?month=&payment_type=all"
-                                                                hx-target="#propertyPaymentsTable">
-                                                            Reset
-                                                        </button>
-                                                    </div>
-                                                </form>
-
-                                                <!-- Table -->
-                                                <div class="table-responsive">
-                                                    <table class="table table-hover align-middle mb-0">
-                                                        <thead class="table-light">
-                                                            <tr>
-                                                                <th style="width: 40px;"></th> <!-- Arrow Column -->
-                                                                <th>Date</th>
-                                                                <th>Tenant</th>
-                                                                <th>Allocated To</th>
-                                                                <th>Type</th>
-                                                                <th>Method</th>
-                                                                <th>Ref</th>
-                                                                <th class="text-end">Amount</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody id="propertyPaymentsTable">
-                                                            {% include "properties/partials/payments_table.html" with property_payments=property_payments %}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div class="row"><div class="col-12"><div class="card border-0 shadow-none"><div class="card-header bg-white pb-2 px-0"><div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2"><h5 class="mb-0">Property Payments</h5></div></div><div class="card-body px-0"><form class="row g-2 align-items-end mb-3 flex-wrap bg-light p-3 rounded-2 border" hx-get="{% url 'property_payments_filter' property_obj.id %}" hx-target="#propertyPaymentsTable" hx-trigger="change from:input, change from:select, submit"><div class="col-auto"><label class="form-label small mb-1 fw-bold text-muted">Month</label><input type="month" name="month" value="{{ payment_active_month }}" max="{% now 'Y-m' %}" class="form-control form-control-sm" /></div><div class="col-auto"><label class="form-label small mb-1 fw-bold text-muted">Type</label><select name="payment_type" class="form-select form-select-sm"><option value="all" {% if current_payment_type == 'all' %}selected{% endif %}>All Types</option><option value="RENT" {% if current_payment_type == 'RENT' %}selected{% endif %}>Rent</option><option value="DEPOSIT" {% if current_payment_type == 'DEPOSIT' %}selected{% endif %}>Deposit</option><option value="CREDIT" {% if current_payment_type == 'CREDIT' %}selected{% endif %}>Credit</option><option value="MIXED" {% if current_payment_type == 'MIXED' %}selected{% endif %}>Split (Mixed)</option></select></div><div class="col-auto ms-auto"><button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-filter"></i> Filter</button><button type="button" class="btn btn-sm btn-outline-secondary" hx-get="{% url 'property_payments_filter' property_obj.id %}?month=&payment_type=all" hx-target="#propertyPaymentsTable">Reset</button></div></form><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th style="width: 40px;"></th><th>Date</th><th>Tenant</th><th>Allocated To</th><th>Type</th><th>Method</th><th>Ref</th><th class="text-end">Amount</th></tr></thead><tbody id="propertyPaymentsTable">{% include "properties/partials/payments_table.html" with property_payments=property_payments %}</tbody></table></div></div></div></div></div>
                             </div>
+
 
                             <!-- TAB 5: METER READINGS (Updated) -->
                             <!-- FIX: Only show Readings tab content if property is Metered -->

@@ -299,6 +299,7 @@ class NotificationLog(models.Model):
     message = models.TextField()
     channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
     status = models.CharField(max_length=20, default='sent')
+    error_details = models.TextField(null=True, blank=True) # New field for "Why?"
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta: indexes = [Index(fields=['tenant', 'created_at'])]
     def __str__(self): return f"Notification to {self.tenant.full_name}"

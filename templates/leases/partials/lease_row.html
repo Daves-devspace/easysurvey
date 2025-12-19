@@ -31,17 +31,29 @@
   </td>
 
   <td>
-      {{ row.lease_start }} 
+      {{ row.lease_start|date:"d M Y" }} 
       <span class="text-muted small">-</span> 
-      {{ row.lease_end|default:"ongoing" }}
+      {{ row.lease_end|date:"d M Y"|default:"ongoing" }}
   </td>
   
   <td>
     <div class="d-flex gap-1">
         <a href="{% url 'tenant_detail' tenant_id=row.tenant.id %}" class="btn btn-sm btn-info">Details</a>
-        <button class="btn btn-sm btn-success">
-            <i class="fas fa-comment"></i> Send reminder
+        
+        {% if row.status == 'Active' %}
+        <button class="btn btn-sm btn-success"
+                hx-get="{% url 'lease_reminder_preview' row.lease_obj.id %}"
+                hx-target="#crudModalContent"
+                data-bs-toggle="modal"
+                data-bs-target="#crudModal"
+                title="Send Payment Reminder">
+            <i class="fas fa-comment"></i> Reminder
         </button>
+        {% else %}
+        <button class="btn btn-sm btn-secondary" disabled>
+             <i class="fas fa-comment"></i>
+        </button>
+        {% endif %}
     </div>
   </td>
 </tr>
