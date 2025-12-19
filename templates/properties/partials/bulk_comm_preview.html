@@ -1,0 +1,64 @@
+<div class="card bg-light border-primary mb-3">
+    <div class="card-body">
+        <h6 class="card-title text-warning"><i class="ti ti-eye me-1"></i> Preview</h6>
+        
+        <div class="row text-center mb-3">
+            <div class="col-4 border-end">
+                <h4 class="fw-bold text-primary">{{ recipient_count }}</h4>
+                <small class="text-muted text-uppercase">Recipients</small>
+            </div>
+            <div class="col-4 border-end">
+                <h4 class="fw-bold text-dark">KES {{ estimated_cost|floatformat:2 }}</h4>
+                <small class="text-muted text-uppercase">Est. Cost</small>
+            </div>
+            <div class="col-4">
+                <h4 class="fw-bold {% if is_sufficient %}text-success{% else %}text-danger{% endif %}">
+                    KES {{ current_balance|floatformat:2 }}
+                </h4>
+                <small class="text-muted text-uppercase">SMS Balance</small>
+            </div>
+        </div>
+
+        <h6 class="small text-muted text-uppercase fw-bold mb-2">Message Preview (First 2):</h6>
+        
+        {% for sample in samples %}
+        <div class="p-2 bg-white border rounded mb-2 shadow-sm">
+            <div class="d-flex justify-content-between mb-1">
+                <span class="badge bg-secondary-subtle text-dark">{{ sample.tenant }}</span>
+            </div>
+            <p class="mb-0 small text-muted fst-italic">"{{ sample.msg }}"</p>
+        </div>
+        {% empty %}
+        <div class="alert alert-warning small">No eligible recipients found for this criteria.</div>
+        {% endfor %}
+
+        {% if recipient_count > 0 %}
+            {% if is_sufficient %}
+                <form method="post" action="{% url 'bulk_comm_send' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="mode" value="{{ mode }}">
+                    <input type="hidden" name="target_month" value="{{ target_month }}">
+                    
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-send me-1"></i> Confirm & Send {{ recipient_count }} Messages
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('bulkPreviewContainer').innerHTML=''">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-danger mt-3 mb-0">
+                    <i class="ti ti-alert-triangle me-1"></i> <strong>Insufficient Balance!</strong><br>
+                    Please top up your MobileSasa account to proceed.
+                </div>
+                <div class="d-grid mt-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="document.getElementById('bulkPreviewContainer').innerHTML=''">
+                        Close
+                    </button>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>

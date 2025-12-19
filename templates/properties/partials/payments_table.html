@@ -1,5 +1,3 @@
-{% load payment_tags %}
-
 <!-- Partial for Payments Table Body -->
 {% for payment in property_payments %}
 <tr>
@@ -12,7 +10,7 @@
                     data-bs-target="#paymentDetails{{ payment.id }}" 
                     aria-expanded="false" 
                     aria-controls="paymentDetails{{ payment.id }}">
-                <i class="bi bi-chevron-right small"></i>
+                <i class="ti ti-chevron-right small"></i>
             </button>
         {% else %}
             <span class="text-muted small">&bull;</span>
@@ -78,7 +76,7 @@
 <!-- Collapsible Row for MIXED payments -->
 {% if payment.payment_type == 'MIXED' %}
 <tr class="collapse bg-light" id="paymentDetails{{ payment.id }}">
-    <td colspan="8" class="p-0 border-0">
+    <td class="p-0 border-0">
         <div class="p-3 ps-5 border-bottom shadow-inner">
             <h6 class="text-muted small text-uppercase mb-2">
                 <i class="bi bi-diagram-3 me-2"></i>Allocation Breakdown
@@ -92,8 +90,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- FIX IS HERE: Use filter '|payment_allocations' instead of '.allocations' -->
-                    {% for child in payment|payment_allocations %}
+                    {% for child in payment.allocations %}
                     <tr>
                         <td>
                             {% if child.invoice %}
@@ -114,6 +111,7 @@
             </table>
         </div>
     </td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
 </tr>
 {% endif %}
 

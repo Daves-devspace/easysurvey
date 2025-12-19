@@ -1,6 +1,7 @@
 {% extends 'Home/base.html' %}
 {% load static %}
 {% load custom_filters %}
+{% load widget_tweaks %}
 {% load utils %}
 
 {% block body %}
@@ -347,44 +348,120 @@
                             </div>
                             <!-- End Tab 3 -->
 
+                                                       <!-- TAB: Global Communication -->
                             <div class="tab-pane fade" id="profile-comm" role="tabpanel">
-                                <div class="card border shadow-none">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0">Recent Communication Logs (All Properties)</h6>
+                                <div class="row">
+                                    
+                                    <!-- Left: Bulk Tools -->
+                                    <div class="col-lg-4 mb-4">
+                                        <div class="card border h-100 shadow-sm">
+                                            <div class="card-header bg-white">
+                                                <h6 class="mb-0 fw-bold"><i class="ti ti-broadcast me-2"></i>Bulk Notification</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <form hx-post="{% url 'bulk_comm_preview' %}" 
+                                                      hx-target="#bulkPreviewContainer" 
+                                                      hx-indicator="#bulkSpinner">
+                                                    {% csrf_token %}
+                                                    
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold text-muted">{{ bulk_comm_form.target_month.label }}</label>
+                                                        {% render_field bulk_comm_form.target_month class="form-control" %}
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-bold text-muted">{{ bulk_comm_form.mode.label }}</label>
+                                                        {% render_field bulk_comm_form.mode class="form-select" %}
+                                                        <div class="form-text small mt-2">
+                                                            <i class="ti ti-info-circle"></i> 
+                                                            <strong>New:</strong> Sends invoice only if not sent before.<br>
+                                                            <strong>Reminders:</strong> Sends to anyone owing money.
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="d-grid">
+                                                        <button type="submit" class="btn btn-dark">
+                                                            Generate Preview <span class="htmx-indicator spinner-border spinner-border-sm ms-2" id="bulkSpinner"></span>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                                
+                                                <!-- Preview Area -->
+                                                <div id="bulkPreviewContainer" class="mt-4"></div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="card-body p-0 table-responsive">
-                                        <table class="table table-hover mb-0 align-middle">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Property</th>
-                                                    <th>Tenant</th>
-                                                    <th>Channel</th>
-                                                    <th>Status</th>
-                                                    <th>Message</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for log in global_comm_logs %}
-                                                <tr>
-                                                    <td class="small text-muted">{{ log.created_at|date:"d M Y H:i" }}</td>
-                                                    <td>{{ log.tenant.property.name }}</td>
-                                                    <td>{{ log.tenant.full_name }}</td>
-                                                    <td><span class="badge bg-secondary-subtle text-secondary">{{ log.channel }}</span></td>
-                                                    <td>
-                                                        {% if log.status == 'sent' %}
-                                                            <span class="badge bg-success-subtle text-success">Sent</span>
-                                                        {% else %}
-                                                            <span class="badge bg-danger-subtle text-danger">Failed</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td class="small text-truncate" style="max-width: 300px;">{{ log.message }}</td>
-                                                </tr>
+
+                                    <!-- Right: Global Logs -->
+                                            <!-- Right: Global Logs (UPDATED) -->
+                                    <div class="col-lg-8 mb-4">
+                                        <div class="card border shadow-none h-100">
+                                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">Recent System Logs</h6>
+                                                <!-- Global Retry Button -->
+                                                <form method="post" action="{% url 'comm_retry_all' %}">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-xs btn-outline-danger" title="Retry all failed messages">
+                                                        <i class="ti ti-reload me-1"></i> Retry Failed
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            <div class="card-body p-0 table-responsive">
                                                
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
+                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
+                                                        <thead class="bg-green-600">
+                                                        <tr>
+                                                            <th>Date</th>
+                                                            <th>Property</th>
+                                                            <th>Tenant</th>
+                                                            <th>Status</th>
+                                                            <th>Reason</th> <!-- NEW COLUMN -->
+                                                            <th>Action</th> <!-- NEW COLUMN -->
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for log in global_comm_logs %}
+                                                        <tr>
+                                                            <td class="small text-muted text-nowrap">{{ log.created_at|date:"d M H:i" }}</td>
+                                                            <td><span class="badge bg-light text-dark border">{{ log.tenant.property.name|truncatechars:15 }}</span></td>
+                                                            <td>{{ log.tenant.full_name }}</td>
+                                                            <td>
+                                                                {% if log.status == 'sent' %}
+                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Sent</span>
+                                                                {% elif log.status == 'queued' %}
+                                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Queued</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Failed</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <!-- Reason Column -->
+                                                            <td class="small text-danger">
+                                                                {% if log.status == 'failed' %}
+                                                                    <i class="ti ti-alert-circle me-1"></i>{{ log.error_details|default:"Unknown Error"|truncatechars:20 }}
+                                                                {% else %}
+                                                                    <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <!-- Action Column -->
+                                                            <td>
+                                                                {% if log.status == 'Failed' %}
+                                                                    <form method="post" action="{% url 'comm_retry' log.id %}" style="display:inline;">
+                                                                        {% csrf_token %}
+                                                                        <button type="submit" class="btn btn-icon btn-link-primary btn-sm" title="Retry this message">
+                                                                            <i class="ti ti-reload"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                {% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
                                     </div>
+                                    
                                 </div>
                             </div>
                         </div>

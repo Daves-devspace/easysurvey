@@ -29,77 +29,36 @@ class AnnouncementForm(forms.Form):
             raise ValidationError("Message cannot be empty.")
         return msg
 
-def send_invoice_notification(invoice):
-    """
-    Sends a single invoice notification to the tenant.
-    Format: "Hello [Name], your invoice for [Period] is KES [Total]. Balance: [Balance]. Pay via..."
-    """
-    tenant = invoice.tenant
+class BulkCommunicationForm(forms.Form):
+    MODE_NEW = 'new'
+    MODE_REMINDER = 'reminder'
+    MODE_CHOICES = [
+        (MODE_NEW, "Send New Invoices (Not sent yet)"),
+        (MODE_REMINDER, "Send Reminders (Unpaid Balances)")
+    ]
     
-    # Construct Message
-    message = (
-        f"Hello {tenant.full_name}, your invoice for {invoice.billing_period_start.strftime('%b %Y')} "
-        f"is KES {invoice.total_amount:,.2f}. "
-        f"Current Due: KES {invoice.balance:,.2f}. "
-        f"Due date: {invoice.due_date}. "
-        f"Please pay to Till: 123456."
+    target_month = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}, format='%Y-%m'),
+        # FIX: Allow 'YYYY-MM' input format for month picker
+        input_formats=['%Y-%m'], 
+        label="Billing Month"
+    )
+    mode = forms.ChoiceField(
+        choices=MODE_CHOICES, 
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Action"
     )
     
-    try:
-        api = MobileSasaAPI()
-        return api.send_single_sms(tenant, message)
-    except Exception as e:
-        logger.error(f"Failed to send invoice SMS to {tenant}: {e}")
-        return False
-
-def send_bulk_invoice_notifications(invoices):
-    """
-    Sends personalized invoice SMS to a list of invoices efficiently.
-    """
-    messages_data = []
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # FIX: Initialize with YYYY-MM string, not date object
+        if 'target_month' not in self.initial:
+             self.initial['target_month'] = timezone.now().strftime('%Y-%m')
     
-    for invoice in invoices:
-        tenant = invoice.tenant
-        msg = (
-            f"Hello {tenant.full_name}, invoice {invoice.id} for {invoice.billing_period_start.strftime('%b %Y')} "
-            f"is generated. Total: {invoice.total_amount:,.0f}. Balance: {invoice.balance:,.0f}. "
-            f"Due: {invoice.due_date}."
-        )
-        messages_data.append({'tenant': tenant, 'message': msg})
-    
-    if not messages_data:
-        return 0
-
-    try:
-        api = MobileSasaAPI()
-        return api.send_personalized_bulk(messages_data)
-    except Exception as e:
-        logger.error(f"Failed to send bulk invoice SMS: {e}")
-        return 0
-
-def send_property_announcement(property_obj, message_text):
-    """
-    Sends a generic announcement to ALL active tenants in a property.
-    """
-    # Get active tenants
-    # Filter tenants who have at least one active lease in this property
-    active_tenants = Tenant.objects.filter(
-        property=property_obj,
-        leases__is_active=True
-    ).distinct()
-    
-    if not active_tenants.exists():
-        return 0
-        
-    try:
-        api = MobileSasaAPI()
-        # Prepend Property Name for context
-        full_message = f"[{property_obj.name}] {message_text}"
-        return api.send_bulk_sms(full_message, active_tenants)
-    except Exception as e:
-        logger.error(f"Failed to send announcement: {e}")
-        return 0
-
+    def clean_target_month(self):
+        val = self.cleaned_data['target_month']
+        # Normalize to 1st of month
+        return val.replace(day=1)
 class WaterCompanyForm(forms.ModelForm):
     class Meta:
         model = WaterCompany

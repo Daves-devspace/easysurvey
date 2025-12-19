@@ -14,7 +14,7 @@ from decimal import Decimal
 from datetime import date
 from apps.tenant_management.models import NotificationLog
 from apps.tenant_management.models import Property, Unit, Lease, Tenant, Invoice, Payment, MeterReading, Deposit,WaterCompany,WaterRate
-from apps.tenant_management.forms import PropertyForm, UnitForm, LeaseForm, TenantCreationForm, PaymentForm, AnnouncementForm
+from apps.tenant_management.forms import PropertyForm, UnitForm, LeaseForm, TenantCreationForm, PaymentForm, AnnouncementForm, BulkCommunicationForm
 from apps.tenant_management.services.payment_service import PaymentService
 from apps.tenant_management.services.billing_cycle_service import BillingCycleService
 from apps.tenant_management.services.deposit_service import DepositService
@@ -73,6 +73,7 @@ class PropertyListView(ListView):
         ctx['water_rates'] = WaterRate.objects.select_related('water_company').order_by('-is_active', '-effective_from') 
          #: Global Communication Logs (Recent 50)
         ctx['global_comm_logs'] = NotificationLog.objects.select_related('tenant', 'tenant__property').order_by('-created_at')[:50]
+        ctx['bulk_comm_form'] = BulkCommunicationForm()
         return ctx
 
 class PropertyCreateView(CreateView):
@@ -108,20 +109,27 @@ class PropertyDetailView(DetailView):
     model = Property
     template_name = 'properties/property_detail.html'
     context_object_name = 'property_obj'
+
     def get_queryset(self):
         return Property.objects.annotate(
             units_count=Count('units', distinct=True),
             active_leases_count=Count('units__leases', filter=Q(units__leases__is_active=True), distinct=True),
             active_tenants_count=Count('units__leases__tenant', filter=Q(units__leases__is_active=True), distinct=True),
         )
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         prop = self.object
+        
         ctx['units_count'] = getattr(prop, 'units_count', 0)
         ctx['active_leases_count'] = getattr(prop, 'active_leases_count', 0)
         ctx['active_tenants_count'] = getattr(prop, 'active_tenants_count', 0)
+
+        # 1. Units
         status = self.request.GET.get('status', 'all')
         ctx['units'] = filter_units_for_property(prop, status=None if status == 'all' else status)
+        
+        # 2. Readings
         req_month = self.request.GET.get("month")
         today = timezone.now().date()
         default_month = f"{today.year}-{today.month:02d}"
@@ -131,20 +139,39 @@ class PropertyDetailView(DetailView):
         ctx['active_month'] = active_month
         ctx['reading_status'] = self.request.GET.get("reading_status") or "all"
         ctx['pending_meter_readings_count'] = sum(1 for r in readings if r['status'] == 'pending')
+        
+        # 3. Leases
         leases_data, aggregates = get_property_leases_data(prop)
         ctx['leases_data'] = leases_data
         ctx['tenants_data'] = leases_data 
         ctx.update(aggregates)
-        payments_qs = Payment.objects.filter(tenant__property=prop).exclude(reference__startswith="Allocation from").select_related('tenant', 'invoice').order_by('-payment_date')
+
+        # 4. Payments
+        # Base Query: Exclude allocation children (show receipts)
+        payments_qs = Payment.objects.filter(
+            tenant__property=prop
+        ).exclude(reference__startswith="Allocation from").select_related('tenant', 'invoice').order_by('-payment_date')
+        
+        # FIX: Apply type filter if present in URL
+        current_payment_type = self.request.GET.get('payment_type', 'all')
+        if current_payment_type and current_payment_type != 'all':
+            payments_qs = payments_qs.filter(payment_type__iexact=current_payment_type)
+        
         ctx['property_payments'] = payments_qs[:50]
         ctx['payment_active_month'] = active_month
+        ctx['current_payment_type'] = current_payment_type
 
+        # 5. Communication
         ctx['comm_logs'] = NotificationLog.objects.filter(tenant__property=prop).select_related('tenant').order_by('-created_at')[:50]
         ctx['announcement_form'] = AnnouncementForm()
+
+        # Forms
         ctx['unit_form'] = UnitForm(property_obj=prop)
         ctx['tenant_form'] = TenantCreationForm()
         ctx['lease_form'] = LeaseForm(initial={'property': prop.id})
+
         return ctx
+
 
 
 class PropertyReadingsPartialView(DetailView):
@@ -173,10 +200,8 @@ class PropertyReadingsPartialView(DetailView):
         return ctx
 
 
+
 class PropertyPaymentsPartialView(DetailView):
-    """
-    HTMX View: Filters payments for the entire property.
-    """
     model = Property
     template_name = "properties/partials/payments_table.html"
     context_object_name = "property_obj"
@@ -188,29 +213,26 @@ class PropertyPaymentsPartialView(DetailView):
         month_str = self.request.GET.get('month')
         p_type = self.request.GET.get('payment_type', 'all')
         
+        # Base Query: Filter by property AND exclude allocation children (show only receipts)
         payments_qs = Payment.objects.filter(
             tenant__property=prop
-        ).exclude(payment_type='MIXED').select_related('tenant', 'invoice')
-
+        ).exclude(
+            reference__startswith="Allocation from"
+        ).select_related('tenant', 'invoice')
+        
         if month_str:
             try:
                 year, month = map(int, month_str.split('-'))
                 payments_qs = payments_qs.filter(payment_date__year=year, payment_date__month=month)
-            except ValueError:
-                pass
-        
-        if p_type != 'all':
+            except ValueError: pass
+            
+        if p_type and p_type != 'all':
             payments_qs = payments_qs.filter(payment_type__iexact=p_type)
-
-        payments_qs = payments_qs.order_by('-payment_date')
-
-        ctx['property_payments'] = payments_qs
+            
+        ctx['property_payments'] = payments_qs.order_by('-payment_date')
         ctx['payment_active_month'] = month_str
         ctx['current_payment_type'] = p_type
-        
         return ctx
-
-
 
 
 # --- Manual Invoice Generation ---
