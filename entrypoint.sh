@@ -6,14 +6,18 @@ log() {
 }
 
 # -------------------------
-# Ensure required env vars for DB
+# Map environment variables
 # -------------------------
-: "${DB_HOST:?DB_HOST is required}"
-: "${DB_PORT:?DB_PORT is required}"
-: "${DB_NAME:?DB_NAME is required}"
-: "${DB_USER:?DB_USER is required}"
-: "${DB_PASS:?DB_PASS is required}"
-export PGPASSWORD="$DB_PASS"
+# Your Django settings use POSTGRES_* but docker-compose uses DB_*
+# Let's support both
+DB_HOST="${DB_HOST:-${POSTGRES_HOST}}"
+DB_PORT="${DB_PORT:-${POSTGRES_PORT}}"
+DB_NAME="${DB_NAME:-${POSTGRES_DB}}"
+DB_USER="${DB_USER:-${POSTGRES_USER}}"
+
+# Ensure at least one set is defined
+: "${DB_HOST:?Either DB_HOST or POSTGRES_HOST is required}"
+: "${DB_PORT:?Either DB_PORT or POSTGRES_PORT is required}"
 
 # -------------------------
 # Wait for DB
@@ -24,7 +28,9 @@ while ! nc -z "$DB_HOST" "$DB_PORT"; do
 done
 log "Database is ready!"
 
+# -------------------------
 # Optional: wait for Redis
+# -------------------------
 if [ "$WAIT_FOR_REDIS" = "true" ]; then
   log "Waiting for Redis at $REDIS_HOST:$REDIS_PORT..."
   while ! nc -z "$REDIS_HOST" "$REDIS_PORT"; do
@@ -34,87 +40,65 @@ if [ "$WAIT_FOR_REDIS" = "true" ]; then
 fi
 
 # -------------------------
-# psql helper (idempotent)
-# -------------------------
-psql_exec() {
-  # Usage: psql_exec "SQL HERE"
-  echo "$1" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1
-}
-
-psql_try() {
-  # Run SQL but ignore failure (useful for checks that may fail)
-  echo "$1" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" || true
-}
-
-# -------------------------
-# Schema patch runner
-# - execute numbered SQL files in /app/db/patches in lexical order
-# - each patch MUST be idempotent (CREATE IF NOT EXISTS / ALTER ... IF NOT EXISTS / DO $$ guard $$)
-# -------------------------
-PATCH_DIR=/app/db/patches
-
-run_patches() {
-  if [ ! -d "$PATCH_DIR" ]; then
-    log "No DB patches directory ($PATCH_DIR) found — skipping patching."
-    return
-  fi
-
-  log "Applying DB patches from $PATCH_DIR (idempotent)"
-  for f in $(ls "$PATCH_DIR"/*.sql 2>/dev/null | sort); do
-    log "Running patch: $(basename "$f")"
-    if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"; then
-      log "❌ Patch failed: $f"
-      exit 1
-    fi
-  done
-  log "✅ DB patches applied"
-}
-
-# -------------------------
-# Safety DB check before Django runs
+# Check Django can connect to DB
 # -------------------------
 log "Checking database connection..."
-if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c '\q' 2>/dev/null; then
+if ! python manage.py check --database default; then
   log "❌ Database connection failed"
   exit 1
 fi
+log "✅ Database connection verified"
 
 # -------------------------
-# Run patches (healing)
+# Firebase Service Worker Generation
 # -------------------------
-run_patches
+log "🚀 Preparing container startup..."
+
+STATIC_ROOT=${STATIC_ROOT:-/app/staticfiles}
+TEMPLATE_PATH=${TEMPLATE_PATH:-static/assets/js/utils/firebase-messaging-sw.js}
+OUTPUT_PATH="${STATIC_ROOT}/firebase-messaging-sw.js"
+
+# Ensure static directory exists
+mkdir -p "$STATIC_ROOT"
+
+# Validate and generate Firebase SW if template exists
+if [ -f "$TEMPLATE_PATH" ]; then
+  if [ -n "$FIREBASE_API_KEY" ] && [ -n "$FIREBASE_PROJECT_ID" ]; then
+    : "${FIREBASE_AUTH_DOMAIN:=${FIREBASE_PROJECT_ID}.firebaseapp.com}"
+    : "${FIREBASE_STORAGE_BUCKET:=${FIREBASE_PROJECT_ID}.appspot.com}"
+
+    log "📝 Rendering firebase-messaging-sw.js from template..."
+    envsubst < "$TEMPLATE_PATH" > "$OUTPUT_PATH"
+    chmod 644 "$OUTPUT_PATH"
+    log "✅ firebase-messaging-sw.js written to ${OUTPUT_PATH}"
+  else
+    log "⚠️ Firebase env vars not set, skipping SW generation"
+  fi
+else
+  log "⚠️ No firebase SW template found at ${TEMPLATE_PATH}"
+fi
 
 # -------------------------
-# Optional: run fake-initial to align Django with pre-existing schema
-# We attempt --fake-initial first then migrate normally.
+# Run migrations
 # -------------------------
 log "Checking for unapplied migrations..."
 PENDING=$(python manage.py showmigrations --plan | grep '\[ \]' || true)
 if [ -n "$PENDING" ]; then
-  log "Applying pending migrations (fake-initial attempt)..."
-  # Try a safe fake-initial first (idempotent)
-  if ! python manage.py migrate --fake-initial --noinput; then
-    log "⚠️ fake-initial failed, will attempt normal migrate now"
-  fi
-
-  log "Running normal migrate..."
+  log "Applying pending migrations..."
   if ! python manage.py migrate --noinput; then
-    log "❌ Migration failed — please check DB and migration conflicts"
+    log "❌ Migration failed — check for conflicts"
     exit 1
   fi
   log "✅ Migrations applied successfully"
 else
-  log "No unapplied migrations — skipping migrate."
+  log "✅ No unapplied migrations"
 fi
 
 # -------------------------
 # Collect static files
 # -------------------------
 log "Collecting static files..."
-if ! python manage.py collectstatic --noinput; then
-  log "❌ Static file collection failed"
-  exit 1
-fi
+python manage.py collectstatic --noinput
 log "✅ Static files collected successfully"
 
 # -------------------------
@@ -123,6 +107,7 @@ log "✅ Static files collected successfully"
 log "Starting service..."
 log "Executing: $@"
 
+# Default command if none is provided
 if [ $# -eq 0 ]; then
   set -- gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
 fi
