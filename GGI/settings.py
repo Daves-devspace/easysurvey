@@ -402,6 +402,8 @@ DATABASES = {
         'PASSWORD': os.getenv("POSTGRES_PASSWORD"),
         'HOST': os.getenv("POSTGRES_HOST"),
         'PORT': os.getenv("POSTGRES_PORT"),
+        "DISABLE_SERVER_SIDE_CURSORS": True,
+        "CONN_MAX_AGE": 0,
     }
 }
 # Password validation
