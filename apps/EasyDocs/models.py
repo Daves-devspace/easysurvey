@@ -105,7 +105,25 @@ class SiteSettings(models.Model):
     company_email = models.EmailField(unique=True, blank=True, null=True, db_index=True)
     tagline = models.CharField(max_length=255, blank=True, default="Thank you for letting us serve you!")
     stamp_signature = models.ImageField(upload_to="company/", blank=True, null=True)
+    
     updated_at = models.DateTimeField(auto_now=True)
+    
+    allow_employee_sms = models.BooleanField(
+        default=False,
+        help_text="If enabled, employees will also receive bulk SMS messages"
+    )
+
+    allow_employee_email = models.BooleanField(
+        default=False,
+        help_text="If enabled, employees will also receive bulk email messages"
+    )
+
+    # optional: who exactly?
+    employee_sms_roles = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Roles allowed to receive SMS e.g. ['Admin', 'Surveyor']"
+    )
     
     # GOOGLE DRIVE CONFIGURATION
     
@@ -988,7 +1006,7 @@ class ScheduledTask(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_id = models.CharField(max_length=255, unique=True)
-    task_name = models.CharField(max_length=255)  # e.g., 'apps.EasyDocs.tasks._send_chunk'
+    task_name = models.CharField(max_length=255)
     scheduled_time = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     message_preview = models.TextField(blank=True, null=True)
@@ -1002,38 +1020,58 @@ class ScheduledTask(models.Model):
 
 
 
-
 class MessageLog(models.Model):
+    RECIPIENT_CHOICES = [
+        ('client', 'Client'),
+        ('employee', 'Employee'),
+        ('company', 'Company'),
+    ]
+
     client_service = models.ForeignKey(
         'ClientService',
         on_delete=models.CASCADE,
         related_name='message_logs',
-    null = True,
-    blank = True,
+        null=True,
+        blank=True,
     )
     client = models.ForeignKey(
-        Client,  # or your `Client` model
-        on_delete=models.CASCADE
+        Client,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
     )
     phone = models.CharField(max_length=20)
     message = models.TextField()
     reason = models.CharField(max_length=255)
+    recipient_type = models.CharField(max_length=20, choices=RECIPIENT_CHOICES, default='client')
     message_id = models.CharField(max_length=255, blank=True, null=True)
+    is_company_copy = models.BooleanField(default=False, db_index=True)
     send_status = models.CharField(
         max_length=20,
-        choices=[('sent','Sent'),('failed','Failed')]
+        choices=[('sent', 'Sent'), ('failed', 'Failed')]
     )
     delivery_status = models.CharField(
         max_length=20,
-        choices=[('pending','Pending'),('delivered','Delivered'),('failed','Failed')],
+        choices=[('pending', 'Pending'), ('delivered', 'Delivered'), ('failed', 'Failed')],
         default='pending'
     )
     error_details = models.TextField(blank=True, null=True)
+
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['reason', 'is_company_copy'],
+                condition=models.Q(is_company_copy=True),
+                name='unique_company_copy_per_reason'
+            )
+        ]
+
     def __str__(self):
-        return f"{self.client} | {self.reason} | {self.send_status}"
-    
+        client_repr = str(self.client) if self.client else f"(no client) {self.recipient_type}"
+        return f"{client_repr} | {self.reason} | {self.send_status}"
+   
     
     
     

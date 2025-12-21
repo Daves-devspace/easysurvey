@@ -11,8 +11,8 @@ from django.conf import settings
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 
-from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask
-from apps.EasyDocs.utils import update_pending_sms_logs_and_balance, MobileSasaAPI, personalize
+from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask, SiteSettings
+from apps.EasyDocs.utils import update_pending_sms_logs_and_balance, MobileSasaAPI, personalize,personalize, clean_placeholders, send_company_copy_if_needed
 from .files.tasks import migrate_documents_to_drive_task
 
 __all__ = ["migrate_documents_to_drive_task"]
@@ -24,11 +24,66 @@ BATCH_SIZE = 50  # Celery task chunk size
 API_CHUNK_SIZE = 20  # SMS API chunk size (reduced from 50 for better reliability)
 
 
-@shared_task
-def update_sms_delivery_and_balance():
-    print("Running scheduled SMS delivery and balance update")
-    update_pending_sms_logs_and_balance()
 
+logger = logging.getLogger(__name__)
+
+
+# -----------------------------
+# Celery Task
+# -----------------------------
+from celery import shared_task
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
+def update_sms_delivery_and_balance(self):
+    """
+    Celery task wrapper for update_pending_sms_logs_and_balance with proper logging and retry.
+    """
+    logger.info("📩 Starting scheduled SMS delivery and balance update (task id=%s)", getattr(self.request, 'id', None))
+    try:
+        summary = update_pending_sms_logs_and_balance()
+        logger.info(
+            "✅ SMS Delivery Update Complete: Total Pending=%s, Updated=%s, Failed=%s, Balance=%s",
+            summary.get('total_pending', 0),
+            summary.get('updated_count', 0),
+            summary.get('failed_count', 0),
+            summary.get('balance', {}).get('balance', 'unknown') if isinstance(summary.get('balance'), dict) else summary.get('balance')
+        )
+        return {"status": "success", "summary": summary}
+    except Exception as exc:
+        logger.exception("⚠️ SMS Delivery Update failed: %s", exc)
+        try:
+            self.retry(exc=exc)
+        except Exception:
+            logger.exception("Retry failed or max retries exceeded for update_sms_delivery_and_balance")
+            return {"status": "failed", "error": str(exc)}
+
+@shared_task(bind=True)
+def realtime_update_sms_delivery_and_balance(self, interval_seconds=30, max_iterations=None):
+    """
+    Continuously updates pending SMS delivery statuses and fetches balance.
+    - interval_seconds: delay between successive checks (default 30s)
+    - max_iterations: optional cap for testing; None = infinite
+    """
+    logger.info("🚀 Starting real-time SMS delivery & balance updater")
+    iteration = 0
+
+    while True:
+        iteration += 1
+        try:
+            summary = update_pending_sms_logs_and_balance()
+            logger.info(
+                f"✅ Iteration {iteration}: Total Pending={summary.get('total_pending', 0)}, "
+                f"Updated={summary.get('updated_count', 0)}, Failed={summary.get('failed_count', 0)}, "
+                f"Balance={summary.get('balance', {}).get('balance', 'unknown')}"
+            )
+        except Exception as exc:
+            logger.exception(f"⚠️ Error in real-time SMS updater iteration {iteration}: {exc}")
+
+        if max_iterations and iteration >= max_iterations:
+            logger.info("🛑 Max iterations reached, stopping real-time updater")
+            break
+
+        time.sleep(interval_seconds)
 
 @shared_task
 def test_timezone_task():
@@ -41,15 +96,9 @@ def test_timezone_task():
 
 @shared_task
 def retry_failed_sms(log_id=None):
-    """
-    Safely retry a failed sms by log id.
-    If called without a log_id (e.g. scheduled call), this becomes a no-op.
-    """
     if log_id is None:
         logger.info("retry_failed_sms called without log_id — skipping.")
         return
-
-    from .utils import send_single_sms
 
     try:
         log = MessageLog.objects.get(id=log_id)
@@ -60,8 +109,8 @@ def retry_failed_sms(log_id=None):
     client = log.client
 
     try:
-        status, response = send_single_sms(client, log.message)  # utils.send_single_sms(client, text)
-        log.send_status = 'success' if status == 'sent' else 'failed'
+        status, response = send_single_sms(client, log.message, reason=log.reason)
+        log.send_status = 'sent' if status == 'sent' else 'failed'
         log.message_id = response.get('message_id', '') if isinstance(response, dict) else ''
         log.error_details = None if status == 'sent' else (response.get('message') if isinstance(response, dict) else str(response))
     except Exception as e:
@@ -74,218 +123,274 @@ def retry_failed_sms(log_id=None):
 @shared_task(bind=True)
 def _send_chunk(self, template, client_ids):
     """
-    ✅ OPTIMIZED VERSION (BUG FIXED):
-    - Single balance check per chunk (not per message)
-    - Bulk database writes (100x faster)
-    - Rate limiting between API calls
-    - Better error handling with detailed logging
-    - Reduced API chunk size for reliability
+    Send a chunk of personalized messages to clients.
+
+    Fully resilient to any API weirdness.
+    - Logs sent and failed messages to MessageLog.
+    - Always returns a predictable dict {"sent": <count>, "failed": <count>}.
     """
-    logger.info(f"📤 Processing chunk of {len(client_ids)} clients")
-    
-    # ✅ FIX: Create API instance OUTSIDE try block so it's always available
+    start = timezone.now()
     api = MobileSasaAPI()
-    
-    # ✅ IMPROVEMENT #1: Single balance check per chunk
-    try:
-        balance_info = api.get_balance()
-        current_balance = balance_info.get('balance', 0)
-        
-        if current_balance <= 0:
-            logger.error("❌ Insufficient SMS balance. Aborting chunk.")
-            # Bulk create failure logs
-            failed_logs = [
-                MessageLog(
-                    client_id=cid,
-                    phone='',
-                    message=template[:200],  # Truncate for safety
-                    reason='Bulk SMS broadcast',
-                    send_status='failed',
-                    delivery_status='failed',
-                    error_details='Insufficient SMS balance'
-                )
-                for cid in client_ids
-            ]
-            MessageLog.objects.bulk_create(failed_logs, ignore_conflicts=True)
-            return {'status': 'failed', 'reason': 'insufficient_balance', 'processed_clients': 0}
-    except Exception as e:
-        logger.error(f"⚠️ Balance check failed: {e} - Continuing anyway")
-        # Continue anyway - better to try than abort
-    
-    # ✅ IMPROVEMENT #2: Prepare all messages first (collect phase)
+    task_id = getattr(self.request, 'id', None)
+    logger.info("Starting _send_chunk task id=%s for %s clients", task_id, len(client_ids))
+
+    # --- Prepare messages ---
     message_pairs = []
-    clients_map = {}  # phone -> client object
-    
+    phone_map = {}  # phone -> (client, personalized_message)
     for cid in client_ids:
         try:
             client = Client.objects.get(pk=cid)
-            message = personalize(template, client)
-            cleaned_phone = client.phone
-            
-            message_pairs.append({'phone': cleaned_phone, 'message': message})
-            clients_map[cleaned_phone] = client
-            
+            msg = personalize(template, client)
+            phone = client.phone
+            if not phone:
+                logger.warning("Skipping client id=%s (no phone)", cid)
+                continue
+            message_pairs.append({'phone': phone, 'message': msg})
+            phone_map[phone] = (client, msg)
         except Client.DoesNotExist:
-            logger.error(f"❌ Client {cid} not found - skipping")
-        except Exception as e:
-            logger.error(f"❌ Failed to prepare message for client {cid}: {e}")
-    
-    if not message_pairs:
-        logger.warning("⚠️ No valid messages to send in this chunk")
-        return {'status': 'no messages to send', 'processed_clients': 0}
-    
-    logger.info(f"✅ Prepared {len(message_pairs)} messages for sending")
-    
-    # ✅ IMPROVEMENT #3: Send with rate limiting and smaller API chunks
-    all_results = {'sent': [], 'failed': []}
-    
+            logger.warning("Client id %s does not exist - skipping", cid)
+        except Exception as exc:
+            logger.exception("Error preparing message for client id=%s: %s", cid, exc)
+
+    sent_infos = {}   # phone -> {"message_id":..., "raw":...}
+    failed_infos = {} # phone -> {"error":..., "raw":...}
+
+    # --- Send in chunks ---
     for i in range(0, len(message_pairs), API_CHUNK_SIZE):
-        api_chunk = message_pairs[i:i + API_CHUNK_SIZE]
-        chunk_num = (i // API_CHUNK_SIZE) + 1
-        total_chunks = (len(message_pairs) + API_CHUNK_SIZE - 1) // API_CHUNK_SIZE
-        
-        logger.info(f"📡 Sending API chunk {chunk_num}/{total_chunks} ({len(api_chunk)} messages)")
-        
+        chunk = message_pairs[i:i + API_CHUNK_SIZE]
         try:
-            result = api.send_personalized_sms(api_chunk)
-            all_results['sent'].extend(result.get('sent', []))
-            all_results['failed'].extend(result.get('failed', []))
-            
-            logger.info(f"✅ API chunk {chunk_num}: {len(result.get('sent', []))} sent, {len(result.get('failed', []))} failed")
-            
-            # ✅ Rate limiting: Wait between chunks to avoid API throttling
-            if i + API_CHUNK_SIZE < len(message_pairs):
-                time.sleep(0.5)  # 500ms delay between API calls
-                
-        except Exception as e:
-            logger.error(f"❌ API call failed for chunk {chunk_num}: {e}")
-            # Mark this entire chunk as failed
-            failed_phones = [p['phone'] for p in api_chunk]
-            all_results['failed'].extend(failed_phones)
-    
-    # ✅ IMPROVEMENT #4: Bulk create logs (MUCH faster than individual creates)
+            resp = api.send_personalized_sms(chunk)
+            raw_resp = resp.get('raw') if isinstance(resp, dict) else resp
+            logger.debug("_send_chunk API response: %s", raw_resp)
+
+            # Process sent messages
+            for s in resp.get('sent', []):
+                if not isinstance(s, dict):
+                    s = {"phone": s if isinstance(s, str) else None, "message_id": None, "raw": s}
+                phone = s.get('phone')
+                mid = s.get('message_id') or s.get('messageId') or s.get('id') or None
+                if phone:
+                    sent_infos[phone] = {"message_id": mid, "raw": s.get('raw', s)}
+
+            # Process failed messages
+            for f in resp.get('failed', []):
+                if not isinstance(f, dict):
+                    f = {"phone": None, "error": str(f), "raw": f}
+                phone = f.get('phone')
+                err = f.get('error') or f.get('message') or 'provider_rejected'
+                if phone:
+                    failed_infos[phone] = {"error": err, "raw": f.get('raw', f)}
+
+        except Exception as exc:
+            logger.exception("API send_personalized_sms failed for chunk: %s", exc)
+            for it in chunk:
+                failed_infos[it['phone']] = {"error": f"exception: {exc}", "raw": None}
+
+        # Mild rate-limit pause
+        time.sleep(0.3)
+
+    # --- Create MessageLog entries ---
     logs_to_create = []
-    
-    for phone, client in clients_map.items():
-        # Find the original message for this phone
-        message = next((m['message'] for m in message_pairs if m['phone'] == phone), template)
-        
-        if phone in all_results['sent']:
-            send_status = 'sent'
-            delivery_status = 'pending'
-            error_details = None
-        elif phone in all_results['failed']:
-            send_status = 'failed'
-            delivery_status = 'failed'
-            error_details = 'API sending failed'
-        else:
-            # Not in either list - treat as failed
-            send_status = 'failed'
-            delivery_status = 'failed'
-            error_details = 'Unknown status from API'
-        
-        logs_to_create.append(
-            MessageLog(
+    for phone, (client, msg) in phone_map.items():
+        if phone in sent_infos:
+            info = sent_infos[phone]
+            logs_to_create.append(MessageLog(
                 client=client,
                 phone=phone,
-                message=message,
+                message=msg,
                 reason='Bulk SMS broadcast',
-                send_status=send_status,
-                delivery_status=delivery_status,
-                error_details=error_details
-            )
-        )
-    
-    # Bulk insert - 100x faster than individual creates
+                recipient_type='client',
+                message_id=info.get('message_id'),
+                send_status='sent',
+                delivery_status='pending',
+                error_details=f"API send raw: {info.get('raw')}"
+            ))
+        elif phone in failed_infos:
+            info = failed_infos[phone]
+            logs_to_create.append(MessageLog(
+                client=client,
+                phone=phone,
+                message=msg,
+                reason='Bulk SMS broadcast',
+                recipient_type='client',
+                message_id=None,
+                send_status='failed',
+                delivery_status='failed',
+                error_details=f"API send error: {info.get('error')}"
+            ))
+        else:
+            # Rare case: neither sent nor failed
+            logs_to_create.append(MessageLog(
+                client=client,
+                phone=phone,
+                message=msg,
+                reason='Bulk SMS broadcast',
+                recipient_type='client',
+                message_id=None,
+                send_status='sent',
+                delivery_status='pending',
+                error_details='No provider acknowledgment in response'
+            ))
+
+    # --- Save logs ---
+    if logs_to_create:
+        try:
+            MessageLog.objects.bulk_create(logs_to_create, batch_size=100)
+            logger.info("_send_chunk created %s MessageLog rows", len(logs_to_create))
+        except Exception as exc:
+            logger.exception("Bulk create failed, saving individually: %s", exc)
+            created = 0
+            for l in logs_to_create:
+                try:
+                    l.save()
+                    created += 1
+                except Exception as e:
+                    logger.exception("Saving individual MessageLog failed: %s", e)
+            logger.info("Individually saved %s MessageLog rows", created)
+
+    # --- Update ScheduledTask if present ---
     try:
-        MessageLog.objects.bulk_create(logs_to_create, batch_size=100)
-        logger.info(f"✅ Bulk created {len(logs_to_create)} message logs")
-    except Exception as e:
-        logger.error(f"❌ Bulk create failed, falling back to individual saves: {e}")
-        # Fallback to individual creates
-        saved_count = 0
-        for log in logs_to_create:
-            try:
-                log.save()
-                saved_count += 1
-            except Exception as inner_e:
-                logger.error(f"❌ Individual save failed for {log.phone}: {inner_e}")
-        logger.info(f"✅ Saved {saved_count}/{len(logs_to_create)} logs individually")
-    
-    summary = {
-        'status': 'completed',
-        'processed_clients': len(client_ids),
-        'sent': len(all_results['sent']),
-        'failed': len(all_results['failed']),
-        'logs_created': len(logs_to_create)
-    }
-    
-    logger.info(f"📊 Chunk summary: {summary}")
-    return summary
+        if task_id:
+            ScheduledTask.objects.filter(task_id=task_id).update(status='sent')
+    except Exception:
+        logger.exception("Failed updating ScheduledTask for _send_chunk")
+
+    elapsed = timezone.now() - start
+    logger.info("_send_chunk finished: sent=%s failed=%s elapsed=%s",
+                len(sent_infos), len(failed_infos), elapsed)
+
+    return {"sent": len(sent_infos), "failed": len(failed_infos)}
+
+
+@shared_task(bind=True)
+def send_employee_and_company_copy(self, template):
+    """
+    Send cleaned message to employees (if enabled) and one company copy.
+    """
+    start = timezone.now()
+    api = MobileSasaAPI()
+    settings = SiteSettings.objects.first()
+    cleaned = clean_placeholders(template)
+
+    sent_count = 0
+    failed_count = 0
+
+    # Employees
+    if settings and settings.allow_employee_sms:
+        try:
+            from apps.Employee.models import EmployeeProfile
+            qs = EmployeeProfile.objects.exclude(phone_number__isnull=True).exclude(phone_number='')
+            if settings.employee_sms_roles:
+                qs = qs.filter(role__in=settings.employee_sms_roles)
+
+            for emp in qs:
+                try:
+                    resp = api.send_sms(emp.phone_number, cleaned)
+                    status = resp.get('status') if isinstance(resp, dict) else False
+                    message_id = None
+                    if isinstance(resp, dict):
+                        message_id = resp.get('message_id') or resp.get('messageId') or None
+
+                    MessageLog.objects.create(
+                        client=None,
+                        phone=emp.phone_number,
+                        message=cleaned,
+                        reason='Bulk SMS broadcast',
+                        recipient_type='employee',
+                        message_id=message_id,
+                        is_company_copy=False,
+                        send_status='sent' if status else 'failed',
+                        delivery_status='pending' if status else 'failed',
+                        error_details=f"API raw: {resp}"
+                    )
+                    if status:
+                        sent_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as exc:
+                    logger.exception("Failed sending employee sms to %s: %s", emp.id, exc)
+                    MessageLog.objects.create(
+                        client=None,
+                        phone=emp.phone_number,
+                        message=cleaned,
+                        reason='Bulk SMS broadcast',
+                        recipient_type='employee',
+                        send_status='failed',
+                        delivery_status='failed',
+                        error_details=str(exc)
+                    )
+                    failed_count += 1
+        except Exception:
+            logger.exception("Failed enumerating employee profiles")
+
+    # Company copy
+    try:
+        send_company_copy_if_needed(template, reason='Bulk SMS broadcast')
+    except Exception:
+        logger.exception("send_company_copy_if_needed failed")
+
+    # Mark ScheduledTask for this send_employee_and_company_copy as sent
+    try:
+        ScheduledTask.objects.filter(task_id=getattr(self.request, 'id', None)).update(status='sent')
+    except Exception:
+        logger.exception("Failed updating ScheduledTask for send_employee_and_company_copy")
+
+    elapsed = timezone.now() - start
+    logger.info("send_employee_and_company_copy finished: sent=%s failed=%s elapsed=%s", sent_count, failed_count, elapsed)
+    return {"sent": sent_count, "failed": failed_count}
 
 
 @shared_task(bind=True)
 def schedule_bulk_broadcast(self, template=None, scheduled_iso=None):
     """
-    Safely schedule or dispatch bulk broadcast chunks.
-    If template is falsy (None/empty), task will no-op to avoid scheduler errors.
-    
-    ✅ Already well-designed - no changes needed
+    Splits clients into chunks and schedules _send_chunk (and the employee/company task)
+    Always stores ScheduledTask rows for the scheduled celery jobs for visibility and cancellation.
     """
-    logger.info(f"[SCHEDULER START] schedule_bulk_broadcast triggered. Task ID: {getattr(self.request, 'id', None)}")
-
-    if not template:
-        logger.warning("[SCHEDULER] no template provided - nothing to do. Exiting.")
-        return {'task_ids': [], 'chunks': 0}
-
     client_ids = list(Client.objects.values_list('id', flat=True))
-    logger.info(f"[INFO] Found {len(client_ids)} clients to broadcast to.")
+    chunks = [client_ids[i:i + BATCH_SIZE] for i in range(0, len(client_ids), BATCH_SIZE)]
 
-    chunks = [client_ids[i: i + BATCH_SIZE] for i in range(0, len(client_ids), BATCH_SIZE)]
-    logger.info(f"[INFO] Split clients into {len(chunks)} chunks of max {BATCH_SIZE} clients each.")
+    eta = None
+    if scheduled_iso:
+        try:
+            dt = datetime.fromisoformat(scheduled_iso)
+            eta = timezone.make_aware(dt) if timezone.is_naive(dt) else dt
+        except Exception:
+            eta = None
 
     scheduled_ids = []
-
-    for i, chunk in enumerate(chunks):
-        if scheduled_iso:
-            try:
-                eta = datetime.fromisoformat(scheduled_iso)
-                if timezone.is_naive(eta):
-                    eta = timezone.make_aware(eta, timezone.get_current_timezone())
-            except Exception as e:
-                logger.exception("Invalid scheduled_iso provided: %s", scheduled_iso)
-                # fallback: dispatch immediately
-                result = _send_chunk.apply_async(args=[template, chunk])
-                status = 'sent'
-                scheduled_time = timezone.now()
-                logger.info(f"[CHUNK {i + 1}] Dispatched immediately (invalid iso) with task ID: {result.id}")
-            else:
-                result = _send_chunk.apply_async(args=[template, chunk], eta=eta)
-                status = 'pending'
-                scheduled_time = eta
-                logger.info(f"[CHUNK {i + 1}] Scheduled to run at {eta} with task ID: {result.id}")
-        else:
-            result = _send_chunk.apply_async(args=[template, chunk])
-            status = 'sent'
-            scheduled_time = timezone.now()
-            logger.info(f"[CHUNK {i + 1}] Dispatched immediately with task ID: {result.id}")
-
+    for chunk in chunks:
+        res = _send_chunk.apply_async(args=[template, chunk], eta=eta)
+        scheduled_time = eta or timezone.now()
         try:
             ScheduledTask.objects.create(
-                task_id=result.id,
+                task_id=res.id,
                 task_name='_send_chunk',
                 scheduled_time=scheduled_time,
                 message_preview=(template[:100] if template else ''),
-                status=status
+                status='pending' if eta else 'sent'
             )
-        except Exception as e:
-            logger.exception("Failed to create ScheduledTask DB entry for task %s: %s", getattr(result, 'id', None), e)
+        except Exception:
+            logger.exception("Failed creating ScheduledTask for chunk job %s", getattr(res, 'id', None))
+        scheduled_ids.append(res.id)
 
-        scheduled_ids.append(result.id)
+    # schedule employee/company copy
+    emp_res = send_employee_and_company_copy.apply_async(args=[template], eta=eta)
+    try:
+        ScheduledTask.objects.create(
+            task_id=emp_res.id,
+            task_name='send_employee_and_company_copy',
+            scheduled_time=(eta or timezone.now()),
+            message_preview=(template[:100] if template else ''),
+            status='pending' if eta else 'sent'
+        )
+    except Exception:
+        logger.exception("Failed creating ScheduledTask for employee/company job %s", getattr(emp_res, 'id', None))
 
-    logger.info(f"[SCHEDULER END] Successfully queued {len(scheduled_ids)} tasks.")
+    return {"task_ids": scheduled_ids, "chunks": len(chunks)}
 
-    return {'task_ids': scheduled_ids, 'chunks': len(chunks)}
+
+
+
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)

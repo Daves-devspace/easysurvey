@@ -22,6 +22,11 @@ app.conf.beat_schedule = {
         "task": "apps.accounts.tasks.create_daily_opening_balance",
         "schedule": crontab(minute=5, hour=0),  # run every day at 00:05
     },
+    
+        'update-sms-delivery-every-5-min': {
+        'task': 'apps.EasyDocs.tasks.update_sms_delivery_and_balance',
+        'schedule': crontab(minute='*/5'),  # every 5 minutes
+    }
 }
 
 
