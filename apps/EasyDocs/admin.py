@@ -148,77 +148,36 @@ class AuditLogAdmin(admin.ModelAdmin):
         # Prevent edits — logs should be immutable
         return False
 
-
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
-    """
-    All your site‐wide display settings live here,
-    but the `email` field is pulled in read‐only from EmailSettings.
-    """
-   
     list_display = ("id", "company_name", "google_drive_enabled", "connection_status_badge", "updated_at")
-    readonly_fields = ("connection_status_badge", "email")
-
+    readonly_fields = ("connection_status_badge", "company_email")
     fieldsets = (
         (None, {
             "fields": (
-                "company_name",
-                "logo",
-                "company_email",
-                "company_phone",
-                "tagline",
-                "stamp_signature",
-                "google_drive_enabled",
-                "google_oauth_client_id",
-                "google_oauth_client_secret_encrypted",
-                "google_drive_root_folder_id",
-                "google_drive_service_account_key_encrypted",
-                "google_oauth_redirect_uris",
-                "connection_status_badge",   # <-- read-only badge
+                "company_name", "logo", "company_email", "company_phone", "allow_employee_sms",
+                "allow_employee_email", "tagline", "stamp_signature",
+                "google_drive_enabled", "google_oauth_client_id", "google_oauth_client_secret_encrypted",
+                "google_drive_root_folder_id", "google_drive_service_account_key_encrypted",
+                "google_oauth_redirect_uris", "connection_status_badge"
             )
         }),
     )
 
-    def email(self, obj):
-        # Always show from EmailSettings (readonly)
-        return obj.email
-
-    def has_add_permission(self, request):
-        return not SiteSettings.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+    def email(self, obj): return obj.company_email
+    def has_add_permission(self, request): return not SiteSettings.objects.exists()
+    def has_delete_permission(self, request, obj=None): return False
 
     def connection_status_badge(self, obj):
-        """
-        Display Drive connection status as a colored badge, with storage mode (OAuth vs Service Account).
-        """
         status = get_connection_status(obj)
-
         css_class = status.get("class", "warning")
         message = status.get("message", "Unknown")
-
-        # Add mode (OAuth vs Service Account) to message if known
         mode_display = status.get("storage_mode_display", "")
-        if mode_display and mode_display != "Unknown":
-            message = f"{message} ({mode_display})"
-
-        color_map = {
-            "success": "#28a745",   # green
-            "warning": "#ffc107",   # yellow
-            "error": "#dc3545",     # red
-            "info": "#17a2b8",      # blue
-        }
-        bg_color = color_map.get(css_class, "#6c757d")  # default gray
-
-        return format_html(
-            '<span style="padding:4px 8px; border-radius:6px; '
-            'color:#fff; background:{}; font-weight:bold;">{}</span>',
-            bg_color, message
-        )
-
+        if mode_display and mode_display != "Unknown": message = f"{message} ({mode_display})"
+        color_map = {"success":"#28a745","warning":"#ffc107","error":"#dc3545","info":"#17a2b8"}
+        bg_color = color_map.get(css_class, "#6c757d")
+        return format_html('<span style="padding:4px 8px; border-radius:6px; color:#fff; font-weight:bold; background:{};">{}</span>', bg_color, message)
     connection_status_badge.short_description = "Drive Connection Status"
-
 
 # Inline for Processes in ClientService
 class ClientServiceProcessInline(admin.TabularInline):

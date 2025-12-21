@@ -10,7 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
-    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense, MessageLog, SiteSettings
 )
 
 from apps.notifications.models import Notification
@@ -32,6 +32,8 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from apps.notifications.serializers import NotificationSerializer 
 
+ 
+    
 
 @receiver(post_save, sender=Notification)
 def broadcast_notification(sender, instance, created, **kwargs):
