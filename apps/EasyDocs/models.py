@@ -1009,8 +1009,10 @@ class ScheduledTask(models.Model):
     task_name = models.CharField(max_length=255)
     scheduled_time = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
     message_preview = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    payload = models.JSONField(blank=True, null=True)  # <-- Add this
 
     def is_cancelable(self):
         return self.status == "pending" and self.scheduled_time > timezone.now()
@@ -1066,6 +1068,42 @@ class MessageLog(models.Model):
                 condition=models.Q(is_company_copy=True),
                 name='unique_company_copy_per_reason'
             )
+        ]
+        indexes = [
+            
+            # 1️⃣ Main DLR poller
+            models.Index(
+                fields=['delivery_status', 'timestamp'],
+                name='msglog_delivery_ts_idx'
+            ),
+
+            # 2️⃣ Partial index (Postgres only)
+            models.Index(
+                fields=['timestamp'],
+                name='msglog_pending_msg_id_idx',
+                condition=Q(
+                    delivery_status='pending',
+                    message_id__isnull=False
+                )
+            ),
+
+            # 3️⃣ Pagination
+            models.Index(
+                fields=['-timestamp'],
+                name='msglog_time_desc_idx'
+            ),
+
+            # 4️⃣ Aggregations
+            models.Index(
+                fields=['send_status'],
+                name='msglog_send_status_idx'
+            ),
+
+            # 5️⃣ Message lookup
+            models.Index(
+                fields=['message_id'],
+                name='msglog_message_id_idx'
+            ),
         ]
 
     def __str__(self):

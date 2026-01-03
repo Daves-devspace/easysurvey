@@ -1,13 +1,8 @@
 {% extends 'Home/base.html' %}
 {% load static %}
-
 {% load custom_filters %}
 
-
 {% block body %}
-
-
-    <!-- [ Main Content ] start -->
     <!-- [ Main Content ] start -->
     <div class="pc-container">
         <div class="pc-content">
@@ -22,52 +17,35 @@
                                 <li class="breadcrumb-item" aria-current="page">Account Profile</li>
                             </ul>
                         </div>
-                       
                     </div>
                 </div>
             </div>
-        <div class="container-fluid col-lg-12">
+            
+            <div class="container-fluid col-lg-12">
                 {% if messages %}
                     {% for message in messages %}
-                        {% if message.tags == 'error' %}
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'success' %}
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'warning' %}
-                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                        {% elif message.tags == 'info' %}
-                            <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        {% else %}
-                            <div class="alert alert-secondary alert-dismissible fade show" role="alert">
-                        {% endif %}
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
+                        <div class="alert alert-{{ message.tags|default:'secondary' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     {% endfor %}
                 {% endif %}
-                </div>
-            <!-- [ breadcrumb ] end -->
-            <!-- [ Main Content ] start -->
+            </div>
+
             <div class="row">
-                <!-- [ sample-page ] start -->
                 <div class="col-sm-12">
                     <div class="card">
                         <div class="card-header pb-0">
                             <ul class="nav nav-tabs profile-tabs" id="myTab" role="tablist">
-
                                 <li class="nav-item">
-                                    <a class="nav-link active" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2"
-                                       role="tab"
-                                       aria-selected="true">
+                                    <a class="nav-link active" id="profile-tab-2" data-bs-toggle="tab" href="#profile-2" role="tab" aria-selected="true">
                                         <i class="ti ti-file-text me-2"></i>Personal
                                     </a>
                                 </li>
-
                             </ul>
                         </div>
                         <div class="card-body">
                             <div class="tab-content">
-
                                 <div class="tab-pane show active" id="profile-2" role="tabpanel" aria-labelledby="profile-tab-2">
                                     <form method="post" enctype="multipart/form-data" novalidate>
                                         {% csrf_token %}
@@ -83,28 +61,22 @@
                                                             <!-- Profile Picture -->
                                                             <div class="col-sm-12 text-center mb-3">
                                                                 <div class="user-upload wid-75 text-center">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.profile_picture.id_for_label }}">Profile
-                                                                        Picture</label>
+                                                                    <label class="form-label" for="{{ form.profile_picture.id_for_label }}">Profile Picture</label>
                                                                     <div class="mb-2">
                                                                         <img id="profilePreview"
-                                                                             src="
-
-                                                                                     {% if form.instance.profile_picture %}{{ form.instance.profile_picture.url }}{% else %}{% static 'default-profile.png' %}{% endif %}"
+                                                                             src="{% if form.instance.profile_picture %}{{ form.instance.profile_picture.url }}{% else %}{% static 'default-profile.png' %}{% endif %}"
                                                                              class="img-thumbnail"
                                                                              alt="Profile Preview"
                                                                              style="max-height: 150px;">
                                                                     </div>
                                                                     {{ form.profile_picture }}
                                                                 </div>
-
                                                             </div>
 
                                                             <!-- Username -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.username.id_for_label }}">Username</label>
+                                                                    <label class="form-label" for="{{ form.username.id_for_label }}">Username</label>
                                                                     {{ form.username }}
                                                                 </div>
                                                             </div>
@@ -112,9 +84,7 @@
                                                             <!-- First Name -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.first_name.id_for_label }}">First
-                                                                        Name</label>
+                                                                    <label class="form-label" for="{{ form.first_name.id_for_label }}">First Name</label>
                                                                     {{ form.first_name }}
                                                                 </div>
                                                             </div>
@@ -122,9 +92,7 @@
                                                             <!-- Last Name -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.last_name.id_for_label }}">Last
-                                                                        Name</label>
+                                                                    <label class="form-label" for="{{ form.last_name.id_for_label }}">Last Name</label>
                                                                     {{ form.last_name }}
                                                                 </div>
                                                             </div>
@@ -132,8 +100,7 @@
                                                             <!-- Department -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.department.id_for_label }}">Department</label>
+                                                                    <label class="form-label" for="{{ form.department.id_for_label }}">Department</label>
                                                                     {{ form.department }}
                                                                 </div>
                                                             </div>
@@ -141,8 +108,7 @@
                                                             <!-- Role -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.role.id_for_label }}">Role</label>
+                                                                    <label class="form-label" for="{{ form.role.id_for_label }}">Role</label>
                                                                     {{ form.role }}
                                                                 </div>
                                                             </div>
@@ -162,9 +128,7 @@
                                                             <!-- Phone Number -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.phone_number.id_for_label }}">Phone
-                                                                        Number</label>
+                                                                    <label class="form-label" for="{{ form.phone_number.id_for_label }}">Phone Number</label>
                                                                     {{ form.phone_number }}
                                                                     {% if form.phone_number.errors %}
                                                                         <div class="invalid-feedback d-block">
@@ -177,8 +141,7 @@
                                                             <!-- Email (readonly) -->
                                                             <div class="col-sm-6">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.email.id_for_label }}">Email</label>
+                                                                    <label class="form-label" for="{{ form.email.id_for_label }}">Email</label>
                                                                     {{ form.email }}
                                                                 </div>
                                                             </div>
@@ -186,8 +149,7 @@
                                                             <!-- Address -->
                                                             <div class="col-sm-12">
                                                                 <div class="form-group">
-                                                                    <label class="form-label"
-                                                                           for="{{ form.address.id_for_label }}">Address</label>
+                                                                    <label class="form-label" for="{{ form.address.id_for_label }}">Address</label>
                                                                     {{ form.address }}
                                                                     {% if form.address.errors %}
                                                                         <div class="invalid-feedback d-block">
@@ -196,6 +158,25 @@
                                                                     {% endif %}
                                                                 </div>
                                                             </div>
+
+                                                            <!-- Notification Controls -->
+                                                            <div class="col-sm-12 mt-3 border-top pt-3">
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <div>
+                                                                        <strong>Push Notifications: </strong>
+                                                                        {% if request.user.employeeprofile.push_notifications_allowed %}
+                                                                            <span class="badge bg-success">Active</span>
+                                                                        {% else %}
+                                                                            <span class="badge bg-warning text-dark">Inactive</span>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                    <!-- IMPORTANT: Added type="button" to prevent form submission -->
+                                                                    <button type="button" onclick="requestNotificationPermission()" class="btn btn-sm btn-outline-primary">
+                                                                        <i class="fas fa-bell"></i> Enable Notifications
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
                                                         </div>
                                                     </div>
                                                 </div>
@@ -203,14 +184,13 @@
 
                                             <!-- ACTION BUTTONS -->
                                             <div class="col-12 text-end btn-page mt-3">
-                                                <a href="{% url 'employee-dashboard' %}"
-                                                   class="btn btn-outline-secondary me-2">Cancel</a>
+                                                <a href="{% url 'employee-dashboard' %}" class="btn btn-outline-secondary me-2">Cancel</a>
                                                 <button type="submit" class="btn btn-primary">Update Profile</button>
                                             </div>
                                         </div>
                                     </form>
-
                                 </div>
+
                                 <script>
                                     document.addEventListener("DOMContentLoaded", function () {
                                         const input = document.getElementById("{{ form.profile_picture.id_for_label }}");
@@ -228,17 +208,14 @@
                                         });
                                     });
                                 </script>
-
-
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- [ sample-page ] end -->
             </div>
-            <!-- [ Main Content ] end -->
         </div>
     </div>
-    <!-- [ Main Content ] end -->
-
+    
+ 
+    
 {% endblock %}

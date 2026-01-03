@@ -23,6 +23,10 @@ class EmployeeProfile(models.Model):
         choices=RoleChoices.choices,
         default=RoleChoices.FRONTOFFICE
     )
+    push_notifications_allowed = models.BooleanField(
+        default=False, 
+        help_text="True if the user has granted permission and has a valid FCM token."
+    )
     
     def get_avatar_url(self):
         """Returns the profile picture URL or None if invalid/missing"""

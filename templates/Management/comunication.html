@@ -145,7 +145,11 @@
                                                             <tbody>
                                                                 {% for p in previews %}
                                                                 <tr>
+                                                                    {% if p.client %}
                                                                     <td>{{ p.client }}</td>
+                                                                    {% else %}
+                                                                    <td><em class="text-muted">(Staff)</em></td>
+                                                                    {% endif %}
                                                                     <td>{{ p.message }}</td>
                                                                     <td>{{ p.send_at }}</td>
                                                                 </tr>
@@ -199,25 +203,25 @@
                                                             <ul class="list-group list-group-flush">
                                                             {% for task in scheduled_tasks %}
                                                                 <li class="list-group-item d-flex justify-content-between align-items-start py-3">
-                                                                <div class="me-3">
-                                                                    <strong>{{ task.task_name }}</strong><br>
-                                                                    <small class="text-muted">{{ task.message_preview|truncatechars:60 }}</small>
-                                                                </div>
+                                                                    <div class="me-3">
+                                                                        <strong>{{ task.task_name|default:"(Scheduled Task)" }}</strong><br>
+                                                                        <small class="text-muted">{{ task.message_preview|default:"(No message)"|truncatechars:60 }}</small>
+                                                                    </div>
 
-                                                                <div class="text-end">
-                                                                    <small class="text-muted d-block">
-                                                                    Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}<br>
-                                                                    Status: {{ task.status }}
-                                                                    </small>
+                                                                    <div class="text-end">
+                                                                        <small class="text-muted d-block">
+                                                                            Scheduled: {{ task.scheduled_time|date:"Y-m-d H:i" }}<br>
+                                                                            Status: {{ task.status|default:"Unknown" }}
+                                                                        </small>
 
-                                                                    <form method="post" class="d-inline mt-2">
-                                                                    {% csrf_token %}
-                                                                    <input type="hidden" name="log_id" value="{{ task.task_id }}">
-                                                                    <button type="submit" name="cancel" class="btn btn-sm btn-outline-danger">
-                                                                        Cancel
-                                                                    </button>
-                                                                    </form>
-                                                                </div>
+                                                                        <form method="post" class="d-inline mt-2">
+                                                                        {% csrf_token %}
+                                                                        <input type="hidden" name="log_id" value="{{ task.task_id }}">
+                                                                        <button type="submit" name="cancel" class="btn btn-sm btn-outline-danger">
+                                                                            Cancel
+                                                                        </button>
+                                                                        </form>
+                                                                    </div>
                                                                 </li>
                                                             {% empty %}
                                                                 <li class="list-group-item text-center text-muted py-3">No scheduled messages.</li>
@@ -252,7 +256,11 @@
                                                     <tbody>
                                                     {% for log in logs %}
                                                         <tr>
+                                                            {% if log.client %}
                                                             <td>{{ log.client }}</td>
+                                                            {% else %}
+                                                            <td><em class="text-muted">(Staff)</em></td>
+                                                            {% endif %}
                                                             <td>{{ log.phone }}</td>
                                                             <td>{{ log.message|truncatechars:50 }}</td>
                                                             <td>{{ log.reason }}</td>
@@ -331,39 +339,43 @@
 
                                 <!-- Failed messages table (keeps your existing markup, slightly wrapped for spacing) -->
                                 {% if failed_logs %}
-                                    
-                                    <div class="table-responsive mt-2">
+                                <div class="table-responsive mt-2">
                                     <table class="datatable display table table-striped table-hover dt-responsive nowrap w-100">
                                         <thead class="bg-green-100">
-                                        <tr>
-                                            <th>Client Name</th>
-                                            <th>Phone</th>
-                                            <th>message</th>
-                                            <th>Error</th>
-                                            <th>Retry</th>
-                                        </tr>
+                                            <tr>
+                                                <th>Client Name</th>
+                                                <th>Phone</th>
+                                                <th>Message</th>
+                                                <th>Error</th>
+                                                <th>Retry</th>
+                                            </tr>
                                         </thead>
                                         <tbody>
-                                        {% for log in failed_logs %}
+                                            {% for log in failed_logs %}
                                             <tr>
-                                            <td>{{ log.client }}</td>
-                                            <td>{{ log.phone }}</td>
-                                            <td title="{{ log.message|escape }}">{{ log.message|truncatechars:50 }}</td>
-                                            <td>{{ log.error_details|default:"Unknown error" }}</td>
-                                            <td>
-                                                <form method="post" class="d-inline">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="retry_log_id" value="{{ log.id }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary">Retry</button>
-                                                </form>
-                                            </td>
+                                                {% if log.client_name %}
+                                                <td>{{ log.client_name }}</td>
+                                                {% else %}
+                                                <td><em class="text-muted">(Staff)</em></td>
+                                                {% endif %}
+                                                
+                                                <td>{{ log.phone }}</td>
+                                                <td title="{{ log.message|escape }}">{{ log.message|truncatechars:50 }}</td>
+                                                <td>{{ log.error_details|default:"Unknown error" }}</td>
+                                                <td>
+                                                    <form method="post" class="d-inline">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="retry_log_id" value="{{ log.id }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-primary">Retry</button>
+                                                    </form>
+                                                </td>
                                             </tr>
-                                        {% endfor %}
+                                            {% endfor %}
                                         </tbody>
                                     </table>
-                                    </div>
+                                </div>
                                 {% else %}
-                                    <div class="alert alert-light text-center mt-2">No failed messages.</div>
+                                <div class="alert alert-light text-center mt-2">No failed messages.</div>
                                 {% endif %}
                                 </div>
 

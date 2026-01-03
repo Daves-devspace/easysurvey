@@ -19,6 +19,8 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 import firebase_admin
 from firebase_admin import credentials
+from kombu import Queue
+from cryptography.fernet import Fernet
 
 load_dotenv()
 
@@ -111,15 +113,39 @@ ASGI_APPLICATION = 'GGI.asgi.application'
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 # settings.py
+# Unique instance name
+INSTANCE_NAME = os.getenv("INSTANCE_NAME", "A")
+
 
 
 # Redis as broker
 # settings.py
+# =========================================
+# REDIS & CHANNELS CONFIGURATION
+# =========================================
+REDIS_DB = int(os.getenv('REDIS_DB', 0))
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/0')
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis' if os.getenv('DOCKER_ENV') else 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', REDIS_URL)
 
 # Optional: store results in Redis
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_TASK_DEFAULT_QUEUE = f"celery_{INSTANCE_NAME}"
+
+QUEUE_NAME = f"celery_{INSTANCE_NAME}"
+CELERY_TASK_QUEUES = (
+    Queue(
+        QUEUE_NAME,
+        routing_key=QUEUE_NAME,
+        durable=True,
+    ),
+)
+
+# Optional: task routing
+CELERY_TASK_DEFAULT_ROUTING_KEY = QUEUE_NAME
+CELERY_TASK_DEFAULT_QUEUE = QUEUE_NAME
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', REDIS_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
@@ -132,6 +158,7 @@ CELERY_ENABLE_UTC = True
 # Automatically retry failed tasks
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_CREATE_MISSING_QUEUES = False
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # settings.py
@@ -172,35 +199,52 @@ CSRF_COOKIE_SECURE = False
 # Firebase setup (Admin SDK)
 # -------------------------------------------------------------------
 # --- Firebase Frontend Config ---
-FIREBASE_CONFIG = {
-    "apiKey": os.getenv("FIREBASE_API_KEY"),
-    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
-    "projectId": os.getenv("FIREBASE_PROJECT_ID"),
-    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
-    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
-    "appId": os.getenv("FIREBASE_APP_ID"),
-    "vapidKey": os.getenv("FIREBASE_VAPID_KEY"),
-}
 
-# --- Firebase Admin SDK ---
-FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH")
-if FIREBASE_CREDENTIALS_PATH and os.path.exists(FIREBASE_CREDENTIALS_PATH):
-    try:
-        cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase Admin initialized successfully.")
-    except Exception as e:
-        print(f"⚠️ Firebase initialization error: {e}")
-else:
-    print("⚠️ Firebase credentials file not found or invalid.")
+# 2. Add Encryption Key for the DB Fields
+# In production, set this in your .env: FERNET_KEY=...
+# To generate one: from cryptography.fernet import Fernet; Fernet.generate_key()
+FERNET_KEYS = [os.getenv('FERNET_KEY', Fernet.generate_key().decode())]
+
+# **2. Encryption (Writing to DB)**
+# When you go to the Django Admin and click **Save** on the `FirebaseConfig` model:
+# * The `EncryptedTextField` on your model intercepts the text you pasted.
+# * It uses the **Fernet** algorithm (symmetric encryption) and your `FERNET_KEY` to turn your JSON into a scrambled string of random characters (Ciphertext).
+# * **Result:** The database stores `gAAAAABk...` instead of `{"type": "service_account"...}`. If a hacker steals your database, they cannot read this without the key from your `.env` file.
+
+# **3. Decryption (Reading from DB)**
+# When you call `config_model.service_account_json` in your Python code (specifically in `firebase_manager.py`):
+# * The `EncryptedTextField` detects you are accessing the value.
+# * It automatically grabs the scrambled text from the DB.
+# * It uses the `FERNET_KEY` to unlock (decrypt) it back into the original JSON string.
+# * **Result:** Your Python code gets the clean JSON to initialize Firebase, but it happens securely in memory.
+
+# **4. Context Processor Safety**
+# In the file above (`context_processors.py`), we **never** access the `service_account_json` field. We only access the public fields (`apiKey`, `projectId`). Because we don't ask for the private key, the decryption process doesn't even run for the frontend context, keeping your secrets strictly on the backend.
+
+# FIREBASE_CONFIG = {
+#     "apiKey": os.getenv("FIREBASE_API_KEY"),
+#     "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+#     "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+#     "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+#     "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+#     "appId": os.getenv("FIREBASE_APP_ID"),
+#     "vapidKey": os.getenv("FIREBASE_VAPID_KEY"),
+# }
+
+# # --- Firebase Admin SDK ---
+# FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH")
+# if FIREBASE_CREDENTIALS_PATH and os.path.exists(FIREBASE_CREDENTIALS_PATH):
+#     try:
+#         cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+#         firebase_admin.initialize_app(cred)
+#         print("✅ Firebase Admin initialized successfully.")
+#     except Exception as e:
+#         print(f"⚠️ Firebase initialization error: {e}")
+# else:
+#     print("⚠️ Firebase credentials file not found or invalid.")
 
 
-# =========================================
-# REDIS & CHANNELS CONFIGURATION
-# =========================================
-REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/1')
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis' if os.getenv('DOCKER_ENV') else 'localhost')
-REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
+
 
 # Cache configuration (with fallback)
 try:
@@ -233,7 +277,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [(REDIS_HOST, REDIS_PORT)],
+            'hosts': [(REDIS_HOST, REDIS_PORT, REDIS_DB)],
         },
     },
 }

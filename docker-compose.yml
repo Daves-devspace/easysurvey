@@ -69,7 +69,7 @@ services:
 
   celery-worker:
     build: .
-    command: celery -A GGI worker --loglevel=info
+    command: celery -A GGI worker -l info -n worker_${INSTANCE_NAME}@%h
     volumes:
       - .:/app
       - ./media:/app/media

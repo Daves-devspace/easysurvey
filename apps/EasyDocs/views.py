@@ -680,6 +680,9 @@ def client_list(request):
 
     return render(request, 'Client/client_list.html', context)
 
+
+
+
 def add_client(request):
     form = ClientForm(request.POST or None, request.FILES or None)
 
@@ -692,27 +695,40 @@ def add_client(request):
                 "message": "✅ Client added successfully.",
                 "client_id": client.id
             })
-        # Return errors only — no rendering
-        errors = {
+
+        # Return errors in both `errors` and `message`
+        errors_dict = {
             field: [{"message": err} for err in errs]
             for field, errs in form.errors.items()
         }
+
+        # Flatten errors into a single message string
+        errors_flat = []
+        for field, field_errors in errors_dict.items():
+            for err in field_errors:
+                errors_flat.append(f"{field}: {err['message']}")
+
         return JsonResponse({
             "success": False,
-            "errors": errors,
-            "message": "⚠️ Please correct the highlighted errors."
+            "errors": errors_dict,
+            "message": "⚠️ " + "; ".join(errors_flat)  # Include actual errors here
         }, status=400)
 
-    # 🟠 Normal non-AJAX fallback (you can keep this for safety)
+    # 🟠 Normal non-AJAX fallback
     else:
         if form.is_valid():
             form.save()
             messages.success(request, "✅ Client added successfully.")
             return redirect("clients")
 
-        messages.error(request, "⚠️ Please correct the highlighted errors.")
-        return redirect("clients")  # just reload — no rendering
+        # Flatten errors for messages framework
+        errors_flat = []
+        for field, errs in form.errors.items():
+            for err in errs:
+                errors_flat.append(f"{field}: {err}")
 
+        messages.error(request, "⚠️ " + "; ".join(errors_flat))
+        return redirect("clients")
 
 
 

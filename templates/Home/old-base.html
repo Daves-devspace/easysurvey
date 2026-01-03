@@ -725,9 +725,130 @@
 <!-- notification JS -->
 <script src="{% static 'assets/js/utils/notifications.js' %}"></script>
 
-<!-- 🔥 FIREBASE INIT: Logic Moved to Include File -->
-{% include 'includes/firebase_init.html' %}
+{% if firebase_config and firebase_config.apiKey %}
+<!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 
+<script>
+  (function() {
+    console.log("🔥 Firebase Init Script Loaded");
+
+    // 1. Configuration injected from Django Context Processor
+    const firebaseConfig = {
+      apiKey: "{{ firebase_config.apiKey }}",
+      authDomain: "{{ firebase_config.authDomain }}",
+      projectId: "{{ firebase_config.projectId }}",
+      storageBucket: "{{ firebase_config.storageBucket }}",
+      messagingSenderId: "{{ firebase_config.messagingSenderId }}",
+      appId: "{{ firebase_config.appId }}"
+    };
+    const vapidKey = "{{ firebase_config.vapidKey }}";
+
+    // 2. Initialize Firebase
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const messaging = firebase.messaging();
+
+    // 3. Register Service Worker
+    if ('serviceWorker' in navigator) {
+      // Ensure this URL matches your urls.py path for the dynamic service worker
+      navigator.serviceWorker.register("{% url 'firebase_sw' %}")
+        .then(function(registration) {
+          console.log('✅ Service Worker Registered. Scope:', registration.scope);
+        }).catch(function(err) {
+          console.error('❌ Service Worker Registration Failed:', err);
+        });
+    }
+
+    // 4. Define the Save Token Function
+    function sendTokenToServer(token) {
+        console.log("🚀 Sending token to server...");
+        fetch('/api/fcm/save-token/', {  
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}' // Ensure CSRF token is available in template
+            },
+            body: JSON.stringify({ token: token })
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log("✅ Token saved to server successfully.");
+            } else {
+                console.error("⚠️ Failed to save token:", response.statusText);
+            }
+        })
+        .catch(error => console.error("❌ Error sending token:", error));
+    }
+
+    // 5. Permission Request Logic (Global function called by button)
+    window.requestNotificationPermission = function() {
+        console.log('Requesting permission...');
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('🎉 Notification permission granted.');
+                
+                messaging.getToken({ vapidKey: vapidKey }).then((currentToken) => {
+                    if (currentToken) {
+                        console.log('Token retrieved:', currentToken);
+                        sendTokenToServer(currentToken);
+                    } else {
+                        console.log('No registration token available. Request permission to generate one.');
+                    }
+                }).catch((err) => {
+                    console.error('An error occurred while retrieving token.', err);
+                });
+            } else {
+                console.warn('Permission denied by user.');
+            }
+        });
+    };
+
+    // 6. Automatic Check on Load
+    // If permission is already granted, refresh/ensure token is saved without asking
+    if (Notification.permission === 'granted') {
+        console.log("Permission already granted. Ensuring token is up to date...");
+        messaging.getToken({ vapidKey: vapidKey }).then((currentToken) => {
+            if (currentToken) sendTokenToServer(currentToken);
+        }).catch((err) => {
+             console.error('Error fetching token on auto-check:', err);
+        });
+    } else {
+        console.log("🔔 Notifications not yet granted. Waiting for user interaction.");
+    }
+
+    // Handle incoming messages when the page is in the foreground
+    messaging.onMessage((payload) => {
+        console.log('Message received in foreground:', payload);
+        // Optional: Display a UI toast or alert here
+    });
+
+  })();
+</script>
+{% endif %}
+
+
+ <script type="module">
+  import { initFCM } from "{% static 'assets/js/utils/firebase.js' %}";
+
+  // expose function and config to window
+  window.firebaseConfig = {
+    apiKey: "{{ firebase_config.apiKey }}",
+    authDomain: "{{ firebase_config.authDomain }}",
+    projectId: "{{ firebase_config.projectId }}",
+    storageBucket: "{{ firebase_config.storageBucket }}",
+    messagingSenderId: "{{ firebase_config.messagingSenderId }}",
+    appId: "{{ firebase_config.appId }}",
+  };
+
+  window.vapidKey = "{{ firebase_config.vapidKey }}";
+  window.initFCM = initFCM;
+
+  // call it immediately
+  initFCM(window.firebaseConfig, window.vapidKey);
+</script> 
 
 <script>
 document.getElementById('viewAllNotifications').addEventListener('click', function(e) {

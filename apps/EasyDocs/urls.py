@@ -21,9 +21,12 @@ from .services.bookings import BookingUpdateView, BookingCreateView
 from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback,RefreshDriveTokenView
+from apps.notifications.views import firebase_messaging_sw
 
 
 urlpatterns = [
+    
+    path('firebase-messaging-sw.js', firebase_messaging_sw, name='firebase_sw'),
     
         # Main query endpoint - handles all bot queries
     path('api/bot/query/', bot_views.bot_query, name='bot_query'),

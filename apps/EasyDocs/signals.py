@@ -6,11 +6,11 @@ from django.dispatch import receiver
 from django.utils import timezone
 from django.db import transaction   
 from django.core.exceptions import ObjectDoesNotExist   
-
+from django.core.cache import cache
 from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
-    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense, MessageLog, SiteSettings
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense, MessageLog, SiteSettings, ClientService, ScheduledTask
 )
 
 from apps.notifications.models import Notification
@@ -31,6 +31,43 @@ from django.apps import apps
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from apps.notifications.serializers import NotificationSerializer 
+
+
+def invalidate_communication_cache():
+    """Invalidate all communication view cache keys"""
+    # Clear all page caches
+    for page in range(1, 100):  # Adjust range based on your needs
+        cache.delete(f"communication_logs_page_{page}")
+    
+    # Clear counts cache
+    cache.delete('messagelog_counts')
+    
+    logger.info("Communication cache invalidated")
+
+
+# Signal handlers to auto-invalidate cache
+@receiver(post_save, sender=MessageLog)
+def invalidate_cache_on_messagelog_save(sender, instance, **kwargs):
+    """Invalidate cache when a MessageLog is created or updated"""
+    invalidate_communication_cache()
+
+
+@receiver(post_delete, sender=MessageLog)
+def invalidate_cache_on_messagelog_delete(sender, instance, **kwargs):
+    """Invalidate cache when a MessageLog is deleted"""
+    invalidate_communication_cache()
+
+
+@receiver(post_save, sender=ScheduledTask)
+def invalidate_cache_on_task_save(sender, instance, **kwargs):
+    """Invalidate cache when a ScheduledTask is created or updated"""
+    invalidate_communication_cache()
+
+
+@receiver(post_delete, sender=ScheduledTask)
+def invalidate_cache_on_task_delete(sender, instance, **kwargs):
+    """Invalidate cache when a ScheduledTask is deleted"""
+    invalidate_communication_cache()
 
  
     
