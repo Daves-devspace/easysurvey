@@ -2,7 +2,7 @@ from django.contrib import admin
 
 from .forms import ClientServiceForm
 from .models import (Client, Service, Process, ClientService,ClientSubService, ClientServiceProcess, Payment, Document, DocType,
-                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,DriveOAuthToken)
+                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,DriveOAuthToken,MessageLog)
 
 
 from django.utils.timezone import now
@@ -17,6 +17,45 @@ from google.auth.exceptions import RefreshError
 
 
 logger = logging.getLogger(__name__)
+
+
+@admin.register(MessageLog)
+class MessageLogAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "client",
+        "phone",
+        "send_status",
+        "delivery_status",
+        "reason",
+        "timestamp",
+    )
+    list_filter = ("send_status", "delivery_status", "timestamp")
+    search_fields = ("client__first_name", "client__last_name", "phone", "message_id", "reason")
+    readonly_fields = (
+        "client",
+        "phone",
+        "message",
+        "reason",
+        "message_id",
+        "send_status",
+        "delivery_status",
+        "error_details",
+        "timestamp",
+    )
+    ordering = ("-timestamp",)
+    fieldsets = (
+        ("Message Info", {
+            "fields": ("client", "phone", "message", "reason", "recipient_type")
+        }),
+        ("Delivery Status", {
+            "fields": ("send_status", "delivery_status", "message_id", "error_details")
+        }),
+        ("Tracking", {
+            "fields": ("client_service", "is_company_copy", "timestamp")
+        }),
+    )
+
 
 
 @admin.register(DriveOAuthToken)

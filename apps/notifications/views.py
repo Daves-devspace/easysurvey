@@ -8,6 +8,74 @@ from .serializers import NotificationSerializer, FCMTokenSerializer
 from rest_framework.permissions import IsAuthenticated
 
 
+
+
+
+from django.conf import settings
+from django.http import HttpResponse
+from django.template import Context, Template
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_GET
+
+# This template defines the Service Worker logic. 
+# It uses Django template syntax {{ }} to inject variables.
+SW_SCRIPT_TEMPLATE = """
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: "{{ apiKey }}",
+  authDomain: "{{ authDomain }}",
+  projectId: "{{ projectId }}",
+  storageBucket: "{{ storageBucket }}",
+  messagingSenderId: "{{ messagingSenderId }}",
+  appId: "{{ appId }}"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const messaging = firebase.messaging();
+
+// Handle background messages
+messaging.onBackgroundMessage(function(payload) {
+  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: '/static/images/logo.png', // Update this path to your actual logo
+    data: payload.data
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
+"""
+
+@require_GET
+@cache_control(max_age=3600)  # Cache for 1 hour to reduce server load
+def firebase_messaging_sw(request):
+    """
+    Returns a dynamically generated service worker file.
+    This allows us to inject the specific Docker container's Firebase config
+    into the client-side browser worker.
+    """
+    config = getattr(settings, 'FIREBASE_CONFIG', {})
+    
+    # Render the JS string with the config from settings
+    t = Template(SW_SCRIPT_TEMPLATE)
+    c = Context({
+        'apiKey': config.get('apiKey', ''),
+        'authDomain': config.get('authDomain', ''),
+        'projectId': config.get('projectId', ''),
+        'storageBucket': config.get('storageBucket', ''),
+        'messagingSenderId': config.get('messagingSenderId', ''),
+        'appId': config.get('appId', ''),
+    })
+    
+    # Return as Javascript content type
+    return HttpResponse(t.render(c), content_type="application/javascript")
+
+
 class CombinedNotificationFeedView(APIView):
     """
     Returns:
