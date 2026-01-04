@@ -187,6 +187,7 @@
             <th>Service Details</th>
             <th class="text-end">Client Charge</th>
             <th class="text-end">Institution Cost</th>
+            <th class="text-end">Client Payment</th> <!-- NEW COLUMN -->
             <th class="text-end">Company Profit</th>
             <th class="text-end">Margin %</th>
             <th class="text-center">Status</th>
@@ -223,6 +224,15 @@
                     KES {{ record.inst_cost|floatformat:2|intcomma }}
                   </span>
                 </td>
+                <!-- NEW COLUMN: TOTAL PAID SO FAR (Cumulative) -->
+                <td class="text-end">
+                  <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 fw-normal">
+                    KES {{ record.total_paid_all|floatformat:2|intcomma }}
+                  </span>
+                  {% if record.total_paid_all < record.client_charge %}
+                   <i class="bi bi-exclamation-circle text-warning small" title="Partially Paid"></i>
+                  {% endif %}
+                </td>
                 <td class="text-end">
                   <span class="badge {% if record.profit_amount > 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if record.profit_amount > 0 %}text-success{% else %}text-danger{% endif %} px-3 py-2 fw-normal">
                     KES {{ record.profit_amount|floatformat:2|intcomma }}
@@ -256,9 +266,10 @@
                 </td>
               </tr>
             {% endfor %}
-          {% comment %} {% else %}
+          {% else %}
             <tr>
-              <td colspan="8" class="text-center py-5">
+              {# Updated colspan to 9 for new column #}
+              <td colspan="9" class="text-center py-5">
                 <div class="text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
                   <h5 class="mb-2">No Revenue Records Found</h5>
@@ -267,19 +278,20 @@
                   </p>
                 </div>
               </td>
-            </tr> {% endcomment %}
+            </tr>
           {% endif %}
         </tbody>
         
         {% if revenue_records %}
           <tfoot class="table-secondary fw-bold">
             <tr>
-              {# Strictly 8 cells. Using &nbsp; for empty ones to guarantee rendering. #}
+              {# Strictly 9 cells now #}
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td class="text-end">TOTALS:</td>
-              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">&nbsp;</td> {# Client Charge Total (Optional/Empty) #}
               <td class="text-end">KES {{ revenue_totals.inst_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td> {# Gross Cash In #}
               <td class="text-end text-success">KES {{ revenue_totals.company_total|floatformat:2|intcomma }}</td>
               <td class="text-end">
                 {% if revenue_totals.gross_total > 0 %}
@@ -295,7 +307,6 @@
       </table>
     </div>
  
-
 
   {% if revenue_records %}
     <div class="card-footer bg-light border-top">

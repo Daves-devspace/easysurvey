@@ -309,6 +309,9 @@ class RevenueReportView(View):
         year = int(request.GET.get('year', timezone.now().year))
         month = request.GET.get('month')
         month = int(month) if month else None
+        
+        # Parse status to keep it sticky
+        status_filter = request.GET.get('status', 'completed')
 
         # Compute up_to_date cutoff
         up_to_date = None
@@ -322,17 +325,22 @@ class RevenueReportView(View):
 
         # Fetch using the ONE source of truth
         from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
-        revenue_data = get_revenue_from_payments(year, up_to_date=up_to_date)
+        
+        # ✅ FIX 1: Use keyword argument 'year='. 
+        # Passing it positionally assigned it to 'start_date', causing logic failure -> fallback to current year.
+        revenue_data = get_revenue_from_payments(year=year, up_to_date=up_to_date)
 
         context = {
             "revenue_totals": revenue_data,
             "revenue_year": year,
             "revenue_month": month,
+            "status_filter": status_filter,
+            # ✅ FIX 2: Pass dates explicitly so PDF/Excel links in template render correctly
+            "start_date": revenue_data.get('start_date'),
+            "end_date": revenue_data.get('end_date'),
         }
 
-        return render(request, "Accounts/partials/revenue_tab_content.html", context) 
-    
-    
+        return render(request, "Accounts/partials/revenue_tab_content.html", context)    
 
 
 
