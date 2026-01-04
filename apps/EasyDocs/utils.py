@@ -233,13 +233,39 @@ class MobileSasaAPI:
         except Exception as exc:
             return {"status": False, "messages": [], "error": str(exc)}
             
+    # def get_balance(self):
+    #     if not self.api_key:
+    #         return {'status': False, 'balance': 0, 'error': "missing_config"}
+    #     try:
+    #         resp = requests.get(self.BASE_URL_BALANCE, headers=self.headers, timeout=20)
+    #         resp.raise_for_status()
+    #         data = resp.json()
+    #         return data
+    #     except Exception as e:
+    #         self.logger.exception("Error fetching balance: %s", e)
+    #         return {'status': False, 'balance': 0, 'error': str(e)}
+        
+        
     def get_balance(self):
+        """
+        Fetches balance and updates the global cache for context processors.
+        """
         if not self.api_key:
             return {'status': False, 'balance': 0, 'error': "missing_config"}
         try:
             resp = requests.get(self.BASE_URL_BALANCE, headers=self.headers, timeout=20)
             resp.raise_for_status()
             data = resp.json()
+            
+            # --- AUTO-UPDATE CACHE HERE ---
+            # This ensures 'global_sms_balance' is always fresh whenever this is called
+            # by the scheduled task or manual sends.
+            if isinstance(data, dict):
+                bal = data.get('balance')
+                if bal is not None:
+                    # Cache for 24 hours (or until next update)
+                    cache.set('global_sms_balance', bal, timeout=86400)
+                    
             return data
         except Exception as e:
             self.logger.exception("Error fetching balance: %s", e)

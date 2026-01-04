@@ -195,17 +195,22 @@ class DashboardView(TemplateView):
     template_name = "dashboard.html"
 
     def get_context_data(self, **kwargs):
+        """
+        Gathers all statistics for the main admin dashboard.
+        """
         context = super().get_context_data(**kwargs)
+        
+        # 1. Establish the timeframe
         today = timezone.localdate()
         current_year = today.year
         prev_year = current_year - 1
 
         # ─────────────────────────────────────────────
-        # Revenue Metrics
+        # Revenue Metrics (Flow Metric: Year-to-Date)
         # ─────────────────────────────────────────────
+        # We look at money made THIS year vs money made LAST year up to this specific date.
         rev_cur = get_revenue_from_payments(year=current_year, up_to_date=today)
         rev_prev = get_revenue_from_payments(year=prev_year, up_to_date=today)
-
 
         rev_cur_gross = rev_cur['gross_total']
         rev_cur_net = rev_cur['company_total']
@@ -215,7 +220,6 @@ class DashboardView(TemplateView):
         rev_prev_net = rev_prev['company_total']
         rev_prev_inst = rev_prev['inst_total']
 
-        # Growth and difference (safe Decimal)
         context.update({
             'rev_cur_gross': rev_cur_gross,
             'rev_prev_gross': rev_prev_gross,
@@ -224,12 +228,14 @@ class DashboardView(TemplateView):
             'rev_cur_inst_paid': rev_cur_inst,
             'rev_prev_inst_paid': rev_prev_inst,
             'rev_growth_pct': pct_growth(rev_cur_net, rev_prev_net),
+            # Quantize ensures we display 2 decimal places in the template
             'rev_diff': (rev_cur_net - rev_prev_net).quantize(Decimal('0.01')),
         })
 
         # ─────────────────────────────────────────────
-        # Expenses
+        # Expenses (Flow Metric: Year-to-Date)
         # ─────────────────────────────────────────────
+        # 1. Payroll: Salaries paid this year
         payroll_cur = Payroll.objects.filter(
             month__year=current_year, is_paid=True
         ).aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
@@ -241,6 +247,7 @@ class DashboardView(TemplateView):
             is_paid=True
         ).aggregate(total=Sum('net_salary'))['total'] or Decimal('0.00')
 
+        # 2. Sub Services: Costs incurred from service providers
         ss_cur = ClientSubService.objects.annotate(
             amt=Coalesce('overridden_price', F('sub_service__price'))
         ).filter(
@@ -255,6 +262,7 @@ class DashboardView(TemplateView):
             added_on__day__lte=today.day
         ).aggregate(total=Sum('amt'))['total'] or Decimal('0.00')
 
+        # 3. General Expenses: Office costs, bills, etc.
         ge_cur = Expense.objects.filter(
             date__year=current_year
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -265,9 +273,9 @@ class DashboardView(TemplateView):
             date__day__lte=today.day
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
+        # Total Expenses Calculation
         exp_cur = ge_cur + payroll_cur
         exp_prev = ge_prev + payroll_prev
-
         exp_growth = pct_growth(exp_cur, exp_prev)
         exp_diff = exp_cur - exp_prev
 
@@ -304,12 +312,19 @@ class DashboardView(TemplateView):
         # ─────────────────────────────────────────────
         # Clients & Titles Stats
         # ─────────────────────────────────────────────
-        clients_cur = Client.objects.filter(created_at__year=current_year).count()
+        
+        # --- CLIENTS (Stock Metric) ---
+        # 1. Current: Total count of all clients ever created
+        clients_cur = Client.objects.count()
+
+        # 2. Previous: Total count of clients at the END of last year.
+        #    Logic: If we compare against "This day last year" (Jan 4), we exclude 
+        #    clients created in late 2025, which makes 2026 look like huge artificial growth.
+        #    Comparing against "End of 2025" gives us "New Clients added in 2026".
         clients_prev = Client.objects.filter(
-            created_at__year=prev_year,
-            created_at__month__lte=today.month,
-            created_at__day__lte=today.day
+            created_at__year__lte=prev_year
         ).count()
+
 
         context.update({
             'clients_cur': clients_cur,
@@ -319,6 +334,8 @@ class DashboardView(TemplateView):
             'clients_diff_abs': abs(clients_cur - clients_prev),
         })
 
+        # --- TITLES (Flow Metric: Performance This Year) ---
+        # Title collection is a unit of work/revenue, so we keep this as "This Year" vs "Last Year".
         titles_cur = TitleDeedCollection.objects.filter(collected_at__year=current_year).count()
         titles_prev = TitleDeedCollection.objects.filter(
             collected_at__year=prev_year,
@@ -335,7 +352,7 @@ class DashboardView(TemplateView):
         })
 
         # ─────────────────────────────────────────────
-        # Monthly drill-downs
+        # Monthly drill-downs (Charts)
         # ─────────────────────────────────────────────
         context['month_labels'] = list(OrderedDict((calendar.month_abbr[m], None) for m in range(1, 13)))
         context['clients_monthly'] = monthly_series(Client, 'created_at', 'id', current_year)
@@ -351,10 +368,12 @@ class DashboardView(TemplateView):
         )
         ge_monthly = monthly_series(Expense, 'date', 'amount', current_year)
 
+        # Combine all expenses for the chart
         context['expense_monthly'] = [
             ss_monthly[i] + ge_monthly[i] + payroll_monthly[i] for i in range(12)
         ]
 
+        # Calculate Net Profit per month for the chart
         context['net_monthly'] = [
             context['revenue_monthly'][i] - context['expense_monthly'][i] for i in range(12)
         ]
@@ -367,9 +386,7 @@ class DashboardView(TemplateView):
         )
         context['recent_payments'] = get_all_payment_history()[:10]
 
-        return context
-    
-    
+        return context  
     
 
 

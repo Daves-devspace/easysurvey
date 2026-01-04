@@ -164,14 +164,20 @@
                                                                 <div class="d-flex justify-content-between align-items-center">
                                                                     <div>
                                                                         <strong>Push Notifications: </strong>
-                                                                        {% if request.user.employeeprofile.push_notifications_allowed %}
-                                                                            <span class="badge bg-success">Active</span>
-                                                                        {% else %}
-                                                                            <span class="badge bg-warning text-dark">Inactive</span>
-                                                                        {% endif %}
+                                                                        <!-- UPDATED: Single span with ID for JS targeting -->
+                                                                        <span id="notification-badge" class="badge {% if request.user.employeeprofile.push_notifications_allowed %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                                                            {% if request.user.employeeprofile.push_notifications_allowed %}
+                                                                                Notifications Active
+                                                                            {% else %}
+                                                                                Notifications Inactive
+                                                                            {% endif %}
+                                                                        </span>
                                                                     </div>
-                                                                    <!-- IMPORTANT: Added type="button" to prevent form submission -->
-                                                                    <button type="button" onclick="requestNotificationPermission()" class="btn btn-sm btn-outline-primary">
+                                                                    
+                                                                    <!-- UPDATED: Added ID and logic to hide button if already active -->
+                                                                    <button id="notification-button" type="button" onclick="requestNotificationPermission()" 
+                                                                            class="btn btn-sm btn-outline-primary"
+                                                                            {% if request.user.employeeprofile.push_notifications_allowed %}style="display:none"{% endif %}>
                                                                         <i class="fas fa-bell"></i> Enable Notifications
                                                                     </button>
                                                                 </div>
@@ -216,6 +222,6 @@
         </div>
     </div>
     
- 
+  
     
 {% endblock %}

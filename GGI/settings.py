@@ -98,6 +98,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'apps.EasyDocs.context_processors.site_settings',
                 'apps.EasyDocs.context_processors.employee_profile_context',
+                'apps.EasyDocs.context_processors.sms_balance',
                 "apps.notifications.core.context_processors.firebase_config",
             ],
         },
