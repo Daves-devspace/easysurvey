@@ -1,8 +1,9 @@
 # apps/EasyDocs/pdf_utils.py
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_RIGHT
 from django.utils import timezone
 from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
 from decimal import Decimal
@@ -17,31 +18,68 @@ from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
 import tempfile
 
 
-
-def generate_revenue_pdf(filename, start_date, end_date):
+def generate_revenue_pdf(buffer, start_date, end_date):
     """
-    Generate a clean PDF listing all revenue records for a given date range.
+    Generate a clean, landscape PDF listing all revenue records.
+    Optimized for data fitting and pagination.
+    
+    Args:
+        buffer: File-like object (HttpResponse or BytesIO) to write the PDF to.
+        start_date: datetime.date object
+        end_date: datetime.date object
     """
-    # Fetch revenue data
+    # 1. Fetch data
     revenue_data = get_revenue_from_payments(
         start_date=start_date,
         end_date=end_date,
         profit_mode="auto"
     )
 
-    # PDF setup
-    doc = SimpleDocTemplate(filename, pagesize=A4)
+    # 2. Setup Document (Landscape for wider tables)
+    # A4 Landscape is approx 842 points wide x 595 points high
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
     elements = []
     styles = getSampleStyleSheet()
+    
+    # Custom Styles
+    style_title = styles['Title']
+    style_normal = styles['Normal']
+    
+    # Style for table text (smaller font, wrapped)
+    style_cell = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=11,  # Line spacing
+        alignment=TA_LEFT
+    )
+    
+    # Style for numeric columns
+    style_cell_right = ParagraphStyle(
+        'CellRight',
+        parent=style_cell,
+        alignment=TA_RIGHT
+    )
 
-    # Title
+    # 3. Report Header
     title_text = f"Revenue Report: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
-    elements.append(Paragraph(title_text, styles['Title']))
-    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(title_text, style_title))
+    elements.append(Spacer(1, 20))
 
-    # Totals Table
+    # 4. Summary Table (Totals)
+    # Define explicit widths to center it nicely
+    total_col_widths = [150, 120, 120, 120]
+    
     total_data = [
-        ['Category', 'Gross Revenue (KES)', 'Company Revenue (KES)', 'Institution Revenue (KES)'],
+        ['Category', 'Gross (KES)', 'Company (KES)', 'Institution (KES)'],
         [
             'Main Services',
             f"{revenue_data['main_services']['gross_total']:.2f}",
@@ -62,53 +100,93 @@ def generate_revenue_pdf(filename, start_date, end_date):
         ]
     ]
     
-    total_table = Table(total_data, hAlign='LEFT')
-    total_table.setStyle(TableStyle([
+    t_summary = Table(total_data, colWidths=total_col_widths, hAlign='CENTER')
+    t_summary.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.grey),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold')
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'), # Align numbers right
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),   # Align labels left
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), # Header bold
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Footer/Total bold
+        ('BACKGROUND', (0, -1), (-1, -1), colors.whitesmoke),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
     ]))
-    elements.append(total_table)
-    elements.append(Spacer(1, 24))
+    elements.append(t_summary)
+    elements.append(Spacer(1, 30))
 
-    # Detailed Records Table
-    elements.append(Paragraph("Detailed Revenue Records:", styles['Heading2']))
+    # 5. Detailed Records Header
+    elements.append(Paragraph("Detailed Revenue Records", styles['Heading2']))
+    elements.append(Spacer(1, 10))
+
+    # 6. Detailed Table Setup
+    # Total usable width ~ 780pts. Let's distribute:
+    # # (30) | Client (160) | Service (190) | Charge (100) | Inst (100) | Profit (100) | Margin (60) = ~740pts
+    col_widths = [30, 160, 190, 100, 100, 100, 60]
+    
+    headers = ['#', 'Client', 'Service', 'Client Charge', 'Inst. Cost', 'Profit', '%']
+    
+    # Prepare data rows
+    # IMPORTANT: We use Paragraph() objects inside cells to allow text wrapping.
+    table_data = [headers]
     
     records = revenue_data.get('revenue_qs', [])
-    records_data = [['#', 'Client', 'Service', 'Client Charge', 'Inst. Cost', 'Profit', 'Margin %']]
     
-    for idx, record in enumerate(records, 1):
-        records_data.append([
-            str(idx),
-            f"{record.client.first_name} {record.client.last_name}",
-            record.service.name,
-            f"{record.client_charge:.2f}",
-            f"{record.inst_cost:.2f}",
-            f"{record.profit_amount:.2f}",
-            f"{record.profit_percent:.1f}%"
-        ])
-    
-    if len(records_data) == 1:
-        records_data.append(['No records found', '', '', '', '', '', ''])
+    if not records:
+        table_data.append(['-', 'No records found', '', '', '', '', ''])
+    else:
+        for idx, record in enumerate(records, 1):
+            # Wrap long text fields
+            client_p = Paragraph(f"{record.client.first_name} {record.client.last_name}", style_cell)
+            service_p = Paragraph(record.service.name, style_cell)
+            
+            # Format numbers as strings
+            charge = f"{record.client_charge:,.2f}"
+            inst = f"{record.inst_cost:,.2f}"
+            profit = f"{record.profit_amount:,.2f}"
+            margin = f"{record.profit_percent:.1f}%"
+            
+            # Color profit if negative (optional visual aid)
+            # if record.profit_amount < 0: profit = Paragraph(f"<font color='red'>{profit}</font>", style_cell_right)
+            
+            row = [
+                str(idx), 
+                client_p, 
+                service_p, 
+                charge, 
+                inst, 
+                profit, 
+                margin
+            ]
+            table_data.append(row)
 
-    records_table = Table(records_data, hAlign='LEFT', repeatRows=1)
-    records_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold')
+    # 7. Create Table object
+    # repeatRows=1 ensures the header appears on every new page
+    t_records = Table(table_data, colWidths=col_widths, repeatRows=1, hAlign='LEFT')
+    
+    t_records.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),     # Header background
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),       # Header font
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),                  # Header alignment
+        
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),                   # Vertical align top for wrapped text
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),     # Grid lines
+        
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),                  # Align numeric columns right
+        ('FONTSIZE', (0, 0), (-1, -1), 9),                     # Font size for all
+        
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
     ]))
-    elements.append(records_table)
 
-    # Build PDF
+    elements.append(t_records)
+
+    # 8. Build PDF
     doc.build(elements)
-    return filename
-
+    return buffer
 
 def revenue_pdf_view(request):
     """Generate PDF for the current filters"""

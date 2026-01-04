@@ -95,9 +95,14 @@
                                                 <!-- Card: Broadcast SMS form + preview -->
                                                 <div class="col-12 mb-4">
                                                     <div class="card shadow-sm">
-                                                    <div class="card-header bg-green-100 text-white">
-                                                        <h5 class="mb-0">Broadcast SMS to All Clients</h5>
-                                                    </div>
+                                                   <div class="card-header bg-green-100 text-white d-flex align-items-center justify-content-between flex-nowrap">
+    <h5 class="mb-0 text-truncate">
+        Broadcast SMS to All Clients
+    </h5>
+    <small class="text-black ms-3 text-nowrap">
+        Balance: {{ sms_balance }}
+    </small>
+</div>
 
                                                     <div class="card-body">
                                                         <form method="post">
