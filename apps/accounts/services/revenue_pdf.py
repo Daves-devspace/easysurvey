@@ -4,6 +4,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_RIGHT
+from datetime import datetime  # ✅ Correct import for strptime
 from django.utils import timezone
 from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
 from decimal import Decimal
@@ -12,21 +13,11 @@ import tempfile
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from django.http import HttpResponse
-from django.utils import timezone
-from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
-import tempfile
 
-
-def generate_revenue_pdf(buffer, start_date, end_date):
+def generate_revenue_pdf(buffer, start_date, end_date, status_filter='all'):
     """
     Generate a clean, landscape PDF listing all revenue records.
     Optimized for data fitting and pagination.
-    
-    Args:
-        buffer: File-like object (HttpResponse or BytesIO) to write the PDF to.
-        start_date: datetime.date object
-        end_date: datetime.date object
     """
     # 1. Fetch data
     revenue_data = get_revenue_from_payments(
@@ -35,8 +26,13 @@ def generate_revenue_pdf(buffer, start_date, end_date):
         profit_mode="auto"
     )
 
-    # 2. Setup Document (Landscape for wider tables)
-    # A4 Landscape is approx 842 points wide x 595 points high
+    # 2. ✅ Apply Status Filter
+    qs = revenue_data.get('revenue_qs')
+    if qs is not None and status_filter == 'completed':
+        qs = qs.filter(status='completed')
+        revenue_data['revenue_qs'] = qs
+
+    # 3. Setup Document (Landscape for wider tables)
     doc = SimpleDocTemplate(
         buffer,
         pagesize=landscape(A4),
@@ -51,33 +47,24 @@ def generate_revenue_pdf(buffer, start_date, end_date):
     
     # Custom Styles
     style_title = styles['Title']
-    style_normal = styles['Normal']
     
-    # Style for table text (smaller font, wrapped)
+    # Style for table text
     style_cell = ParagraphStyle(
         'CellText',
         parent=styles['Normal'],
         fontSize=9,
-        leading=11,  # Line spacing
+        leading=11,
         alignment=TA_LEFT
     )
     
-    # Style for numeric columns
-    style_cell_right = ParagraphStyle(
-        'CellRight',
-        parent=style_cell,
-        alignment=TA_RIGHT
-    )
-
-    # 3. Report Header
-    title_text = f"Revenue Report: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
+    # Report Header
+    status_label = " (Completed Only)" if status_filter == 'completed' else ""
+    title_text = f"Revenue Report{status_label}: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
     elements.append(Paragraph(title_text, style_title))
     elements.append(Spacer(1, 20))
 
-    # 4. Summary Table (Totals)
-    # Define explicit widths to center it nicely
+    # Summary Table (Totals)
     total_col_widths = [150, 120, 120, 120]
-    
     total_data = [
         ['Category', 'Gross (KES)', 'Company (KES)', 'Institution (KES)'],
         [
@@ -104,11 +91,11 @@ def generate_revenue_pdf(buffer, start_date, end_date):
     t_summary.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'), # Align numbers right
-        ('ALIGN', (0, 0), (0, -1), 'LEFT'),   # Align labels left
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'), # Header bold
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'), # Footer/Total bold
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('BACKGROUND', (0, -1), (-1, -1), colors.whitesmoke),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
         ('TOPPADDING', (0, 0), (-1, -1), 8),
@@ -116,19 +103,12 @@ def generate_revenue_pdf(buffer, start_date, end_date):
     elements.append(t_summary)
     elements.append(Spacer(1, 30))
 
-    # 5. Detailed Records Header
+    # Detailed Records
     elements.append(Paragraph("Detailed Revenue Records", styles['Heading2']))
     elements.append(Spacer(1, 10))
 
-    # 6. Detailed Table Setup
-    # Total usable width ~ 780pts. Let's distribute:
-    # # (30) | Client (160) | Service (190) | Charge (100) | Inst (100) | Profit (100) | Margin (60) = ~740pts
     col_widths = [30, 160, 190, 100, 100, 100, 60]
-    
     headers = ['#', 'Client', 'Service', 'Client Charge', 'Inst. Cost', 'Profit', '%']
-    
-    # Prepare data rows
-    # IMPORTANT: We use Paragraph() objects inside cells to allow text wrapping.
     table_data = [headers]
     
     records = revenue_data.get('revenue_qs', [])
@@ -137,45 +117,26 @@ def generate_revenue_pdf(buffer, start_date, end_date):
         table_data.append(['-', 'No records found', '', '', '', '', ''])
     else:
         for idx, record in enumerate(records, 1):
-            # Wrap long text fields
             client_p = Paragraph(f"{record.client.first_name} {record.client.last_name}", style_cell)
             service_p = Paragraph(record.service.name, style_cell)
             
-            # Format numbers as strings
             charge = f"{record.client_charge:,.2f}"
             inst = f"{record.inst_cost:,.2f}"
             profit = f"{record.profit_amount:,.2f}"
             margin = f"{record.profit_percent:.1f}%"
             
-            # Color profit if negative (optional visual aid)
-            # if record.profit_amount < 0: profit = Paragraph(f"<font color='red'>{profit}</font>", style_cell_right)
-            
-            row = [
-                str(idx), 
-                client_p, 
-                service_p, 
-                charge, 
-                inst, 
-                profit, 
-                margin
-            ]
+            row = [str(idx), client_p, service_p, charge, inst, profit, margin]
             table_data.append(row)
 
-    # 7. Create Table object
-    # repeatRows=1 ensures the header appears on every new page
     t_records = Table(table_data, colWidths=col_widths, repeatRows=1, hAlign='LEFT')
-    
     t_records.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),     # Header background
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),       # Header font
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),                  # Header alignment
-        
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),                   # Vertical align top for wrapped text
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),     # Grid lines
-        
-        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),                  # Align numeric columns right
-        ('FONTSIZE', (0, 0), (-1, -1), 9),                     # Font size for all
-        
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('LEFTPADDING', (0, 0), (-1, -1), 5),
         ('RIGHTPADDING', (0, 0), (-1, -1), 5),
         ('TOPPADDING', (0, 0), (-1, -1), 8),
@@ -183,8 +144,6 @@ def generate_revenue_pdf(buffer, start_date, end_date):
     ]))
 
     elements.append(t_records)
-
-    # 8. Build PDF
     doc.build(elements)
     return buffer
 
@@ -192,17 +151,31 @@ def revenue_pdf_view(request):
     """Generate PDF for the current filters"""
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
+    status_filter = request.GET.get('status', 'all')
     
     try:
-        start_date = timezone.datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date = timezone.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        if not start_date_str or not end_date_str:
+            raise ValueError("Missing dates")
+            
+        # 1. Try ISO format first (YYYY-MM-DD)
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            # 2. Fallback: Try verbose format like "Jan. 1, 2025" or "Jan 1, 2025"
+            # Removing dots allows 'Jan.' to match '%b' (which usually expects 'Jan')
+            clean_start = start_date_str.replace('.', '')
+            clean_end = end_date_str.replace('.', '')
+            start_date = datetime.strptime(clean_start, "%b %d, %Y").date()
+            end_date = datetime.strptime(clean_end, "%b %d, %Y").date()
+            
     except (ValueError, TypeError):
+        # Fallback to current year only if parsing actually fails
         start_date = timezone.now().date().replace(month=1, day=1)
         end_date = timezone.now().date()
 
-    # Create temporary file for PDF
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    pdf_path = generate_revenue_pdf(tmp_file.name, start_date, end_date)
+    pdf_path = generate_revenue_pdf(tmp_file.name, start_date, end_date, status_filter)
 
     with open(pdf_path, 'rb') as f:
         pdf_data = f.read()
@@ -211,11 +184,7 @@ def revenue_pdf_view(request):
     response['Content-Disposition'] = f'inline; filename="revenue_{start_date}_{end_date}.pdf"'
     return response
 
-
-
-
-
-def generate_revenue_excel(start_date, end_date):
+def generate_revenue_excel(start_date, end_date, status_filter='all'):
     """Generate a clean, well-formatted Excel revenue report."""
     revenue_data = get_revenue_from_payments(
         start_date=start_date,
@@ -223,30 +192,33 @@ def generate_revenue_excel(start_date, end_date):
         profit_mode="auto"
     )
 
+    qs = revenue_data.get('revenue_qs')
+    if qs is not None and status_filter == 'completed':
+        qs = qs.filter(status='completed')
+        revenue_data['revenue_qs'] = qs
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Revenue Report"
 
-    # --- Styles ---
+    # Styles
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4F81BD", fill_type="solid")
     total_fill = PatternFill(start_color="D9E1F2", fill_type="solid")
     border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
     )
 
-    # --- Title ---
+    # Title
+    status_label = " (Completed Only)" if status_filter == 'completed' else ""
     ws.merge_cells('A1:G1')
-    ws['A1'] = f"Revenue Report: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
+    ws['A1'] = f"Revenue Report{status_label}: {start_date.strftime('%d %b %Y')} to {end_date.strftime('%d %b %Y')}"
     ws['A1'].font = Font(bold=True, size=14)
     ws['A1'].alignment = Alignment(horizontal='center')
-
     ws.append([])
 
-    # --- Totals Section ---
+    # Totals
     ws.append(["Category", "Gross Revenue (KES)", "Company Revenue (KES)", "Institution Revenue (KES)"])
     for cell in ws[ws.max_row]:
         cell.font = header_font
@@ -255,18 +227,9 @@ def generate_revenue_excel(start_date, end_date):
         cell.border = border
 
     totals = [
-        ["Main Services",
-         revenue_data['main_services']['gross_total'],
-         revenue_data['main_services']['company_total'],
-         revenue_data['main_services']['inst_total']],
-        ["Sub Services",
-         revenue_data['subservices']['gross_total'],
-         revenue_data['subservices']['company_total'],
-         revenue_data['subservices']['inst_total']],
-        ["TOTAL",
-         revenue_data['gross_total'],
-         revenue_data['company_total'],
-         revenue_data['inst_total']]
+        ["Main Services", revenue_data['main_services']['gross_total'], revenue_data['main_services']['company_total'], revenue_data['main_services']['inst_total']],
+        ["Sub Services", revenue_data['subservices']['gross_total'], revenue_data['subservices']['company_total'], revenue_data['subservices']['inst_total']],
+        ["TOTAL", revenue_data['gross_total'], revenue_data['company_total'], revenue_data['inst_total']]
     ]
 
     for row in totals:
@@ -276,10 +239,9 @@ def generate_revenue_excel(start_date, end_date):
             if row[0] == "TOTAL":
                 cell.font = Font(bold=True)
                 cell.fill = total_fill
-
     ws.append([])
 
-    # --- Detailed Records ---
+    # Detailed Records
     ws.append(["#", "Client", "Service", "Client Charge", "Inst. Cost", "Profit", "Margin %"])
     for cell in ws[ws.max_row]:
         cell.font = header_font
@@ -307,43 +269,47 @@ def generate_revenue_excel(start_date, end_date):
                 if isinstance(cell.value, (int, float)):
                     cell.alignment = Alignment(horizontal='right')
 
-    # --- Safe Auto Width Adjustment ---
+    # Auto Width
     for i, col_cells in enumerate(ws.columns, 1):
         column_letter = get_column_letter(i)
         max_length = 0
         for cell in col_cells:
             try:
-                if cell.value:
-                    max_length = max(max_length, len(str(cell.value)))
-            except Exception:
-                pass
+                if cell.value: max_length = max(max_length, len(str(cell.value)))
+            except Exception: pass
         ws.column_dimensions[column_letter].width = max_length + 2
 
-    # --- Save to Temporary File ---
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
     wb.save(tmp_file.name)
     return tmp_file.name
-
-
-
-
-
-
-
 
 def revenue_excel_view(request):
     """Serve the Excel file as a download."""
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
+    status_filter = request.GET.get('status', 'all')
 
     try:
-        start_date = timezone.datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        end_date = timezone.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        if not start_date_str or not end_date_str:
+            raise ValueError("Missing dates")
+            
+        # 1. Try ISO format first
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            # 2. Fallback: Try verbose format like "Jan. 1, 2025"
+            clean_start = start_date_str.replace('.', '')
+            clean_end = end_date_str.replace('.', '')
+            start_date = datetime.strptime(clean_start, "%b %d, %Y").date()
+            end_date = datetime.strptime(clean_end, "%b %d, %Y").date()
+            
     except (ValueError, TypeError):
+        # Fallback to current year only if parsing actually fails
         start_date = timezone.now().date().replace(month=1, day=1)
         end_date = timezone.now().date()
 
-    file_path = generate_revenue_excel(start_date, end_date)
+    file_path = generate_revenue_excel(start_date, end_date, status_filter)
     with open(file_path, 'rb') as f:
         file_data = f.read()
 
