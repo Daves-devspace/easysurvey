@@ -1,15 +1,74 @@
-<form method="post" action="{% if form.instance.pk %}{% url 'property-edit' form.instance.pk %}{% else %}{% url 'property-create' %}{% endif %}">
+{% load widget_tweaks %}
 
-    {% csrf_token %}
-    <div class="modal-header">
-        <h5 class="modal-title">{% if form.instance.pk %}Edit{% else %}Add{% endif %} Property</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="modal-header">
+    <h5 class="modal-title">{% if form.instance.pk %}Edit Property{% else %}Add Property{% endif %}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<!-- FIX: Added method="POST" and action. HTMX will override this, but it prevents the GET fallback error -->
+<form method="POST" 
+      action="{{ request.path }}" 
+      hx-post="{{ request.path }}" 
+      hx-target="#propertyModalContent" 
+      enctype="multipart/form-data"
+      class="needs-validation" 
+      novalidate>
+  
+  {% csrf_token %}
+  
+  <div class="modal-body">
+    <!-- Non-field Errors -->
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle me-1"></i>
+        {{ form.non_field_errors.0 }}
     </div>
-    <div class="modal-body">
-        {{ form.as_p }}
+    {% endif %}
+
+    <!-- Name -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">{{ form.name.label }}</label>
+        {% render_field form.name class="form-control" %}
+        <div class="text-danger small">{{ form.name.errors }}</div>
     </div>
-    <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+
+    <!-- Location -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">{{ form.location.label }}</label>
+        {% render_field form.location class="form-control" %}
+        <div class="text-danger small">{{ form.location.errors }}</div>
     </div>
+
+    <div class="row">
+        <!-- Water Policy -->
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.water_policy.label }}</label>
+            {% render_field form.water_policy class="form-select" %}
+            <div class="text-danger small">{{ form.water_policy.errors }}</div>
+        </div>
+
+        <!-- Water Company -->
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">{{ form.water_company.label }}</label>
+            {% render_field form.water_company class="form-select" %}
+            <div class="text-danger small">{{ form.water_company.errors }}</div>
+        </div>
+    </div>
+
+    <!-- Billing Day -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">{{ form.billing_day.label }}</label>
+        {% render_field form.billing_day class="form-control" %}
+        <div class="form-text text-muted">{{ form.billing_day.help_text }}</div>
+        <div class="text-danger small">{{ form.billing_day.errors }}</div>
+    </div>
+
+  </div>
+  
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save me-1"></i> Save Property
+    </button>
+  </div>
 </form>

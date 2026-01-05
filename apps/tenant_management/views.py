@@ -24,6 +24,8 @@ from apps.tenant_management.utils import (
     get_property_leases_data,
     get_tenant_leases_data
 )
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 
 # --- JSON API for Select2 ---
 @require_GET
@@ -76,32 +78,79 @@ class PropertyListView(ListView):
         ctx['bulk_comm_form'] = BulkCommunicationForm()
         return ctx
 
+# --- UPDATED: Property CRUD Views ---
 class PropertyCreateView(CreateView):
     model = Property
     form_class = PropertyForm
     template_name = "properties/partials/property_form.html"
     success_url = reverse_lazy("property-list")
+
     def form_valid(self, form):
+        self.object = form.save()
         messages.success(self.request, "Property created successfully.")
+        
+        # If HTMX, signal a page refresh to show the new property
+        if self.request.headers.get('HX-Request'):
+            return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+            
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        # If HTMX, render the form with errors inside the modal
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, self.template_name, {'form': form})
+        
+        return super().form_invalid(form)
 
 class PropertyUpdateView(UpdateView):
     model = Property
     form_class = PropertyForm
     template_name = "properties/partials/property_form.html"
     success_url = reverse_lazy("property-list")
+
     def form_valid(self, form):
+        self.object = form.save()
         messages.success(self.request, "Property updated.")
+        
+        if self.request.headers.get('HX-Request'):
+            return HttpResponse(status=204, headers={'HX-Refresh': 'true'})
+            
         return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, self.template_name, {'form': form, 'object': self.object})
+        
+        return super().form_invalid(form)
+
+
 
 class PropertyDeleteView(DeleteView):
     model = Property
     template_name = "properties/partials/property_confirm_delete.html"
     success_url = reverse_lazy("property-list")
+
     def delete(self, request, *args, **kwargs):
-        prop = self.get_object()
-        messages.success(request, f"{prop.name} deleted.")
-        return super().delete(request, *args, **kwargs)
+        self.object = self.get_object()
+        prop_id = self.object.id
+        
+        try:
+            self.object.delete()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    "success": True, 
+                    "message": "Property deleted.",
+                    "row_id": f"property-row-{prop_id}"
+                })
+            messages.success(request, f"Property deleted.")
+            return redirect(self.success_url)
+            
+        except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({"success": False, "error": str(e)}, status=500)
+            messages.error(request, f"Error deleting property: {e}")
+            return redirect(self.success_url)
+
 
 
 

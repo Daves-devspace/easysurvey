@@ -227,25 +227,25 @@
             </a>
 
             <ul class="pc-submenu">
-                <li class="pc-item">
+                {% comment %} <li class="pc-item">
                 <a class="pc-link" href="{% url 'sessions' %}">Survey Sessions</a>
                 </li>
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'file_uploads' %}">File Uploads</a>
-                </li>
+                </li> {% endcomment %}
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'map_view' %}">Map Viewer</a>
                 </li>
 
-                <li class="pc-item">
+                {% comment %} <li class="pc-item">
                 <a class="pc-link" href="{% url 'mutation_view' %}">Mutation Tool</a>
                 </li>
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'mutation_export' %}">Mutation Export</a>
-                </li>
+                </li> {% endcomment %}
             </ul>
             </li>
 
