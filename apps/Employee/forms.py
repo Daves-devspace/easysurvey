@@ -79,7 +79,7 @@ class UnifiedEmployeeProfileForm(forms.ModelForm):
                 if self.user == self.instance.user:
                     self.fields['role'].disabled = True
             else:
-                for field in ['phone_number', 'address', 'department', 'role', 'profile_picture',
+                for field in ['address', 'department', 'role',
                               'first_name', 'last_name', 'email']:
                     self.fields[field].disabled = True
                 self.fields['username'].disabled = False

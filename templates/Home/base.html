@@ -734,42 +734,9 @@
 <!-- notification JS -->
 <script src="{% static 'assets/js/utils/notifications.js' %}"></script>
 
-{% comment %} <script type="module">
-  import { initFCM } from "{% static 'assets/js/utils/firebase.js' %}";
+<!-- 🔥 FIREBASE INIT: Logic Moved to Include File -->
+{% include 'includes/firebase_init.html' %}
 
-  const firebaseConfig = {
-    apiKey: "{{ firebase_config.apiKey }}",
-    authDomain: "{{ firebase_config.authDomain }}",
-    projectId: "{{ firebase_config.projectId }}",
-    storageBucket: "{{ firebase_config.storageBucket }}",
-    messagingSenderId: "{{ firebase_config.messagingSenderId }}",
-    appId: "{{ firebase_config.appId }}",
-  };
-  const vapidKey = "{{ firebase_config.vapidKey }}";
-  
-
-  initFCM(firebaseConfig, vapidKey);
-</script> {% endcomment %}
-
-<script type="module">
-  import { initFCM } from "{% static 'assets/js/utils/firebase.js' %}";
-
-  // expose function and config to window
-  window.firebaseConfig = {
-    apiKey: "{{ firebase_config.apiKey }}",
-    authDomain: "{{ firebase_config.authDomain }}",
-    projectId: "{{ firebase_config.projectId }}",
-    storageBucket: "{{ firebase_config.storageBucket }}",
-    messagingSenderId: "{{ firebase_config.messagingSenderId }}",
-    appId: "{{ firebase_config.appId }}",
-  };
-
-  window.vapidKey = "{{ firebase_config.vapidKey }}";
-  window.initFCM = initFCM;
-
-  // call it immediately
-  initFCM(window.firebaseConfig, window.vapidKey);
-</script>
 
 <script>
 document.getElementById('viewAllNotifications').addEventListener('click', function(e) {

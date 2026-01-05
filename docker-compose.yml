@@ -11,15 +11,12 @@ services:
   web:
     build: .
     entrypoint: ["/app/entrypoint.sh"]
-    #command: gunicorn GGI.wsgi:application --bind 0.0.0.0:8000
-    #command: daphne -b 0.0.0.0 -p 8000 GGI.asgi:application
     command: bash -c "daphne -b 0.0.0.0 -p 8000 GGI.asgi:application"
     volumes:
-      - .:/app                      # dev code bind (hot reload if enabled)
+      - .:/app
       - ./static:/app/static
       - ./staticfiles:/app/static_files
       - ./media:/app/media
-      # 🚨 Dev-only: bind a local service account key
       - ./service-account.json:/run/secrets/drive/service-account.json:ro
     env_file:
       - .env
@@ -28,12 +25,15 @@ services:
       - RUN_COLLECT_STATIC=true
       - WAIT_FOR_REDIS=true
 
-      - DB_HOST=db
-      - DB_PORT=5432
+      # Use POSTGRES_* to match settings.py
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-easydocs}
+      - POSTGRES_USER=${POSTGRES_USER:-easydocsuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-
-      # Always point to where creds are mounted
       - OAUTHLIB_INSECURE_TRANSPORT=1 
       - GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH=/run/secrets/drive/service-account.json
 
@@ -69,7 +69,7 @@ services:
 
   celery-worker:
     build: .
-    command: celery -A GGI worker --loglevel=info
+    command: celery -A GGI worker -l info -n worker_${INSTANCE_NAME}@%h
     volumes:
       - .:/app
       - ./media:/app/media

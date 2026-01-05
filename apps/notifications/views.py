@@ -6,7 +6,90 @@ from django.core.cache import cache
 from .models import Notification, FCMToken
 from .serializers import NotificationSerializer, FCMTokenSerializer
 from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
+from django.http import HttpResponse
+from django.template import Context, Template
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_GET
+from .firebase_manager import get_active_config
 
+# --- Service Worker Logic ---
+SW_SCRIPT_TEMPLATE = """
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: "{{ apiKey }}",
+  authDomain: "{{ authDomain }}",
+  projectId: "{{ projectId }}",
+  storageBucket: "{{ storageBucket }}",
+  messagingSenderId: "{{ messagingSenderId }}",
+  appId: "{{ appId }}"
+};
+
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch(e) {
+    console.log("Firebase SW init error (might be already initialized): ", e);
+}
+
+const messaging = firebase.messaging();
+
+// Handle background messages
+messaging.onBackgroundMessage(function(payload) {
+  console.log('[firebase-messaging-sw.js] Received background message ', payload);
+  
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: '/static/images/pages/smrtlg.png', // Update this path to your actual logo
+    data: payload.data
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
+"""
+
+@require_GET
+@cache_control(max_age=3600)
+def firebase_messaging_sw(request):
+    """
+    Returns a dynamically generated service worker file.
+    """
+    # 1. Try DB config first (Robust method)
+    db_config = get_active_config()
+    
+    context_data = {}
+    if db_config:
+        context_data = {
+            'apiKey': db_config.api_key,
+            'authDomain': db_config.auth_domain,
+            'projectId': db_config.project_id,
+            'storageBucket': db_config.storage_bucket,
+            'messagingSenderId': db_config.messaging_sender_id,
+            'appId': db_config.app_id,
+        }
+    else:
+        # 2. Fallback to settings.py if DB is empty
+        config = getattr(settings, 'FIREBASE_CONFIG', {})
+        context_data = {
+            'apiKey': config.get('apiKey', ''),
+            'authDomain': config.get('authDomain', ''),
+            'projectId': config.get('projectId', ''),
+            'storageBucket': config.get('storageBucket', ''),
+            'messagingSenderId': config.get('messagingSenderId', ''),
+            'appId': config.get('appId', ''),
+        }
+
+    t = Template(SW_SCRIPT_TEMPLATE)
+    c = Context(context_data)
+    response = HttpResponse(t.render(c), content_type="application/javascript")
+    # Critical for scope permissions
+    response["Service-Worker-Allowed"] = "/"
+    return response
+
+
+# --- API Views ---
 
 class CombinedNotificationFeedView(APIView):
     """
@@ -34,15 +117,11 @@ class CombinedNotificationFeedView(APIView):
             monitoring_data = NotificationSerializer(monitor_qs, many=True).data
             monitoring_count = Notification.objects.filter(seen_by_admin=False).exclude(user=user).count()
 
-            # mark each item as viewed through superuser context (no extra DB queries)
             for n in monitoring_data:
                 n["superuser_view"] = True
-                # target_user is already provided by the serializer (display_name or fallback)
                 if "target_user" not in n or n["target_user"] is None:
-                    # defensive fallback - should rarely be needed
                     n["target_user"] = None
 
-        # include current user small context with display name for better frontend UX
         current_profile = getattr(user, 'employeeprofile', None)
         if current_profile:
             display = current_profile.display_name if not callable(current_profile.display_name) else current_profile.display_name()
@@ -70,82 +149,42 @@ class CombinedNotificationFeedView(APIView):
 
 
 class MarkNotificationReadView(APIView):
-    """
-    Marks a single notification as read/seen.
-
-    Rules:
-      - If a superuser calls this endpoint: mark `seen_by_admin=True` for monitoring purposes.
-        * If the notification belongs to the superuser themself, also mark `is_read=True` so
-          their personal count drops.
-      - If a regular user calls this endpoint and they own the notification: mark `is_read=True`.
-      - Otherwise return 403.
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         user = request.user
         notification = get_object_or_404(Notification, pk=pk)
 
-        # Superuser action: mark item as seen by admin for monitoring
         if user.is_superuser:
             notification.seen_by_admin = True
-
-            # If the notification belongs to the superuser, also mark it as read
             if notification.user == user:
                 notification.is_read = True
                 notification.save(update_fields=["seen_by_admin", "is_read"])
-                return Response(
-                    {"status": "marked as seen by admin and read", "id": notification.id},
-                    status=status.HTTP_200_OK,
-                )
+                return Response({"status": "marked as seen by admin and read", "id": notification.id}, status=status.HTTP_200_OK)
 
-            # It belongs to someone else — only mark seen_by_admin
             notification.save(update_fields=["seen_by_admin"])
-            return Response(
-                {"status": "marked as seen by admin", "id": notification.id},
-                status=status.HTTP_200_OK,
-            )
+            return Response({"status": "marked as seen by admin", "id": notification.id}, status=status.HTTP_200_OK)
 
-        # Regular user: can only mark their own notifications as read
         if notification.user == user:
             notification.is_read = True
             notification.save(update_fields=["is_read"])
-            return Response(
-                {"status": "marked as read", "id": notification.id},
-                status=status.HTTP_200_OK,
-            )
+            return Response({"status": "marked as read", "id": notification.id}, status=status.HTTP_200_OK)
 
         return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
 
 class MarkAllAsReadView(APIView):
-    """
-    Marks all notifications as read for the current user.
-
-    Behavior:
-      - Superusers: mark *all* unseen monitoring items as `seen_by_admin=True` (the monitoring feed)
-        and also mark the superuser's personal notifications as `is_read=True` so their badge clears.
-      - Regular users: mark all their `is_read=False` notifications as `is_read=True`.
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
 
         if user.is_superuser:
-            # mark monitoring items as seen by admin
             if hasattr(Notification, "seen_by_admin"):
                 Notification.objects.filter(seen_by_admin=False).update(seen_by_admin=True)
-
-            # also mark the superuser's personal notifications as read so the badge clears
             Notification.objects.filter(user=user, is_read=False).update(is_read=True)
+            return Response({"status": "all marked as seen by admin and your personal notifications marked read"}, status=status.HTTP_200_OK)
 
-            return Response(
-                {"status": "all marked as seen by admin and your personal notifications marked read"},
-                status=status.HTTP_200_OK,
-            )
-
-        # regular user
         Notification.objects.filter(user=user, is_read=False).update(is_read=True)
         return Response({"status": "all marked as read"}, status=status.HTTP_200_OK)
 
@@ -153,11 +192,7 @@ class MarkAllAsReadView(APIView):
 class SaveFCMTokenView(APIView):
     """
     API endpoint to save/update the current user's FCM token.
-
-    Behavior:
-      - Expects POST JSON body: { "token": "<fcm-token>" }
-      - Uses update_or_create to be idempotent (no duplicate tokens)
-      - Associates the token to the authenticated user
+    AND update the EmployeeProfile status.
     """
     permission_classes = [IsAuthenticated]
 
@@ -166,28 +201,35 @@ class SaveFCMTokenView(APIView):
         if not token:
             return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Idempotent save: update user for existing token, create new otherwise
-        obj, created = FCMToken.objects.update_or_create(token=token, defaults={"user": request.user})
+        # 1. Idempotent save of the Token
+        # FIX: We lookup by 'token' only, because 'token' is unique. 
+        # If it exists (even for another user), we claim it for this user.
+        obj, created = FCMToken.objects.update_or_create(
+            token=token, 
+            defaults={
+                "user": request.user,
+                "is_active": True
+            }
+        )
+
+        # 2. UPDATE PROFILE STATUS (This was missing)
+        if hasattr(request.user, 'employeeprofile'):
+            profile = request.user.employeeprofile
+            # Only update if it wasn't already True to save a DB write
+            if not profile.push_notifications_allowed:
+                profile.push_notifications_allowed = True
+                profile.save(update_fields=['push_notifications_allowed'])
 
         if created:
-            return Response({"message": "✅ Token saved successfully"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "✅ Token saved & Profile updated"}, status=status.HTTP_201_CREATED)
 
-        return Response({"message": "ℹ️ Token already exists, user updated"}, status=status.HTTP_200_OK)
-
-
+        return Response({"message": "ℹ️ Token updated"}, status=status.HTTP_200_OK)
 
 
 class AllNotificationsCachedView(APIView):
-    """
-    Returns notifications from Redis cache.
-    - Admin/Manager: see all notifications.
-    - Regular users: only see their own.
-    - Cached for performance, invalidated automatically via signals.
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get_cache_key(self, user):
-        """Generate cache key per role/user."""
         if user.is_superuser:
             return "notifications_admin"
         if getattr(user, "role", "") == "manager":
@@ -195,7 +237,6 @@ class AllNotificationsCachedView(APIView):
         return f"notifications_user_{user.id}"
 
     def get_queryset(self, user):
-        """Role-based queryset."""
         if user.is_superuser or getattr(user, "role", "") == "manager":
             return Notification.objects.select_related("user").order_by("-created_at")
         return Notification.objects.filter(user=user).order_by("-created_at")
@@ -204,18 +245,15 @@ class AllNotificationsCachedView(APIView):
         user = request.user
         cache_key = self.get_cache_key(user)
         page = int(request.GET.get("page", 1))
-        per_page = int(request.GET.get("length", 25))  # DataTables uses 'length'
+        per_page = int(request.GET.get("length", 25))
 
-        # Try Redis cache first
         data = cache.get(cache_key)
         if not data:
-            # Cache miss → query + serialize
             queryset = self.get_queryset(user)
             serializer = NotificationSerializer(queryset, many=True)
             data = serializer.data
-            cache.set(cache_key, data, timeout=60)  # cache for 1 minute
+            cache.set(cache_key, data, timeout=60)
 
-        # Manual pagination
         start = (page - 1) * per_page
         end = start + per_page
         paginated = data[start:end]
