@@ -11,18 +11,22 @@ from apps.notifications.models import FCMToken,PendingPushNotification  # adjust
 from firebase_admin import messaging
 from .utils import send_push_to_user
 
+from .firebase_manager import initialize_firebase # Import the manager
+
 logger = logging.getLogger(__name__)
-
-
 
 @shared_task
 def send_pending_push_notifications(user_id):
     """
     Find pending unsent notifications for a user and try to deliver them.
-    Only mark pending as sent when at least one push succeeded.
     """
     from django.contrib.auth import get_user_model
     User = get_user_model()
+
+    # 1. Ensure Firebase is initialized in this worker process
+    if not initialize_firebase():
+        logger.error("Cannot send pending push: Firebase not configured.")
+        return
 
     try:
         user = User.objects.get(pk=user_id)
@@ -36,17 +40,13 @@ def send_pending_push_notifications(user_id):
             success_count, failure_count = send_push_to_user(user, notif.title, notif.body)
             if success_count > 0:
                 notif.sent = True
-                notif.sent_at = dj_timezone.now() if hasattr(notif, "sent_at") else None
+                notif.sent_at = dj_timezone.now()
                 notif.save()
-                logger.info("Delivered pending notification %s to user %s (success=%d failure=%d)",
-                            notif.id, user, success_count, failure_count)
+                logger.info("Delivered pending notification %s to user %s", notif.id, user)
             else:
-                logger.warning("Pending notification %s for user %s not delivered (success=0). Will retry later.",
-                               notif.id, user)
+                logger.warning("Pending notification %s not delivered (retry later)", notif.id)
         except Exception:
-            logger.exception("Failed while processing pending notification %s for user %s", notif.id, user)
-
-
+            logger.exception("Failed while processing pending notification %s", notif.id)
 
 # -------------------------------------------------------------------
 # 📧 Task: Send booking assignment email + push

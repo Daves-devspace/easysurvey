@@ -1,0 +1,140 @@
+{% load static %}
+{% if firebase_config and firebase_config.apiKey %}
+<!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+
+<script>
+  (function() {
+    console.log("🔥 Firebase Init Script Loaded");
+
+    // 1. Configuration injected from Django Context Processor
+    const firebaseConfig = {
+      apiKey: "{{ firebase_config.apiKey|escapejs }}",
+      authDomain: "{{ firebase_config.authDomain|escapejs }}",
+      projectId: "{{ firebase_config.projectId|escapejs }}",
+      storageBucket: "{{ firebase_config.storageBucket|escapejs }}",
+      messagingSenderId: "{{ firebase_config.messagingSenderId|escapejs }}",
+      appId: "{{ firebase_config.appId|escapejs }}"
+    };
+    
+    // SAFETY FIX: Trim whitespace from the key
+    const rawVapidKey = "{{ firebase_config.vapidKey|default:''|escapejs }}";
+    const vapidKey = rawVapidKey.trim();
+
+    // 2. Initialize Firebase
+    if (!firebase.apps.length) {
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+    }
+    const messaging = firebase.messaging();
+
+    // 3. Register Service Worker with Scope Fix
+    if ('serviceWorker' in navigator) {
+      const swUrl = "{% url 'firebase_sw' %}";
+      
+      navigator.serviceWorker.register(swUrl, { scope: '/' })
+        .then(function(registration) {
+          console.log('✅ Service Worker Registered. Scope:', registration.scope);
+        }).catch(function(err) {
+          console.error('❌ Service Worker Registration Failed:', err);
+        });
+    }
+
+    // 4. Define the Save Token Function
+    function sendTokenToServer(token) {
+        console.log("🚀 Sending token to server...");
+        
+        // FIX: Use Django URL tag instead of hardcoded path
+        const saveUrl = "{% url 'save_fcm_token' %}";
+
+        fetch(saveUrl, {  
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ token: token })
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log("✅ Token saved to server successfully.");
+            } else {
+                console.error("⚠️ Failed to save token:", response.statusText);
+            }
+        })
+        .catch(error => console.error("❌ Error sending token:", error));
+    }
+
+    // 5. Permission Request Logic
+    window.requestNotificationPermission = function() {
+        if (!vapidKey) {
+            console.error("❌ VAPID Key is missing! Check Django Admin > Firebase Configuration.");
+            alert("System Error: Push Notification Key is missing. Please contact admin.");
+            return;
+        }
+
+        console.log('Requesting permission...');
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('🎉 Permission granted. Fetching token...');
+                
+                navigator.serviceWorker.ready.then((registration) => {
+                    return messaging.getToken({ 
+                        vapidKey: vapidKey, 
+                        serviceWorkerRegistration: registration 
+                    });
+                }).then((currentToken) => {
+                    if (currentToken) {
+                        sendTokenToServer(currentToken);
+                    } else {
+                        console.log('No registration token available.');
+                    }
+                }).catch((err) => {
+                    console.error('❌ Error retrieving token:', err);
+                });
+            } else {
+                console.warn('Permission denied by user.');
+            }
+        });
+    };
+
+    // 6. Automatic Check on Load
+    if (Notification.permission === 'granted' && vapidKey) {
+        navigator.serviceWorker.ready.then((registration) => {
+            messaging.getToken({ 
+                vapidKey: vapidKey, 
+                serviceWorkerRegistration: registration 
+            }).then((currentToken) => {
+                if (currentToken) sendTokenToServer(currentToken);
+            }).catch((err) => {});
+        });
+    }
+
+    // 7. Handle Foreground Messages (The Fix)
+    messaging.onMessage((payload) => {
+        console.log('Message received in foreground:', payload);
+        
+        // Manually show notification when tab is open
+        const notificationTitle = payload.notification.title;
+        const notificationOptions = {
+            body: payload.notification.body,
+            icon: "{% static 'assets/images/pages/smrtlg.png' %}" // Use your app logo
+        };
+
+        // Check if browser supports notifications
+        if (!("Notification" in window)) {
+            console.log("This browser does not support system notifications");
+        }
+        // Check if user has granted permission
+        else if (Notification.permission === "granted") {
+            new Notification(notificationTitle, notificationOptions);
+        }
+    });
+
+  })();
+</script>
+{% endif %}

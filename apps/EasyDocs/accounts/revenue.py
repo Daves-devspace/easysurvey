@@ -408,7 +408,7 @@ def get_revenue_context(request):
     filters = parse_revenue_filters(request)
 
     # Parse status filter (default = completed)
-    status_filter = request.GET.get('status', 'completed').lower()
+    status_filter = request.GET.get('status', 'all').lower()
     
     # Get revenue data
     revenue_data = get_revenue_from_payments(

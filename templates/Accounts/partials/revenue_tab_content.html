@@ -4,7 +4,6 @@
 <!-- ============================================
      STATUS FILTER (All / Completed)
 ============================================= -->
-{# Use only status_filter (provided by context) and default to "completed" #}
 {% with s=status_filter|default:"completed" %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -150,7 +149,8 @@
         <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
           <i class="bi bi-printer"></i> Export
         </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown">
+        {# ADDED Z-INDEX: 1050 to appear above sticky header #}
+        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown" style="z-index: 1050;">
           <li>
             <a
               class="dropdown-item"
@@ -176,19 +176,21 @@
     </div>
   </div>
 
-  <div class="card-body p-0">
+  
     <div class="table-responsive mt-3" style="max-height: 600px; overflow-y: auto;">
-      <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-        <thead class="table-light sticky-top">
+      <!-- Added explicit ID to table for safety, removed dt-responsive and sticky classes to fix count error -->
+      <table id="revenueTable" class="datatable display table table-striped table-hover nowrap" style="width:100%">
+        <thead class="table-light">
           <tr>
-            <th class="text-center" style="width: 5%;">#</th>
-            <th style="width: 20%;">Client Details</th>
-            <th style="width: 25%;">Service Details</th>
-            <th class="text-end" style="width: 12%;">Client Charge</th>
-            <th class="text-end" style="width: 12%;">Institution Cost</th>
-            <th class="text-end" style="width: 12%;">Company Profit</th>
-            <th class="text-end" style="width: 8%;">Margin %</th>
-            <th class="text-center" style="width: 6%;">Status</th>
+            <th class="text-center">#</th>
+            <th>Client Details</th>
+            <th>Service Details</th>
+            <th class="text-end">Client Charge</th>
+            <th class="text-end">Institution Cost</th>
+            <th class="text-end">Client Payment</th> <!-- NEW COLUMN -->
+            <th class="text-end">Company Profit</th>
+            <th class="text-end">Margin %</th>
+            <th class="text-center">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -221,6 +223,15 @@
                   <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-normal">
                     KES {{ record.inst_cost|floatformat:2|intcomma }}
                   </span>
+                </td>
+                <!-- NEW COLUMN: TOTAL PAID SO FAR (Cumulative) -->
+                <td class="text-end">
+                  <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 fw-normal">
+                    KES {{ record.total_paid_all|floatformat:2|intcomma }}
+                  </span>
+                  {% if record.total_paid_all < record.client_charge %}
+                   <i class="bi bi-exclamation-circle text-warning small" title="Partially Paid"></i>
+                  {% endif %}
                 </td>
                 <td class="text-end">
                   <span class="badge {% if record.profit_amount > 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 {% if record.profit_amount > 0 %}text-success{% else %}text-danger{% endif %} px-3 py-2 fw-normal">
@@ -257,7 +268,8 @@
             {% endfor %}
           {% else %}
             <tr>
-              <td colspan="8" class="text-center py-5">
+              {# Updated colspan to 9 for new column #}
+              <td colspan="9" class="text-center py-5">
                 <div class="text-muted">
                   <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
                   <h5 class="mb-2">No Revenue Records Found</h5>
@@ -269,13 +281,17 @@
             </tr>
           {% endif %}
         </tbody>
-
+        
         {% if revenue_records %}
-          <tfoot class="table-secondary fw-bold sticky-bottom">
+          <tfoot class="table-secondary fw-bold">
             <tr>
-              <td colspan="3" class="text-end">TOTALS:</td>
-              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td>
+              {# Strictly 9 cells now #}
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td class="text-end">TOTALS:</td>
+              <td class="text-end">&nbsp;</td> {# Client Charge Total (Optional/Empty) #}
               <td class="text-end">KES {{ revenue_totals.inst_total|floatformat:2|intcomma }}</td>
+              <td class="text-end">KES {{ revenue_totals.gross_total|floatformat:2|intcomma }}</td> {# Gross Cash In #}
               <td class="text-end text-success">KES {{ revenue_totals.company_total|floatformat:2|intcomma }}</td>
               <td class="text-end">
                 {% if revenue_totals.gross_total > 0 %}
@@ -284,13 +300,13 @@
                   0%
                 {% endif %}
               </td>
-              <td></td>
+              <td>&nbsp;</td>
             </tr>
           </tfoot>
         {% endif %}
       </table>
     </div>
-  </div>
+ 
 
   {% if revenue_records %}
     <div class="card-footer bg-light border-top">

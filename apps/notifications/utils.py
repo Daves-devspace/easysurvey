@@ -1,14 +1,11 @@
-# apps/notifications/utils.py
 from typing import Iterable, List, Tuple, Union
 import logging
-
 from firebase_admin import messaging
 from django.db.models import QuerySet
-
 from .models import FCMToken, PendingPushNotification
+from .firebase_manager import initialize_firebase
 
 logger = logging.getLogger(__name__)
-
 
 def _deactivate_token(token: str) -> None:
     try:
@@ -17,11 +14,14 @@ def _deactivate_token(token: str) -> None:
     except Exception:
         logger.exception("Failed to deactivate token: %s", token)
 
-
 def send_push_notification(token: str, title: str, body: str) -> bool:
     """
-    Send a single-message to a single token. Returns True on success.
+    Send a single message. Initializes Firebase first.
     """
+    # 1. Ensure Firebase is ready
+    if not initialize_firebase():
+        return False
+
     message = messaging.Message(
         notification=messaging.Notification(title=title, body=body),
         token=token,
@@ -31,8 +31,7 @@ def send_push_notification(token: str, title: str, body: str) -> bool:
         logger.info("✅ Push sent to token %s: %s", token, resp)
         return True
     except Exception as exc:
-        logger.exception("❌ send_push_notification failed for token %s: %s", token, exc)
-        # Deactivate obviously invalid tokens if message indicates that
+        logger.error("❌ send_push_notification failed for token %s: %s", token, exc)
         err = str(exc)
         if "registration-token-not-registered" in err or "invalid-registration-token" in err:
             _deactivate_token(token)
@@ -45,15 +44,12 @@ def send_push_to_user(
     body: str
 ) -> Tuple[int, int]:
     """
-    Send push notification to a user or to many users.
-
-    Accepts:
-      - a single User instance
-      - a QuerySet/List/Tuple of User instances
-
-    Returns a tuple: (success_count, failure_count)
+    Send push to user(s). Returns (success_count, failure_count).
     """
-    # Normalize input to iterable of users
+    # 1. Ensure Firebase is ready
+    if not initialize_firebase():
+        return 0, 0
+
     if isinstance(users, (list, tuple, QuerySet)):
         user_list = list(users)
     else:
@@ -64,7 +60,7 @@ def send_push_to_user(
 
     for user in user_list:
         try:
-            tokens: List[str] = list(
+            tokens = list(
                 FCMToken.objects.filter(user=user, is_active=True).values_list("token", flat=True)
             )
         except Exception:
@@ -80,75 +76,35 @@ def send_push_to_user(
             total_failure += 1
             continue
 
-        # Build messaging.Message objects
         messages = [
             messaging.Message(notification=messaging.Notification(title=title, body=body), token=t)
             for t in tokens
         ]
 
-        # Try batch send or fallbacks. Count successes and failures.
+        # Use send_all for efficiency if available
         try:
-            # Single token -> use send()
-            if len(messages) == 1:
-                ok = send_push_notification(tokens[0], title, body)
-                if ok:
-                    total_success += 1
-                else:
-                    total_failure += 1
-                continue
-
-            # Preferred: send_all (newer firebase_admin)
             if hasattr(messaging, "send_all"):
                 batch_resp = messaging.send_all(messages)
-                # send_all returns object with 'responses' list
                 success_count = sum(1 for r in batch_resp.responses if getattr(r, "success", False))
                 failure_count = len(batch_resp.responses) - success_count
                 total_success += success_count
                 total_failure += failure_count
 
-                # Deactivate obvious invalid tokens
                 for i, r in enumerate(batch_resp.responses):
                     if not getattr(r, "success", False):
                         exc_str = str(getattr(r, "exception", r))
                         if "registration-token-not-registered" in exc_str or "invalid-registration-token" in exc_str:
                             _deactivate_token(tokens[i])
-                        logger.warning("FCM failure for %s token[%d]: %s", user, i, exc_str)
-                logger.info("✅ send_all for user %s: success=%d failure=%d", user, success_count, failure_count)
-                continue
-
-            # Older SDKs may expose send_each
-            if hasattr(messaging, "send_each"):
-                send_each_resp = messaging.send_each(messages)
-                # best-effort logging of older responses; try to inspect fields
-                logger.info("send_each result for %s: %s", user, getattr(send_each_resp, "__dict__", str(send_each_resp)))
-                # Best effort to count responses if provided
-                try:
-                    resp_list = getattr(send_each_resp, "_responses", None) or getattr(send_each_resp, "responses", None)
-                    if resp_list:
-                        success_count = sum(1 for r in resp_list if getattr(r, "success", False))
-                        failure_count = len(resp_list) - success_count
-                        total_success += success_count
-                        total_failure += failure_count
-                except Exception:
-                    logger.exception("Could not parse send_each responses for user %s", user)
-                continue
-
-            # Final fallback: send one-by-one
-            for tkn in tokens:
-                ok = send_push_notification(tkn, title, body)
-                if ok:
-                    total_success += 1
-                else:
-                    total_failure += 1
+            else:
+                # Fallback loop
+                for tkn in tokens:
+                    if send_push_notification(tkn, title, body):
+                        total_success += 1
+                    else:
+                        total_failure += 1
 
         except Exception as exc:
-            logger.exception("FCM send_all/send failed for user %s: %s", user, exc)
-            # If batch failed entirely, fallback to per-token sends
-            for tkn in tokens:
-                ok = send_push_notification(tkn, title, body)
-                if ok:
-                    total_success += 1
-                else:
-                    total_failure += 1
+            logger.exception("FCM batch send failed for user %s: %s", user, exc)
+            total_failure += len(tokens)
 
     return total_success, total_failure

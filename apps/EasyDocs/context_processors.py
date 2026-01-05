@@ -5,6 +5,7 @@ import logging
 from django.db import ProgrammingError, OperationalError
 from django.templatetags.static import static
 from django.utils.functional import SimpleLazyObject
+from django.core.cache import cache
 
 def get_fallback_settings():
     return SiteSettings(company_name="SMARTSURVEYOR")
@@ -83,4 +84,20 @@ def employee_profile_context(request):
         'employee_profile': profile,
         'employee_avatar_url': avatar_url,
         'employee_role': role,
+    }
+    
+    
+
+
+def sms_balance(request):
+    """
+    Returns the last known SMS balance from the cache.
+    This does NOT hit the API, so it is fast enough to run on every page load.
+    """
+    # 'global_sms_balance' is updated by MobileSasaAPI.get_balance()
+    # in apps/EasyDocs/utils.py
+    balance = cache.get('global_sms_balance')
+    
+    return {
+        'sms_balance': balance
     }

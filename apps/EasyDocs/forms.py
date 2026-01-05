@@ -38,7 +38,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from apps.EasyDocs.models import SiteSettings
 from apps.EasyDocs.files.security import credential_service
-
+from django.templatetags.static import static
 
 class GoogleDriveConfigForm(forms.ModelForm):
     # Service account key upload
@@ -184,7 +184,6 @@ class CustomPasswordResetForm(PasswordResetForm):
         })
     )
 
-    # Override this method in the form to make sure it's using your custom logic
     def save(self, domain_override=None,
              subject_template_name=None,
              email_template_name=None,
@@ -192,41 +191,83 @@ class CustomPasswordResetForm(PasswordResetForm):
              from_email=None, request=None, html_email_template_name=None,
              extra_email_context=None):
         """
-        Override the save method to ensure our custom send_mail gets called
+        Override the save method to add site_settings to email context
         """
         print("CustomPasswordResetForm.save called")
-        logger.debug("CustomPasswordResetForm.save called with email: %s", self.cleaned_data.get('email', 'unknown'))
+        logger.debug("CustomPasswordResetForm.save called with email: %s", 
+                     self.cleaned_data.get('email', 'unknown'))
 
-        # Call the parent's save method which will eventually call send_mail
-        return super().save(domain_override, subject_template_name,
-                            email_template_name, use_https, token_generator,
-                            from_email, request, html_email_template_name,
-                            extra_email_context)
+        # Get site settings
+        try:
+            settings_obj = SiteSettings.objects.first()
+        except Exception as e:
+            logger.warning("Could not fetch SiteSettings: %s", e)
+            settings_obj = None
 
-    def send_mail(
-            self,
-            subject_template_name,
-            email_template_name,
-            context,
-            from_email,
-            to_email,
-            html_email_template_name=None,
-    ):
+        if not settings_obj:
+            settings_obj = SiteSettings(company_name="SMARTSURVEYOR")
+
+        # Get logo URL
+        logo_url = None
+        if settings_obj and settings_obj.logo:
+            try:
+                logo_url = settings_obj.logo.url
+            except Exception:
+                pass
+
+        if not logo_url:
+            logo_url = static('assets/images/pages/smrtlg.png')
+
+        company_name = (settings_obj.company_name 
+                       if settings_obj and settings_obj.company_name 
+                       else "SMARTSURVEYOR")
+
+        # Merge with any existing extra_email_context
+        if extra_email_context is None:
+            extra_email_context = {}
+        
+        extra_email_context.update({
+            'site_settings': settings_obj,
+            'logo_url': logo_url,
+            'company_name': company_name,
+        })
+
+        # Call parent's save with updated context
+        return super().save(
+            domain_override=domain_override,
+            subject_template_name=subject_template_name,
+            email_template_name=email_template_name,
+            use_https=use_https,
+            token_generator=token_generator,
+            from_email=from_email,
+            request=request,
+            html_email_template_name=html_email_template_name,
+            extra_email_context=extra_email_context
+        )
+
+    def send_mail(self, subject_template_name, email_template_name, context,
+                  from_email, to_email, html_email_template_name=None):
+        """
+        Custom send_mail with enhanced logging
+        """
         print("CustomPasswordResetForm.send_mail called")
         try:
             # Log backend and connection settings
             logger.debug("Email backend: %s", settings.EMAIL_BACKEND)
-            logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", settings.EMAIL_HOST, settings.EMAIL_PORT,
-                         settings.EMAIL_USE_TLS, settings.EMAIL_USE_SSL)
+            logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", 
+                        settings.EMAIL_HOST, settings.EMAIL_PORT,
+                        settings.EMAIL_USE_TLS, settings.EMAIL_USE_SSL)
             logger.debug("From: %s, To: %s", from_email, to_email)
+            logger.debug("Context keys: %s", list(context.keys()))
 
             # Render subject & body
             subject = render_to_string(subject_template_name, context).strip().replace('\n', '')
             body = render_to_string(email_template_name, context)
-            html_body = render_to_string(html_email_template_name, context) if html_email_template_name else None
+            html_body = (render_to_string(html_email_template_name, context) 
+                        if html_email_template_name else None)
 
             logger.debug("Email subject: %s", subject)
-            logger.debug("Email body (text): %s", body)
+            logger.debug("Email body length: %d chars", len(body))
 
             # Construct and send email
             email_message = EmailMultiAlternatives(subject, body, from_email, [to_email])
@@ -237,10 +278,9 @@ class CustomPasswordResetForm(PasswordResetForm):
             logger.info("Email send result: %s", result)
 
         except Exception as e:
-            logger.error("Exception occurred while sending password reset email: %s", str(e), exc_info=True)
-            raise  # Re-raise to let Django know it failed
-
-
+            logger.error("Exception occurred while sending password reset email: %s", 
+                        str(e), exc_info=True)
+            raise
 
 
 
@@ -785,9 +825,11 @@ class ClientSubServiceEditForm(forms.ModelForm):
 class SiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['company_name', 'company_phone','company_email','tagline', 'logo', 'stamp_signature']
+        fields = ['company_name', 'company_phone','company_email','allow_employee_sms','allow_employee_email','tagline', 'logo', 'stamp_signature']
         widgets = {
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'allow_employee_sms': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'allow_employee_email': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
 
             'company_phone':        forms.TextInput(attrs={'class': 'form-control'}),
             'company_email':        forms.EmailInput(attrs={'class': 'form-control'}),
