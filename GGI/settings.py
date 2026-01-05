@@ -150,11 +150,20 @@ CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', REDIS_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
-
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # Reduce prefetching
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 100  # Restart workers after 100 tasks
 
 # Recommended: timezone settings
 CELERY_TIMEZONE = 'Africa/Nairobi'
 CELERY_ENABLE_UTC = True
+
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # 4 minutes
+
+# Reduce broker connection pool
+CELERY_BROKER_POOL_LIMIT = 10
+CELERY_BROKER_HEARTBEAT = 30
+CELERY_BROKER_CONNECTION_TIMEOUT = 10
 
 # Automatically retry failed tasks
 CELERY_TASK_ACKS_LATE = True

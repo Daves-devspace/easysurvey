@@ -44,17 +44,17 @@ app.conf.task_default_routing_key = default_queue
 app.conf.beat_schedule = {
     "create-daily-opening-balance": {
         "task": "apps.accounts.tasks.create_daily_opening_balance",
-        "schedule": crontab(minute=5, hour=0),  # daily at 00:05
+        "schedule": crontab(minute=5, hour=0),
         "options": {"queue": default_queue},
     },
     "update-sms-delivery-every-5-min": {
         "task": "apps.EasyDocs.tasks.update_sms_delivery_and_balance",
-        "schedule": crontab(minute="*/5"),      # every 5 minutes
+        "schedule": crontab(minute="*/10"),  # Change from */5 to */10
         "options": {"queue": default_queue},
     },
     "dispatch-due-scheduled-tasks-every-minute": {
         "task": "apps.EasyDocs.tasks.dispatch_due_scheduled_tasks",
-        "schedule": crontab(minute="*"),
+        "schedule": crontab(minute="*/2"),  # Change from * to */2 (every 2 min)
     },
 }
 
