@@ -6,6 +6,7 @@ from celery import shared_task, group
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.core.cache import cache
 from django.conf import settings
 from apps.EasyDocs.models import Client, MessageLog, Booking, ScheduledTask, SiteSettings
 from apps.EasyDocs.utils import (
@@ -26,6 +27,19 @@ INSTANCE_NAME = getattr(settings, "INSTANCE_NAME", "A")
 # -----------------------------
 # Celery Tasks
 # -----------------------------
+
+def disable_cache_invalidation(func):
+    """Prevent excessive cache invalidation in Celery tasks"""
+    def wrapper(*args, **kwargs):
+        # Temporarily disable cache
+        original_cache = cache
+        cache._cache = {}
+        try:
+            return func(*args, **kwargs)
+        finally:
+            cache._cache = original_cache._cache
+    return wrapper
+
 
 @shared_task
 def my_task():
@@ -56,6 +70,7 @@ def retry_failed_sms(log_id=None):
         logger.exception(f"Retry failed for {log_id}: {e}")
 
 @shared_task(bind=True)
+@disable_cache_invalidation
 def _send_chunk(self, template, client_ids):
     """
     Send a chunk of personalized messages to clients.
@@ -319,26 +334,51 @@ DISPATCH_MAP = {
     "update_sms_delivery_and_balance": update_sms_delivery_and_balance,
 }
 
+# @shared_task
+# def dispatch_due_scheduled_tasks():
+#     now = timezone.now()
+#     # FIX: Strict Zombie Protection. 
+#     # Do not execute tasks that are more than 1 hour overdue.
+#     # This prevents yesterday's stuck tasks from suddenly sending today.
+#     zombie_threshold = now - timedelta(hours=1)
+    
+#     with transaction.atomic():
+#         # First, mark overdue pending tasks as expired.
+#         ScheduledTask.objects.filter(
+#             status='pending',
+#             scheduled_time__lt=zombie_threshold
+#         ).update(status='expired')
+
+#         # Now pick up legitimate tasks (scheduled <= now AND scheduled >= 1 hour ago)
+#         due_qs = ScheduledTask.objects.select_for_update(skip_locked=True).filter(
+#             scheduled_time__lte=now, 
+#             status='pending'
+#         ).order_by('scheduled_time')[:200]
+        
+#         for scheduled in due_qs:
+#             task_callable = DISPATCH_MAP.get(scheduled.task_name)
+#             if task_callable:
+#                 res = task_callable.apply_async(kwargs=scheduled.payload or {})
+#                 scheduled.status = "sent"
+#                 scheduled.task_id = res.id
+#                 scheduled.save()
 @shared_task
 def dispatch_due_scheduled_tasks():
     now = timezone.now()
-    # FIX: Strict Zombie Protection. 
-    # Do not execute tasks that are more than 1 hour overdue.
-    # This prevents yesterday's stuck tasks from suddenly sending today.
     zombie_threshold = now - timedelta(hours=1)
     
     with transaction.atomic():
-        # First, mark overdue pending tasks as expired.
+        # Mark expired
         ScheduledTask.objects.filter(
             status='pending',
             scheduled_time__lt=zombie_threshold
         ).update(status='expired')
 
-        # Now pick up legitimate tasks (scheduled <= now AND scheduled >= 1 hour ago)
+        # Reduce from 200 to 50 per run
         due_qs = ScheduledTask.objects.select_for_update(skip_locked=True).filter(
             scheduled_time__lte=now, 
             status='pending'
-        ).order_by('scheduled_time')[:200]
+        ).order_by('scheduled_time')[:50]  # Changed from 200 to 50
         
         for scheduled in due_qs:
             task_callable = DISPATCH_MAP.get(scheduled.task_name)
