@@ -271,10 +271,9 @@
                     <div class="col-12 col-lg-6">
                         <div class="card h-100">
                             <div class="card-header bg-green-100">
-
-
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <ul class="nav nav-tabs border-0" id="chartTab" role="tablist">
+                                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3">
+                                    
+                                    <ul class="nav nav-tabs border-0 w-100 w-sm-auto" id="chartTab" role="tablist">
                                         <li class="nav-item" role="presentation">
                                             <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab"
                                                     data-bs-target="#revenue" type="button" role="tab">
@@ -289,34 +288,31 @@
                                         </li>
                                     </ul>
 
-                                    <!-- Filters Container -->
-                                    <div id="revenue-filters" class="d-flex gap-2">
-                                        <select id="year-selector" class="form-select form-select-sm"
-                                                style="min-width: 120px;"></select>
-                                        <button id="export-csv-btn" class="btn btn-outline-primary btn-sm"
-                                                style="min-width: 120px;">
-                                            Export CSV
-                                        </button>
-                                    </div>
+                                    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-sm-auto justify-content-end">
+                                        
+                                        <div id="revenue-filters" class="d-flex gap-2 w-100 w-sm-auto">
+                                            <select id="year-selector" class="form-select form-select-sm w-100" style="min-width: 100px;">
+                                                </select>
+                                            <button id="export-csv-btn" class="btn btn-outline-primary btn-sm w-100 w-sm-auto text-nowrap">
+                                                Export CSV
+                                            </button>
+                                        </div>
 
-                                    <div id="service-filters" class="d-flex gap-2 d-none">
-                                        <select id="service-year-selector" class="form-select form-select-sm"
-                                                style="min-width: 120px;"></select>
-                                        <select id="service-selector" class="form-select form-select-sm"
-                                                style="min-width: 150px;"></select>
+                                        <div id="service-filters" class="d-flex gap-2 d-none w-100 w-sm-auto">
+                                            <select id="service-year-selector" class="form-select form-select-sm w-100" style="min-width: 100px;">
+                                                </select>
+                                            <select id="service-selector" class="form-select form-select-sm w-100" style="min-width: 120px;">
+                                                </select>
+                                        </div>
                                     </div>
                                 </div>
-
                             </div>
 
                             <div class="card-body tab-content shadow-lg">
-                                <!-- Revenue Tab -->
                                 <div class="tab-pane fade show active" id="revenue" role="tabpanel">
                                     <div id="survey-sales-report-chart" style="min-height: 430px;"></div>
                                 </div>
-                                <!-- Service Analysis Tab -->
                                 <div class="tab-pane fade" id="services" role="tabpanel">
-
                                     <div id="chart-summary" class="mb-3">
                                         <h6 id="summary-year" class="fw-bold"></h6>
                                         <p id="summary-services" class="mb-1"></p>

@@ -16,10 +16,11 @@ class InvoiceService(BaseService):
     def upsert_rent_invoice_line_for_lease(cls, lease: Lease, billing_date: date = None):
         """Generate Rent for the UPCOMING period (Rent Forward)."""
         billing_date = billing_date or date.today()
-        # FIX: Pass lease=lease to create separate invoice if needed
         invoice = BillingService.get_or_create_monthly_invoice(lease.tenant, billing_date, lease=lease)
 
         rent_desc = f"Monthly Rent ({invoice.billing_period_start:%b %Y})"
+        
+        # Rent is unique per invoice/lease
         rent_line, created = InvoiceLine.objects.get_or_create(
             invoice=invoice,
             lease=lease,
@@ -38,35 +39,53 @@ class InvoiceService(BaseService):
 
     @classmethod
     def upsert_water_invoice_line_from_reading(cls, reading, billing_month_date=None):
+        """
+        Updates the Invoice with Water Charges.
+        ENFORCES: Single Water Line per Invoice (Overwrites if multiple readings exist).
+        """
         lease = Lease.objects.filter(unit=reading.unit, is_active=True).select_related('tenant', 'unit__property').first()
         if not lease: return None
 
         water_policy = lease.unit.property.water_policy
         if water_policy == Property.PREPAID:
-            logger.info(f"Skipping water charge for {reading.unit.unit_number} (Policy: {water_policy})")
             return None
 
         target_date = billing_month_date or reading.reading_date
-        # FIX: Pass lease=lease
         invoice = BillingService.get_or_create_monthly_invoice(lease.tenant, target_date, lease=lease)
 
+        # Calculate Amounts
         usage = reading.usage or Decimal('0.00')
         rate = reading.rate_per_cubic_meter or Decimal('0.00')
         amount = q(usage * rate)
+        
         usage_month_str = reading.reading_date.strftime('%b %Y')
         description = f"Water usage ({usage_month_str}) - {usage}m³"
 
-        line, created = InvoiceLine.objects.get_or_create(
+        # --- FIX: Prevent Duplicate Lines ---
+        # Instead of get_or_create(meter_reading=reading), we look for ANY water line
+        # on this invoice for this lease.
+        line = InvoiceLine.objects.filter(
             invoice=invoice,
             lease=lease,
-            line_type=InvoiceLine.LINE_WATER,
-            meter_reading=reading,
-            defaults={"description": description, "amount": amount}
-        )
+            line_type=InvoiceLine.LINE_WATER
+        ).first()
 
-        if not created and line.amount != amount:
+        if line:
+            # Update existing line with NEW reading data
+            line.meter_reading = reading
+            line.description = description
             line.amount = amount
-            line.save(update_fields=["amount"])
+            line.save()
+        else:
+            # Create new line
+            line = InvoiceLine.objects.create(
+                invoice=invoice,
+                lease=lease,
+                line_type=InvoiceLine.LINE_WATER,
+                meter_reading=reading,
+                description=description,
+                amount=amount
+            )
 
         invoice.recalc_total()
         invoice.update_status_for_lease(lease)

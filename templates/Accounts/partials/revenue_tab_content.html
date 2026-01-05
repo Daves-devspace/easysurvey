@@ -266,7 +266,7 @@
                 </td>
               </tr>
             {% endfor %}
-          {% else %}
+          {% comment %} {% else %}
             <tr>
               {# Updated colspan to 9 for new column #}
               <td colspan="9" class="text-center py-5">
@@ -278,7 +278,7 @@
                   </p>
                 </div>
               </td>
-            </tr>
+            </tr> {% endcomment %}
           {% endif %}
         </tbody>
         
