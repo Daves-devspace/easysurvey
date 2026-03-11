@@ -1,8 +1,10 @@
 from django.contrib import admin
 
 from .forms import ClientServiceForm
-from .models import (Client, Service, Process, ClientService,ClientSubService, ClientServiceProcess, Payment, Document, DocType,
-                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,DriveOAuthToken,MessageLog)
+from .models import (Client, Service, Process, ClientService,ClientSubService, ClientServiceProcess, Payment, PaymentAdjustment, SubServicePaymentAdjustment, Document, DocType,
+                     SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,
+                     DriveOAuthToken, MessageLog, ServiceAssignmentLog, ServiceDeadlineExtension,
+                     DocumentHandoff, DocumentHandoffLog)
 
 
 from django.utils.timezone import now
@@ -263,6 +265,7 @@ class ClientSubServiceAdmin(admin.ModelAdmin):
         'sub_service__name',
     )
     readonly_fields = (
+        'paid_amount',
         'institution_cost_snapshot',
         'overridden_price_snapshot',
         'paid_at',
@@ -302,7 +305,7 @@ class ClientAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'total_price', 'has_processes')
+    list_display = ('name', 'category', 'expected_duration_days', 'total_price', 'has_processes')
     list_filter = ('category',)
     search_fields = ('name', 'description')
 
@@ -314,9 +317,10 @@ class ServiceAdmin(admin.ModelAdmin):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('service', 'name', 'step_order', 'cost', 'short_message')
+    list_display = ('service', 'name', 'step_order', 'cost', 'notification_enabled', 'short_message')
     list_filter = ('service__category', 'service')
     search_fields = ('name', 'description', 'message')
+    list_editable = ('notification_enabled',)
 
     def short_message(self, obj):
         return (obj.message[:40] + '...') if len(obj.message) > 40 else obj.message
@@ -345,9 +349,21 @@ class TitleDeedCollectionInline(admin.StackedInline):
 @admin.register(ClientService)
 class ClientServiceAdmin(admin.ModelAdmin):
     form = ClientServiceForm
-    list_display = ('client', 'service', 'land_description', 'status', 'requested_at','total_paid', 'total_balance')
+    list_display = (
+        'client',
+        'service',
+        'assigned_employee',
+        'assignment_status',
+        'land_description',
+        'status',
+        'expected_duration_days',
+        'deadline',
+        'requested_at',
+        'total_paid',
+        'total_balance'
+    )
     search_fields = ('client__first_name', 'client__last_name', 'land_description')
-    list_filter = ( 'service','land_description','status')
+    list_filter = ('service', 'land_description', 'status', 'assignment_status')
     inlines = [ClientServiceProcessInline, PaymentInline, TitleDeedCollectionInline]
 
 @admin.register(TitleDeedCollection)
@@ -360,13 +376,78 @@ class TitleDeedCollectionAdmin(admin.ModelAdmin):
 
 @admin.register(ClientServiceProcess)
 class ClientServiceProcessAdmin(admin.ModelAdmin):
-    list_display = ('client_service', 'process', 'status', 'completed_at')
+    list_display = (
+        'client_service',
+        'process',
+        'status',
+        'completed_at',
+        'completed_at_onboarding',
+        'onboarding_marked_by',
+        'onboarding_marked_at'
+    )
     list_filter = ('status', 'client_service')
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
     list_display = ('client_service', 'amount', 'payment_method', 'transaction_id', 'payment_date','institution_cost_snapshot','overridden_total_snapshot')
     list_filter = ('payment_method',)
+
+
+@admin.register(PaymentAdjustment)
+class PaymentAdjustmentAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'original_payment', 'adjustment_type', 'amount',
+        'created_by', 'created_at',
+    )
+    list_filter = ('adjustment_type', 'created_at')
+    search_fields = (
+        'original_payment__client_service__client__first_name',
+        'original_payment__client_service__client__last_name',
+        'reason',
+        'created_by__username',
+    )
+    readonly_fields = (
+        'original_payment', 'adjustment_type', 'amount',
+        'reason', 'created_by', 'created_at',
+    )
+    ordering = ('-created_at',)
+
+    def has_add_permission(self, request):
+        """Adjustments must be created through the dedicated UI flow."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Adjustment records are immutable audit entries."""
+        return False
+
+
+@admin.register(SubServicePaymentAdjustment)
+class SubServicePaymentAdjustmentAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'client_sub_service', 'adjustment_type', 'amount',
+        'created_by', 'created_at',
+    )
+    list_filter = ('adjustment_type', 'created_at')
+    search_fields = (
+        'client_sub_service__client_service__client__first_name',
+        'client_sub_service__client_service__client__last_name',
+        'client_sub_service__sub_service__name',
+        'reason',
+        'created_by__username',
+    )
+    readonly_fields = (
+        'client_sub_service', 'adjustment_type', 'amount',
+        'reason', 'created_by', 'created_at',
+    )
+    ordering = ('-created_at',)
+
+    def has_add_permission(self, request):
+        """Adjustments must be created through the dedicated UI flow."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Adjustment records are immutable audit entries."""
+        return False
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
@@ -432,9 +513,84 @@ class LegalOfficePayoutAdmin(admin.ModelAdmin):
 
 @admin.register(ScheduledTask)
 class ScheduledTaskAdmin(admin.ModelAdmin):
-    list_display = ("task_name", "scheduled_time", "status", "created_at")
-    readonly_fields = ("task_id", "task_name", "scheduled_time", "created_at")
-    list_filter = ("status",)
+    list_display = (
+        "task_name",
+        "task_type",
+        "scheduled_time",
+        "status",
+        "assigned_employee",
+        "client_service",
+        "created_at",
+    )
+    readonly_fields = ("task_id", "created_at", "completed_at")
+    list_filter = ("status", "task_type", "scheduled_time")
+    search_fields = ("task_name", "task_id", "assigned_employee__username", "assigned_employee__first_name", "assigned_employee__last_name")
+    raw_id_fields = ("client_service", "assigned_employee")
+    date_hierarchy = "scheduled_time"
+
+
+@admin.register(ServiceAssignmentLog)
+class ServiceAssignmentLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'timestamp',
+        'client_service',
+        'action',
+        'assigned_employee',
+        'previous_employee',
+        'assigned_by',
+    )
+    list_filter = ('action', 'timestamp')
+    search_fields = (
+        'client_service__client__first_name',
+        'client_service__client__last_name',
+        'assigned_employee__username',
+        'assigned_by__username',
+        'reason',
+    )
+    readonly_fields = ('timestamp',)
+
+
+@admin.register(ServiceDeadlineExtension)
+class ServiceDeadlineExtensionAdmin(admin.ModelAdmin):
+    list_display = ('client_service', 'old_deadline', 'new_deadline', 'extended_by', 'extended_at')
+    list_filter = ('extended_at',)
+    search_fields = (
+        'client_service__client__first_name',
+        'client_service__client__last_name',
+        'extended_by__username',
+        'reason',
+    )
+    readonly_fields = ('extended_at',)
+
+
+@admin.register(DocumentHandoff)
+class DocumentHandoffAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'client',
+        'assigned_to',
+        'assigned_by',
+        'status',
+        'assigned_at',
+        'max_acceptance_time',
+        'accepted_at',
+    )
+    list_filter = ('status', 'assigned_at')
+    search_fields = (
+        'client__first_name',
+        'client__last_name',
+        'assigned_to__username',
+        'assigned_by__username',
+    )
+    readonly_fields = ('assigned_at', 'accepted_at')
+
+
+@admin.register(DocumentHandoffLog)
+class DocumentHandoffLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'handoff', 'action', 'actor')
+    list_filter = ('action', 'timestamp')
+    search_fields = ('handoff__id', 'actor__username', 'notes')
+    readonly_fields = ('timestamp',)
 
 
 

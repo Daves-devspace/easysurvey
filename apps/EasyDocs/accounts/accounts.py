@@ -6,12 +6,21 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
 from apps.EasyDocs.forms import ExpenseForm
-from apps.EasyDocs.models import ClientServiceProcess, Payment, Expense, ClientSubService, SubService
+from apps.EasyDocs.models import (
+    ClientServiceProcess,
+    Payment,
+    PaymentAdjustment,
+    SubServicePaymentAdjustment,
+    Expense,
+    ClientSubService,
+    SubService,
+)
 
 from django.db.models import Sum, Value, DecimalField, ExpressionWrapper, F, When, Case
 from django.db.models.functions import Coalesce
@@ -124,7 +133,7 @@ def get_payment_context(client, service_id=None):
 
 
 def add_payment_to_client_service(
-        client_service_id, amount, payment_method, transaction_id=None
+        client_service_id, amount, payment_method, transaction_id=None, received_by=None
 ):
     try:
         client_service = ClientService.objects.get(id=client_service_id)
@@ -139,7 +148,8 @@ def add_payment_to_client_service(
         amount=amount,
         payment_method=payment_method,
         transaction_id=transaction_id or '',
-        payment_date=timezone.now()
+        payment_date=timezone.now(),
+        received_by=received_by,
     )
 
     return {
@@ -169,7 +179,8 @@ def add_payment_view(request, client_id):
                 client_service=client_service,
                 amount=amount,
                 payment_method=payment_method,
-                transaction_id=transaction_id or None
+                transaction_id=transaction_id or None,
+                received_by=request.user,
             )
 
             payment.full_clean()  # runs your `clean()`
@@ -191,6 +202,162 @@ def add_payment_view(request, client_id):
     return redirect('client_details', client_id=client_id)
 
 
+@login_required
+def adjust_payment_view(request, payment_id):
+    """
+    Admin-only: create an auditable reversal or partial adjustment against
+    an existing Payment. The original Payment is never mutated; instead a
+    PaymentAdjustment record is created and a compensating Cash OUT entry
+    is posted to the cashbook via signal.
+    """
+    from django.http import JsonResponse
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'message': 'Admin access required.'}, status=403)
+
+    payment = get_object_or_404(Payment, pk=payment_id)
+    remaining_adjustable = payment.remaining_adjustable
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST required.'}, status=405)
+
+    raw_amount = request.POST.get('amount', '').strip()
+    adjustment_type = request.POST.get('adjustment_type', 'reversal')
+    reason = request.POST.get('reason', '').strip()
+
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'A reason is required.'}, status=400)
+
+    if remaining_adjustable <= Decimal('0.00'):
+        return JsonResponse(
+            {'success': False, 'message': 'This payment has already been fully adjusted.'},
+            status=400,
+        )
+
+    # Default to full reversal when no amount given
+    if not raw_amount:
+        raw_amount = str(remaining_adjustable)
+
+    try:
+        amount = Decimal(raw_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return JsonResponse({'success': False, 'message': 'Invalid amount.'}, status=400)
+
+    if amount > remaining_adjustable:
+        return JsonResponse(
+            {
+                'success': False,
+                'message': f'Only KES {remaining_adjustable:.2f} remains adjustable on this payment.',
+            },
+            status=400,
+        )
+
+    try:
+        adj = PaymentAdjustment(
+            original_payment=payment,
+            adjustment_type=adjustment_type,
+            amount=amount,
+            reason=reason,
+            created_by=request.user,
+        )
+        adj.full_clean()
+        adj.save()
+        return JsonResponse({
+            'success': True,
+            'message': (
+                f"{adj.get_adjustment_type_display()} of KES {amount:.2f} recorded successfully."
+            ),
+        })
+    except ValidationError as ve:
+        return JsonResponse({'success': False, 'message': ve.messages[0]}, status=400)
+    except Exception as e:
+        logger.exception("Error in adjust_payment_view (payment_id=%s): %s", payment_id, e)
+        return JsonResponse({'success': False, 'message': f'Unexpected error: {e}'}, status=500)
+
+
+@login_required
+def adjust_subservice_payment_view(request, sub_service_id):
+    """
+    Admin-only: create an auditable reversal/partial adjustment against a
+    ClientSubService paid amount. The original records are preserved; a
+    SubServicePaymentAdjustment entry is appended and signals apply claw-back.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'message': 'Admin access required.'}, status=403)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST required.'}, status=405)
+
+    adjustment_type = request.POST.get('adjustment_type', 'reversal')
+    reason = request.POST.get('reason', '').strip()
+    raw_amount = request.POST.get('amount', '').strip()
+
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'A reason is required.'}, status=400)
+
+    try:
+        with transaction.atomic():
+            css = (
+                ClientSubService.objects
+                .select_for_update()
+                .select_related('sub_service', 'client_service')
+                .get(pk=sub_service_id)
+            )
+
+            current_paid = Decimal(css.paid_amount or Decimal('0.00'))
+            if current_paid <= Decimal('0.00'):
+                return JsonResponse(
+                    {'success': False, 'message': 'This sub-service has no paid amount to adjust.'},
+                    status=400,
+                )
+
+            if not raw_amount:
+                raw_amount = str(current_paid)
+
+            try:
+                amount = Decimal(raw_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            except (InvalidOperation, ValueError):
+                return JsonResponse({'success': False, 'message': 'Invalid amount.'}, status=400)
+
+            if amount <= Decimal('0.00'):
+                return JsonResponse({'success': False, 'message': 'Adjustment amount must be positive.'}, status=400)
+
+            if amount > current_paid:
+                return JsonResponse(
+                    {
+                        'success': False,
+                        'message': (
+                            f'Only KES {current_paid:.2f} is currently paid on this sub-service.'
+                        ),
+                    },
+                    status=400,
+                )
+
+            adj = SubServicePaymentAdjustment(
+                client_sub_service=css,
+                adjustment_type=adjustment_type,
+                amount=amount,
+                reason=reason,
+                created_by=request.user,
+            )
+            adj.full_clean()
+            adj.save()
+
+            return JsonResponse({
+                'success': True,
+                'message': (
+                    f"{adj.get_adjustment_type_display()} of KES {amount:.2f} "
+                    f"recorded for sub-service '{css.sub_service.name}'."
+                ),
+            })
+    except ClientSubService.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Sub-service not found.'}, status=404)
+    except ValidationError as ve:
+        return JsonResponse({'success': False, 'message': ve.messages[0]}, status=400)
+    except Exception as e:
+        logger.exception("Error in adjust_subservice_payment_view (sub_service_id=%s): %s", sub_service_id, e)
+        return JsonResponse({'success': False, 'message': f'Unexpected error: {e}'}, status=500)
+
+
 from collections import defaultdict
 
 
@@ -201,18 +368,10 @@ def get_client_payment_history(client_id):
     a chronological payment_breakdown list, and allocations.
     """
     try:
-        # Annotate only total_paid; we'll use cs.total_balance below
         services = (
             ClientService.objects
             .filter(client_id=client_id)
             .select_related('service')
-            .annotate(
-                total_paid=Coalesce(
-                    Sum('payments__amount'),
-                    Value(0),
-                    output_field=DecimalField()
-                )
-            )
         )
     except Exception:
         logger.exception("Failed to load ClientService for client %s", client_id)
@@ -220,87 +379,120 @@ def get_client_payment_history(client_id):
 
     history = []
     for cs in services:
-        # Fetch payments & history in proper order, crushing N+1s
-        payments = cs.payments.all().order_by('payment_date', 'id')
-        allocations = (
-            cs.payment_history
-            .select_related('service_process__process',
-                            'sub_service__sub_service')
-            .order_by('created_at')
-        )
+        payments = cs.payments.prefetch_related('adjustments').all().order_by('payment_date', 'id')
 
         # Build the payment ledger with running balance
         ledger = []
         running_paid = Decimal('0.00')
+        service_total = Decimal(cs.full_total_price or Decimal('0.00'))
         for p in payments:
-            running_paid += p.amount
+            payment_amount = Decimal(p.amount or Decimal('0.00'))
+            running_paid = max(Decimal('0.00'), running_paid + payment_amount)
+            payment_remaining_balance = max(Decimal('0.00'), service_total - running_paid)
+            adj_qs = p.adjustments.all().order_by('created_at')
+            remaining_adjustable = p.remaining_adjustable
+            adjustments = []
+            for a in adj_qs:
+                running_paid = max(
+                    Decimal('0.00'),
+                    running_paid - Decimal(a.amount or Decimal('0.00')),
+                )
+                adjustments.append({
+                    'type_label': a.get_adjustment_type_display(),
+                    'amount': str(a.amount),
+                    'reason': a.reason,
+                    'by': str(a.created_by),
+                    'date': a.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'remaining_balance': str(max(Decimal('0.00'), service_total - running_paid)),
+                })
+
             ledger.append({
+                'payment_id': p.id,
                 'date': p.payment_date.strftime('%Y-%m-%d'),
                 'amount': str(p.amount),
                 'method': p.payment_method,
                 'reference': p.transaction_id or '',
-                'remaining_balance': str(cs.full_total_price - running_paid),
+                'remaining_balance': str(payment_remaining_balance),
+                'remaining_adjustable': str(remaining_adjustable),
+                'can_adjust': remaining_adjustable > Decimal('0.00'),
+                'adjustments': adjustments,
             })
 
-        # Build allocation entries with running balance
+        # Build allocation entries from current paid state.
+        # This keeps the UI aligned with reversals/adjustments instead of
+        # replaying only the original positive allocation history.
         alloc_list = []
-        running_allocated = Decimal('0.00')
-        for h in allocations:
-            amt = h.amount or Decimal('0.00')
-            running_allocated += amt
-            remaining_after = cs.full_total_price - running_allocated
-
-            if h.reason == 'service_step' and h.service_process:
-                proc = h.service_process
-                name = proc.process.name
-                paid = proc.paid_amount
-                cost = proc.cost
-                status = 'Fully Paid' if paid >= cost else 'Partially Paid'
-                alloc_list.append({
-                    'type': 'step',
-                    'name': name,
-                    'amount': str(amt),
-                    'remaining_balance': str(remaining_after),
-                    'status': status,
-                    'order': proc.process.step_order,
-                })
-
-            elif h.reason == 'sub_service' and h.sub_service:
-                sub = h.sub_service
-                name = sub.sub_service.name
-                paid = sub.paid_amount
-                cost = sub.price
-                status = 'Fully Paid' if paid >= cost else 'Partially Paid'
-                alloc_list.append({
-                    'type': 'sub',
-                    'name': name,
-                    'amount': str(amt),
-                    'remaining_balance': str(remaining_after),
-                    'status': status,
-                    'order': h.created_at,
-                })
-
+        service_processes = cs.service_processes.select_related('process').order_by('process__step_order')
+        for proc in service_processes:
+            paid = Decimal(proc.paid_amount or Decimal('0.00'))
+            cost = Decimal(proc.cost or Decimal('0.00'))
+            if paid >= cost and cost > 0:
+                status = 'Fully Paid'
+            elif paid > 0:
+                status = 'Partially Paid'
             else:
-                alloc_list.append({
-                    'type': 'other',
-                    'name': h.get_reason_display(),
-                    'amount': str(amt),
-                    'remaining_balance': str(remaining_after),
-                    'status': '',
-                    'order': h.created_at,
-                })
+                status = 'Not Paid'
 
-        # Sort allocations: steps by order, then others by timestamp
+            alloc_list.append({
+                'type': 'step',
+                'entity_id': proc.id,
+                'name': proc.process.name,
+                'amount': str(paid),
+                'remaining_balance': str(max(Decimal('0.00'), cost - paid)),
+                'status': status,
+                'can_adjust': False,
+                'order': proc.process.step_order,
+            })
+
+        subservices = cs.sub_services.select_related('sub_service').order_by('added_on')
+        for sub in subservices:
+            paid = Decimal(sub.paid_amount or Decimal('0.00'))
+            cost = Decimal(sub.price or Decimal('0.00'))
+            if paid >= cost and cost > 0:
+                status = 'Fully Paid'
+            elif paid > 0:
+                status = 'Partially Paid'
+            else:
+                status = 'Not Paid'
+
+            alloc_list.append({
+                'type': 'sub',
+                'entity_id': sub.id,
+                'name': sub.sub_service.name,
+                'amount': str(paid),
+                'remaining_balance': str(max(Decimal('0.00'), cost - paid)),
+                'status': status,
+                'can_adjust': paid > Decimal('0.00'),
+                'order': sub.added_on,
+            })
+
         steps = sorted([a for a in alloc_list if a['type'] == 'step'], key=lambda x: x['order'])
         subs = sorted([a for a in alloc_list if a['type'] != 'step'], key=lambda x: x['order'])
         ordered_allocs = steps + subs
+
+        sub_adjustments = []
+        sub_adj_qs = (
+            SubServicePaymentAdjustment.objects
+            .filter(client_sub_service__client_service=cs)
+            .select_related('client_sub_service__sub_service', 'created_by')
+            .order_by('-created_at')
+        )
+        for adj in sub_adj_qs:
+            sub_adjustments.append({
+                'sub_service_name': adj.client_sub_service.sub_service.name,
+                'type_label': adj.get_adjustment_type_display(),
+                'amount': str(adj.amount),
+                'reason': adj.reason,
+                'by': str(adj.created_by),
+                'date': adj.created_at.strftime('%Y-%m-%d %H:%M'),
+            })
 
         history.append({
             'service_id': cs.id,
             'service_label': f"{cs.service.name} — {cs.land_description}",
             'total_amount': str(cs.full_total_price),
             'total_paid': str(cs.total_paid),
-            'pending_balance': str(cs.total_balance),  # now using model property
+            'pending_balance': str(cs.total_balance),
             'payment_status': (
                 'Fully Paid' if cs.total_balance <= 0 else
                 'Partially Paid' if cs.total_paid > 0 else
@@ -308,6 +500,7 @@ def get_client_payment_history(client_id):
             ),
             'payment_breakdown': ledger,
             'allocations': ordered_allocs,
+            'subservice_adjustments': sub_adjustments,
         })
 
     return history

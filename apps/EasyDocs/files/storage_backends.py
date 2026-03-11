@@ -330,24 +330,33 @@ class UnifiedStorage:
         except Exception as e:
             logger.error("Delete failed for %s (%s): %s", name_or_id, backend, e)
             return False
-
-    # save_with_backend: returns (relative_path, backend, drive_file_id_or_none)
+        
     def save_with_backend(self, relative_path: str, content):
         """
         Decide storage and save.
         Returns: (relative_path, backend, drive_file_id_or_none)
 
         Workflow:
-        1. Attempt Drive upload.
+        1. Attempt Drive upload if adapter available.
         2. If successful, delete local file automatically.
-        3. If Drive fails, fallback to local storage.
+        3. If Drive fails or unavailable, save to local storage.
         """
         logger.info("📂 Starting save workflow for: %s", relative_path)
 
         adapter = self._get_drive_adapter()
-        if adapter:
-            logger.info("🔌 Drive adapter available, attempting Drive save...")
+        
+        # Only attempt Drive if explicitly enabled in settings
+        from apps.EasyDocs.models import SiteSettings
+        site_settings = SiteSettings.objects.first()
+        drive_enabled = site_settings and site_settings.google_drive_enabled if site_settings else False
+        
+        if drive_enabled and adapter:
+            logger.info("🔌 Drive is enabled and adapter available, attempting Drive save...")
             try:
+                # Reset file pointer
+                if hasattr(content, 'seek'):
+                    content.seek(0)
+                
                 # Attempt Drive upload
                 drive_id = adapter._save(relative_path, content)
                 logger.info("✅ File saved to Google Drive: '%s' (Drive ID: %s)", relative_path, drive_id)
@@ -369,21 +378,93 @@ class UnifiedStorage:
                     relative_path, e,
                     exc_info=True
                 )
+        else:
+            if drive_enabled and not adapter:
+                logger.warning("⚠️ Drive is enabled but adapter unavailable. Using local storage.")
+            else:
+                logger.info("💾 Drive is disabled. Using local storage.")
 
-        # Drive unavailable or failed, fallback to local
+        # Drive unavailable or failed, save to local
         try:
             from django.core.files.storage import default_storage
-            logger.info("💾 Attempting local save for: %s", relative_path)
-            default_storage.save(relative_path, content)
-            logger.info("✅ File saved locally: '%s'. Reason: Drive unavailable or failed.", relative_path)
-            return relative_path, "local", None
+            
+            # Reset file pointer
+            if hasattr(content, 'seek'):
+                content.seek(0)
+            
+            logger.info("💾 Saving file locally: %s", relative_path)
+            
+            # Actually save the file to disk
+            saved_name = default_storage.save(relative_path, content)
+            
+            # Verify it was saved
+            if not default_storage.exists(saved_name):
+                raise Exception(f"File was not saved to disk: {saved_name}")
+            
+            logger.info("✅ File saved locally: '%s'", saved_name)
+            return saved_name, "local", None
+            
         except Exception as e:
             logger.error(
-                "❌ Local save failed for '%s': %s. File was NOT saved anywhere!",
+                "❌ Local save failed for '%s': %s",
                 relative_path, e,
                 exc_info=True
             )
             return relative_path, "failed", None
+
+    # # save_with_backend: returns (relative_path, backend, drive_file_id_or_none)
+    # def save_with_backend(self, relative_path: str, content):
+    #     """
+    #     Decide storage and save.
+    #     Returns: (relative_path, backend, drive_file_id_or_none)
+
+    #     Workflow:
+    #     1. Attempt Drive upload.
+    #     2. If successful, delete local file automatically.
+    #     3. If Drive fails, fallback to local storage.
+    #     """
+    #     logger.info("📂 Starting save workflow for: %s", relative_path)
+
+    #     adapter = self._get_drive_adapter()
+    #     if adapter:
+    #         logger.info("🔌 Drive adapter available, attempting Drive save...")
+    #         try:
+    #             # Attempt Drive upload
+    #             drive_id = adapter._save(relative_path, content)
+    #             logger.info("✅ File saved to Google Drive: '%s' (Drive ID: %s)", relative_path, drive_id)
+
+    #             # Delete local file if it exists
+    #             from django.core.files.storage import default_storage
+    #             if default_storage.exists(relative_path):
+    #                 try:
+    #                     default_storage.delete(relative_path)
+    #                     logger.info("🗑️ Local file deleted after successful Drive upload: %s", relative_path)
+    #                 except Exception as e:
+    #                     logger.warning("⚠️ Failed to delete local file after Drive upload: %s", e)
+
+    #             return relative_path, "drive", drive_id
+
+    #         except Exception as e:
+    #             logger.warning(
+    #                 "⚠️ Drive save failed for '%s': %s. Falling back to local storage.",
+    #                 relative_path, e,
+    #                 exc_info=True
+    #             )
+
+    #     # Drive unavailable or failed, fallback to local
+    #     try:
+    #         from django.core.files.storage import default_storage
+    #         logger.info("💾 Attempting local save for: %s", relative_path)
+    #         default_storage.save(relative_path, content)
+    #         logger.info("✅ File saved locally: '%s'. Reason: Drive unavailable or failed.", relative_path)
+    #         return relative_path, "local", None
+    #     except Exception as e:
+    #         logger.error(
+    #             "❌ Local save failed for '%s': %s. File was NOT saved anywhere!",
+    #             relative_path, e,
+    #             exc_info=True
+    #         )
+    #         return relative_path, "failed", None
         
         
 

@@ -340,6 +340,23 @@ class ClientServiceForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 
+    assigned_employee = forms.ModelChoiceField(
+        queryset=User.objects.filter(employeeprofile__isnull=False).order_by('first_name', 'last_name', 'username'),
+        required=False,
+        label="Assign Employee",
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+
+    expected_duration_days = forms.IntegerField(
+        required=False,
+        min_value=1,
+        label="Expected Duration (days)",
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Defaults to service configuration',
+        })
+    )
+
     scheduled_date = forms.DateTimeField(
         required=False,
         label="Scheduled Date (for Ground services)",
@@ -365,6 +382,8 @@ class ClientServiceForm(forms.ModelForm):
             'client',
             'category',
             'service',
+            'assigned_employee',
+            'expected_duration_days',
             'land_description',
             'scheduled_date',
             'dispatch_preview',
@@ -387,12 +406,31 @@ class ClientServiceForm(forms.ModelForm):
             )
         else:
             self.fields['service'].queryset = Service.objects.all()
+
+        selected_service = None
+        if 'service' in self.data:
+            try:
+                selected_service = Service.objects.filter(id=self.data.get('service')).first()
+            except (TypeError, ValueError):
+                selected_service = None
+        elif self.instance and self.instance.pk:
+            selected_service = self.instance.service
+
+        if selected_service and not self.initial.get('expected_duration_days'):
+            default_duration = selected_service.expected_duration_days
+            if default_duration and not self.data.get('expected_duration_days'):
+                self.fields['expected_duration_days'].initial = default_duration
         
         
 
     def clean(self):
         cleaned = super().clean()
         category = cleaned.get('category')
+        service = cleaned.get('service')
+
+        if service and not cleaned.get('expected_duration_days'):
+            cleaned['expected_duration_days'] = service.expected_duration_days
+
         # If category is GROUND, enforce scheduled_date + dispatch_preview
         if category == ServiceCategory.GROUND:
             sd = cleaned.get('scheduled_date')
@@ -579,6 +617,7 @@ class ServiceForm(forms.ModelForm):
             'description',
             'total_price',
             'category',
+            'expected_duration_days',
 
             'requires_title_collection',  # ← new field
         ]
@@ -587,6 +626,7 @@ class ServiceForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Enter description', 'rows': 3}),
             'total_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'KSH'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
+            'expected_duration_days': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'placeholder': 'e.g. 10'}),
 
             'requires_title_collection': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -632,13 +672,14 @@ class ServiceForm(forms.ModelForm):
 class ProcessForm(forms.ModelForm):
     class Meta:
         model = Process
-        fields = ['name', 'description', 'step_order', 'cost', 'message']
+        fields = ['name', 'description', 'step_order', 'cost', 'message', 'notification_enabled']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter the name of the process'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Optional: Describe this process', 'rows': 3}),
             'step_order': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'E.g. 1, 2, 3...'}),
             'cost': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter the cost in KES', 'step': '0.01'}),
             'message': forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Message that will be sent to the client', 'rows': 3}),
+            'notification_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -845,8 +886,9 @@ class SiteSettingsForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['description', 'amount', 'payment_mode', 'handled_by', 'approved_by', 'receipt_no']
+        fields = ['date', 'description', 'amount', 'payment_mode', 'handled_by', 'approved_by', 'receipt_no']
         widgets = {
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'payment_mode': forms.Select(attrs={'class': 'form-control'}),

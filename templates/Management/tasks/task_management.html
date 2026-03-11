@@ -1,0 +1,360 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="pc-container">
+    <div class="pc-content">
+        <div class="page-header">
+            <div class="page-block">
+                <div class="row align-items-center">
+                    <div class="col-md-12">
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                            <li class="breadcrumb-item"><a href="javascript:void(0)">Management</a></li>
+                            <li class="breadcrumb-item" aria-current="page">Tasks</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid col-lg-12">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'secondary' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="row g-2 mb-4">
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Total</small>
+                            <i class="ti ti-list-details text-secondary"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold">{{ summary.total }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Assigned</small>
+                            <i class="ti ti-user-check text-success"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold">{{ summary.assigned }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Unassigned</small>
+                            <i class="ti ti-user-off text-secondary"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold">{{ summary.unassigned }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Pending</small>
+                            <i class="ti ti-hourglass text-warning"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold text-warning">{{ summary.pending_acceptance }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Overdue</small>
+                            <i class="ti ti-alert-circle text-danger"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold text-danger">{{ summary.overdue }}</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <small class="text-muted text-uppercase fw-semibold">Completed</small>
+                            <i class="ti ti-circle-check text-primary"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold text-success">{{ summary.completed }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Task Filters</h5>
+                <a href="{% url 'task-management' %}" class="btn btn-sm btn-outline-secondary"><i class="ti ti-refresh me-1"></i>Reset</a>
+            </div>
+            <div class="card-body py-3">
+                <form method="get" action="{% url 'task-management' %}" id="taskFilterForm">
+                    <div class="d-flex flex-wrap gap-2 align-items-end">
+                        {% if is_admin_user %}
+                        <div style="min-width:150px; flex:1 1 150px">
+                            <label for="taskEmployee" class="form-label small text-muted mb-1">Employee</label>
+                            <select id="taskEmployee" name="employee" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All employees</option>
+                                {% for employee in employees %}
+                                    <option value="{{ employee.id }}" {% if filters.employee == employee.id|stringformat:'s' %}selected{% endif %}>
+                                        {{ employee.get_full_name|default:employee.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div style="min-width:140px; flex:1 1 140px">
+                            <label for="assignmentScope" class="form-label small text-muted mb-1">Assignment</label>
+                            <select id="assignmentScope" name="assignment_scope" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All</option>
+                                <option value="assigned" {% if filters.assignment_scope == 'assigned' %}selected{% endif %}>Assigned</option>
+                                <option value="unassigned" {% if filters.assignment_scope == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                            </select>
+                        </div>
+                        <div style="min-width:170px; flex:1 1 170px">
+                            <label for="assignmentStatus" class="form-label small text-muted mb-1">Assignment Status</label>
+                            <select id="assignmentStatus" name="assignment_status" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All</option>
+                                {% for value, label in assignment_status_choices %}
+                                    <option value="{{ value }}" {% if filters.assignment_status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div style="min-width:140px; flex:1 1 140px">
+                            <label for="taskState" class="form-label small text-muted mb-1">Task State</label>
+                            <select id="taskState" name="task_state" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All</option>
+                                {% for value, label in task_state_choices %}
+                                    <option value="{{ value }}" {% if filters.task_state == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div style="min-width:140px; flex:1 1 140px">
+                            <label for="taskCategory" class="form-label small text-muted mb-1">Category</label>
+                            <select id="taskCategory" name="category" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All</option>
+                                {% for value, label in service_category_choices %}
+                                    {% if value %}
+                                        <option value="{{ value }}" {% if filters.category == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div style="min-width:140px; flex:1 1 140px">
+                            <label for="deadlineFilter" class="form-label small text-muted mb-1">Deadline</label>
+                            <select id="deadlineFilter" name="deadline_filter" class="form-select form-select-sm" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
+                                <option value="">All</option>
+                                {% for value, label in deadline_filter_choices %}
+                                    <option value="{{ value }}" {% if filters.deadline_filter == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Task List</h5>
+                <span class="text-muted small">{{ tasks|length }} result{{ tasks|length|pluralize }}</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="datatable display table table-striped table-hover dt-responsive nowrap align-middle">
+                        <thead class="table-success">
+                            <tr>
+                                <th>Client</th>
+                                <th>Service</th>
+                                <th>Current Process</th>
+                                <th>Progress</th>
+                                <th>Assigned Employee</th>
+                                <th>Assignment</th>
+                                <th>Task Status</th>
+                                <th>Deadline</th>
+                                <th>Remaining</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ task.client.first_name }} {{ task.client.last_name }}</div>
+                                    <small class="text-muted">{{ task.client.phone|default:'No phone' }}</small>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ task.service.name }}</div>
+                                    <small class="text-muted">{{ task.service.get_category_display|default:task.service.category|title }}</small>
+                                </td>
+                                <td>{{ task.current_process_name }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ task.progress_label }}</span>
+                                </td>
+                                <td>
+                                    {% if task.assigned_employee %}
+                                        {{ task.assigned_employee_display }}
+                                    {% else %}
+                                        <span class="text-danger">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {{ task.assignment_badge_class }}">{{ task.get_assignment_status_display }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge {{ task.task_state_badge_class }}">{{ task.task_state_label }}</span>
+                                </td>
+                                <td>
+                                    {% if task.deadline %}
+                                        {{ task.deadline|date:"M d, Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">No deadline</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if task.deadline %}
+                                        {% if task.is_overdue %}
+                                            <span class="badge bg-danger">Overdue by {{ task.deadline|timesince }}</span>
+                                        {% elif task.is_due_today %}
+                                            <span class="badge bg-warning text-dark fw-semibold">Due Today</span>
+                                        {% else %}
+                                            <span class="text-success">{{ task.deadline|timeuntil }} left</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ task.updated_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            Actions
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ task.open_service_url }}">
+                                                    <i class="ti ti-eye me-2"></i>Open Service
+                                                </a>
+                                            </li>
+                                            {% if is_admin_user %}
+                                            <li>
+                                                <a class="dropdown-item" href="{{ task.open_service_url }}">
+                                                    <i class="ti ti-user-edit me-2"></i>{{ task.manage_assignment_label }}
+                                                </a>
+                                            </li>
+                                            {% endif %}
+                                            {% if task.can_accept %}
+                                            <li>
+                                                <button type="button" class="dropdown-item task-accept-action"
+                                                        data-url="{% url 'accept_service_assignment' task.id %}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}">
+                                                    <i class="ti ti-circle-check me-2"></i>Accept Task
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button type="button" class="dropdown-item task-decline-action"
+                                                        data-url="{% url 'decline_service_assignment' task.id %}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#taskDeclineModal">
+                                                    <i class="ti ti-circle-x me-2"></i>Decline Task
+                                                </button>
+                                            </li>
+                                            {% endif %}
+                                            {% if task.can_extend %}
+                                            <li>
+                                                <button type="button" class="dropdown-item task-extend-action"
+                                                        data-url="{% url 'request_deadline_extension' task.id %}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                        data-current-deadline="{{ task.deadline|date:'M d, Y H:i' }}"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#taskExtendModal">
+                                                    <i class="ti ti-calendar-time me-2"></i>Request Deadline Extension
+                                                </button>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="taskDeclineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Decline Task</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="taskDeclineSummary" class="fw-semibold mb-3"></p>
+                <label for="taskDeclineReason" class="form-label">Reason (optional)</label>
+                <textarea id="taskDeclineReason" class="form-control" rows="4" placeholder="Provide a reason for declining this task..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmTaskDecline">Confirm Decline</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="taskExtendModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Request Deadline Extension</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="taskExtendSummary" class="fw-semibold mb-3"></p>
+                <div class="mb-3">
+                    <label for="taskExtendDays" class="form-label">Additional Days (1-30)</label>
+                    <input type="number" id="taskExtendDays" class="form-control" min="1" max="30" value="7">
+                </div>
+                <div class="mb-3">
+                    <label for="taskExtendReason" class="form-label">Reason</label>
+                    <textarea id="taskExtendReason" class="form-control" rows="4" placeholder="Why do you need more time?"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmTaskExtend">Submit Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    <script src="{% static 'assets/js/tasks/taskManagement.js' %}" defer></script>
+{% endblock %}

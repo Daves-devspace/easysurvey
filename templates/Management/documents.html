@@ -100,6 +100,8 @@
                                         <th>Reference</th>
                                         <th>Uploaded At</th>
                                         <th>Storage</th>
+                                        <th>Holder</th>
+                                        <th>Handoff</th>
                                         <th>Action</th>
                                     </tr>
                                     </thead>
@@ -117,13 +119,83 @@
                                             <td>{{ document.uploaded_at }}</td>
                                             <td>{{ document.storage_backend|storage_badge|safe }}</td>
                                             <td>
-                                              {% if document.file_url %}
-                                                <a href="{{ document.file_url }}" class="btn btn-info" target="_blank">View</a>
+                                              {% if document.latest_handoff %}
+                                                {{ document.latest_handoff.assigned_to.get_full_name|default:document.latest_handoff.assigned_to.username }}
                                               {% else %}
-                                              <span class="text-muted">No file</span>
-                                             {% endif %}
-
-                                              
+                                                <span class="text-muted">Unassigned</span>
+                                              {% endif %}
+                                            </td>
+                                            <td>
+                                              {% if document.latest_handoff %}
+                                                {% if document.latest_handoff.status == 'accepted' %}
+                                                  <span class="badge bg-success">Accepted</span>
+                                                {% elif document.latest_handoff.status == 'pending' %}
+                                                  <span class="badge bg-warning text-dark">Pending</span>
+                                                {% elif document.latest_handoff.status == 'declined' %}
+                                                  <span class="badge bg-danger">Declined</span>
+                                                {% else %}
+                                                  <span class="badge bg-info text-dark">Reassigned</span>
+                                                {% endif %}
+                                              {% else %}
+                                                <span class="badge bg-secondary">Unassigned</span>
+                                              {% endif %}
+                                            </td>
+                                            <td>
+                                              <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                  Actions
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                                  <li>
+                                                    {% if document.file_url %}
+                                                      <a href="{{ document.file_url }}" class="dropdown-item" target="_blank">
+                                                        <i class="ti ti-eye me-1"></i>View
+                                                      </a>
+                                                    {% else %}
+                                                      <span class="dropdown-item-text text-muted">No file available</span>
+                                                    {% endif %}
+                                                  </li>
+                                                  {% if document.latest_handoff and document.latest_handoff.status == 'pending' and document.latest_handoff.assigned_to_id == request.user.id %}
+                                                  <li>
+                                                    <button
+                                                      type="button"
+                                                      class="dropdown-item accept-document-handoff-btn"
+                                                      data-accept-url="{% url 'accept_document_handoff' document.latest_handoff.id %}"
+                                                      data-document-name="{{ document.doc_name|escape }}"
+                                                    >
+                                                      <i class="ti ti-circle-check me-1"></i>Accept Handoff
+                                                    </button>
+                                                  </li>
+                                                  <li>
+                                                    <button
+                                                      type="button"
+                                                      class="dropdown-item text-danger open-decline-document-handoff-modal-btn"
+                                                      data-bs-toggle="modal"
+                                                      data-bs-target="#declineDocumentHandoffModal"
+                                                      data-decline-url="{% url 'decline_document_handoff' document.latest_handoff.id %}"
+                                                      data-document-name="{{ document.doc_name|escape }}"
+                                                    >
+                                                      <i class="ti ti-circle-x me-1"></i>Decline Handoff
+                                                    </button>
+                                                  </li>
+                                                  <li><hr class="dropdown-divider"></li>
+                                                  {% endif %}
+                                                  <li>
+                                                    <button
+                                                      type="button"
+                                                      class="dropdown-item open-handoff-modal-btn"
+                                                      data-bs-toggle="modal"
+                                                      data-bs-target="#handoffAssignModal"
+                                                      data-doc-kind="office"
+                                                      data-document-id="{{ document.id }}"
+                                                      data-document-name="{{ document.doc_name|escape }}"
+                                                      data-assigned-to="{% if document.latest_handoff %}{{ document.latest_handoff.assigned_to_id }}{% endif %}"
+                                                    >
+                                                      <i class="ti ti-user-share me-1"></i>{% if document.latest_handoff %}Reassign{% else %}Assign{% endif %}
+                                                    </button>
+                                                  </li>
+                                                </ul>
+                                              </div>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -163,6 +235,70 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal fade" id="handoffAssignModal" tabindex="-1" aria-labelledby="handoffAssignModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'assign_document_handoff' %}">
+        {% csrf_token %}
+        <input type="hidden" name="doc_kind" id="handoffDocKind" value="office">
+        <input type="hidden" name="document_id" id="handoffDocumentId">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="handoffAssignModalLabel">Assign Document Handoff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <p class="mb-2">Document: <strong id="handoffDocumentName">-</strong></p>
+
+          <div class="mb-3">
+            <label for="handoffAssignedTo" class="form-label">Assign To</label>
+            <select class="form-select" id="handoffAssignedTo" name="assigned_to" required>
+              <option value="">Select employee</option>
+              {% for employee in handoff_employees %}
+                <option value="{{ employee.id }}">
+                  {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-0">
+            <label for="handoffNotes" class="form-label">Notes (optional)</label>
+            <textarea class="form-control" id="handoffNotes" name="notes" rows="3" placeholder="Add assignment context..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Handoff</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="declineDocumentHandoffModal" tabindex="-1" aria-labelledby="declineDocumentHandoffModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="declineDocumentHandoffModalLabel">Decline Document Handoff</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="declineDocumentHandoffUrl" value="">
+        <p class="mb-2">Document: <strong id="declineDocumentHandoffName">-</strong></p>
+        <label for="declineDocumentHandoffReason" class="form-label">Reason (optional)</label>
+        <textarea class="form-control" id="declineDocumentHandoffReason" rows="3" placeholder="Provide a reason..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeclineDocumentHandoffBtn">Confirm Decline</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -226,6 +362,99 @@
 
     <!-- jQuery & Select2 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.open-handoff-modal-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            document.getElementById('handoffDocKind').value = this.getAttribute('data-doc-kind') || 'office';
+            document.getElementById('handoffDocumentId').value = this.getAttribute('data-document-id') || '';
+            document.getElementById('handoffDocumentName').textContent = this.getAttribute('data-document-name') || '-';
+            document.getElementById('handoffAssignedTo').value = this.getAttribute('data-assigned-to') || '';
+            document.getElementById('handoffNotes').value = '';
+          });
+        });
+
+        const declineModalEl = document.getElementById('declineDocumentHandoffModal');
+        const declineUrlInput = document.getElementById('declineDocumentHandoffUrl');
+        const declineNameLabel = document.getElementById('declineDocumentHandoffName');
+        const declineReasonInput = document.getElementById('declineDocumentHandoffReason');
+        const confirmDeclineBtn = document.getElementById('confirmDeclineDocumentHandoffBtn');
+
+        function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+              }
+            }
+          }
+          return cookieValue;
+        }
+
+        async function submitHandoffAction(url, body, fallbackError) {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body,
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+              alert('Error: ' + (data.message || fallbackError));
+              return;
+            }
+
+            alert(data.message || 'Action completed successfully.');
+            window.location.reload();
+          } catch (error) {
+            console.error(error);
+            alert(fallbackError);
+          }
+        }
+
+        document.querySelectorAll('.accept-document-handoff-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const url = this.getAttribute('data-accept-url');
+            const name = this.getAttribute('data-document-name') || 'this document';
+            if (!url) return;
+            if (!window.confirm('Accept handoff for ' + name + '?')) return;
+            submitHandoffAction(url, '', 'Failed to accept handoff.');
+          });
+        });
+
+        document.querySelectorAll('.open-decline-document-handoff-modal-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const url = this.getAttribute('data-decline-url');
+            const name = this.getAttribute('data-document-name') || 'this document';
+            if (!url) return;
+
+            if (declineUrlInput) declineUrlInput.value = url;
+            if (declineNameLabel) declineNameLabel.textContent = name;
+            if (declineReasonInput) declineReasonInput.value = '';
+          });
+        });
+
+        confirmDeclineBtn?.addEventListener('click', function () {
+          const url = declineUrlInput?.value || '';
+          if (!url) return;
+
+          const reason = (declineReasonInput?.value || '').trim();
+          submitHandoffAction(url, 'reason=' + encodeURIComponent(reason), 'Failed to decline handoff.');
+
+          const modal = bootstrap.Modal.getInstance(declineModalEl);
+          modal?.hide();
+        });
+      });
+    </script>
 
 
 

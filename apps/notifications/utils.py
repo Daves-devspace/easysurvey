@@ -1,11 +1,18 @@
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, Tuple, Union
+import hashlib
 import logging
 from firebase_admin import messaging
+from django.core.cache import cache
 from django.db.models import QuerySet
 from .models import FCMToken, PendingPushNotification
 from .firebase_manager import initialize_firebase
 
 logger = logging.getLogger(__name__)
+
+
+def _push_dedupe_key(user_id: int, title: str, body: str) -> str:
+    digest = hashlib.sha256(f"{user_id}\n{title}\n{body}".encode("utf-8")).hexdigest()
+    return f"notifications:push-dedupe:{digest}"
 
 def _deactivate_token(token: str) -> None:
     try:
@@ -41,7 +48,8 @@ def send_push_notification(token: str, title: str, body: str) -> bool:
 def send_push_to_user(
     users: Union[object, Iterable[object]],
     title: str,
-    body: str
+    body: str,
+    dedupe_window_seconds: int = 15,
 ) -> Tuple[int, int]:
     """
     Send push to user(s). Returns (success_count, failure_count).
@@ -57,8 +65,22 @@ def send_push_to_user(
 
     total_success = 0
     total_failure = 0
+    try:
+        dedupe_window_seconds = max(int(dedupe_window_seconds or 0), 1)
+    except (TypeError, ValueError):
+        dedupe_window_seconds = 15
 
     for user in user_list:
+        user_id = getattr(user, "id", None)
+        if user_id is None:
+            logger.warning("Skipping push send for object without user id: %s", user)
+            continue
+
+        dedupe_key = _push_dedupe_key(user_id, title, body)
+        if not cache.add(dedupe_key, "1", timeout=dedupe_window_seconds):
+            logger.info("Skipping duplicate push for user %s within dedupe window", user_id)
+            continue
+
         try:
             tokens = list(
                 FCMToken.objects.filter(user=user, is_active=True).values_list("token", flat=True)

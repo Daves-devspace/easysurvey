@@ -311,7 +311,8 @@ class RevenueReportView(View):
         month = int(month) if month else None
         
         # Parse status to keep it sticky
-        status_filter = request.GET.get('status', 'completed')
+        status_filter = request.GET.get('status', 'all').lower()
+        service_status = 'completed' if status_filter == 'completed' else None
 
         # Compute up_to_date cutoff
         up_to_date = None
@@ -324,20 +325,54 @@ class RevenueReportView(View):
             )
 
         # Fetch using the ONE source of truth
-        from apps.EasyDocs.accounts.revenue import get_revenue_from_payments
-        
-        # ✅ FIX 1: Use keyword argument 'year='. 
-        # Passing it positionally assigned it to 'start_date', causing logic failure -> fallback to current year.
-        revenue_data = get_revenue_from_payments(year=year, up_to_date=up_to_date)
+        from apps.EasyDocs.accounts.revenue import get_revenue_from_payments, DEC_FIELD
+        from apps.EasyDocs.models import Expense
+        from django.db.models import Sum, Value
+        from django.db.models.functions import Coalesce
+
+        revenue_data = get_revenue_from_payments(
+            year=year,
+            up_to_date=up_to_date,
+            service_status=service_status,
+            profit_mode="auto",
+        )
+
+        revenue_records = revenue_data.get('revenue_qs', None)
+        if revenue_records is not None and status_filter == 'completed':
+            revenue_records = revenue_records.filter(status='completed')
+
+        start_dt = revenue_data.get('start_date')
+        end_dt = revenue_data.get('end_date')
+        start_date = start_dt.date() if hasattr(start_dt, 'date') else start_dt
+        end_date = end_dt.date() if hasattr(end_dt, 'date') else end_dt
+
+        expenses_total = Expense.objects.filter(
+            date__gte=start_date,
+            date__lte=end_date,
+        ).aggregate(
+            total=Coalesce(Sum('amount'), Value(Decimal('0.00')), output_field=DEC_FIELD)
+        )['total'] or Decimal('0.00')
+
+        stat_cards = {
+            'client_payments': revenue_data.get('gross_inflow', Decimal('0.00')),
+            'adj_outflow': revenue_data.get('adj_outflow', Decimal('0.00')),
+            'inst_payment': revenue_data.get('inst_total', Decimal('0.00')),
+            'expenses': expenses_total,
+            'revenue': revenue_data.get('company_total', Decimal('0.00')),
+        }
 
         context = {
             "revenue_totals": revenue_data,
+            "revenue_records": revenue_records,
+            "stat_cards": stat_cards,
             "revenue_year": year,
             "revenue_month": month,
             "status_filter": status_filter,
-            # ✅ FIX 2: Pass dates explicitly so PDF/Excel links in template render correctly
             "start_date": revenue_data.get('start_date'),
             "end_date": revenue_data.get('end_date'),
+            "filter_type": "month" if month else "year",
+            "current_year": timezone.now().year,
+            "current_month": timezone.now().month,
         }
 
         return render(request, "Accounts/partials/revenue_tab_content.html", context)    

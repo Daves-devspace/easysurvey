@@ -35,7 +35,7 @@
                                 <h5 class="m-b-10">Home</h5>
                             </div>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                                
                                 <li class="breadcrumb-item"><a href="javascript: void(0)">Dashboard</a></li>
                               
                             </ul>
@@ -126,7 +126,352 @@
                                             </div>
                                         </div>
 
+                                    </div>
+
+
+                                    <!-- Pending Assignments Panel -->
+                                    {% if pending_assignments_count > 0 %}
+                                    <div class="row mb-4">
+                                        <div class="col-12">
+                                            <div class="card border-warning shadow-lg">
+                                                <div class="card-header bg-warning text-white">
+                                                    <h5 class="mb-0">
+                                                        <i class="fas fa-bell"></i>
+                                                        Your Pending Assignments ({{ pending_assignments_count }})
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover table-bordered">
+                                                            <thead class="table-light">
+                                                                <tr>
+                                                                    <th>Client</th>
+                                                                    <th>Service</th>
+                                                                    <th>Land Description</th>
+                                                                    <th>Requested At</th>
+                                                                    <th>Deadline</th>
+                                                                    <th>Status</th>
+                                                                    <th>Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for assignment in pending_assignments %}
+                                                                <tr data-assignment-id="{{ assignment.id }}">
+                                                                    <td>{{ assignment.client.first_name }} {{ assignment.client.last_name }}</td>
+                                                                    <td>{{ assignment.service.name }}</td>
+                                                                    <td>{{ assignment.land_description|default:"-" }}</td>
+                                                                    <td>{{ assignment.requested_at|date:"Y-m-d H:i" }}</td>
+                                                                    <td>
+                                                                        {% if assignment.deadline %}
+                                                                            {{ assignment.deadline|date:"Y-m-d H:i" }}
+                                                                        {% else %}
+                                                                            -
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="badge bg-warning text-dark">
+                                                                            {{ assignment.get_assignment_status_display }}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-success me-1 accept-btn" 
+                                                                                data-cs-id="{{ assignment.id }}"
+                                                                                data-bs-toggle="tooltip" 
+                                                                                title="Accept this assignment">
+                                                                            Accept
+                                                                        </button>
+                                                                        <button class="btn btn-sm btn-danger decline-btn" 
+                                                                                data-cs-id="{{ assignment.id }}"
+                                                                                data-bs-toggle="modal" 
+                                                                                data-bs-target="#declineReasonModal{{ assignment.id }}"
+                                                                                data-bs-toggle="tooltip" 
+                                                                                title="Decline this assignment">
+                                                                            Decline
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+
+                    <!-- Pending Document Handoffs Panel -->
+                    {% if pending_handoffs_count > 0 %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-primary shadow-lg">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-file-alt"></i>
+                                        Pending Document Handoffs ({{ pending_handoffs_count }})
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-bordered">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Document</th>
+                                                    <th>Client/Related</th>
+                                                    <th>Assigned By</th>
+                                                    <th>Assigned At</th>
+                                                    <th>Expires At</th>
+                                                    <th>Time Remaining</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                            {% for handoff in pending_handoffs %}
+                                                <tr data-handoff-id="{{ handoff.id }}">
+                                                    <td>
+                                                        {% if handoff.content_type.model == 'clientdoc' %}
+                                                            {{ handoff.document.doc_name|default:"Client Document" }}
+                                                        {% elif handoff.content_type.model == 'document' %}
+                                                            {{ handoff.document.doc_name|default:"Document" }}
+                                                        {% else %}
+                                                            Document #{{ handoff.object_id }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if handoff.client %}
+                                                            {{ handoff.client.first_name }} {{ handoff.client.last_name }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ handoff.assigned_by.get_full_name|default:handoff.assigned_by.username }}</td>
+                                                    <td>{{ handoff.assigned_at|date:"Y-m-d H:i" }}</td>
+                                                    <td>
+                                                        <span class="text-danger">{{ handoff.max_acceptance_time|date:"Y-m-d H:i" }}</span>
+                                                    </td>
+                                                    <td>
+                                                        {% now "U" as current_timestamp %}
+                                                        {% if handoff.max_acceptance_time.timestamp|add:"-current_timestamp" > 0 %}
+                                                            <span class="badge bg-warning text-dark">
+                                                                {{ handoff.max_acceptance_time|timeuntil }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">Expired</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn btn-sm btn-success me-1 accept-handoff-btn" 
+                                                                data-handoff-id="{{ handoff.id }}"
+                                                                data-bs-toggle="tooltip" 
+                                                                title="Accept this handoff">
+                                                            Accept
+                                                        </button>
+                                                        <button class="btn btn-sm btn-danger decline-handoff-btn" 
+                                                                data-handoff-id="{{ handoff.id }}"
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#declineHandoffModal{{ handoff.id }}"
+                                                                data-bs-toggle="tooltip" 
+                                                                title="Decline this handoff">
+                                                            Decline
+                                                        </button>
+                                                    </td>
+                                                </tr>
+
+                                                <!-- Decline Handoff Modal -->
+                                                <div class="modal fade" id="declineHandoffModal{{ handoff.id }}" tabindex="-1" aria-labelledby="declineHandoffModalLabel{{ handoff.id }}" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title" id="declineHandoffModalLabel{{ handoff.id }}">
+                                                                    Decline Document Handoff
+                                                                </h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <p><strong>Document:</strong> 
+                                                                    {% if handoff.content_type.model == 'clientdoc' %}
+                                                                        {{ handoff.document.doc_name|default:"Client Document" }}
+                                                                    {% elif handoff.content_type.model == 'document' %}
+                                                                        {{ handoff.document.doc_name|default:"Document" }}
+                                                                    {% else %}
+                                                                        Document #{{ handoff.object_id }}
+                                                                    {% endif %}
+                                                                </p>
+                                                                <p><strong>Assigned By:</strong> {{ handoff.assigned_by.get_full_name|default:handoff.assigned_by.username }}</p>
+                                                                <label for="declineHandoffReason{{ handoff.id }}" class="form-label">Reason for Declining (Optional):</label>
+                                                                <textarea class="form-control" id="declineHandoffReason{{ handoff.id }}" rows="3" placeholder="Provide a reason..."></textarea>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                <button type="button" class="btn btn-danger confirm-decline-handoff-btn" data-handoff-id="{{ handoff.id }}">
+                                                                    Confirm Decline
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                            {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                                                                <!-- Decline Reason Modal -->
+                                                                <div class="modal fade" id="declineReasonModal{{ assignment.id }}" tabindex="-1" aria-labelledby="declineReasonModalLabel{{ assignment.id }}" aria-hidden="true">
+                                                                    <div class="modal-dialog">
+                                                                        <div class="modal-content">
+                                                                            <div class="modal-header bg-danger text-white">
+                                                                                <h5 class="modal-title" id="declineReasonModalLabel{{ assignment.id }}">
+                                                                                    Decline Assignment
+                                                                                </h5>
+                                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                            </div>
+                                                                            <div class="modal-body">
+                                                                                <p><strong>Client:</strong> {{ assignment.client.first_name }} {{ assignment.client.last_name }}</p>
+                                                                                <p><strong>Service:</strong> {{ assignment.service.name }}</p>
+                                                                                <label for="declineReason{{ assignment.id }}" class="form-label">Reason for Declining (Optional):</label>
+                                                                                <textarea class="form-control" id="declineReason{{ assignment.id }}" rows="3" placeholder="Provide a reason..."></textarea>
+                                                                            </div>
+                                                                            <div class="modal-footer">
+                                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                                <button type="button" class="btn btn-danger confirm-decline-btn" data-cs-id="{{ assignment.id }}">
+                                                                                    Confirm Decline
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Accepted Assignments Panel (for deadline extension) -->
+                                    {% if accepted_assignments_count > 0 %}
+                                    <div class="row mb-4">
+                                        <div class="col-12">
+                                            <div class="card border-info shadow-lg">
+                                                <div class="card-header bg-info text-white">
+                                                    <h5 class="mb-0">
+                                                        <i class="fas fa-tasks"></i>
+                                                        Your Accepted Assignments ({{ accepted_assignments_count }})
+                                                    </h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-hover table-bordered">
+                                                            <thead class="table-light">
+                                                                <tr>
+                                                                    <th>Client</th>
+                                                                    <th>Service</th>
+                                                                    <th>Land Description</th>
+                                                                    <th>Deadline</th>
+                                                                    <th>Days Remaining</th>
+                                                                    <th>Extended</th>
+                                                                    <th>Actions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {% for assignment in accepted_assignments %}
+                                                                {% load humanize %}
+                                                                <tr data-accepted-id="{{ assignment.id }}">
+                                                                    <td>{{ assignment.client.first_name }} {{ assignment.client.last_name }}</td>
+                                                                    <td>{{ assignment.service.name }}</td>
+                                                                    <td>{{ assignment.land_description|default:"-" }}</td>
+                                                                    <td>
+                                                                        {% if assignment.deadline %}
+                                                                            {{ assignment.deadline|date:"Y-m-d H:i" }}
+                                                                        {% else %}
+                                                                            -
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    <td>
+                                                                        {% if assignment.deadline %}
+                                                                            {% now "U" as current_timestamp %}
+                                                                            {% if assignment.deadline.timestamp|add:"-current_timestamp" > 0 %}
+                                                                                {{ assignment.deadline|timeuntil }}
+                                                                            {% else %}
+                                                                                <span class="badge bg-danger">Overdue</span>
+                                                                            {% endif %}
+                                                                        {% else %}
+                                                                            -
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    <td>
+                                                                        {% if assignment.deadline_extended %}
+                                                                            <span class="badge bg-warning text-dark">Yes</span>
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary">No</span>
+                                                                        {% endif %}
+                                                                    </td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-primary extend-deadline-btn" 
+                                                                                data-cs-id="{{ assignment.id }}"
+                                                                                data-bs-toggle="modal" 
+                                                                                data-bs-target="#extendDeadlineModal{{ assignment.id }}"
+                                                                                data-bs-toggle="tooltip" 
+                                                                                title="Request deadline extension">
+                                                                            Extend Deadline
+                                                                        </button>
+                                                                        <a href="{% url 'client_details' assignment.client.id %}" 
+                                                                           class="btn btn-sm btn-success"
+                                                                           data-bs-toggle="tooltip" 
+                                                                           title="View client details">
+                                                                            View Details
+                                                                        </a>
+                                                                    </td>
+                                                                </tr>
+
+                                                                <!-- Extend Deadline Modal -->
+                                                                <div class="modal fade" id="extendDeadlineModal{{ assignment.id }}" tabindex="-1" aria-labelledby="extendDeadlineModalLabel{{ assignment.id }}" aria-hidden="true">
+                                                                    <div class="modal-dialog">
+                                                                        <div class="modal-content">
+                                                                            <div class="modal-header bg-primary text-white">
+                                                                                <h5 class="modal-title" id="extendDeadlineModalLabel{{ assignment.id }}">
+                                                                                    Request Deadline Extension
+                                                                                </h5>
+                                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                            </div>
+                                                                            <div class="modal-body">
+                                                                                <p><strong>Client:</strong> {{ assignment.client.first_name }} {{ assignment.client.last_name }}</p>
+                                                                                <p><strong>Service:</strong> {{ assignment.service.name }}</p>
+                                                                                <p><strong>Current Deadline:</strong> 
+                                                                                    {% if assignment.deadline %}
+                                                                                        {{ assignment.deadline|date:"Y-m-d H:i" }}
+                                                                                    {% else %}
+                                                                                        Not set
+                                                                                    {% endif %}
+                                                                                </p>
+                                                                                <div class="mb-3">
+                                                                                    <label for="additionalDays{{ assignment.id }}" class="form-label">Additional Days (1-30):</label>
+                                                                                    <input type="number" class="form-control" id="additionalDays{{ assignment.id }}" min="1" max="30" value="7" required>
+                                                                                </div>
+                                                                                <div class="mb-3">
+                                                                                    <label for="extensionReason{{ assignment.id }}" class="form-label">Reason (Required):</label>
+                                                                                    <textarea class="form-control" id="extensionReason{{ assignment.id }}" rows="3" placeholder="Provide a reason for the extension..." required></textarea>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div class="modal-footer">
+                                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                                <button type="button" class="btn btn-primary confirm-extend-btn" data-cs-id="{{ assignment.id }}">
+                                                                                    Confirm Extension
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                            {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
 
 
                                    
@@ -144,131 +489,66 @@
                     <div class="col-12 col-lg-6">
                         <div class="card tbl-card shadow-lg mt-2 h-100">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">Recent Clients</h5>
-                                <a href="{% url 'clients' %}">View All</a>
+                                <h5 class="mb-0">My Tasks</h5>
+                                <a href="{% url 'task-management' %}" class="btn btn-sm btn-outline-success">View All</a>
                             </div>
-                            <div class="card-body">
-                                <div class="table-responsive mt-3">
-                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
-
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover align-middle mb-0">
                                         <thead class="table-success">
-                                        <tr>
-                                            <th>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox"
-                                                           id="select-all">
-                                                </div>
-                                            </th>
-                                            <th>First name</th>
-                                            <th>Last name</th>
-                                            <th>Phone</th>
-                                            <th>E-mail</th>
-                                            <th>Requested at</th>
-                                            <th>Service</th>
-                                            <th>Process</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                            <th>Details</th>
-
-
-                                        </tr>
+                                            <tr>
+                                                <th>Client</th>
+                                                <th>Service</th>
+                                                <th>Process</th>
+                                                <th>Progress</th>
+                                                <th>Assignment</th>
+                                                <th>Deadline</th>
+                                                <th></th>
+                                            </tr>
                                         </thead>
                                         <tbody>
-                                        {% for item in client_data %}
-                                            {% with client=item.client client_service=item.client_service current_process=item.current_process %}
-                                                <tr>
-                                                    <td>{{ forloop.counter }}</td>
-                                                    <td>{{ client.first_name }}</td>
-                                                    <td>{{ client.last_name }}</td>
-                                                    <td>{{ client.phone|default:"-" }}</td>
-                                                    <td>{{ client.email }}</td>
-                                                    <td>
-                                                        {% if client_service %}
-                                                            {{ client_service.requested_at|date:"Y-m-d" }}
+                                        {% for task in dashboard_tasks %}
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">{{ task.client.first_name }} {{ task.client.last_name }}</div>
+                                                    <small class="text-muted">{{ task.client.phone|default:'—' }}</small>
+                                                </td>
+                                                <td>{{ task.service.name }}</td>
+                                                <td>{{ task.current_process_name }}</td>
+                                                <td><span class="badge bg-light text-dark border">{{ task.progress_label }}</span></td>
+                                                <td><span class="badge {{ task.assignment_badge_class }}">{{ task.get_assignment_status_display }}</span></td>
+                                                <td>
+                                                    {% if task.deadline %}
+                                                        {% if task.is_overdue %}
+                                                            <span class="text-danger small">Overdue</span>
+                                                        {% elif task.is_due_today %}
+                                                            <span class="text-warning fw-semibold small">Due Today</span>
                                                         {% else %}
-                                                            <span class="text-muted">No service</span>
+                                                            <span class="text-success small">{{ task.deadline|timeuntil }} left</span>
                                                         {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if client_service %}
-                                                            {{ client_service.service.name }}
-                                                        {% else %}
-                                                            <span class="text-muted">No service</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if current_process %}
-                                                            {{ current_process.process.name }}
-                                                        {% else %}
-                                                            <span class="text-muted">N/A</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {% if current_process %}
-                                                            <span class="badge
-              {% if current_process.status == 'in_progress' %}bg-info
-              {% elif current_process.status == 'pending' %}bg-secondary
-              {% elif current_process.status == 'completed' %}bg-success
-              {% elif current_process.status == 'collected' %}bg-primary
-              {% else %}bg-light text-dark{% endif %}">
-              {{ current_process.get_status_display }}
-            </span>
-                                                        {% else %}
-                                                            <span class="text-muted">N/A</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-warning"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#editClientModal{{ client.id }}">
-                                                            Edit
-                                                        </button>
-                                                    </td>
-                                                    <td>
-                                                        <a href="{% url 'client_details' client.id %}">
-                                                            <i class="ti ti-eye-check"></i>
-                                                        </a>
-                                                    </td>
-                                                </tr>
-
-                                                <!-- Edit Client Modal -->
-                                                <div class="modal fade" id="editClientModal{{ client.id }}"
-                                                     tabindex="-1"
-                                                     aria-labelledby="editClientModalLabel{{ client.id }}"
-                                                     aria-hidden="true">
-                                                    <div class="modal-dialog">
-                                                        <div class="modal-content">
-                                                            <form method="POST"
-                                                                  action="{% url 'edit_client' client.id %}">
-                                                                {% csrf_token %}
-                                                                <div class="modal-header bg-warning">
-                                                                    <h5 class="modal-title"
-                                                                        id="editClientModalLabel{{ client.id }}">
-                                                                        Edit Client
-                                                                    </h5>
-                                                                    <button type="button" class="btn-close"
-                                                                            data-bs-dismiss="modal"
-                                                                            aria-label="Close"></button>
-                                                                </div>
-                                                                <div class="modal-body">
-                                                                    {{ item.form.as_p }}
-                                                                </div>
-                                                                <div class="modal-footer">
-                                                                    <button type="submit"
-                                                                            class="btn btn-primary">Save
-                                                                        Changes
-                                                                    </button>
-                                                                    <button type="button"
-                                                                            class="btn btn-secondary"
-                                                                            data-bs-dismiss="modal">Cancel
-                                                                    </button>
-                                                                </div>
-                                                            </form>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            {% endwith %}
-
+                                                    {% else %}
+                                                        <span class="text-muted">—</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{{ task.open_service_url }}" class="btn btn-sm btn-outline-primary" title="Open service">
+                                                        <i class="ti ti-eye"></i>
+                                                    </a>
+                                                    {% if task.can_accept %}
+                                                    <button type="button" class="btn btn-sm btn-success dash-accept-task"
+                                                            data-url="{% url 'accept_service_assignment' task.id %}"
+                                                            data-task-name="{{ task.service.name|escape }}"
+                                                            data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                            title="Accept task">
+                                                        <i class="ti ti-circle-check"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td colspan="7" class="text-center text-muted py-4">No tasks assigned to you.</td>
+                                            </tr>
                                         {% endfor %}
                                         </tbody>
                                     </table>
@@ -345,14 +625,237 @@
 
 {% block extra_js %}
 
-
     <script src="{% static 'assets/js/modals/bookingCalendar.js' %}"></script>
 
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Accept buttons
+        document.querySelectorAll('.accept-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const csId = this.getAttribute('data-cs-id');
+                const row = document.querySelector(`tr[data-assignment-id="${csId}"]`);
+                
+                if (!confirm('Accept this service assignment?')) return;
+                
+                fetch(`/assignments/${csId}/accept/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'reason=Accepted',
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        if (row) row.remove();
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Network error accepting assignment.');
+                });
 
+                    // Accept handoff buttons
+                    document.querySelectorAll('.accept-handoff-btn').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const handoffId = this.getAttribute('data-handoff-id');
+                            const row = document.querySelector(`tr[data-handoff-id="${handoffId}"]`);
+                
+                            if (!confirm('Accept this document handoff?')) return;
+                
+                            fetch(`/handoffs/${handoffId}/accept/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': getCookie('csrftoken'),
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(data.message);
+                                    if (row) row.remove();
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + data.message);
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                alert('Network error accepting handoff.');
+                            });
+                        });
+                    });
 
+                    // Decline handoff modal confirm buttons
+                    document.querySelectorAll('.confirm-decline-handoff-btn').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const handoffId = this.getAttribute('data-handoff-id');
+                            const reasonTextarea = document.getElementById(`declineHandoffReason${handoffId}`);
+                            const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+                            const row = document.querySelector(`tr[data-handoff-id="${handoffId}"]`);
+                
+                            fetch(`/handoffs/${handoffId}/decline/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': getCookie('csrftoken'),
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                },
+                                body: `reason=${encodeURIComponent(reason)}`,
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(data.message);
+                                    const modal = bootstrap.Modal.getInstance(document.getElementById(`declineHandoffModal${handoffId}`));
+                                    if (modal) modal.hide();
+                                    if (row) row.remove();
+                                    location.reload();
+                                } else {
+                                    alert('Error: ' + data.message);
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                alert('Network error declining handoff.');
+                            });
+                        });
+                    });
+            });
+        });
 
+        // Decline modal confirm buttons
+        document.querySelectorAll('.confirm-decline-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const csId = this.getAttribute('data-cs-id');
+                const reasonTextarea = document.getElementById(`declineReason${csId}`);
+                const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+                const row = document.querySelector(`tr[data-assignment-id="${csId}"]`);
+                
+                fetch(`/assignments/${csId}/decline/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `reason=${encodeURIComponent(reason)}`,
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        const modal = bootstrap.Modal.getInstance(document.getElementById(`declineReasonModal${csId}`));
+                        if (modal) modal.hide();
+                        if (row) row.remove();
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Network error declining assignment.');
+                });
+            });
+        });
 
+        // Extend deadline modal confirm buttons
+        document.querySelectorAll('.confirm-extend-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const csId = this.getAttribute('data-cs-id');
+                const daysInput = document.getElementById(`additionalDays${csId}`);
+                const reasonTextarea = document.getElementById(`extensionReason${csId}`);
+                
+                const additionalDays = daysInput ? parseInt(daysInput.value) : 0;
+                const reason = reasonTextarea ? reasonTextarea.value.trim() : '';
+                
+                if (!additionalDays || additionalDays < 1 || additionalDays > 30) {
+                    alert('Please enter a valid number of days (1-30).');
+                    return;
+                }
+                
+                if (!reason) {
+                    alert('Please provide a reason for the extension.');
+                    return;
+                }
+                
+                fetch(`/assignments/${csId}/extend-deadline/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `additional_days=${additionalDays}&reason=${encodeURIComponent(reason)}`,
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        const modal = bootstrap.Modal.getInstance(document.getElementById(`extendDeadlineModal${csId}`));
+                        if (modal) modal.hide();
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Network error requesting deadline extension.');
+                });
+            });
+        });
 
+        // CSRF Helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+            // ── My Tasks: accept task buttons ──────────────────────────────────
+            document.querySelectorAll('.dash-accept-task').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const taskName = btn.dataset.taskName || 'this task';
+                    const clientName = btn.dataset.clientName || 'the client';
+                    if (!confirm(`Accept "${taskName}" for ${clientName}?`)) return;
+                    fetch(btn.dataset.url, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'reason=Accepted from dashboard',
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) { location.reload(); }
+                        else { alert('Error: ' + data.message); }
+                    })
+                    .catch(() => alert('Network error accepting task.'));
+                });
+            });
+
+        });
+    </script>
 
 {% endblock %}
 

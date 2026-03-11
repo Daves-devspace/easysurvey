@@ -42,6 +42,46 @@ def record_cash_out_institution(amount, user=None, description=None):
 
 
 
+def record_payment_adjustment(adjustment, user=None):
+    """
+    Record a payment reversal/adjustment as Cash OUT (clawback).
+    Uses allow_negative=True so the cashbook always reflects reality
+    even in edge cases where the balance may dip temporarily.
+    """
+    desc = (
+        f"{adjustment.get_adjustment_type_display()} – "
+        f"Payment #{adjustment.original_payment_id}: "
+        f"{str(adjustment.reason)[:120]}"
+    )
+    return CashbookEntry.record_out(
+        amount=adjustment.amount,
+        description=desc,
+        related_object=adjustment,
+        created_by=user,
+        allow_negative=True,
+    )
+
+
+def record_subservice_payment_adjustment(adjustment, user=None):
+    """
+    Record a sub-service payment correction as Cash OUT (clawback).
+    Uses allow_negative=True to preserve immutable audit truth.
+    """
+    css = adjustment.client_sub_service
+    desc = (
+        f"{adjustment.get_adjustment_type_display()} – "
+        f"Sub-service #{css.id} ({css.sub_service.name}): "
+        f"{str(adjustment.reason)[:120]}"
+    )
+    return CashbookEntry.record_out(
+        amount=adjustment.amount,
+        description=desc,
+        related_object=adjustment,
+        created_by=user,
+        allow_negative=True,
+    )
+
+
 def record_cash_out_expense(description: str, amount, user=None) -> CashbookEntry:
     """
     Record cash out for operational/office expense.

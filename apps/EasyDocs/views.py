@@ -1,8 +1,9 @@
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ObjectDoesNotExist
 from django.db.models import Q, Prefetch, Sum, DecimalField, F, QuerySet
@@ -29,6 +30,7 @@ from .analytics import get_yearly_revenue_data, get_available_years, monthly_com
 from .accounts.revenue import get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
 from .services.services import apply_client_service_logic
+from .services.handoffs import get_pending_handoffs_for_user, get_latest_handoffs_for_documents
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 from types import SimpleNamespace
@@ -434,6 +436,18 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             status='completed',
             updated_at__date=now().date()
         ).count()
+        
+        # Legacy assignment tables below stats are intentionally disabled.
+        context['pending_assignments'] = []
+        context['pending_assignments_count'] = 0
+        context['accepted_assignments'] = []
+        context['accepted_assignments_count'] = 0
+        try:
+            pending_handoffs = list(get_pending_handoffs_for_user(self.request.user))
+        except Exception:
+            pending_handoffs = []
+        context['pending_handoffs'] = pending_handoffs
+        context['pending_handoffs_count'] = len(pending_handoffs)
 
         try:
             recent_clients = Client.objects.prefetch_related(
@@ -474,6 +488,271 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
             messages.error(self.request, "An error occurred while loading dashboard data.")
             context['client_data'] = []
 
+        # --- My Tasks (assigned to current user) ---
+        try:
+            task_qs = (
+                ClientService.objects
+                .filter(assigned_employee=self.request.user)
+                .select_related('service', 'client', 'assigned_employee')
+                .prefetch_related('service_processes__process')
+                .order_by('deadline')
+            )
+            assignment_badges = {
+                'unassigned': 'bg-secondary',
+                'pending_acceptance': 'bg-warning text-dark',
+                'accepted': 'bg-success',
+                'declined': 'bg-danger',
+                'reassigned': 'bg-info text-dark',
+            }
+            dashboard_tasks = []
+            for task in task_qs:
+                steps = list(task.service_processes.all())
+                total = max(len(steps), 1)
+                done = sum(1 for s in steps if s.status in ('completed', 'collected'))
+                current = (
+                    next((s for s in steps if s.status == 'in_progress'), None)
+                    or next((s for s in steps if s.status == 'pending'), None)
+                    or next((s for s in reversed(steps) if s.status in ('completed', 'collected')), None)
+                )
+                task.current_process_name = current.process.name if current else '—'
+                task.progress_label = f"{done}/{total}"
+                task.is_overdue = bool(
+                    task.deadline and task.deadline < timezone.now()
+                )
+                task.is_due_today = bool(
+                    task.deadline
+                    and not task.is_overdue
+                    and timezone.localtime(task.deadline).date() == timezone.localdate()
+                )
+                task.assignment_badge_class = assignment_badges.get(task.assignment_status, 'bg-secondary')
+                task.can_accept = task.assignment_status in ('pending_acceptance', 'reassigned')
+                task.open_service_url = (
+                    reverse('client_details', args=[task.client_id])
+                    + f"?service_id={task.id}#service-{task.id}"
+                )
+                dashboard_tasks.append(task)
+            context['dashboard_tasks'] = dashboard_tasks
+        except Exception as exc:
+            logger.exception(f"Failed to fetch dashboard tasks: {exc}")
+            context['dashboard_tasks'] = []
+
+        return context
+
+
+class TaskManagementView(LoginRequiredMixin, TemplateView):
+    template_name = 'Management/tasks/task_management.html'
+
+    def _is_admin_user(self):
+        if self.request.user.is_superuser:
+            return True
+
+        try:
+            return self.request.user.employeeprofile.role == EmployeeProfile.RoleChoices.ADMIN
+        except ObjectDoesNotExist:
+            return False
+
+    def _scoped_queryset(self):
+        queryset = (
+            ClientService.objects
+            .select_related('client', 'service', 'assigned_employee')
+            .prefetch_related(
+                Prefetch(
+                    'service_processes',
+                    queryset=ClientServiceProcess.objects.select_related('process').order_by('process__step_order')
+                ),
+                Prefetch(
+                    'bookings',
+                    queryset=Booking.objects.order_by('-scheduled_date')
+                )
+            )
+            .order_by('-requested_at')
+        )
+
+        if not self._is_admin_user():
+            queryset = queryset.filter(assigned_employee=self.request.user)
+
+        return queryset
+
+    def _apply_filters(self, queryset):
+        params = self.request.GET
+        employee_id = (params.get('employee') or '').strip()
+        assignment_scope = (params.get('assignment_scope') or '').strip()
+        assignment_status = (params.get('assignment_status') or '').strip()
+        task_state = (params.get('task_state') or '').strip()
+        category = (params.get('category') or '').strip()
+        deadline_filter = (params.get('deadline_filter') or '').strip()
+
+        if self._is_admin_user() and employee_id.isdigit():
+            queryset = queryset.filter(assigned_employee_id=int(employee_id))
+
+        if assignment_scope == 'assigned':
+            queryset = queryset.filter(assigned_employee__isnull=False)
+        elif assignment_scope == 'unassigned':
+            queryset = queryset.filter(assigned_employee__isnull=True)
+
+        valid_assignment_statuses = {choice[0] for choice in ClientService.ASSIGNMENT_STATUS_CHOICES}
+        if assignment_status in valid_assignment_statuses:
+            queryset = queryset.filter(assignment_status=assignment_status)
+
+        now_dt = timezone.now()
+        today = timezone.localdate()
+        if task_state == 'pending':
+            queryset = queryset.filter(status='active').exclude(deadline__lt=now_dt)
+        elif task_state == 'completed':
+            queryset = queryset.filter(status='completed')
+        elif task_state == 'collected':
+            queryset = queryset.filter(status='collected')
+        elif task_state == 'overdue':
+            queryset = queryset.filter(deadline__lt=now_dt).exclude(status__in=('completed', 'collected'))
+
+        valid_categories = {choice[0] for choice in ServiceCategory.choices}
+        if category in valid_categories:
+            queryset = queryset.filter(service__category=category)
+
+        if deadline_filter == 'today':
+            queryset = queryset.filter(deadline__date=today)
+        elif deadline_filter == 'week':
+            queryset = queryset.filter(deadline__date__range=(today, today + timedelta(days=7)))
+        elif deadline_filter == 'overdue':
+            queryset = queryset.filter(deadline__lt=now_dt).exclude(status__in=('completed', 'collected'))
+        elif deadline_filter == 'none':
+            queryset = queryset.filter(deadline__isnull=True)
+
+        return queryset
+
+    def _decorate_task(self, task):
+        process_steps = list(task.service_processes.all())
+        bookings = list(task.bookings.all())
+
+        total_steps = len(process_steps)
+        completed_steps = 0
+        current_process_name = '—'
+
+        if process_steps:
+            completed_steps = sum(1 for step in process_steps if step.status in ('completed', 'collected'))
+            current_process = (
+                next((step for step in process_steps if step.status == 'in_progress'), None)
+                or next((step for step in process_steps if step.status == 'pending'), None)
+                or next((step for step in reversed(process_steps) if step.status in ('completed', 'collected')), None)
+            )
+            if current_process:
+                current_process_name = current_process.process.name
+        elif task.service.category == ServiceCategory.GROUND:
+            total_steps = 1
+            latest_booking = bookings[0] if bookings else None
+            if latest_booking:
+                current_process_name = 'Booking handled' if latest_booking.handled else 'Booking scheduled'
+                completed_steps = 1 if latest_booking.handled or task.status in ('completed', 'collected') else 0
+            else:
+                current_process_name = 'Awaiting booking'
+                completed_steps = 1 if task.status in ('completed', 'collected') else 0
+        else:
+            total_steps = 1
+            completed_steps = 1 if task.status in ('completed', 'collected') else 0
+            current_process_name = 'Completed' if completed_steps else 'Pending'
+
+        total_steps = max(total_steps, 1)
+        task.current_process_name = current_process_name
+        task.progress_label = f"{completed_steps}/{total_steps}"
+        task.is_overdue = bool(
+            task.deadline and task.deadline < timezone.now() and task.status not in ('completed', 'collected')
+        )
+        task.is_due_today = bool(
+            task.deadline
+            and not task.is_overdue
+            and timezone.localtime(task.deadline).date() == timezone.localdate()
+        )
+
+        if task.is_overdue:
+            task.task_state_label = 'Overdue'
+            task.task_state_badge_class = 'bg-danger'
+        elif task.status == 'collected':
+            task.task_state_label = 'Collected'
+            task.task_state_badge_class = 'bg-primary'
+        elif task.status == 'completed':
+            task.task_state_label = 'Completed'
+            task.task_state_badge_class = 'bg-success'
+        elif any(step.status == 'in_progress' for step in process_steps) or task.assignment_status == 'accepted' or bookings:
+            task.task_state_label = 'In Progress'
+            task.task_state_badge_class = 'bg-info text-dark'
+        else:
+            task.task_state_label = 'Pending'
+            task.task_state_badge_class = 'bg-warning text-dark'
+
+        assignment_badges = {
+            'unassigned': 'bg-secondary',
+            'pending_acceptance': 'bg-warning text-dark',
+            'accepted': 'bg-success',
+            'declined': 'bg-danger',
+            'reassigned': 'bg-info text-dark',
+        }
+        task.assignment_badge_class = assignment_badges.get(task.assignment_status, 'bg-secondary')
+        task.assigned_employee_display = (
+            task.assigned_employee.get_full_name() or task.assigned_employee.username
+            if task.assigned_employee else 'Unassigned'
+        )
+        task.can_accept = (
+            task.assigned_employee_id == self.request.user.id
+            and task.assignment_status in ('pending_acceptance', 'reassigned')
+        )
+        task.can_extend = (
+            task.assigned_employee_id == self.request.user.id
+            and task.assignment_status == 'accepted'
+            and task.status == 'active'
+        )
+        task.manage_assignment_label = 'Reassign' if task.assigned_employee_id else 'Assign'
+        task.open_service_url = f"{reverse('client_details', args=[task.client_id])}?service_id={task.id}#service-{task.id}"
+
+        return task
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        is_admin_user = self._is_admin_user()
+        scoped_queryset = self._scoped_queryset()
+        filtered_queryset = self._apply_filters(scoped_queryset)
+        tasks = [self._decorate_task(task) for task in filtered_queryset]
+
+        now_dt = timezone.now()
+        context.update({
+            'tasks': tasks,
+            'is_admin_user': is_admin_user,
+            'employees': (
+                User.objects.filter(employeeprofile__isnull=False)
+                .select_related('employeeprofile')
+                .order_by('first_name', 'last_name', 'username')
+                if is_admin_user else []
+            ),
+            'summary': {
+                'total': scoped_queryset.count(),
+                'assigned': scoped_queryset.filter(assigned_employee__isnull=False).count(),
+                'unassigned': scoped_queryset.filter(assigned_employee__isnull=True).count(),
+                'pending_acceptance': scoped_queryset.filter(assignment_status__in=('pending_acceptance', 'reassigned')).count(),
+                'overdue': scoped_queryset.filter(deadline__lt=now_dt).exclude(status__in=('completed', 'collected')).count(),
+                'completed': scoped_queryset.filter(status__in=('completed', 'collected')).count(),
+            },
+            'filters': {
+                'employee': (self.request.GET.get('employee') or '').strip(),
+                'assignment_scope': (self.request.GET.get('assignment_scope') or '').strip(),
+                'assignment_status': (self.request.GET.get('assignment_status') or '').strip(),
+                'task_state': (self.request.GET.get('task_state') or '').strip(),
+                'category': (self.request.GET.get('category') or '').strip(),
+                'deadline_filter': (self.request.GET.get('deadline_filter') or '').strip(),
+            },
+            'assignment_status_choices': ClientService.ASSIGNMENT_STATUS_CHOICES,
+            'task_state_choices': [
+                ('pending', 'Pending'),
+                ('completed', 'Completed'),
+                ('collected', 'Collected'),
+                ('overdue', 'Overdue'),
+            ],
+            'service_category_choices': ServiceCategory.choices,
+            'deadline_filter_choices': [
+                ('today', 'Due Today'),
+                ('week', 'Due This Week'),
+                ('overdue', 'Overdue'),
+                ('none', 'No Deadline'),
+            ],
+        })
         return context
 
 
@@ -534,7 +813,7 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
 
         # ------------------ BOOKINGS REFACTOR ------------------
         try:
-            services_qs = ClientService.objects.filter(client=client).select_related('service')
+            services_qs = ClientService.objects.filter(client=client).select_related('service', 'assigned_employee')
 
             services_qs = services_qs.prefetch_related(
                 'payments',
@@ -605,11 +884,25 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
         # docs
         try:
             context['doc_types'] = DocType.objects.all()
-            context['client_docs'] = ClientDoc.objects.filter(client=client)
+            client_docs = list(
+                ClientDoc.objects
+                .filter(client=client)
+                .select_related('doc_type', 'uploaded_by')
+                .order_by('-uploaded_at')
+            )
+            latest_handoffs = get_latest_handoffs_for_documents(client_docs)
+            for doc in client_docs:
+                doc.latest_handoff = latest_handoffs.get(doc.id)
+
+            context['client_docs'] = client_docs
+            context['handoff_employees'] = User.objects.filter(
+                employeeprofile__isnull=False
+            ).order_by('first_name', 'last_name', 'username')
         except Exception:
             messages.error(self.request, "Could not load documents.")
             context['doc_types'] = []
             context['client_docs'] = []
+            context['handoff_employees'] = []
 
         # forms
         context.update({
@@ -625,7 +918,6 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
         # ------------------ SURVEYORS & ASSIGNED IDS ------------------
         try:
             # all available surveyors
-            from apps.Employee.models import User
             surveyors = User.objects.filter(
             employeeprofile__role=EmployeeProfile.RoleChoices.SURVEYOR
          )
@@ -932,6 +1224,32 @@ def update_site_settings(request):
 
 
 @require_http_methods(["POST"])
+def update_process_notification_settings(request):
+    """
+    Toggle per-process notification setting.
+    Access restricted to superusers and users with change_process permission.
+    """
+    referer = request.META.get('HTTP_REFERER', '/management/')
+
+    if not request.user.is_authenticated:
+        messages.error(request, "Please login to update notification settings.")
+        return redirect('login')
+
+    if not (request.user.is_superuser or request.user.has_perm('easydocs.change_process')):
+        messages.error(request, "You are not authorized to update process notification settings.")
+        return redirect(referer)
+
+    process_id = request.POST.get('process_id')
+    process = get_object_or_404(Process, id=process_id)
+    process.notification_enabled = request.POST.get('notification_enabled') == 'on'
+    process.save(update_fields=['notification_enabled'])
+
+    state = "enabled" if process.notification_enabled else "disabled"
+    messages.success(request, f"Notifications {state} for process: {process.name}.")
+    return redirect(referer)
+
+
+@require_http_methods(["POST"])
 def update_sms_token(request):
     instance = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)[0]
     form = SmsProviderTokenForm(request.POST, instance=instance)
@@ -945,6 +1263,121 @@ def update_sms_token(request):
     return redirect(request.META.get('HTTP_REFERER', 'management'))
 
 
+
+
+@require_http_methods(["POST"])
+def accept_service_assignment(request, client_service_id):
+    """
+    Employee accepts a service assignment.
+    AJAX endpoint returning JSON.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
+    
+    from apps.EasyDocs.services.assignments import handle_accept_service
+    
+    reason = request.POST.get('reason', '').strip()
+    result = handle_accept_service(client_service_id, request.user, reason=reason)
+    
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=400)
+
+
+@require_http_methods(["POST"])
+def decline_service_assignment(request, client_service_id):
+    """
+    Employee declines a service assignment.
+    AJAX endpoint returning JSON.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
+    
+    from apps.EasyDocs.services.assignments import handle_decline_service
+    
+    reason = request.POST.get('reason', '').strip()
+    result = handle_decline_service(client_service_id, request.user, reason=reason)
+    
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=400)
+
+
+@require_http_methods(["POST"])
+def request_deadline_extension(request, client_service_id):
+    """
+    Employee requests a deadline extension for an assigned service.
+    AJAX endpoint returning JSON.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
+    
+    from apps.EasyDocs.services.reminders import process_deadline_extension
+    
+    try:
+        additional_days = int(request.POST.get('additional_days', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({"success": False, "message": "Invalid additional_days value."}, status=400)
+    
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({"success": False, "message": "Reason is required for deadline extension."}, status=400)
+    
+    result = process_deadline_extension(
+        client_service_id=client_service_id,
+        requesting_user=request.user,
+        additional_days=additional_days,
+        reason=reason
+    )
+    
+    if result['success']:
+        # Serialize datetime for JSON
+        if 'new_deadline' in result and result['new_deadline']:
+            result['new_deadline'] = result['new_deadline'].isoformat()
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=400)
+
+
+@require_http_methods(["POST"])
+def accept_document_handoff(request, handoff_id):
+    """
+    Employee accepts a document handoff.
+    AJAX endpoint returning JSON.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
+    
+    from apps.EasyDocs.services.handoffs import handle_accept_handoff
+    
+    result = handle_accept_handoff(handoff_id, request.user)
+    
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=400)
+
+
+@require_http_methods(["POST"])
+def decline_document_handoff(request, handoff_id):
+    """
+    Employee declines a document handoff.
+    AJAX endpoint returning JSON.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
+    
+    from apps.EasyDocs.services.handoffs import handle_decline_handoff
+    
+    reason = request.POST.get('reason', '').strip()
+    result = handle_decline_handoff(handoff_id, request.user, reason=reason)
+    
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=400)
 
 
 class ManagementView(LoginRequiredMixin, TemplateView):

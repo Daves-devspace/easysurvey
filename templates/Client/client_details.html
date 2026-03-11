@@ -275,13 +275,13 @@
 
                                     <div class="accordion" id="clientServiceAccordion">
                                         {% for cs in all_services %}
-                                            <div class="accordion-item mb-3">
+                                            <div class="accordion-item mb-3" id="service-{{ cs.id }}">
                                                 <h2 class="accordion-header" id="heading{{ forloop.counter }}">
-                                                    <button class="accordion-button bg-green-100 d-flex flex-column align-items-start gap-1 {% if not forloop.first %}collapsed{% endif %}"
+                                                    <button class="accordion-button bg-green-100 d-flex flex-column align-items-start gap-1 {% if current_service %}{% if current_service.id != cs.id %}collapsed{% endif %}{% else %}{% if not forloop.first %}collapsed{% endif %}{% endif %}"
                                                             type="button"
                                                             data-bs-toggle="collapse"
                                                             data-bs-target="#collapse{{ forloop.counter }}"
-                                                            aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                                                            aria-expanded="{% if current_service %}{% if current_service.id == cs.id %}true{% else %}false{% endif %}{% else %}{% if forloop.first %}true{% else %}false{% endif %}{% endif %}"
                                                             aria-controls="collapse{{ forloop.counter }}">
 
                                                                 <span class="d-flex align-items-center w-100">
@@ -300,7 +300,7 @@
 
 
                                                 <div id="collapse{{ forloop.counter }}"
-                                                     class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                                           class="accordion-collapse collapse {% if current_service %}{% if current_service.id == cs.id %}show{% endif %}{% else %}{% if forloop.first %}show{% endif %}{% endif %}"
                                                      aria-labelledby="heading{{ forloop.counter }}"
                                                      data-bs-parent="#clientServiceAccordion">
                                                     <div class="accordion-body">
@@ -310,6 +310,22 @@
                                                                 <small class="text-muted d-block">
                                                                     <strong class="text-orange-800">Requested At:</strong>
                                                                     {{ cs.requested_at|date:"M d, Y H:i" }}
+                                                                </small>
+                                                                <small class="text-muted d-block mt-1">
+                                                                    <strong class="text-orange-800">Assigned Employee:</strong>
+                                                                    {% if cs.assigned_employee %}
+                                                                        {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username }}
+                                                                    {% else %}
+                                                                        <span class="text-danger">Unassigned</span>
+                                                                    {% endif %}
+                                                                </small>
+                                                                <small class="text-muted d-block mt-1">
+                                                                    <strong class="text-orange-800">Assignment:</strong>
+                                                                    {% if cs.assignment_status %}
+                                                                        <span class="badge bg-warning text-dark">{{ cs.get_assignment_status_display }}</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-secondary">Not set</span>
+                                                                    {% endif %}
                                                                 </small>
                                                             </div>
                                                             <div class="col-12 col-md-6 text-md-end">
@@ -360,14 +376,18 @@
 
                                                                                 data-land-description="{{ cs.land_description|default_if_none:'' }}"
                                                                                 data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
+                                                                                data-assigned-employee-id="{{ cs.assigned_employee_id|default:'' }}"
+                                                                                data-expected-duration-days="{{ cs.expected_duration_days|default:cs.service.expected_duration_days|default:'' }}"
 
                                                                                 data-scheduled-date="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.scheduled_date|date:'Y-m-d\\TH:i' }}{% endif %}"
                                                                                 data-dispatch-preview="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.dispatch_message|default:'' }}{% endif %}"
 
                                                                                 data-ps-ids="{% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                                 data-ps-costs="{% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                                data-ps-onboarding-ids="{% for p in cs.service_processes.all %}{% if p.completed_at_onboarding %}{{ p.process.id }} {% endif %}{% endfor %}"
                                                                             >
-                                                                                <i class="ti ti-pencil"></i> Edit
+                                                                                <i class="ti ti-user-check"></i>
+                                                                                {% if cs.assigned_employee %}Reassign{% else %}Assign{% endif %}
                                                                             </button>
 
                                                                     {% endif %}
@@ -997,10 +1017,9 @@
                                                     <th>Type</th>
                                                     <th>Storage</th>
                                                     <th>Uploaded on</th>
+                                                    <th>Holder</th>
+                                                    <th>Handoff</th>
                                                     <th class="text-end">Actions</th>
-                                                    {% if perms.easydocs.delete_clientdoc %}
-                                                        <th class="text-end">Delete</th>
-                                                    {% endif %}
 
                                                 </tr>
                                                 </thead>
@@ -1015,53 +1034,119 @@
                                                         <td><span
                                                                 class="badge bg-success">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
                                                         </td>
-                                                        <td class="text-end">
-                                                            <!-- View -->
-                                                            {% if doc.file_url %}
-                                                                <a href="{{ doc.file_url }}" target="_blank">View</a>
-                                                                {% else %}
-                                                                <span class="text-muted">No file</span>
-                                                                {% endif %}
-
-                                                                {# WhatsApp link: only render if file_url exists and URL-encode it #}
-                                                                {% if doc.file_url %}
-                                                                <a href="https://wa.me/{{ client.phone }}?text=Hello {{ client.first_name }}, here is your document: {{ doc.file_url|urlencode }}"
-                                                                    target="_blank"
-                                                                    class="btn btn-sm btn-outline-success"
-                                                                    title="WhatsApp">
-                                                                    <i class="ti ti-brand-whatsapp"></i>
-                                                                </a>
-                                                                {% endif %}
-
-                                                            <!-- Email -->
-                                                            {% if client.email %}
-                                                                <form method="post"
-                                                                      action="{% url 'send_doc_email_to_client' client.id doc.id %}"
-                                                                      style="display:inline;">
-                                                                    {% csrf_token %}
-                                                                    <button class="btn btn-sm btn-outline-danger"
-                                                                            title="Send Email"
-                                                                            type="submit">
-                                                                        <i class="ti ti-mail-forward"></i>
-                                                                    </button>
-                                                                </form>
+                                                        <td>
+                                                            {% if doc.latest_handoff %}
+                                                                {{ doc.latest_handoff.assigned_to.get_full_name|default:doc.latest_handoff.assigned_to.username }}
                                                             {% else %}
-                                                                <span class="text-muted">No email</span>
+                                                                <span class="text-muted">Unassigned</span>
                                                             {% endif %}
                                                         </td>
-                                                        {% if perms.easydocs.delete_clientdoc %}
-                                                            <td class="text-end">
-                                                                <form action="{% url 'delete_document' client.id doc.id %}"
-                                                                      method="post" style="display:inline;">
-                                                                    {% csrf_token %}
-                                                                    <button class="btn btn-sm btn-outline-danger"
-                                                                            type="submit"
-                                                                            onclick="return confirm('Are you sure you want to delete this document?')">
-                                                                        Delete
-                                                                    </button>
-                                                                </form>
-                                                            </td>
-                                                        {% endif %}
+                                                        <td>
+                                                            {% if doc.latest_handoff %}
+                                                                {% if doc.latest_handoff.status == 'accepted' %}
+                                                                    <span class="badge bg-success">Accepted</span>
+                                                                {% elif doc.latest_handoff.status == 'pending' %}
+                                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                                {% elif doc.latest_handoff.status == 'declined' %}
+                                                                    <span class="badge bg-danger">Declined</span>
+                                                                {% else %}
+                                                                    <span class="badge bg-info text-dark">Reassigned</span>
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">Unassigned</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="text-end">
+                                                            <div class="dropdown">
+                                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                                    Actions
+                                                                </button>
+                                                                <ul class="dropdown-menu dropdown-menu-end shadow">
+                                                                    <li>
+                                                                        {% if doc.file_url %}
+                                                                            <a href="{{ doc.file_url }}" target="_blank" class="dropdown-item">
+                                                                                <i class="ti ti-eye me-1"></i>View
+                                                                            </a>
+                                                                        {% else %}
+                                                                            <span class="dropdown-item-text text-muted">No file available</span>
+                                                                        {% endif %}
+                                                                    </li>
+
+                                                                    {% if doc.file_url %}
+                                                                        <li>
+                                                                            <a href="https://wa.me/{{ client.phone }}?text=Hello {{ client.first_name }}, here is your document: {{ doc.file_url|urlencode }}"
+                                                                               target="_blank"
+                                                                               class="dropdown-item">
+                                                                                <i class="ti ti-brand-whatsapp me-1"></i>WhatsApp
+                                                                            </a>
+                                                                        </li>
+                                                                    {% endif %}
+
+                                                                    {% if client.email %}
+                                                                        <li>
+                                                                            <form method="post" action="{% url 'send_doc_email_to_client' client.id doc.id %}">
+                                                                                {% csrf_token %}
+                                                                                <button class="dropdown-item" type="submit">
+                                                                                    <i class="ti ti-mail-forward me-1"></i>Email Client
+                                                                                </button>
+                                                                            </form>
+                                                                        </li>
+                                                                    {% endif %}
+
+                                                                    <li>
+                                                                        <button
+                                                                            type="button"
+                                                                            class="dropdown-item open-client-doc-handoff-btn"
+                                                                            data-bs-toggle="modal"
+                                                                            data-bs-target="#clientDocHandoffModal"
+                                                                            data-doc-kind="client"
+                                                                            data-document-id="{{ doc.id }}"
+                                                                            data-document-name="{{ doc.doc_name|escape }}"
+                                                                            data-assigned-to="{% if doc.latest_handoff %}{{ doc.latest_handoff.assigned_to_id }}{% endif %}"
+                                                                        >
+                                                                            <i class="ti ti-user-share me-1"></i>{% if doc.latest_handoff %}Reassign{% else %}Assign{% endif %}
+                                                                        </button>
+                                                                    </li>
+
+                                                                    {% if doc.latest_handoff and doc.latest_handoff.status == 'pending' and doc.latest_handoff.assigned_to_id == request.user.id %}
+                                                                        <li>
+                                                                            <button
+                                                                                type="button"
+                                                                                class="dropdown-item accept-document-handoff-btn"
+                                                                                data-accept-url="{% url 'accept_document_handoff' doc.latest_handoff.id %}"
+                                                                                data-document-name="{{ doc.doc_name|escape }}"
+                                                                            >
+                                                                                <i class="ti ti-circle-check me-1"></i>Accept Handoff
+                                                                            </button>
+                                                                        </li>
+                                                                        <li>
+                                                                            <button
+                                                                                type="button"
+                                                                                class="dropdown-item text-danger open-client-decline-document-handoff-modal-btn"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#clientDeclineDocumentHandoffModal"
+                                                                                data-decline-url="{% url 'decline_document_handoff' doc.latest_handoff.id %}"
+                                                                                data-document-name="{{ doc.doc_name|escape }}"
+                                                                            >
+                                                                                <i class="ti ti-circle-x me-1"></i>Decline Handoff
+                                                                            </button>
+                                                                        </li>
+                                                                    {% endif %}
+
+                                                                    {% if perms.easydocs.delete_clientdoc %}
+                                                                        <li><hr class="dropdown-divider"></li>
+                                                                        <li>
+                                                                            <form action="{% url 'delete_document' client.id doc.id %}" method="post">
+                                                                                {% csrf_token %}
+                                                                                <button class="dropdown-item text-danger" type="submit" onclick="return confirm('Are you sure you want to delete this document?')">
+                                                                                    <i class="ti ti-trash me-1"></i>Delete
+                                                                                </button>
+                                                                            </form>
+                                                                        </li>
+                                                                    {% endif %}
+                                                                </ul>
+                                                            </div>
+                                                        </td>
                                                     </tr>
 
                                                 {% endfor %}
@@ -1073,6 +1158,169 @@
 
 
                                 </div>
+
+                                <div class="modal fade" id="clientDocHandoffModal" tabindex="-1" aria-labelledby="clientDocHandoffModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="post" action="{% url 'assign_document_handoff' %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="doc_kind" id="clientDocHandoffKind" value="client">
+                                                <input type="hidden" name="document_id" id="clientDocHandoffDocumentId">
+
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="clientDocHandoffModalLabel">Assign Client Document Handoff</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+
+                                                <div class="modal-body">
+                                                    <p class="mb-2">Document: <strong id="clientDocHandoffDocumentName">-</strong></p>
+
+                                                    <div class="mb-3">
+                                                        <label for="clientDocHandoffAssignedTo" class="form-label">Assign To</label>
+                                                        <select class="form-select" id="clientDocHandoffAssignedTo" name="assigned_to" required>
+                                                            <option value="">Select employee</option>
+                                                            {% for employee in handoff_employees %}
+                                                                <option value="{{ employee.id }}">
+                                                                    {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mb-0">
+                                                        <label for="clientDocHandoffNotes" class="form-label">Notes (optional)</label>
+                                                        <textarea class="form-control" id="clientDocHandoffNotes" name="notes" rows="3" placeholder="Add assignment context..."></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Save Handoff</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal fade" id="clientDeclineDocumentHandoffModal" tabindex="-1" aria-labelledby="clientDeclineDocumentHandoffModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title" id="clientDeclineDocumentHandoffModalLabel">Decline Document Handoff</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" id="clientDeclineDocumentHandoffUrl" value="">
+                                                <p class="mb-2">Document: <strong id="clientDeclineDocumentHandoffName">-</strong></p>
+                                                <label for="clientDeclineDocumentHandoffReason" class="form-label">Reason (optional)</label>
+                                                <textarea class="form-control" id="clientDeclineDocumentHandoffReason" rows="3" placeholder="Provide a reason..."></textarea>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="button" class="btn btn-danger" id="confirmClientDeclineDocumentHandoffBtn">Confirm Decline</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function () {
+                                        const declineModalEl = document.getElementById('clientDeclineDocumentHandoffModal');
+                                        const declineUrlInput = document.getElementById('clientDeclineDocumentHandoffUrl');
+                                        const declineNameLabel = document.getElementById('clientDeclineDocumentHandoffName');
+                                        const declineReasonInput = document.getElementById('clientDeclineDocumentHandoffReason');
+                                        const confirmDeclineBtn = document.getElementById('confirmClientDeclineDocumentHandoffBtn');
+
+                                        function getCookie(name) {
+                                            let cookieValue = null;
+                                            if (document.cookie && document.cookie !== '') {
+                                                const cookies = document.cookie.split(';');
+                                                for (let i = 0; i < cookies.length; i++) {
+                                                    const cookie = cookies[i].trim();
+                                                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            return cookieValue;
+                                        }
+
+                                        async function submitHandoffAction(url, body, fallbackError) {
+                                            try {
+                                                const response = await fetch(url, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'X-CSRFToken': getCookie('csrftoken'),
+                                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                                    },
+                                                    body,
+                                                });
+
+                                                const data = await response.json();
+                                                if (!response.ok || !data.success) {
+                                                    alert('Error: ' + (data.message || fallbackError));
+                                                    return;
+                                                }
+
+                                                alert(data.message || 'Action completed successfully.');
+                                                window.location.reload();
+                                            } catch (error) {
+                                                console.error(error);
+                                                alert(fallbackError);
+                                            }
+                                        }
+
+                                        document.querySelectorAll('.open-client-doc-handoff-btn').forEach(function (btn) {
+                                            btn.addEventListener('click', function () {
+                                                const docKindInput = document.getElementById('clientDocHandoffKind');
+                                                const docIdInput = document.getElementById('clientDocHandoffDocumentId');
+                                                const docNameLabel = document.getElementById('clientDocHandoffDocumentName');
+                                                const assignedSelect = document.getElementById('clientDocHandoffAssignedTo');
+                                                const notesInput = document.getElementById('clientDocHandoffNotes');
+
+                                                if (docKindInput) docKindInput.value = this.dataset.docKind || 'client';
+                                                if (docIdInput) docIdInput.value = this.dataset.documentId || '';
+                                                if (docNameLabel) docNameLabel.textContent = this.dataset.documentName || '-';
+                                                if (assignedSelect) assignedSelect.value = this.dataset.assignedTo || '';
+                                                if (notesInput) notesInput.value = '';
+                                            });
+                                        });
+
+                                        document.querySelectorAll('.accept-document-handoff-btn').forEach(function (btn) {
+                                            btn.addEventListener('click', function () {
+                                                const url = this.getAttribute('data-accept-url');
+                                                const name = this.getAttribute('data-document-name') || 'this document';
+                                                if (!url) return;
+                                                if (!window.confirm('Accept handoff for ' + name + '?')) return;
+                                                submitHandoffAction(url, '', 'Failed to accept handoff.');
+                                            });
+                                        });
+
+                                        document.querySelectorAll('.open-client-decline-document-handoff-modal-btn').forEach(function (btn) {
+                                            btn.addEventListener('click', function () {
+                                                const url = this.getAttribute('data-decline-url');
+                                                const name = this.getAttribute('data-document-name') || 'this document';
+                                                if (!url) return;
+
+                                                if (declineUrlInput) declineUrlInput.value = url;
+                                                if (declineNameLabel) declineNameLabel.textContent = name;
+                                                if (declineReasonInput) declineReasonInput.value = '';
+                                            });
+                                        });
+
+                                        confirmDeclineBtn?.addEventListener('click', function () {
+                                            const url = declineUrlInput?.value || '';
+                                            if (!url) return;
+
+                                            const reason = (declineReasonInput?.value || '').trim();
+                                            submitHandoffAction(url, 'reason=' + encodeURIComponent(reason), 'Failed to decline handoff.');
+
+                                            const modal = bootstrap.Modal.getInstance(declineModalEl);
+                                            modal?.hide();
+                                        });
+                                    });
+                                </script>
                             </div>
 
 
@@ -1308,6 +1556,7 @@
                                                                                     <th>Method</th>
                                                                                     <th>Txnid</th>
                                                                                     <th>Service Balance</th>
+                                                                                    {% if request.user.is_staff %}<th>Actions</th>{% endif %}
                                                                                 </tr>
                                                                                 </thead>
                                                                                 <tbody>
@@ -1320,7 +1569,34 @@
                                                                                         <td>{{ pb.reference }}</td>
                                                                                         <td>
                                                                                             KES {{ pb.remaining_balance|floatformat:2 }}</td>
+                                                                                        {% if request.user.is_staff %}
+                                                                                        <td>
+                                                                                            {% if pb.can_adjust %}
+                                                                                            <button type="button"
+                                                                                                    class="btn btn-sm btn-outline-danger adj-payment-btn"
+                                                                                                    data-payment-id="{{ pb.payment_id }}"
+                                                                                                    data-payment-amount="{{ pb.remaining_adjustable }}"
+                                                                                                    data-payment-date="{{ pb.date }}"
+                                                                                                    data-bs-toggle="modal"
+                                                                                                    data-bs-target="#paymentAdjustModal">
+                                                                                                <i class="ti ti-adjustments me-1"></i>Adjust
+                                                                                            </button>
+                                                                                            {% else %}
+                                                                                            <span class="badge bg-secondary-subtle text-secondary border">Adjusted</span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                        {% endif %}
                                                                                     </tr>
+                                                                                    {% if pb.adjustments %}
+                                                                                    {% for adj in pb.adjustments %}
+                                                                                    <tr class="table-warning">
+                                                                                        <td>{{ adj.date }}</td>
+                                                                                        <td class="text-danger fw-semibold">- KES {{ adj.amount|floatformat:2 }}</td>
+                                                                                        <td colspan="2"><span class="badge bg-warning text-dark">{{ adj.type_label }}</span> &mdash; {{ adj.reason|truncatechars:60 }}</td>
+                                                                                        <td colspan="{% if request.user.is_staff %}2{% else %}1{% endif %}"><small class="text-muted">Balance: KES {{ adj.remaining_balance|floatformat:2 }} &middot; by {{ adj.by }}</small></td>
+                                                                                    </tr>
+                                                                                    {% endfor %}
+                                                                                    {% endif %}
                                                                                 {% endfor %}
                                                                                 </tbody>
                                                                             </table>
@@ -1337,6 +1613,7 @@
                                                                                     <th>Amount</th>
                                                                                     <th>Service Balance</th>
                                                                                     <th>Status</th>
+                                                                                    {% if request.user.is_staff %}<th>Actions</th>{% endif %}
                                                                                 </tr>
                                                                                 </thead>
                                                                                 <tbody>
@@ -1356,11 +1633,58 @@
                                             </span>
                                                                                             {% endif %}
                                                                                         </td>
+                                                                                        {% if request.user.is_staff %}
+                                                                                        <td>
+                                                                                            {% if alloc.type == 'sub' and alloc.can_adjust %}
+                                                                                            <button type="button"
+                                                                                                    class="btn btn-sm btn-outline-danger adj-subservice-btn"
+                                                                                                    data-subservice-id="{{ alloc.entity_id }}"
+                                                                                                    data-subservice-name="{{ alloc.name }}"
+                                                                                                    data-subservice-paid="{{ alloc.amount }}"
+                                                                                                    data-bs-toggle="modal"
+                                                                                                    data-bs-target="#subserviceAdjustModal">
+                                                                                                <i class="ti ti-adjustments me-1"></i>Adjust
+                                                                                            </button>
+                                                                                            {% else %}
+                                                                                            <span class="text-muted">&mdash;</span>
+                                                                                            {% endif %}
+                                                                                        </td>
+                                                                                        {% endif %}
                                                                                     </tr>
                                                                                 {% endfor %}
                                                                                 </tbody>
                                                                             </table>
                                                                         </div>
+
+                                                                        {% if payment.subservice_adjustments %}
+                                                                        <h6 class="mb-2 mt-4">↺ Sub-Service Adjustments</h6>
+                                                                        <div class="table-responsive">
+                                                                            <table class="table table-sm table-bordered mb-0">
+                                                                                <thead class="table-light">
+                                                                                <tr>
+                                                                                    <th>Date</th>
+                                                                                    <th>Sub-Service</th>
+                                                                                    <th>Type</th>
+                                                                                    <th>Amount</th>
+                                                                                    <th>Reason</th>
+                                                                                    <th>By</th>
+                                                                                </tr>
+                                                                                </thead>
+                                                                                <tbody>
+                                                                                {% for sadj in payment.subservice_adjustments %}
+                                                                                    <tr class="table-warning">
+                                                                                        <td>{{ sadj.date }}</td>
+                                                                                        <td>{{ sadj.sub_service_name }}</td>
+                                                                                        <td><span class="badge bg-warning text-dark">{{ sadj.type_label }}</span></td>
+                                                                                        <td class="text-danger fw-semibold">- KES {{ sadj.amount|floatformat:2 }}</td>
+                                                                                        <td>{{ sadj.reason|truncatechars:60 }}</td>
+                                                                                        <td><small class="text-muted">{{ sadj.by }}</small></td>
+                                                                                    </tr>
+                                                                                {% endfor %}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                        {% endif %}
 
                                                                         <!-- Receipt Button -->
                                                                         <div class="d-flex justify-content-end mt-3">
@@ -1592,6 +1916,14 @@
                                 {{ client_service_form.service.label_tag }}
                                 {{ client_service_form.service }}
                             </div>
+                            <div class="col-md-6">
+                                {{ client_service_form.assigned_employee.label_tag }}
+                                {{ client_service_form.assigned_employee }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ client_service_form.expected_duration_days.label_tag }}
+                                {{ client_service_form.expected_duration_days }}
+                            </div>
                         </div>
 
                         <!-- Process override table -->
@@ -1602,6 +1934,7 @@
                                 <tr>
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
+                                    <th>Completed at Onboarding</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>
@@ -1714,6 +2047,21 @@
                                     <option value="">Select Service</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label for="editAssignedEmployee" class="form-label">Assign Employee</label>
+                                <select class="form-select" name="assigned_employee" id="editAssignedEmployee">
+                                    <option value="">Select employee</option>
+                                    {% for employee in client_service_form.fields.assigned_employee.queryset %}
+                                        <option value="{{ employee.id }}">
+                                            {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editExpectedDurationDays" class="form-label">Expected Duration (days)</label>
+                                <input type="number" min="1" class="form-control" name="expected_duration_days" id="editExpectedDurationDays">
+                            </div>
                         </div>
 
                         <!-- Process override table -->
@@ -1724,6 +2072,7 @@
                                 <tr>
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
+                                    <th>Completed at Onboarding</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>
@@ -2133,6 +2482,7 @@
 
 
 
+
 {% endblock %}
 {#<!-- page‑specific JS -->#}
 {#    <script src="{% static 'assets/js/client_details_services.js' %}" defer></script>#}
@@ -2142,4 +2492,275 @@
     {# If you have page‑specific scripts beyond the two in base, include them here #}
     <script src="{% static 'assets/js/modals/bookingModal.js' %}" defer></script>
     <script src="{% static 'assets/js/modals/editClientModal.js' %}" defer></script>
+
+    {% if request.user.is_staff %}
+    <!-- Payment Adjustment Modal -->
+    <div class="modal fade" id="paymentAdjustModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="ti ti-adjustments me-2"></i>Reverse / Adjust Payment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="ti ti-info-circle me-1"></i>
+                        The original payment is <strong>preserved</strong>. This creates an auditable compensating entry in the cashbook.
+                    </div>
+                    <input type="hidden" id="adjPaymentId">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Adjustment Type</label>
+                        <select id="adjType" class="form-select">
+                            <option value="reversal">Full Reversal</option>
+                            <option value="partial">Partial Adjustment</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="adjAmountGroup">
+                        <label for="adjAmount" class="form-label fw-semibold">Amount (KES) <span class="text-danger">*</span></label>
+                        <input type="number" id="adjAmount" class="form-control" step="0.01" min="0.01" placeholder="Enter partial amount to claw back">
+                        <div class="form-text" id="adjAmountHint"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="adjReason" class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+                        <textarea id="adjReason" class="form-control" rows="3" placeholder="Describe why this payment is being reversed/adjusted…"></textarea>
+                    </div>
+                    <div id="adjAlert" class="alert d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmAdjustBtn">
+                        <i class="ti ti-check me-1"></i>Confirm Adjustment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="subserviceAdjustModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="ti ti-adjustments me-2"></i>Adjust Sub-Service Payment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="ti ti-info-circle me-1"></i>
+                        This creates an auditable sub-service adjustment entry and a compensating cashbook outflow.
+                    </div>
+                    <input type="hidden" id="subAdjSubServiceId">
+                    <div class="mb-2 fw-semibold" id="subAdjTargetLabel"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Adjustment Type</label>
+                        <select id="subAdjType" class="form-select">
+                            <option value="reversal">Full Reversal</option>
+                            <option value="partial">Partial Adjustment</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="subAdjAmountGroup">
+                        <label for="subAdjAmount" class="form-label fw-semibold">Amount (KES) <span class="text-danger">*</span></label>
+                        <input type="number" id="subAdjAmount" class="form-control" step="0.01" min="0.01" placeholder="Enter partial amount to claw back">
+                        <div class="form-text" id="subAdjAmountHint"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subAdjReason" class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+                        <textarea id="subAdjReason" class="form-control" rows="3" placeholder="Describe why this sub-service payment is being corrected…"></textarea>
+                    </div>
+                    <div id="subAdjAlert" class="alert d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmSubAdjustBtn">
+                        <i class="ti ti-check me-1"></i>Confirm Adjustment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const adjModal = document.getElementById('paymentAdjustModal');
+        const adjPaymentId = document.getElementById('adjPaymentId');
+        const adjType = document.getElementById('adjType');
+        const adjAmountGroup = document.getElementById('adjAmountGroup');
+        const adjAmount = document.getElementById('adjAmount');
+        const adjAmountHint = document.getElementById('adjAmountHint');
+        const adjReason = document.getElementById('adjReason');
+        const adjAlert = document.getElementById('adjAlert');
+        const confirmBtn = document.getElementById('confirmAdjustBtn');
+
+        const subAdjModal = document.getElementById('subserviceAdjustModal');
+        const subAdjSubServiceId = document.getElementById('subAdjSubServiceId');
+        const subAdjTargetLabel = document.getElementById('subAdjTargetLabel');
+        const subAdjType = document.getElementById('subAdjType');
+        const subAdjAmountGroup = document.getElementById('subAdjAmountGroup');
+        const subAdjAmount = document.getElementById('subAdjAmount');
+        const subAdjAmountHint = document.getElementById('subAdjAmountHint');
+        const subAdjReason = document.getElementById('subAdjReason');
+        const subAdjAlert = document.getElementById('subAdjAlert');
+        const confirmSubAdjustBtn = document.getElementById('confirmSubAdjustBtn');
+
+        document.querySelectorAll('.adj-payment-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                adjPaymentId.value = btn.dataset.paymentId;
+                adjAmount.max = btn.dataset.paymentAmount;
+                adjAmountHint.textContent = 'Remaining adjustable amount: KES ' + parseFloat(btn.dataset.paymentAmount).toFixed(2)
+                    + ' (payment on ' + btn.dataset.paymentDate + ')';
+                adjType.value = 'reversal';
+                adjAmountGroup.classList.add('d-none');
+                adjAmount.value = '';
+                adjReason.value = '';
+                adjAlert.classList.add('d-none');
+                adjAlert.textContent = '';
+                confirmBtn.disabled = false;
+            });
+        });
+
+        adjType.addEventListener('change', function () {
+            if (adjType.value === 'partial') {
+                adjAmountGroup.classList.remove('d-none');
+            } else {
+                adjAmountGroup.classList.add('d-none');
+            }
+        });
+
+        document.querySelectorAll('.adj-subservice-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                subAdjSubServiceId.value = btn.dataset.subserviceId;
+                subAdjTargetLabel.textContent = 'Sub-service: ' + btn.dataset.subserviceName;
+                subAdjAmount.max = btn.dataset.subservicePaid;
+                subAdjAmountHint.textContent = 'Currently paid amount: KES ' + parseFloat(btn.dataset.subservicePaid).toFixed(2);
+                subAdjType.value = 'reversal';
+                subAdjAmountGroup.classList.add('d-none');
+                subAdjAmount.value = '';
+                subAdjReason.value = '';
+                subAdjAlert.classList.add('d-none');
+                subAdjAlert.textContent = '';
+                confirmSubAdjustBtn.disabled = false;
+            });
+        });
+
+        subAdjType.addEventListener('change', function () {
+            if (subAdjType.value === 'partial') {
+                subAdjAmountGroup.classList.remove('d-none');
+            } else {
+                subAdjAmountGroup.classList.add('d-none');
+            }
+        });
+
+        confirmBtn.addEventListener('click', async function () {
+            const pid = adjPaymentId.value;
+            const reason = adjReason.value.trim();
+            const type = adjType.value;
+            if (!reason) {
+                showAlert('danger', 'Please enter a reason for this adjustment.');
+                return;
+            }
+            if (type === 'partial' && (!adjAmount.value || parseFloat(adjAmount.value) <= 0)) {
+                showAlert('danger', 'Please enter a valid partial amount.');
+                return;
+            }
+
+            const body = new URLSearchParams({
+                adjustment_type: type,
+                reason: reason,
+                amount: type === 'partial' ? adjAmount.value : '',
+            });
+
+            confirmBtn.disabled = true;
+            try {
+                const r = await fetch('/payments/' + pid + '/adjust/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: body.toString(),
+                });
+                const d = await r.json();
+                if (d.success) {
+                    showAlert('success', d.message);
+                    setTimeout(function () {
+                        var m = bootstrap.Modal.getInstance(adjModal);
+                        if (m) m.hide();
+                        window.location.reload();
+                    }, 1400);
+                } else {
+                    showAlert('danger', d.message || 'An error occurred.');
+                    confirmBtn.disabled = false;
+                }
+            } catch (e) {
+                showAlert('danger', 'Network error. Please try again.');
+                confirmBtn.disabled = false;
+            }
+        });
+
+        confirmSubAdjustBtn.addEventListener('click', async function () {
+            const sid = subAdjSubServiceId.value;
+            const reason = subAdjReason.value.trim();
+            const type = subAdjType.value;
+
+            if (!reason) {
+                showSubAlert('danger', 'Please enter a reason for this adjustment.');
+                return;
+            }
+            if (type === 'partial' && (!subAdjAmount.value || parseFloat(subAdjAmount.value) <= 0)) {
+                showSubAlert('danger', 'Please enter a valid partial amount.');
+                return;
+            }
+
+            const body = new URLSearchParams({
+                adjustment_type: type,
+                reason: reason,
+                amount: type === 'partial' ? subAdjAmount.value : '',
+            });
+
+            confirmSubAdjustBtn.disabled = true;
+            try {
+                const r = await fetch('/subservices/' + sid + '/adjust/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: body.toString(),
+                });
+                const d = await r.json();
+                if (d.success) {
+                    showSubAlert('success', d.message);
+                    setTimeout(function () {
+                        var m = bootstrap.Modal.getInstance(subAdjModal);
+                        if (m) m.hide();
+                        window.location.reload();
+                    }, 1400);
+                } else {
+                    showSubAlert('danger', d.message || 'An error occurred.');
+                    confirmSubAdjustBtn.disabled = false;
+                }
+            } catch (e) {
+                showSubAlert('danger', 'Network error. Please try again.');
+                confirmSubAdjustBtn.disabled = false;
+            }
+        });
+
+        function showAlert(cls, msg) {
+            adjAlert.className = 'alert alert-' + cls;
+            adjAlert.textContent = msg;
+        }
+
+        function showSubAlert(cls, msg) {
+            subAdjAlert.className = 'alert alert-' + cls;
+            subAdjAlert.textContent = msg;
+        }
+
+        function getCsrfToken() {
+            var c = document.cookie.split(';').find(function (c) {
+                return c.trim().startsWith('csrftoken=');
+            });
+            return c ? decodeURIComponent(c.split('=')[1]) : '';
+        }
+    });
+    </script>
+    {% endif %}
 {% endblock %}

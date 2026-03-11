@@ -8,16 +8,18 @@ import mimetypes
 
 logger = logging.getLogger(__name__)
 
+
 def upload_document_with_strategy(document_instance, uploaded_file):
     """
     Uploads a document using UnifiedStorage.
     - Places client docs in: clients/client_<id>/<doc_type>/<timestamp>_<filename>
     - Office docs in: office/<doc_type>/<timestamp>_<filename>
-    - No year/month subfolders (date baked into filename instead).
     """
 
     try:
         from apps.EasyDocs.files.storage_backends import UnifiedStorage
+        from django.core.files.storage import default_storage
+        
         storage = UnifiedStorage()
 
         # Use uploaded_at if already set, otherwise use now
@@ -25,10 +27,14 @@ def upload_document_with_strategy(document_instance, uploaded_file):
         timestamp = now.strftime("%Y%m%d_%H%M%S")
 
         # Decide base path: office vs client
+        # if document_instance.__class__.__name__ == "Document":
+        #     base_path = f"office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}"
+        # else:
+        #     base_path = f"clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}"
         if document_instance.__class__.__name__ == "Document":
-            base_path = f"office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}"
+            base_path = f"documents/office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}"
         else:
-            base_path = f"clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}"
+            base_path = f"documents/clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}"
 
         # Build clean filename (timestamp included, no nested folders)
         filename = f"{timestamp}_{uploaded_file.name}"
@@ -41,29 +47,39 @@ def upload_document_with_strategy(document_instance, uploaded_file):
         # Perform the actual save
         saved_path, backend, drive_file_id = storage.save_with_backend(relative_path, uploaded_file)
 
+        # ✅ CRITICAL FIX: Check if save actually succeeded
+        if backend == "failed":
+            logger.error("❌ Both local and Drive save failed for %s", relative_path)
+            document_instance.status = "failed"
+            document_instance.failure_reason = "Storage backend failure - file not saved"
+            document_instance.save()
+            return False
+
         # Handle results depending on backend
         if backend == "local":
-            logger.debug("Saving file locally at %s", saved_path)
-            document_instance.doc_file.save(saved_path, uploaded_file, save=False)
+            logger.debug("✅ File saved locally at %s", saved_path)
+            # ✅ FIX: File is already saved by default_storage in save_with_backend
+            # Just set the name, don't re-save
+            document_instance.doc_file.name = saved_path
             document_instance.drive_file_id = None
             document_instance.drive_url = None
 
         elif backend == "drive":
-            logger.debug("Saving file on Google Drive, id=%s", drive_file_id)
+            logger.debug("✅ File saved on Google Drive, id=%s", drive_file_id)
             document_instance.doc_file.name = saved_path
             document_instance.drive_file_id = drive_file_id
             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
 
         elif backend == "hybrid":
-            logger.debug("Hybrid save: local+drive, id=%s", drive_file_id)
-            document_instance.doc_file.save(saved_path, uploaded_file, save=False)
+            logger.debug("✅ Hybrid save: local+drive, id=%s", drive_file_id)
+            document_instance.doc_file.name = saved_path
             document_instance.drive_file_id = drive_file_id
             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
 
         else:
-            logger.error("Unknown backend %s while uploading %s", backend, relative_path)
+            logger.error("❌ Unknown backend %s while uploading %s", backend, relative_path)
             document_instance.status = "failed"
-            document_instance.failure_reason = "Storage backend failure"
+            document_instance.failure_reason = f"Unknown storage backend: {backend}"
             document_instance.save()
             return False
 
@@ -73,16 +89,94 @@ def upload_document_with_strategy(document_instance, uploaded_file):
         document_instance.failure_reason = None
         document_instance.save()
 
-        logger.info("Document upload complete: backend=%s path=%s drive_id=%s", 
+        logger.info("✅ Document upload complete: backend=%s path=%s drive_id=%s", 
                     backend, saved_path, drive_file_id)
         return True
 
     except Exception as e:
-        logger.exception("Document upload failed: %s", e)
+        logger.exception("❌ Document upload failed: %s", e)
         document_instance.status = "failed"
         document_instance.failure_reason = str(e)
         document_instance.save()
         return False
+
+
+
+# def upload_document_with_strategy(document_instance, uploaded_file):
+#     """
+#     Uploads a document using UnifiedStorage.
+#     - Places client docs in: clients/client_<id>/<doc_type>/<timestamp>_<filename>
+#     - Office docs in: office/<doc_type>/<timestamp>_<filename>
+#     - No year/month subfolders (date baked into filename instead).
+#     """
+
+#     try:
+#         from apps.EasyDocs.files.storage_backends import UnifiedStorage
+#         storage = UnifiedStorage()
+
+#         # Use uploaded_at if already set, otherwise use now
+#         now = document_instance.uploaded_at or timezone.now()
+#         timestamp = now.strftime("%Y%m%d_%H%M%S")
+
+#         # Decide base path: office vs client
+#         if document_instance.__class__.__name__ == "Document":
+#             base_path = f"office/{(document_instance.doc_type.name or 'general').lower().replace(' ', '_')}"
+#         else:
+#             base_path = f"clients/client_{document_instance.client.id}/{document_instance.doc_type.name.lower().replace(' ', '_')}"
+
+#         # Build clean filename (timestamp included, no nested folders)
+#         filename = f"{timestamp}_{uploaded_file.name}"
+#         relative_path = f"{base_path}/{filename}"
+
+#         logger.info("Uploading document for %s: path=%s", 
+#                     getattr(document_instance, 'client', 'office'), 
+#                     relative_path)
+
+#         # Perform the actual save
+#         saved_path, backend, drive_file_id = storage.save_with_backend(relative_path, uploaded_file)
+
+#         # Handle results depending on backend
+#         if backend == "local":
+#             logger.debug("Saving file locally at %s", saved_path)
+#             document_instance.doc_file.save(saved_path, uploaded_file, save=False)
+#             document_instance.drive_file_id = None
+#             document_instance.drive_url = None
+
+#         elif backend == "drive":
+#             logger.debug("Saving file on Google Drive, id=%s", drive_file_id)
+#             document_instance.doc_file.name = saved_path
+#             document_instance.drive_file_id = drive_file_id
+#             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
+
+#         elif backend == "hybrid":
+#             logger.debug("Hybrid save: local+drive, id=%s", drive_file_id)
+#             document_instance.doc_file.save(saved_path, uploaded_file, save=False)
+#             document_instance.drive_file_id = drive_file_id
+#             document_instance.drive_url = storage.url(drive_file_id, backend="drive")
+
+#         else:
+#             logger.error("Unknown backend %s while uploading %s", backend, relative_path)
+#             document_instance.status = "failed"
+#             document_instance.failure_reason = "Storage backend failure"
+#             document_instance.save()
+#             return False
+
+#         # Update final metadata
+#         document_instance.storage_backend = backend
+#         document_instance.status = "uploaded"
+#         document_instance.failure_reason = None
+#         document_instance.save()
+
+#         logger.info("Document upload complete: backend=%s path=%s drive_id=%s", 
+#                     backend, saved_path, drive_file_id)
+#         return True
+
+#     except Exception as e:
+#         logger.exception("Document upload failed: %s", e)
+#         document_instance.status = "failed"
+#         document_instance.failure_reason = str(e)
+#         document_instance.save()
+#         return False
 
 
 

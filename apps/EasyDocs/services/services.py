@@ -104,7 +104,7 @@ def update_client_service_overrides(cs, data) -> None:
             cs.overridden_total_price = None
 
 
-def apply_client_service_logic(cs, service, post_data=None, is_new=False):
+def apply_client_service_logic(cs, service, post_data=None, is_new=False, onboarding_marked_by=None):
     """
     Sync ClientServiceProcess rows and statuses.
 
@@ -136,10 +136,83 @@ def apply_client_service_logic(cs, service, post_data=None, is_new=False):
     except Exception:
         logger.debug("service.refresh_from_db() skipped for service=%s", getattr(service, 'pk', None))
 
+    onboarding_user_id = getattr(onboarding_marked_by, 'id', None) if onboarding_marked_by else None
+    onboarding_process_ids = set()
+    if post_data and hasattr(post_data, 'getlist'):
+        raw_onboarding_ids = post_data.getlist('completed_at_onboarding[]')
+    elif post_data and hasattr(post_data, 'get'):
+        raw_onboarding_ids = post_data.get('completed_at_onboarding[]', [])
+        if isinstance(raw_onboarding_ids, str):
+            raw_onboarding_ids = [raw_onboarding_ids]
+    else:
+        raw_onboarding_ids = []
+
+    for raw_pid in raw_onboarding_ids:
+        try:
+            onboarding_process_ids.add(int(raw_pid))
+        except (TypeError, ValueError):
+            continue
+
     # Small helper to fetch existing CSP process->(status, pk) mapping
     def _existing_csp_map():
         qs = ClientServiceProcess.objects.filter(client_service=cs).select_related('process')
         return {csp.process_id: {'status': csp.status, 'pk': csp.pk} for csp in qs}
+
+    def _apply_onboarding_flags():
+        if service.category != ServiceCategory.TITLE or not onboarding_process_ids:
+            return 0
+
+        marked_at = timezone.now()
+        updated = ClientServiceProcess.objects.filter(
+            client_service=cs,
+            process_id__in=onboarding_process_ids,
+        ).update(
+            status='completed',
+            completed_at=marked_at,
+            completed_at_onboarding=True,
+            onboarding_marked_by_id=onboarding_user_id,
+            onboarding_marked_at=marked_at,
+        )
+
+        if updated:
+            logger.info(
+                "Marked %s process(es) as completed at onboarding for cs=%s",
+                updated,
+                cs.pk,
+            )
+        return updated
+
+    def _normalize_title_workflow_statuses():
+        fresh_qs = list(
+            ClientServiceProcess.objects
+            .filter(client_service=cs)
+            .select_related('process')
+            .order_by('process__step_order')
+        )
+        if not fresh_qs:
+            return
+
+        actionable = [csp for csp in fresh_qs if csp.status not in ('completed', 'collected')]
+        if not actionable:
+            return
+
+        in_progress_rows = [csp for csp in actionable if csp.status == 'in_progress']
+
+        if in_progress_rows:
+            keep_pk = in_progress_rows[0].pk
+            for csp in in_progress_rows[1:]:
+                csp.status = 'pending'
+                csp.save(update_fields=['status'])
+                logger.info("Normalized extra in_progress -> pending for cs=%s pid=%s", cs.pk, csp.process_id)
+        else:
+            first_actionable = actionable[0]
+            first_actionable.status = 'in_progress'
+            first_actionable.save(update_fields=['status'])
+            logger.info(
+                "Set pid=%s to in_progress for cs=%s (after onboarding normalization)",
+                first_actionable.process_id,
+                cs.pk,
+            )
 
     if service.category == ServiceCategory.TITLE:
         # Get ordered process ids for deterministic behaviour
@@ -199,39 +272,42 @@ def apply_client_service_logic(cs, service, post_data=None, is_new=False):
                 csp = ClientServiceProcess.objects.create(client_service=cs, process=proc, status='pending')
                 logger.info("Added new CSP pk=%s for cs=%s proc=%s status=pending", csp.pk, cs.pk, pid)
 
-            # At this point, we have the desired set of CSP rows. Now ensure statuses are sensible:
-            # - Preserve existing 'completed' rows.
-            # - Preserve existing 'in_progress' if present.
-            # - Ensure at most one 'in_progress'. If none, set first non-completed to in_progress.
-            # Re-fetch fresh statuses
-            fresh_qs = list(ClientServiceProcess.objects.filter(client_service=cs).select_related('process').order_by('process__step_order'))
-            statuses = {csp.process_id: csp for csp in fresh_qs}
+        _apply_onboarding_flags()
+        _normalize_title_workflow_statuses()
 
-            # Count current in_progress
-            in_progress_pids = [pid for pid, csp in statuses.items() if csp.status == 'in_progress']
-            if len(in_progress_pids) > 1:
-                # Keep the earliest in order, mark others pending
-                keep = None
-                for csp in fresh_qs:
-                    if csp.status == 'in_progress' and keep is None:
-                        keep = csp.process_id
-                        continue
-                    if csp.status == 'in_progress' and csp.process_id != keep:
-                        csp.status = 'pending'
-                        csp.save(update_fields=['status'])
-                        logger.info("Normalized extra in_progress -> pending for cs=%s pid=%s", cs.pk, csp.process_id)
+        # Send initial SMS for first in_progress process (after onboarding normalization)
+        if is_new:
+            in_progress_csp = ClientServiceProcess.objects.filter(
+                client_service=cs,
+                status='in_progress'
+            ).order_by('process__step_order').first()
+            
+            if in_progress_csp and in_progress_csp.process.notification_enabled:
+                # Import here to avoid circular imports
+                from apps.EasyDocs.signals import send_process_sms
+                
+                reason = f"{service.name} – process: {in_progress_csp.process.name}"
+                send_process_sms(
+                    client_service=cs,
+                    client=cs.client,
+                    phone=cs.client.phone,
+                    message=in_progress_csp.process.message,
+                    reason=reason
+                )
+                logger.info(
+                    "Sent initial SMS for cs=%s process=%s (after onboarding normalization)",
+                    cs.pk,
+                    in_progress_csp.process.name
+                )
 
-            # If no in_progress, make sure to set first non-completed to in_progress
-            in_progress_exists = ClientServiceProcess.objects.filter(client_service=cs, status='in_progress').exists()
-            if not in_progress_exists:
-                # find first in order that's not completed
-                for csp in fresh_qs:
-                    if csp.status != 'completed':
-                        csp.status = 'in_progress'
-                        csp.save(update_fields=['status'])
-                        logger.info("Set pid=%s to in_progress for cs=%s (no existing in_progress)", csp.process_id, cs.pk)
-                        break
-                    # otherwise continue until first non-completed
+        has_incomplete_steps = ClientServiceProcess.objects.filter(client_service=cs).exclude(
+            status__in=['completed', 'collected']
+        ).exists()
+        desired_status = 'active' if has_incomplete_steps else 'completed'
+        if cs.status != desired_status:
+            cs.status = desired_status
+            cs.save(update_fields=['status'])
+            logger.info("Updated ClientService status for cs=%s to '%s'", cs.pk, desired_status)
     else:
         # Non-title service: clear any CSP rows
         deleted_count, _ = ClientServiceProcess.objects.filter(client_service=cs).delete()
@@ -309,18 +385,26 @@ def apply_client_service_logic(cs, service, post_data=None, is_new=False):
 #             cs.overridden_total_price = None
 
 
-def create_client_service_with_overrides(client, service, land_description, post_data):
+def create_client_service_with_overrides(client, service, land_description, post_data, onboarding_marked_by=None):
     try:
         # Wrap creation + sync in a transaction so select_for_update can be used by helper
         with transaction.atomic():
-            cs = ClientService.objects.create(
+            cs = ClientService(
                 client=client,
                 service=service,
                 land_description=land_description,
             )
+            cs._suppress_initial_process_sms = True
+            cs.save()
 
             # Now call helper (it will detect in_atomic_block and may use select_for_update)
-            return apply_client_service_logic(cs, service, post_data, is_new=True)
+            return apply_client_service_logic(
+                cs,
+                service,
+                post_data,
+                is_new=True,
+                onboarding_marked_by=onboarding_marked_by,
+            )
 
     except (OverrideError, Exception) as e:
         traceback.print_exc()
@@ -376,7 +460,8 @@ def get_service_processes(request, service_id):
     if not processes.exists():
         return JsonResponse({
             "processes": [],
-            "total_price": float(service.total_price)
+            "total_price": float(service.total_price),
+            "expected_duration_days": service.expected_duration_days,
         })
 
     data = {
@@ -387,7 +472,8 @@ def get_service_processes(request, service_id):
                 "default_cost": float(p.cost)
             }
             for p in processes
-        ]
+        ],
+        "expected_duration_days": service.expected_duration_days,
     }
     return JsonResponse(data)
 

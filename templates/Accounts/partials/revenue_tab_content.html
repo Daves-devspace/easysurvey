@@ -45,7 +45,7 @@
      STATISTICS CARDS
 ============================================= -->
 <div class="row g-3 mb-4">
-  <!-- Card 1: Client Payments -->
+  <!-- Card 1: Client Payments (gross inflow — never negative) -->
   <div class="col-lg-3 col-md-6">
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
@@ -57,8 +57,13 @@
           </div>
           <div class="flex-grow-1 ms-3">
             <h6 class="text-muted mb-1 text-uppercase small">Client Payments</h6>
-            <h3 class="mb-0 fw-bold">{{ revenue_totals.gross_total|floatformat:2|intcomma }}</h3>
-            <small class="text-success">KES</small>
+            <h3 class="mb-0 fw-bold">{{ stat_cards.client_payments|floatformat:2|intcomma }}</h3>
+            <small class="text-success">KES received</small>
+            {% if stat_cards.adj_outflow and stat_cards.adj_outflow > 0 %}
+            <div class="mt-1">
+              <small class="text-danger"><i class="bi bi-arrow-counterclockwise"></i> KES {{ stat_cards.adj_outflow|floatformat:2|intcomma }} reversed</small>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>

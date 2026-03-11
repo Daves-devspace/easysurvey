@@ -1,4 +1,5 @@
 # views/actions.py
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -8,12 +9,13 @@ from django.db.models import Value, F, Sum, DecimalField
 from django.db.models.functions import Coalesce, Cast
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 
 from django.views import View
 
 from apps.EasyDocs.exceptions import ClientServiceError
 from apps.EasyDocs.forms import ClientSmsForm, ClientServiceForm, ClientSubServiceForm, ClientSubServiceEditForm
-from apps.EasyDocs.models import Client, MessageLog, ClientService, ClientSubService, ServiceCategory
+from apps.EasyDocs.models import Client, MessageLog, ClientService, ClientSubService, ServiceCategory, ServiceAssignmentLog
 from apps.EasyDocs.services.services import create_client_service_with_overrides, \
     apply_client_service_logic, handle_ground_booking, default_scheduled_date
 from apps.EasyDocs.utils import MobileSasaAPI
@@ -119,12 +121,25 @@ class ClientServiceManageView(View):
         if not form.is_valid():
             return self._handle_form_errors(form, client.id)
 
+        if not form.cleaned_data.get('assigned_employee'):
+            form.add_error('assigned_employee', 'Please assign an employee before saving this service.')
+            return self._handle_form_errors(form, client.id)
+
         try:
             cs = create_client_service_with_overrides(
                 client=client,
                 service=form.cleaned_data['service'],
                 land_description=form.cleaned_data['land_description'],
-                post_data=request.POST
+                post_data=request.POST,
+                onboarding_marked_by=request.user if request.user.is_authenticated else None,
+            )
+
+            self._apply_assignment_and_deadline(
+                request=request,
+                cs=cs,
+                form=form,
+                previous_assigned_employee=None,
+                is_new=True,
             )
 
             book_note = self._handle_booking_service(cs, form)
@@ -138,6 +153,7 @@ class ClientServiceManageView(View):
     def handle_edit_client_service(self, request, client):
         cs_id = request.POST.get('client_service_id')
         cs = get_object_or_404(ClientService, id=cs_id, client=client)
+        previous_assigned_employee = cs.assigned_employee
         form = ClientServiceForm(request.POST, instance=cs)
         if not form.is_valid():
             return self._handle_form_errors(form, client.id)
@@ -154,7 +170,21 @@ class ClientServiceManageView(View):
 
             # IMPORTANT: call the helper so CSPs are rebuilt/synced
             # If the service changed, treat as "new" so helper clears old CSPs and rebuilds
-            apply_client_service_logic(cs, new_service, post_data=request.POST, is_new=service_changed)
+            apply_client_service_logic(
+                cs,
+                new_service,
+                post_data=request.POST,
+                is_new=service_changed,
+                onboarding_marked_by=request.user if request.user.is_authenticated else None,
+            )
+
+            self._apply_assignment_and_deadline(
+                request=request,
+                cs=cs,
+                form=form,
+                previous_assigned_employee=previous_assigned_employee,
+                is_new=False,
+            )
 
             # Use the correct booking helper name (this is the fix for your AttributeError)
             book_note = self._handle_booking_service(cs, form)
@@ -171,6 +201,59 @@ class ClientServiceManageView(View):
             messages.error(request, f"❌ Failed to update service: {e}")
 
         return redirect('client_details', client_id=client.id)
+
+    def _apply_assignment_and_deadline(self, request, cs, form, previous_assigned_employee=None, is_new=False):
+        assigned_employee = form.cleaned_data.get('assigned_employee')
+        configured_duration = form.cleaned_data.get('expected_duration_days') or cs.service.expected_duration_days
+
+        update_fields = []
+        assignment_action = None
+
+        # Assignment handling
+        if assigned_employee:
+            if previous_assigned_employee and previous_assigned_employee != assigned_employee:
+                cs.assignment_status = 'reassigned'
+                assignment_action = 'reassigned'
+                update_fields.append('assignment_status')
+            elif not previous_assigned_employee:
+                cs.assignment_status = 'pending_acceptance'
+                assignment_action = 'assigned'
+                update_fields.append('assignment_status')
+            elif cs.assignment_status in ('unassigned', 'declined'):
+                cs.assignment_status = 'pending_acceptance'
+                update_fields.append('assignment_status')
+        else:
+            cs.assignment_status = 'unassigned'
+            update_fields.append('assignment_status')
+
+        # Duration and deadline handling
+        if configured_duration:
+            if cs.expected_duration_days != configured_duration:
+                cs.expected_duration_days = configured_duration
+                update_fields.append('expected_duration_days')
+
+            if not cs.deadline or is_new:
+                base_date = cs.requested_at or timezone.now()
+                computed_deadline = base_date + timedelta(days=configured_duration)
+                cs.deadline = computed_deadline
+                update_fields.append('deadline')
+
+                if not cs.original_deadline:
+                    cs.original_deadline = computed_deadline
+                    update_fields.append('original_deadline')
+
+        if update_fields:
+            cs.save(update_fields=sorted(set(update_fields)))
+
+        if assignment_action:
+            ServiceAssignmentLog.objects.create(
+                client_service=cs,
+                assigned_employee=assigned_employee,
+                previous_employee=previous_assigned_employee if assignment_action == 'reassigned' else None,
+                action=assignment_action,
+                assigned_by=request.user if request.user.is_authenticated else None,
+                reason=(request.POST.get('assignment_reason') or '').strip(),
+            )
 
     def _handle_form_errors(self, form, client_id):
         for field, errs in form.errors.items():

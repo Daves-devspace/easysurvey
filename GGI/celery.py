@@ -55,7 +55,13 @@ app.conf.beat_schedule = {
     "dispatch-due-scheduled-tasks-every-minute": {
         "task": "apps.EasyDocs.tasks.dispatch_due_scheduled_tasks",
         "schedule": crontab(minute="*/2"),  # Change from * to */2 (every 2 min)
+        "options": {"queue": default_queue},
     },
+        "check-expired-handoffs-hourly": {
+            "task": "apps.EasyDocs.tasks.check_and_escalate_expired_handoffs",
+            "schedule": crontab(minute=0),  # Run every hour at minute 0
+            "options": {"queue": default_queue},
+        }
 }
 
 # ============================

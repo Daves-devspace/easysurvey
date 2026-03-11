@@ -57,29 +57,30 @@ class ProcessWorkflowService:
                                    step.process.name, s.process.name)
                     raise ValueError("Previous steps must be completed first")
 
-            # 3️⃣ Advance the next step into in_progress
+            # 3️⃣ Advance the next actionable step into in_progress
             last_order = step.process.step_order
-            next_steps = [s for s in self.steps if s.process.step_order == last_order + 1]
-            if next_steps:
-                nxt = next_steps[0]
-                logger.info("Next step: '%s' (status=%s)", nxt.process.name, nxt.status)
-                if nxt.status == 'pending':
-                    nxt.status = 'in_progress'
-                    nxt.save(update_fields=['status'])
-                    logger.info("Advanced '%s' to in_progress", nxt.process.name)
+            next_actionable = next(
+                (s for s in self.steps if s.process.step_order > last_order and s.status not in ('completed', 'collected')),
+                None,
+            )
+            if next_actionable:
+                logger.info("Next actionable step: '%s' (status=%s)", next_actionable.process.name, next_actionable.status)
+                if next_actionable.status == 'pending':
+                    next_actionable.status = 'in_progress'
+                    next_actionable.save(update_fields=['status'])
+                    logger.info("Advanced '%s' to in_progress", next_actionable.process.name)
 
-                    # Only notify if this next step is NOT the last step
-                    if nxt != self.steps[-1]:
-                        logger.info("Sending SMS for '%s'", nxt.process.name)
+                    if next_actionable != self.steps[-1]:
+                        logger.info("Sending SMS for '%s'", next_actionable.process.name)
                         sms_log = self._send_sms(
-                            nxt,
-                            reason=f"{self.cs.service.name} – process: {nxt.process.name}"
+                            next_actionable,
+                            reason=f"{self.cs.service.name} – process: {next_actionable.process.name}"
                         )
                         logger.info("SMS log created: %s", sms_log)
                     else:
-                        logger.info("Skipped SMS for last-step activation '%s'", nxt.process.name)
+                        logger.info("Skipped SMS for last-step activation '%s'", next_actionable.process.name)
             else:
-                logger.info("No next step to advance")
+                logger.info("No next actionable step to advance")
 
             # --- DEBUG: dump all step statuses to confirm sync ---
             statuses = [(s.process.name, s.status) for s in self.steps]
@@ -115,6 +116,14 @@ class ProcessWorkflowService:
         """
         Wrapper around your SMS API that returns the MessageLog.
         """
+        if not step.process.notification_enabled:
+            logger.info("Skipping SMS for '%s': notifications disabled on process", step.process.name)
+            return None
+
+        if step.completed_at_onboarding:
+            logger.info("Skipping SMS for '%s': process completed at onboarding", step.process.name)
+            return None
+
         phone = self.cs.client.phone
         msg = message or step.process.message
         logger.debug("Attempting SMS: phone=%s, msg=%r, reason=%r", phone, msg, reason)

@@ -1,4 +1,8 @@
-import { loadServicesByCategory, loadProcessesForService, recalculateTotal } from "../utils/serviceUtils.js";
+import {
+  loadServicesByCategory,
+  loadProcessesForService,
+  recalculateTotal,
+} from "../utils/serviceUtils.js";
 
 export function bindEditService(btn) {
   btn.addEventListener("click", async () => {
@@ -14,8 +18,11 @@ export function bindEditService(btn) {
       overrideTotal,
       psIds,
       psCosts,
-      scheduledDate,       // newly added for ground services
-      dispatchPreview      // newly added for ground services
+      psOnboardingIds,
+      scheduledDate, // newly added for ground services
+      dispatchPreview, // newly added for ground services
+      assignedEmployeeId,
+      expectedDurationDays,
     } = btn.dataset;
 
     // 3️⃣ Populate hidden & read-only fields
@@ -23,6 +30,19 @@ export function bindEditService(btn) {
     modal.querySelector("#editLandDescription").value = landDescription || "";
     modal.querySelector("#editClientName").value = btn.dataset.clientName;
     modal.querySelector("#editClientPhone").value = btn.dataset.clientPhone;
+    const assignedEmployeeInput = modal.querySelector("#editAssignedEmployee");
+    if (assignedEmployeeInput) {
+      assignedEmployeeInput.value = assignedEmployeeId || "";
+    }
+    const expectedDurationInput = modal.querySelector(
+      "#editExpectedDurationDays",
+    );
+    if (expectedDurationInput) {
+      expectedDurationInput.value = expectedDurationDays || "";
+      expectedDurationInput.dataset.autoFill = expectedDurationDays
+        ? "true"
+        : "";
+    }
 
     // 4️⃣ Category & Service selects: set category, load services, then set the selected service
     const catSel = modal.querySelector("#editCategory");
@@ -33,19 +53,20 @@ export function bindEditService(btn) {
 
     // 5️⃣ Ground‑service branch (overrides process logic for ground)
     const groundDiv = modal.querySelector(".ground-fields");
-    const dateInp   = modal.querySelector("[name='scheduled_date']");
+    const dateInp = modal.querySelector("[name='scheduled_date']");
     const previewTA = modal.querySelector("[name='dispatch_preview']");
 
     if (category === "ground") {
       // Show & populate ground-specific fields
       groundDiv.style.display = "block";
-      if (scheduledDate)   dateInp.value   = scheduledDate;
+      if (scheduledDate) dateInp.value = scheduledDate;
       if (dispatchPreview) previewTA.value = dispatchPreview;
 
       // Always allow override total on ground services
       const totSec = modal.querySelector(".totalPriceOverride");
       totSec.style.display = "block";
-      modal.querySelector("#editOverrideTotalPrice").value = overrideTotal || "";
+      modal.querySelector("#editOverrideTotalPrice").value =
+        overrideTotal || "";
 
       // Hide process section entirely
       modal.querySelector(".processCostSection").style.display = "none";
@@ -59,20 +80,49 @@ export function bindEditService(btn) {
     }
 
     // 7️⃣ Process override logic (for TITLE and other non-ground services)
-    const ids   = (psIds   || "").split(",").map(s => s.trim());
-    const costs = (psCosts || "").split(",").map(s => parseFloat(s.trim()));
-    const overriddenMap = {};
-    ids.forEach((id, i) => overriddenMap[id] = costs[i]);
+    const ids = (psIds || "").split(",").map((s) => s.trim());
+    const costs = (psCosts || "").split(",").map((s) => parseFloat(s.trim()));
+    const onboardingIds = (psOnboardingIds || "")
+      .split(/[\s,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    const data = await loadProcessesForService(serviceId, modal, true, overriddenMap);
+    const overriddenMap = { onboardingIds };
+    ids.forEach((id, i) => (overriddenMap[id] = costs[i]));
+
+    const data = await loadProcessesForService(
+      serviceId,
+      modal,
+      true,
+      overriddenMap,
+    );
 
     if (data.processes.length) {
       // Service has processes: show table and prefill costs
       ids.forEach((id, i) => {
-        const rowInp = modal.querySelector(`input[name='process_id[]'][value='${id}']`);
+        const rowInp = modal.querySelector(
+          `input[name='process_id[]'][value='${id}']`,
+        );
         if (rowInp) {
-          const costInput = rowInp.closest("tr").querySelector('input[name="process_cost[]"]');
-          costInput.value = costs[i] || 0;
+          const row = rowInp.closest("tr");
+          const costInput = rowInp
+            .closest("tr")
+            .querySelector('input[name="process_cost[]"]');
+          const onboardingToggle = row?.querySelector(".onboarding-toggle");
+          const hiddenCost = row?.querySelector(".onboarding-hidden-cost");
+          const normalizedCost = Number.isFinite(costs[i]) ? costs[i] : 0;
+
+          if (onboardingToggle?.checked) {
+            if (!costInput.dataset.previousCost) {
+              costInput.dataset.previousCost = String(normalizedCost);
+            }
+            costInput.value = 0;
+            if (hiddenCost) {
+              hiddenCost.value = "0";
+            }
+          } else {
+            costInput.value = normalizedCost;
+          }
         }
       });
       modal.querySelector(".processCostSection").style.display = "block";
@@ -80,14 +130,15 @@ export function bindEditService(btn) {
       // No processes: fallback to override total for non-ground
       const totSec = modal.querySelector(".totalPriceOverride");
       totSec.style.display = "block";
-      modal.querySelector("#editOverrideTotalPrice").value = overrideTotal || "";
+      modal.querySelector("#editOverrideTotalPrice").value =
+        overrideTotal || "";
     }
 
     // 8️⃣ Calculate the total cost
     recalculateTotal(modal);
 
     // 9️⃣ Re-calc on each cost input change
-    modal.querySelectorAll(".cost-input").forEach(inp => {
+    modal.querySelectorAll(".cost-input").forEach((inp) => {
       inp.addEventListener("input", () => recalculateTotal(modal));
     });
 

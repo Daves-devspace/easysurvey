@@ -1,6 +1,7 @@
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.core.cache import cache
 from .models import Notification, FCMToken
@@ -197,20 +198,42 @@ class SaveFCMTokenView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        token = request.data.get("token")
+        token = str(request.data.get("token") or "").strip()
         if not token:
             return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 1. Idempotent save of the Token
-        # FIX: We lookup by 'token' only, because 'token' is unique. 
-        # If it exists (even for another user), we claim it for this user.
-        obj, created = FCMToken.objects.update_or_create(
-            token=token, 
-            defaults={
-                "user": request.user,
-                "is_active": True
-            }
-        )
+        if len(token) > 255:
+            return Response({"error": "Token is too long"}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = False
+        changed = False
+
+        # Save only when token ownership/activity actually changes.
+        with transaction.atomic():
+            existing = FCMToken.objects.select_for_update().filter(token=token).first()
+            if existing is None:
+                try:
+                    FCMToken.objects.create(
+                        token=token,
+                        user=request.user,
+                        is_active=True,
+                    )
+                    created = True
+                except IntegrityError:
+                    existing = FCMToken.objects.select_for_update().get(token=token)
+
+            if existing is not None:
+                update_fields = []
+                if existing.user_id != request.user.id:
+                    existing.user = request.user
+                    update_fields.append("user")
+                if not existing.is_active:
+                    existing.is_active = True
+                    update_fields.append("is_active")
+
+                if update_fields:
+                    existing.save(update_fields=update_fields)
+                    changed = True
 
         # 2. UPDATE PROFILE STATUS (This was missing)
         if hasattr(request.user, 'employeeprofile'):
@@ -223,7 +246,10 @@ class SaveFCMTokenView(APIView):
         if created:
             return Response({"message": "✅ Token saved & Profile updated"}, status=status.HTTP_201_CREATED)
 
-        return Response({"message": "ℹ️ Token updated"}, status=status.HTTP_200_OK)
+        if changed:
+            return Response({"message": "ℹ️ Token updated"}, status=status.HTTP_200_OK)
+
+        return Response({"message": "ℹ️ Token already active"}, status=status.HTTP_200_OK)
 
 
 class AllNotificationsCachedView(APIView):

@@ -277,6 +277,7 @@
                                                                     <button type="button"
                                                                             class="btn btn-sm btn-warning edit-expense-btn"
                                                                             data-exp-id="{{ exp.id }}"
+                                                                            data-date="{{ exp.date|date:'Y-m-d' }}"
                                                                             data-amount="{{ exp.amount }}"
                                                                             data-payment_mode="{{ exp.payment_mode }}"
                                                                             data-handled_by="
@@ -604,6 +605,7 @@ document.addEventListener("DOMContentLoaded", function () {
         button.addEventListener("click", function () {
             form.reset();
             setField("expense_id", this.dataset.expId);
+            setField("date", this.dataset.date);
             setField("description", this.dataset.description);
             setField("amount", this.dataset.amount);
             setField("payment_mode", this.dataset.payment_mode);

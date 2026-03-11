@@ -1,19 +1,22 @@
 from celery import shared_task
+from django.core.cache import cache
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
+from django.db import transaction
 from django.template.loader import render_to_string
 from django.utils import timezone as dj_timezone
 from datetime import datetime, timedelta, timezone as dt_timezone
 import logging
 
 from apps.EasyDocs.models import Booking
-from apps.notifications.models import FCMToken,PendingPushNotification  # adjust import path
-from firebase_admin import messaging
+from apps.notifications.models import PendingPushNotification
 from .utils import send_push_to_user
 
 from .firebase_manager import initialize_firebase # Import the manager
 
 logger = logging.getLogger(__name__)
+
+PENDING_FLUSH_LOCK_TIMEOUT = 300
 
 @shared_task
 def send_pending_push_notifications(user_id):
@@ -34,19 +37,38 @@ def send_pending_push_notifications(user_id):
         logger.error("send_pending_push_notifications: user %s does not exist", user_id)
         return
 
-    pending_notifications = PendingPushNotification.objects.filter(user=user, sent=False)
-    for notif in pending_notifications:
-        try:
-            success_count, failure_count = send_push_to_user(user, notif.title, notif.body)
-            if success_count > 0:
-                notif.sent = True
-                notif.sent_at = dj_timezone.now()
-                notif.save()
-                logger.info("Delivered pending notification %s to user %s", notif.id, user)
-            else:
-                logger.warning("Pending notification %s not delivered (retry later)", notif.id)
-        except Exception:
-            logger.exception("Failed while processing pending notification %s", notif.id)
+    flush_lock_key = f"notifications:pending-flush:lock:{user_id}"
+    if not cache.add(flush_lock_key, "1", timeout=PENDING_FLUSH_LOCK_TIMEOUT):
+        logger.info("Pending push flush already in progress for user %s", user_id)
+        return
+
+    try:
+        while True:
+            with transaction.atomic():
+                pending = (
+                    PendingPushNotification.objects
+                    .select_for_update()
+                    .filter(user=user, sent=False)
+                    .order_by("created_at", "id")
+                    .first()
+                )
+
+                if pending is None:
+                    break
+
+                try:
+                    success_count, failure_count = send_push_to_user(user, pending.title, pending.body)
+                    if success_count > 0:
+                        pending.sent = True
+                        pending.sent_at = dj_timezone.now()
+                        pending.save(update_fields=["sent", "sent_at"])
+                        logger.info("Delivered pending notification %s to user %s", pending.id, user)
+                    else:
+                        logger.warning("Pending notification %s not delivered (retry later)", pending.id)
+                except Exception:
+                    logger.exception("Failed while processing pending notification %s", pending.id)
+    finally:
+        cache.delete(flush_lock_key)
 
 # -------------------------------------------------------------------
 # 📧 Task: Send booking assignment email + push

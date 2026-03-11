@@ -10,11 +10,16 @@ from django.core.cache import cache
 from apps.EasyDocs.communication import send_and_log_sms
 from apps.EasyDocs.models import (
     ClientServiceProcess, TitleDeedCollection, ClientService,
-    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense, MessageLog, SiteSettings, ClientService, ScheduledTask
+    Process, Payment, PaymentHistory, ServiceCategory, ClientSubService, Booking, Expense, MessageLog, SiteSettings, ClientService, ScheduledTask, PaymentAdjustment, SubServicePaymentAdjustment
 )
 
 from apps.notifications.models import Notification
-from apps.accounts.services.cashbook import record_cash_in, record_cash_out_expense
+from apps.accounts.services.cashbook import (
+    record_cash_in,
+    record_cash_out_expense,
+    record_payment_adjustment,
+    record_subservice_payment_adjustment,
+)
 from crum import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -236,6 +241,164 @@ def handle_payment_cashbook(sender, instance, created, **kwargs):
         user = getattr(instance, "received_by", None)  # optional, if you later add the field
         record_cash_in(instance, user)
 
+
+@receiver(post_save, sender=PaymentAdjustment)
+def handle_payment_adjustment_cashbook(sender, instance, created, **kwargs):
+    """
+    When an admin creates a reversal/adjustment:
+      1. Post a compensating Cash OUT.
+      2. Reverse the original allocation state so service/process balances
+         reflect the claw-back.
+    """
+    if created:
+        with transaction.atomic():
+            record_payment_adjustment(instance, instance.created_by)
+            reverse_payment_adjustment_allocations(instance)
+
+
+def reverse_payment_adjustment_allocations(adjustment: PaymentAdjustment):
+    """
+    Unwind the original payment allocations using a LIFO strategy.
+
+    This keeps the original payment immutable while updating the current
+    aggregate paid state on service steps and sub-services.
+    A negative `PaymentHistory` entry is written for each reversed slice.
+    """
+    payment = adjustment.original_payment
+    cs = (
+        ClientService.objects
+        .select_for_update()
+        .get(pk=payment.client_service_id)
+    )
+
+    histories = list(
+        PaymentHistory.objects
+        .select_for_update()
+        .filter(payment=payment)
+        .order_by('-created_at', '-id')
+    )
+
+    positive_histories = [h for h in histories if (h.amount or Decimal('0.00')) > 0]
+    if not positive_histories:
+        raise ValueError(
+            f"No allocation history found to reverse for Payment #{payment.pk}."
+        )
+
+    remaining = Decimal(adjustment.amount or Decimal('0.00'))
+    for history in positive_histories:
+        if remaining <= 0:
+            break
+
+        prior_reversed = Decimal('0.00')
+        for prior in histories:
+            if prior.amount >= 0:
+                continue
+            if prior.reason != history.reason:
+                continue
+            if prior.service_process_id != history.service_process_id:
+                continue
+            if prior.sub_service_id != history.sub_service_id:
+                continue
+            prior_reversed += abs(Decimal(prior.amount or Decimal('0.00')))
+
+        original_amount = Decimal(history.amount or Decimal('0.00'))
+        available_to_reverse = max(Decimal('0.00'), original_amount - prior_reversed)
+        if available_to_reverse <= 0:
+            continue
+
+        clawback = min(remaining, available_to_reverse)
+        if clawback <= 0:
+            continue
+
+        if history.reason == 'service_step' and history.service_process_id:
+            target = (
+                ClientServiceProcess.objects
+                .select_for_update()
+                .get(pk=history.service_process_id)
+            )
+            target.paid_amount = max(
+                Decimal('0.00'),
+                Decimal(target.paid_amount or Decimal('0.00')) - clawback,
+            )
+            target.save(update_fields=['paid_amount'])
+            PaymentHistory.objects.create(
+                payment=payment,
+                client_service=cs,
+                amount=-clawback,
+                reason='service_step',
+                service_process=target,
+            )
+
+        elif history.reason == 'sub_service' and history.sub_service_id:
+            target = (
+                ClientSubService.objects
+                .select_for_update()
+                .get(pk=history.sub_service_id)
+            )
+            target.paid_amount = max(
+                Decimal('0.00'),
+                Decimal(target.paid_amount or Decimal('0.00')) - clawback,
+            )
+            target.save(update_fields=['paid_amount'])
+            PaymentHistory.objects.create(
+                payment=payment,
+                client_service=cs,
+                amount=-clawback,
+                reason='sub_service',
+                sub_service=target,
+            )
+
+        remaining -= clawback
+
+    if remaining > 0:
+        raise ValueError(
+            f"Unable to reverse full adjustment amount for Payment #{payment.pk}. "
+            f"Unallocated remainder: {remaining}"
+        )
+
+
+@receiver(post_save, sender=SubServicePaymentAdjustment)
+def handle_subservice_adjustment_cashbook(sender, instance, created, **kwargs):
+    """
+    When an admin creates a sub-service adjustment:
+      1. Post a compensating Cash OUT.
+      2. Reverse current sub-service paid state.
+      3. Write negative PaymentHistory(reason='sub_service').
+    """
+    if created:
+        with transaction.atomic():
+            record_subservice_payment_adjustment(instance, instance.created_by)
+            reverse_subservice_payment_adjustment(instance)
+
+
+def reverse_subservice_payment_adjustment(adjustment: SubServicePaymentAdjustment):
+    css = (
+        ClientSubService.objects
+        .select_for_update()
+        .select_related('client_service')
+        .get(pk=adjustment.client_sub_service_id)
+    )
+
+    current_paid = Decimal(css.paid_amount or Decimal('0.00'))
+    amount = Decimal(adjustment.amount or Decimal('0.00'))
+
+    if amount > current_paid:
+        raise ValueError(
+            f"Cannot adjust KES {amount:.2f}; current paid amount on sub-service "
+            f"#{css.pk} is only KES {current_paid:.2f}."
+        )
+
+    css.paid_amount = max(Decimal('0.00'), current_paid - amount)
+    css.save(update_fields=['paid_amount'])
+
+    PaymentHistory.objects.create(
+        payment=None,
+        client_service=css.client_service,
+        amount=-amount,
+        reason='sub_service',
+        sub_service=css,
+    )
+
 @receiver(post_save, sender=Expense)
 def handle_expense_cashbook(sender, instance, created, **kwargs):
     if not created:
@@ -302,8 +465,12 @@ def send_process_sms(client_service, client, phone, message, reason):
 
 @receiver(post_save, sender=ClientService)
 def client_service_created_handler(sender, instance, created, **kwargs):
-    # if not created:
-    #     return
+    if not created:
+        return
+
+    if getattr(instance, '_suppress_initial_process_sms', False):
+        logger.debug("Skipping initial process bootstrap for ClientService %s", instance.pk)
+        return
 
     service, client = instance.service, instance.client
 
@@ -317,7 +484,7 @@ def client_service_created_handler(sender, instance, created, **kwargs):
                 process=process,
                 status=status
             )
-            if i == 0:
+            if i == 0 and process.notification_enabled:
                 reason = f"{service.name} – process: {process.name}"
                 send_process_sms(
                     instance,

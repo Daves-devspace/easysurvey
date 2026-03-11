@@ -387,3 +387,48 @@ def dispatch_due_scheduled_tasks():
                 scheduled.status = "sent"
                 scheduled.task_id = res.id
                 scheduled.save()
+
+@shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
+def check_and_escalate_expired_handoffs(self):
+    """
+    Celery task to check for expired document handoffs and escalate them.
+    Should be run periodically (e.g., every hour).
+    """
+    try:
+        from apps.EasyDocs.services.handoffs import check_expired_handoffs, escalate_handoff
+        
+        expired_handoffs = check_expired_handoffs()
+        escalated_count = 0
+        
+        for handoff in expired_handoffs:
+            try:
+                result = escalate_handoff(handoff)
+                if result['success']:
+                    escalated_count += 1
+                    logger.info(
+                        f"Escalated expired handoff ID {handoff.id} "
+                        f"(Document: {handoff.content_type.model} #{handoff.object_id}, "
+                        f"Assigned to: {handoff.assigned_to.username})"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to escalate handoff ID {handoff.id}: {result.get('message', 'Unknown error')}"
+                    )
+            except Exception as e:
+                logger.exception(f"Error escalating handoff ID {handoff.id}: {e}")
+                continue
+        
+        if escalated_count > 0:
+            logger.info(f"Successfully escalated {escalated_count} expired document handoffs")
+        else:
+            logger.debug("No expired document handoffs to escalate")
+        
+        return {
+            'success': True,
+            'escalated_count': escalated_count,
+            'total_expired': expired_handoffs.count()
+        }
+    
+    except Exception as exc:
+        logger.exception(f"Error in check_and_escalate_expired_handoffs task: {exc}")
+        raise self.retry(exc=exc, countdown=300)  # Retry after 5 minutes

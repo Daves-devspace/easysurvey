@@ -142,6 +142,12 @@
                     </a>
                 </li>
                 <li class="pc-item">
+                    <a href="{% url 'task-management' %}" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-list-check"></i></span>
+                        <span class="pc-mtext">Tasks</span>
+                    </a>
+                </li>
+                <li class="pc-item">
                     <a href="{% url 'document_list' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-file-upload"></i></span>
                         <span class="pc-mtext">Documents</span>
@@ -218,25 +224,25 @@
             </a>
 
             <ul class="pc-submenu">
-                <li class="pc-item">
+                {% comment %} <li class="pc-item">
                 <a class="pc-link" href="{% url 'sessions' %}">Survey Sessions</a>
                 </li>
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'file_uploads' %}">File Uploads</a>
-                </li>
+                </li> {% endcomment %}
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'map_view' %}">Map Viewer</a>
                 </li>
-
+{% comment %} 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'mutation_view' %}">Mutation Tool</a>
                 </li>
 
                 <li class="pc-item">
                 <a class="pc-link" href="{% url 'mutation_export' %}">Mutation Export</a>
-                </li>
+                </li> {% endcomment %}
             </ul>
             </li>
 

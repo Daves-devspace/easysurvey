@@ -74,7 +74,7 @@ class Gender(models.TextChoices):
 class ServiceCategory(models.TextChoices):
     TITLE   = 'title',   'Title Deed Service'
     GROUND  = 'ground',  'Ground Service'
-    # …future categories here
+    OTHERS  = 'others',  'Other Services'
 
 
 
@@ -236,6 +236,11 @@ class Service(models.Model):
 
     # NEW FIELDS
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default=ServiceCategory.TITLE)
+    expected_duration_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Default expected duration in days for this service"
+    )
 
 
     requires_title_collection = models.BooleanField(
@@ -260,6 +265,10 @@ class Process(models.Model):
     step_order = models.PositiveIntegerField()
     cost = models.DecimalField(max_digits=10, decimal_places=2)
     message = models.TextField()  # Message to be sent to client
+    notification_enabled = models.BooleanField(
+        default=True,
+        help_text="Global setting: enable automated notifications when this process completes"
+    )
 
     class Meta:
         ordering = ['step_order']
@@ -289,6 +298,51 @@ class ClientService(models.Model):
     )
     land_description = models.CharField(max_length=255)
     requested_at = models.DateTimeField(auto_now_add=True)
+    # Employee Assignment Fields
+    assigned_employee = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='assigned_services',
+        help_text="Employee assigned to this service"
+    )
+    ASSIGNMENT_STATUS_CHOICES = [
+        ('unassigned', 'Unassigned'),
+        ('pending_acceptance', 'Pending Acceptance'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('reassigned', 'Reassigned'),
+    ]
+    assignment_status = models.CharField(
+        max_length=20,
+        choices=ASSIGNMENT_STATUS_CHOICES,
+        default='unassigned',
+        help_text="Current assignment status"
+    )
+
+    # Deadline Fields
+    expected_duration_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Override service default expected duration"
+    )
+    deadline = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Calculated deadline based on assignment + duration"
+    )
+    deadline_extended = models.BooleanField(
+        default=False,
+        help_text="True if deadline has been extended"
+    )
+    original_deadline = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Original deadline before any extensions"
+    )
+
+
     updated_at = models.DateTimeField(auto_now=True)
 
     overridden_total_price = models.DecimalField(
@@ -395,12 +449,19 @@ class ClientService(models.Model):
     @cached_property
     def total_paid(self) -> Decimal:
         """
-        Total payments made toward this client service.
+        Total net payments made toward this client service.
+        Payment adjustments are compensating claw-backs and therefore
+        reduce the effective paid amount.
         """
         paid = self.payments.aggregate(
             total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField())
         )['total']
-        return Decimal(paid or 0)
+        adjusted = PaymentAdjustment.objects.filter(
+            original_payment__client_service=self
+        ).aggregate(
+            total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField())
+        )['total']
+        return max(Decimal('0.00'), Decimal(paid or 0) - Decimal(adjusted or 0))
 
     @cached_property
     def sub_services_total(self) -> Decimal:
@@ -421,7 +482,7 @@ class ClientService(models.Model):
         """
         Remaining balance after payments.
         """
-        return self.full_total_price - self.total_paid
+        return max(Decimal('0.00'), self.full_total_price - self.total_paid)
 
     @property
     def payment_status(self) -> str:
@@ -536,6 +597,25 @@ class ClientServiceProcess(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     completed_at = models.DateTimeField(null=True, blank=True)
+    # Onboarding Fields
+    completed_at_onboarding = models.BooleanField(
+        default=False,
+        help_text="True if this process was marked complete during client onboarding"
+    )
+    onboarding_marked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='onboarded_processes',
+        help_text="User who marked this process as complete during onboarding"
+    )
+    onboarding_marked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this process was marked complete during onboarding"
+    )
+
 
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
@@ -704,7 +784,7 @@ class PaymentHistory(models.Model):
         on_delete=models.CASCADE
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    reason = models.CharField(max_length=20, choices=REASONS,default='payment_step')
+    reason = models.CharField(max_length=20, choices=REASONS, default='service_step')
     service_process = models.ForeignKey(
         'ClientServiceProcess',
         on_delete=models.SET_NULL,
@@ -765,6 +845,18 @@ class Payment(models.Model):
         help_text="Staff user who received the payment"
     )
 
+    IMMUTABLE_FIELDS = (
+        'client_service_id',
+        'applied_to_subservice_id',
+        'amount',
+        'payment_method',
+        'transaction_id',
+        'payment_date',
+        'institution_cost_snapshot',
+        'overridden_total_snapshot',
+        'received_by_id',
+    )
+
     def __str__(self):
         return (
             f"{self.client_service.client.first_name} – "
@@ -773,6 +865,16 @@ class Payment(models.Model):
 
 
     def clean(self):
+        if self.pk and not getattr(self, '_allow_mutation', False):
+            previous = Payment.objects.filter(pk=self.pk).values(*self.IMMUTABLE_FIELDS).first()
+            if previous:
+                has_changes = any(previous[field] != getattr(self, field) for field in self.IMMUTABLE_FIELDS)
+                if has_changes:
+                    raise ValidationError(
+                        "Payments are immutable once recorded. "
+                        "Create a compensating adjustment entry instead of editing this payment."
+                    )
+
         balance = self.client_service.total_balance
         if self.amount > balance:
             raise ValidationError(
@@ -780,18 +882,178 @@ class Payment(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        self.clean()
+        self._allow_mutation = bool(kwargs.pop('allow_mutation', False))
+        try:
+            self.clean()
+            super().save(*args, **kwargs)
+        finally:
+            if hasattr(self, '_allow_mutation'):
+                delattr(self, '_allow_mutation')
+
+    @property
+    def adjusted_amount(self) -> Decimal:
+        total = self.adjustments.aggregate(
+            total=Coalesce(Sum('amount'), Value(0), output_field=DecimalField())
+        )['total']
+        return Decimal(total or 0)
+
+    @property
+    def remaining_adjustable(self) -> Decimal:
+        return max(Decimal('0.00'), Decimal(self.amount or 0) - self.adjusted_amount)
+
+    @property
+    def is_fully_adjusted(self) -> bool:
+        return self.remaining_adjustable <= Decimal('0.00')
+
+
+class PaymentAdjustment(models.Model):
+    """
+    Admin-only compensating entry for an existing Payment.
+    - Preserves the original Payment record (immutable ledger).
+    - On creation, triggers a Cash OUT in the cashbook (clawback).
+    - Marked by the staff member who authorised the correction.
+    """
+    ADJUSTMENT_TYPES = [
+        ('reversal', 'Full Reversal'),
+        ('partial', 'Partial Adjustment'),
+    ]
+
+    original_payment = models.ForeignKey(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name='adjustments',
+        help_text="The original payment being reversed or adjusted"
+    )
+    adjustment_type = models.CharField(
+        max_length=20, choices=ADJUSTMENT_TYPES, default='reversal'
+    )
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text="Positive claw-back amount (posted as Cash OUT in cashbook)"
+    )
+    reason = models.TextField(
+        help_text="Mandatory audit reason for this adjustment"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='payment_adjustments_created',
+        help_text="Staff user who authorised this adjustment"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Payment Adjustment'
+        verbose_name_plural = 'Payment Adjustments'
+
+    def __str__(self):
+        return (
+            f"{self.get_adjustment_type_display()} – KES {self.amount} "
+            f"on Payment #{self.original_payment_id} by {self.created_by}"
+        )
+
+    def clean(self):
+        from decimal import Decimal as _D
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError("Adjustment amount must be positive.")
+
+        if not getattr(self, 'reason', None) or not str(self.reason).strip():
+            raise ValidationError("A reason is required for payment adjustments.")
+
+        if self.original_payment_id:
+            already_adjusted = (
+                PaymentAdjustment.objects
+                .filter(original_payment_id=self.original_payment_id)
+                .exclude(pk=self.pk)
+                .aggregate(total=models.Sum('amount'))['total'] or _D('0.00')
+            )
+            max_adjustable = self.original_payment.amount
+            if already_adjusted + self.amount > max_adjustable:
+                raise ValidationError(
+                    f"Total adjustments ({already_adjusted + self.amount:.2f}) cannot exceed "
+                    f"original payment amount ({max_adjustable:.2f})."
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
 
 
+class SubServicePaymentAdjustment(models.Model):
+    """
+    Admin/staff compensating entry for ClientSubService paid amount.
+    - Preserves append-only audit history for sub-service corrections.
+    - Posts a compensating Cash OUT in the cashbook.
+    - Writes negative PaymentHistory('sub_service') entries via signal.
+    """
+    ADJUSTMENT_TYPES = [
+        ('reversal', 'Full Reversal'),
+        ('partial', 'Partial Adjustment'),
+    ]
 
+    client_sub_service = models.ForeignKey(
+        'ClientSubService',
+        on_delete=models.PROTECT,
+        related_name='payment_adjustments',
+        help_text="The client sub-service whose paid amount is being corrected"
+    )
+    adjustment_type = models.CharField(
+        max_length=20, choices=ADJUSTMENT_TYPES, default='reversal'
+    )
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text="Positive claw-back amount (posted as Cash OUT in cashbook)"
+    )
+    reason = models.TextField(
+        help_text="Mandatory audit reason for this adjustment"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='subservice_payment_adjustments_created',
+        help_text="Staff user who authorised this adjustment"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Sub-service Payment Adjustment'
+        verbose_name_plural = 'Sub-service Payment Adjustments'
 
+    def __str__(self):
+        return (
+            f"{self.get_adjustment_type_display()} – KES {self.amount} "
+            f"on SubService #{self.client_sub_service_id} by {self.created_by}"
+        )
+
+    def clean(self):
+        from decimal import Decimal as _D
+        if self.pk:
+            raise ValidationError("Sub-service payment adjustments are immutable once recorded.")
+
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError("Adjustment amount must be positive.")
+
+        if not getattr(self, 'reason', None) or not str(self.reason).strip():
+            raise ValidationError("A reason is required for sub-service payment adjustments.")
+
+        if self.client_sub_service_id:
+            current_paid = _D(self.client_sub_service.paid_amount or _D('0.00'))
+            if self.amount > current_paid:
+                raise ValidationError(
+                    f"Adjustment amount ({self.amount:.2f}) cannot exceed currently paid amount "
+                    f"({current_paid:.2f}) for this sub-service."
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 # your_app/models.py
 class Expense(models.Model):
-    date= models.DateField(auto_now_add=True)
+    date = models.DateField(default=timezone.localdate)
     description = models.CharField(max_length=255, blank=True)
     amount      = models.DecimalField(max_digits=10, decimal_places=2)
     payment_mode= models.CharField(max_length=32, choices=[
@@ -1003,22 +1265,65 @@ class ScheduledTask(models.Model):
         ("cancelled", "Cancelled"),
         ("failed", "Failed"),
     )
+    
+    TASK_TYPE_CHOICES = (
+        ("reminder", "Reminder"),
+        ("scheduled_sms", "Scheduled SMS"),
+        ("notification", "Notification"),
+        ("other", "Other"),
+    )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     task_id = models.CharField(max_length=255, unique=True)
     task_name = models.CharField(max_length=255)
+    task_type = models.CharField(
+        max_length=20,
+        choices=TASK_TYPE_CHOICES,
+        default="other",
+        help_text="Type of scheduled task",
+        db_index=True,
+    )
     scheduled_time = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(blank=True, null=True)
     message_preview = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    payload = models.JSONField(blank=True, null=True)  # <-- Add this
+    payload = models.JSONField(blank=True, null=True)
+    
+    # Reminder-specific fields
+    client_service = models.ForeignKey(
+        'ClientService',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='scheduled_tasks',
+        help_text="Related client service (for reminders)",
+    )
+    assigned_employee = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='scheduled_tasks',
+        help_text="Employee assigned to this task (for reminders)",
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes or context for the task",
+    )
 
     def is_cancelable(self):
         return self.status == "pending" and self.scheduled_time > timezone.now()
 
     def __str__(self):
         return f"{self.task_name} scheduled at {self.scheduled_time}"
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['task_type', 'status', 'scheduled_time']),
+            models.Index(fields=['assigned_employee', 'status', 'scheduled_time']),
+            models.Index(fields=['client_service', 'status']),
+        ]
 
 
 
@@ -1153,6 +1458,234 @@ class AuditLog(models.Model):
     
     def __str__(self):
         return f"{self.action} - {self.model_name} {self.object_id}"
+
+# Service Assignment & Task Management Models
+# -----------------------
+
+class ServiceAssignmentLog(models.Model):
+    """
+    Audit trail for service assignments, acceptances, declines, and reassignments.
+    """
+    ACTION_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('reassigned', 'Reassigned'),
+    ]
+    
+    client_service = models.ForeignKey(
+        'ClientService',
+        on_delete=models.CASCADE,
+        related_name='assignment_logs',
+        help_text="The service that was assigned/reassigned"
+    )
+    assigned_employee = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='received_assignments',
+        help_text="Employee who received this assignment"
+    )
+    previous_employee = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='previous_assignments',
+        help_text="Previous employee (for reassignments)"
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        help_text="Action taken"
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='assignments_created',
+        help_text="User who made the assignment"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    task_progress_at_reassignment = models.TextField(
+        blank=True,
+        help_text="JSON or text describing the task state at reassignment"
+    )
+    reason = models.TextField(
+        blank=True,
+        help_text="Reason for assignment/reassignment/decline"
+    )
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['client_service', '-timestamp']),
+            models.Index(fields=['assigned_employee', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.action} - {self.client_service} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+
+class ServiceDeadlineExtension(models.Model):
+    """
+    Track deadline extensions for services.
+    """
+    client_service = models.ForeignKey(
+        'ClientService',
+        on_delete=models.CASCADE,
+        related_name='deadline_extensions',
+        help_text="Service whose deadline was extended"
+    )
+    old_deadline = models.DateTimeField(help_text="Previous deadline")
+    new_deadline = models.DateTimeField(help_text="New deadline after extension")
+    extended_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='deadline_extensions_created',
+        help_text="User who extended the deadline"
+    )
+    extended_at = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField(help_text="Reason for deadline extension")
+    
+    class Meta:
+        ordering = ['-extended_at']
+        indexes = [
+            models.Index(fields=['client_service', '-extended_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.client_service} - Extended by {self.extended_by} on {self.extended_at.strftime('%Y-%m-%d')}"
+
+
+# Document Handoff Models
+# -----------------------
+
+class DocumentHandoff(models.Model):
+    """
+    Track document assignments and handoffs to employees.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('reassigned', 'Reassigned'),
+    ]
+    
+    # Generic relation to support both ClientDoc and Document
+    from django.contrib.contenttypes.fields import GenericForeignKey
+    from django.contrib.contenttypes.models import ContentType
+    
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    document = GenericForeignKey('content_type', 'object_id')
+    
+    client = models.ForeignKey(
+        'Client',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='document_handoffs',
+        help_text="Client (if this is a ClientDoc)"
+    )
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='received_document_handoffs',
+        help_text="Employee to whom the document is assigned"
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='created_document_handoffs',
+        help_text="User who assigned the document"
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        help_text="Current handoff status"
+    )
+    accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the employee accepted the document"
+    )
+    max_acceptance_time = models.DateTimeField(
+        help_text="Maximum time for acceptance (assigned_at + 1 day)"
+    )
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes about the handoff"
+    )
+    
+    class Meta:
+        ordering = ['-assigned_at']
+        indexes = [
+            models.Index(fields=['assigned_to', 'status', '-assigned_at']),
+            models.Index(fields=['client', '-assigned_at']),
+        ]
+    
+    def save(self, *args, **kwargs):
+        # Auto-calculate max_acceptance_time if not set
+        if not self.max_acceptance_time and self.assigned_at:
+            from datetime import timedelta
+            self.max_acceptance_time = self.assigned_at + timedelta(days=1)
+        elif not self.max_acceptance_time:
+            from datetime import timedelta
+            self.max_acceptance_time = timezone.now() + timedelta(days=1)
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"Document handoff to {self.assigned_to.get_full_name() or self.assigned_to.username} - {self.status}"
+
+
+class DocumentHandoffLog(models.Model):
+    """
+    Audit trail for document handoff actions.
+    """
+    ACTION_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('reassigned', 'Reassigned'),
+    ]
+    
+    handoff = models.ForeignKey(
+        'DocumentHandoff',
+        on_delete=models.CASCADE,
+        related_name='logs',
+        help_text="The handoff this log entry is for"
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        help_text="Action taken"
+    )
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='document_handoff_actions',
+        help_text="User who performed the action"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(
+        blank=True,
+        help_text="Additional notes about the action"
+    )
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['handoff', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.action} - {self.handoff} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
 
 
 

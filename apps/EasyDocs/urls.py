@@ -18,7 +18,7 @@ from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPage
 from .communication import CommunicationView
 from .services.bookings import BookingManagementView, MarkBookingHandledView, AssignSurveyorsView, BookingCalendarJSON
 from .services.bookings import BookingUpdateView, BookingCreateView
-from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView
+from .views import ManagementView, ClientDetailView, ClientServiceCreateView, HomeView, StaffDashboardView, TaskManagementView
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback,RefreshDriveTokenView
 from apps.notifications.views import firebase_messaging_sw
@@ -82,6 +82,7 @@ urlpatterns = [
 
 
     path('management/', ManagementView.as_view(), name='management'),
+    path('tasks/', TaskManagementView.as_view(), name='task-management'),
 
     path('process/<int:pk>/complete/', processes.mark_process_completed, name='mark_process_completed'),
     # Other URLs...
@@ -123,6 +124,8 @@ urlpatterns = [
     path('client-subservice/<int:pk>/hard-delete/', hard_delete_client_subservice, name='hard_delete_client_subservice'),
 
     path('clients/<int:client_id>/add-payment/', accounts.add_payment_view, name='add_payment'),
+    path('payments/<int:payment_id>/adjust/', accounts.adjust_payment_view, name='adjust_payment'),
+    path('subservices/<int:sub_service_id>/adjust/', accounts.adjust_subservice_payment_view, name='adjust_subservice_payment'),
 
     path('get_service_processes/<int:service_id>/', services.get_service_processes, name='get_service_processes'),
 
@@ -136,6 +139,17 @@ urlpatterns = [
     #      name='add_or_update_client_subservice'),
 
     path('settings/update/', views.update_site_settings, name='update_site_settings'),
+    path('settings/process-notifications/', views.update_process_notification_settings, name='update_process_notifications'),
+    
+    # Service assignment accept/decline endpoints
+    path('assignments/<int:client_service_id>/accept/', views.accept_service_assignment, name='accept_service_assignment'),
+    path('assignments/<int:client_service_id>/decline/', views.decline_service_assignment, name='decline_service_assignment'),
+    path('assignments/<int:client_service_id>/extend-deadline/', views.request_deadline_extension, name='request_deadline_extension'),
+    
+    # Document handoff accept/decline endpoints
+    path('handoffs/assign/', file_views.assign_document_handoff, name='assign_document_handoff'),
+    path('handoffs/<int:handoff_id>/accept/', views.accept_document_handoff, name='accept_document_handoff'),
+    path('handoffs/<int:handoff_id>/decline/', views.decline_document_handoff, name='decline_document_handoff'),
 
     path("update-sms-token/", views.update_sms_token, name="update_sms_token"),
 
