@@ -43,7 +43,7 @@ messaging.onBackgroundMessage(function(payload) {
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
-    icon: '/static/images/pages/smrtlg.png', // Update this path to your actual logo
+        icon: '/static/assets/images/plotsync.png', // Update this path to your actual logo
     data: payload.data
   };
 
@@ -123,11 +123,7 @@ class CombinedNotificationFeedView(APIView):
                 if "target_user" not in n or n["target_user"] is None:
                     n["target_user"] = None
 
-        current_profile = getattr(user, 'employeeprofile', None)
-        if current_profile:
-            display = current_profile.display_name if not callable(current_profile.display_name) else current_profile.display_name()
-        else:
-            display = f"{user.first_name} {user.last_name}".strip() or user.username
+        display = user.get_full_name().strip() or f"User #{user.id}"
 
         return Response(
             {

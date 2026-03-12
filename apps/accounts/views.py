@@ -257,7 +257,7 @@ class CashbookDashboardView(TemplateView):
             "closing_balance": closing_balance,
             "recent_entries": recent_entries,
             "expenses": expenses,
-            "form": ExpenseForm(),
+            "form": ExpenseForm(current_user=self.request.user),
             "payout_form": InstitutionPayoutForm(),
             "opening_balance_form": OpeningBalanceForm(initial={"date": selected_date}),
             "cash_flow_ratio": cash_flow_ratio,

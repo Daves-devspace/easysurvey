@@ -417,8 +417,8 @@ class PaymentAdjustmentAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        """Adjustment records are immutable audit entries."""
-        return False
+        """Keep immutable for staff, but allow superusers for admin cascades."""
+        return request.user.is_superuser
 
 
 @admin.register(SubServicePaymentAdjustment)
@@ -446,8 +446,8 @@ class SubServicePaymentAdjustmentAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        """Adjustment records are immutable audit entries."""
-        return False
+        """Keep immutable for staff, but allow superusers for admin cascades."""
+        return request.user.is_superuser
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):

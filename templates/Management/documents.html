@@ -83,9 +83,41 @@
 </div>
 
                         <div class="card-body">
+                            <!-- Filter Section -->
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <span class="text-muted small">Filter:</span>
+                                <div class="btn-group btn-group-sm" role="group">
+                                  <input type="radio" class="btn-check" name="doc-filter" id="filter-all" value="all" {% if not my_pending_handoffs_count %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="filter-all">
+                                        <i class="ti ti-file me-1"></i>All Documents
+                                    </label>
+
+                                  <input type="radio" class="btn-check" name="doc-filter" id="filter-mine" value="mine" {% if my_pending_handoffs_count %}checked{% endif %}>
+                                    <label class="btn btn-outline-secondary" for="filter-mine">
+                                        <i class="ti ti-user me-1"></i>My Documents
+                                    </label>
+                                </div>
+                                <span class="badge bg-light text-dark ms-2" id="doc-count-badge">{{ documents|length }} total</span>
+                            </div>
+
+                              {% if my_pending_handoffs_count > 0 %}
+                              <div class="alert {% if my_overdue_handoffs_count > 0 %}alert-danger{% else %}alert-warning{% endif %} py-2 px-3 mb-3" role="alert">
+                                <strong>Action needed:</strong>
+                                You have {{ my_pending_handoffs_count }} assigned document handoff{{ my_pending_handoffs_count|pluralize }} pending acceptance{% if my_overdue_handoffs_count > 0 %}, including {{ my_overdue_handoffs_count }} overdue{% endif %}.
+                                Use <strong>My Documents</strong> and open <strong>Actions</strong> to accept or decline.
+                              </div>
+                              {% endif %}
+
+                              <div class="d-none d-md-flex flex-wrap gap-2 mb-2">
+                                <span class="badge bg-info text-dark">Assigned to me</span>
+                                <span class="badge bg-warning text-dark">Pending acceptance</span>
+                                <span class="badge bg-danger">Due / overdue</span>
+                              </div>
+
                             <!-- Table -->
                             <div class="table-responsive mt-3">
-                                <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                               
+                                  <table class="datatable display table table-striped table-hover w-100" id="documents-table">
                                     <thead class="bg-green-100 ">
                                     <tr>
                                         <th>
@@ -107,7 +139,10 @@
                                     </thead>
                                     <tbody id="documents-table-body">
                                     {% for document in documents %}
-                                        <tr>
+                                      <tr class="{% if document.is_overdue_acceptance %}table-danger{% elif document.is_pending_acceptance %}table-warning{% elif document.is_assigned_to_me %}table-info{% endif %}"
+                                        data-handoff-priority="{% if document.is_overdue_acceptance %}0{% elif document.is_pending_acceptance %}1{% elif document.is_assigned_to_me %}2{% else %}3{% endif %}"
+                                        data-assigned-user-id="{% if document.latest_handoff %}{{ document.latest_handoff.assigned_to_id }}{% else %}0{% endif %}"
+                                        data-current-user-id="{{ request.user.id }}">
                                             <td> <div class="form-check">
                                                 <input class="form-check-input" type="checkbox" id="select-all">
                                             </div>
@@ -127,7 +162,15 @@
                                             </td>
                                             <td>
                                               {% if document.latest_handoff %}
-                                                {% if document.latest_handoff.status == 'accepted' %}
+                                                {% if document.is_overdue_acceptance %}
+                                                  <span class="badge bg-danger">Due - Action Required</span>
+                                                  <div class="small text-danger mt-1">Acceptance window expired</div>
+                                                {% elif document.is_pending_acceptance %}
+                                                  <span class="badge bg-warning text-dark">Pending Acceptance</span>
+                                                  {% if document.latest_handoff.max_acceptance_time %}
+                                                  <div class="small text-muted mt-1">Accept by {{ document.latest_handoff.max_acceptance_time|date:"M d, H:i" }}</div>
+                                                  {% endif %}
+                                                {% elif document.latest_handoff.status == 'accepted' %}
                                                   <span class="badge bg-success">Accepted</span>
                                                 {% elif document.latest_handoff.status == 'pending' %}
                                                   <span class="badge bg-warning text-dark">Pending</span>
@@ -155,7 +198,29 @@
                                                       <span class="dropdown-item-text text-muted">No file available</span>
                                                     {% endif %}
                                                   </li>
-                                                  {% if document.latest_handoff and document.latest_handoff.status == 'pending' and document.latest_handoff.assigned_to_id == request.user.id %}
+                                                  {% if document.is_overdue_acceptance %}
+                                                  <li>
+                                                    <span class="dropdown-item-text text-danger fw-semibold">
+                                                      <i class="ti ti-alert-triangle me-1"></i>Recommended: accept or decline now
+                                                    </span>
+                                                  </li>
+                                                  <li><hr class="dropdown-divider"></li>
+                                                  {% elif document.is_pending_acceptance %}
+                                                  <li>
+                                                    <span class="dropdown-item-text text-warning fw-semibold">
+                                                      <i class="ti ti-bolt me-1"></i>Recommended: review and accept handoff
+                                                    </span>
+                                                  </li>
+                                                  <li><hr class="dropdown-divider"></li>
+                                                  {% elif document.is_assigned_to_me and document.latest_handoff and document.latest_handoff.status == 'accepted' %}
+                                                  <li>
+                                                    <span class="dropdown-item-text text-info fw-semibold">
+                                                      <i class="ti ti-check me-1"></i>Recommended: proceed with this task
+                                                    </span>
+                                                  </li>
+                                                  <li><hr class="dropdown-divider"></li>
+                                                  {% endif %}
+                                                  {% if document.is_pending_acceptance %}
                                                   <li>
                                                     <button
                                                       type="button"
@@ -453,6 +518,85 @@
           const modal = bootstrap.Modal.getInstance(declineModalEl);
           modal?.hide();
         });
+
+        // ========== Document Filter Functionality ==========
+        const filterRadios = document.querySelectorAll('input[name="doc-filter"]');
+        const tableBody = document.getElementById('documents-table-body');
+        const countBadge = document.getElementById('doc-count-badge');
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        const pendingHandoffsCount = parseInt('{{ my_pending_handoffs_count|default:0 }}', 10) || 0;
+
+        function adjustDocumentsTableColumns() {
+          if (!window.jQuery || !$.fn.dataTable) return;
+          if (!$.fn.dataTable.isDataTable('#documents-table')) return;
+
+          const dt = $('#documents-table').DataTable();
+          dt.columns.adjust();
+        }
+
+        function sortRowsByPriority() {
+          const sortedRows = [...rows].sort((a, b) => {
+            const aPriority = parseInt(a.getAttribute('data-handoff-priority') || '99', 10);
+            const bPriority = parseInt(b.getAttribute('data-handoff-priority') || '99', 10);
+            return aPriority - bPriority;
+          });
+
+          sortedRows.forEach(row => tableBody.appendChild(row));
+        }
+
+        function applyFilter(filterValue) {
+          let visibleCount = 0;
+
+          if (filterValue === 'mine') {
+            sortRowsByPriority();
+          }
+
+          rows.forEach(row => {
+            const assignedUserId = parseInt(row.getAttribute('data-assigned-user-id'));
+            const currentUserId = parseInt(row.getAttribute('data-current-user-id'));
+
+            if (filterValue === 'mine') {
+              const isAssignedToMe = assignedUserId === currentUserId && assignedUserId !== 0;
+              row.style.display = isAssignedToMe ? '' : 'none';
+              if (isAssignedToMe) visibleCount++;
+            } else {
+              row.style.display = '';
+              visibleCount++;
+            }
+          });
+
+          const totalCount = rows.length;
+          if (filterValue === 'mine') {
+            countBadge.textContent = visibleCount + ' of ' + totalCount;
+            countBadge.classList.add('bg-info');
+            countBadge.classList.remove('bg-light');
+          } else {
+            countBadge.textContent = totalCount + ' total';
+            countBadge.classList.add('bg-light');
+            countBadge.classList.remove('bg-info');
+          }
+
+          setTimeout(adjustDocumentsTableColumns, 0);
+        }
+
+        filterRadios.forEach(radio => {
+          radio.addEventListener('change', function () {
+            applyFilter(this.value);
+          });
+        });
+
+        const defaultFilterValue = pendingHandoffsCount > 0 ? 'mine' : 'all';
+        const defaultFilterRadio = document.querySelector('input[name="doc-filter"][value="' + defaultFilterValue + '"]');
+        if (defaultFilterRadio) {
+          defaultFilterRadio.checked = true;
+        }
+        applyFilter(defaultFilterValue);
+
+        window.addEventListener('resize', function () {
+          adjustDocumentsTableColumns();
+        });
+
+        setTimeout(adjustDocumentsTableColumns, 100);
       });
     </script>
 

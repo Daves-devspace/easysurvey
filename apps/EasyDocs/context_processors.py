@@ -8,7 +8,7 @@ from django.utils.functional import SimpleLazyObject
 from django.core.cache import cache
 
 def get_fallback_settings():
-    return SiteSettings(company_name="SMARTSURVEYOR")
+    return SiteSettings(company_name="Plotsync")
 
 
 def site_settings(request):
@@ -33,10 +33,10 @@ def site_settings(request):
 
     # Fallback logo
     if not logo_url:
-        logo_url = static('assets/images/pages/smrtlg.png')  # Fallback image path
+        logo_url = static('assets/images/plotsync.png')  # Fallback image path
 
     # Fallback company name
-    company_name = settings.company_name if settings and settings.company_name else "SMARTSURVEYOR"
+    company_name = settings.company_name if settings and settings.company_name else "Plotsync"
 
     return {
         'site_settings': settings,

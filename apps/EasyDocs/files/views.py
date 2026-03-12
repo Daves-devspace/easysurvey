@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from apps.EasyDocs.models import DocType, ClientDoc, Document, Client, SiteSettings
 from apps.EasyDocs.forms import DocTypeForm
 from apps.EasyDocs.files.utils import get_drive_storage, log_audit
@@ -326,8 +327,27 @@ def office_documents(request):
 
     docs = list(docs_qs)
     latest_handoffs = get_latest_handoffs_for_documents(docs)
+    now = timezone.now()
+    my_pending_handoffs_count = 0
+    my_overdue_handoffs_count = 0
+
     for doc in docs:
-        doc.latest_handoff = latest_handoffs.get(doc.id)
+        latest_handoff = latest_handoffs.get(doc.id)
+        doc.latest_handoff = latest_handoff
+        doc.is_assigned_to_me = bool(latest_handoff and latest_handoff.assigned_to_id == request.user.id)
+        doc.is_pending_acceptance = bool(
+            doc.is_assigned_to_me and latest_handoff and latest_handoff.status == 'pending'
+        )
+        doc.is_overdue_acceptance = bool(
+            doc.is_pending_acceptance
+            and latest_handoff.max_acceptance_time
+            and latest_handoff.max_acceptance_time <= now
+        )
+
+        if doc.is_pending_acceptance:
+            my_pending_handoffs_count += 1
+        if doc.is_overdue_acceptance:
+            my_overdue_handoffs_count += 1
 
     doc_types = DocType.objects.all()
     handoff_employees = User.objects.filter(employeeprofile__isnull=False).order_by('first_name', 'last_name', 'username')
@@ -337,6 +357,8 @@ def office_documents(request):
                      'doc_types': doc_types,
                      'query': query,
                      'handoff_employees': handoff_employees,
+                     'my_pending_handoffs_count': my_pending_handoffs_count,
+                     'my_overdue_handoffs_count': my_overdue_handoffs_count,
                  })
 
 

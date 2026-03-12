@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Store user context
   let currentUser = {
     is_superuser: false,
-    username: "",
+    display_name: "",
     id: null,
   };
 
@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
       ws = new WebSocket(
-        wsProtocol + window.location.host + "/ws/notifications/"
+        wsProtocol + window.location.host + "/ws/notifications/",
       );
 
       ws.onopen = function () {
@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       ws.onerror = function (error) {
         console.warn(
-          "⚠️ WebSocket error (this is okay if Channels isn't configured)"
+          "⚠️ WebSocket error (this is okay if Channels isn't configured)",
         );
       };
 
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function () {
         // If initial connection failed (code 1006), disable WebSocket
         if (reconnectAttempts === 0 && event.code === 1006) {
           console.log(
-            "ℹ️ WebSocket not available on server - real-time updates disabled"
+            "ℹ️ WebSocket not available on server - real-time updates disabled",
           );
           wsEnabled = false;
           return;
@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", function () {
           console.log(
             `🔄 Reconnecting in ${
               delay / 1000
-            }s... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`
+            }s... (attempt ${reconnectAttempts}/${maxReconnectAttempts})`,
           );
           setTimeout(connectWebSocket, delay);
         } else {
@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (error) {
       console.warn(
         "⚠️ Failed to create WebSocket (Channels not configured):",
-        error.message
+        error.message,
       );
       wsEnabled = false;
     }
@@ -117,8 +117,8 @@ document.addEventListener("DOMContentLoaded", function () {
         currentUser = user;
         console.log(
           "👤 Current user:",
-          currentUser.username,
-          currentUser.is_superuser ? "(Superuser)" : "(Regular)"
+          currentUser.display_name || `User #${currentUser.id || "?"}`,
+          currentUser.is_superuser ? "(Superuser)" : "(Regular)",
         );
       }
 
@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Sort by created_at (newest first)
       allNotifications.sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        (a, b) => new Date(b.created_at) - new Date(a.created_at),
       );
 
       renderNotifications(allNotifications);
@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", function () {
       month: "short",
       day: "numeric",
     });
-    const username = notification.target_user || "Unknown";
+    const senderLabel = notification.target_user || "Unknown User";
 
     // Determine notification type icon and color
     let typeIcon = "ti-bell";
@@ -245,7 +245,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? `
               <span class="flag flag-monitored">
                 <i class="ti ti-eye"></i>
-                <span>${username}</span>
+                <span>${senderLabel}</span>
               </span>
             `
                 : ""
@@ -270,7 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
       e.preventDefault();
       const isMonitored = item.dataset.monitored === "true";
       console.log(
-        `📌 Marking notification ${notification.id} as read (monitored: ${isMonitored})`
+        `📌 Marking notification ${notification.id} as read (monitored: ${isMonitored})`,
       );
       markAsRead(notification.id, item, isMonitored);
     });
@@ -293,7 +293,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "X-CSRFToken": csrftoken,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!res.ok) {
@@ -353,7 +353,7 @@ document.addEventListener("DOMContentLoaded", function () {
             "X-CSRFToken": csrftoken,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (!res.ok) {

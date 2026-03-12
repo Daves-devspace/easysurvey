@@ -6,10 +6,18 @@
  * Safe for use on multiple dashboard pages.
  */
 document.addEventListener("DOMContentLoaded", () => {
+  const getResponsiveChartHeight = (desktopHeight = 430) => {
+    if (window.innerWidth < 576) return 300;
+    if (window.innerWidth < 992) return 360;
+    return desktopHeight;
+  };
+
   // ================================
   // 1️⃣ REVENUE CHART SECTION
   // ================================
-  const revenueChartContainer = document.querySelector("#survey-sales-report-chart");
+  const revenueChartContainer = document.querySelector(
+    "#survey-sales-report-chart",
+  );
   const yearSelector = document.getElementById("year-selector");
   const exportBtn = document.getElementById("export-csv-btn");
 
@@ -53,8 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const options = {
         chart: {
           type: "bar",
-          height: 430,
+          height: getResponsiveChartHeight(430),
+          width: "100%",
+          parentHeightOffset: 0,
           toolbar: { show: false },
+          redrawOnWindowResize: true,
+          redrawOnParentResize: true,
         },
         plotOptions: {
           bar: {
@@ -73,13 +85,57 @@ document.addEventListener("DOMContentLoaded", () => {
           horizontalAlign: "right",
           show: true,
           fontFamily: `'Public Sans', sans-serif`,
+          fontSize: "12px",
+          itemMargin: { horizontal: 8, vertical: 4 },
         },
         colors: ["#faad14", "#1890ff"],
         series: [
           { name: "Net Profit", data: netProfit },
           { name: "Revenue", data: revenue },
         ],
-        xaxis: { categories: labels },
+        xaxis: {
+          categories: labels,
+          labels: {
+            hideOverlappingLabels: true,
+            trim: true,
+          },
+        },
+        responsive: [
+          {
+            breakpoint: 992,
+            options: {
+              chart: { height: getResponsiveChartHeight(430) },
+              legend: {
+                position: "bottom",
+                horizontalAlign: "left",
+              },
+            },
+          },
+          {
+            breakpoint: 576,
+            options: {
+              chart: { height: getResponsiveChartHeight(430) },
+              plotOptions: {
+                bar: {
+                  columnWidth: "72%",
+                },
+              },
+              legend: {
+                position: "bottom",
+                horizontalAlign: "center",
+                fontSize: "11px",
+              },
+              xaxis: {
+                labels: {
+                  rotate: -45,
+                  hideOverlappingLabels: true,
+                  trim: true,
+                  style: { fontSize: "10px" },
+                },
+              },
+            },
+          },
+        ],
       };
 
       if (chart) chart.updateOptions(options);
@@ -106,7 +162,40 @@ document.addEventListener("DOMContentLoaded", () => {
       window.URL.revokeObjectURL(url);
     });
 
-    yearSelector.addEventListener("change", (e) => fetchChartData(e.target.value));
+    yearSelector.addEventListener("change", (e) =>
+      fetchChartData(e.target.value),
+    );
+
+    const revenueTab = document.getElementById("revenue-tab");
+    revenueTab?.addEventListener("shown.bs.tab", () => {
+      if (chart) {
+        chart.updateOptions(
+          {
+            chart: {
+              height: getResponsiveChartHeight(430),
+              parentHeightOffset: 0,
+            },
+          },
+          true,
+          false,
+        );
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (chart) {
+        chart.updateOptions(
+          {
+            chart: {
+              height: getResponsiveChartHeight(430),
+              parentHeightOffset: 0,
+            },
+          },
+          true,
+          false,
+        );
+      }
+    });
 
     fetchYears();
   }
@@ -124,7 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Add chart type toggle
   const chartTypeDropdown = document.createElement("select");
   chartTypeDropdown.className = "form-select form-select-sm";
-  chartTypeDropdown.style.minWidth = "130px";
   chartTypeDropdown.innerHTML = `
     <option value="bar" selected>Stacked Bar</option>
     <option value="line">Line</option>
@@ -166,7 +254,9 @@ document.addEventListener("DOMContentLoaded", () => {
             svcSelector.appendChild(opt);
           });
 
-        const defaultYear = years.includes(currentYear) ? currentYear : years[0];
+        const defaultYear = years.includes(currentYear)
+          ? currentYear
+          : years[0];
         renderServiceChart(defaultYear, "", chartType);
       })
       .catch((err) => console.error("Init filters error:", err));
@@ -175,7 +265,11 @@ document.addEventListener("DOMContentLoaded", () => {
     [svcYearSelector, svcSelector, chartTypeDropdown].forEach((el) => {
       el.addEventListener("change", () => {
         chartType = chartTypeDropdown.value;
-        renderServiceChart(parseInt(svcYearSelector.value, 10), svcSelector.value, chartType);
+        renderServiceChart(
+          parseInt(svcYearSelector.value, 10),
+          svcSelector.value,
+          chartType,
+        );
       });
     });
 
@@ -193,26 +287,76 @@ document.addEventListener("DOMContentLoaded", () => {
         .then((data) => {
           summaryServices.textContent = `Services Analyzed: ${data.total_services}`;
           summaryRevenue.textContent = `Total Revenue: ${data.currency} ${Number(
-            data.total_revenue
+            data.total_revenue,
           ).toLocaleString()}`;
 
           const base = {
             chart: {
-              height: 430,
+              height: getResponsiveChartHeight(430),
+              width: "100%",
+              parentHeightOffset: 0,
               type,
               stacked: type === "bar",
               toolbar: { show: true },
+              redrawOnWindowResize: true,
+              redrawOnParentResize: true,
             },
             title: {
               text: "Monthly Service Revenue",
               align: "left",
               style: { fontSize: "14px", fontWeight: 600 },
             },
-            xaxis: { categories: data.labels },
-            legend: { position: "bottom" },
-            tooltip: {
-              y: { formatter: (val) => `${data.currency} ${Number(val).toLocaleString()}` },
+            xaxis: {
+              categories: data.labels,
+              labels: {
+                hideOverlappingLabels: true,
+                trim: true,
+              },
             },
+            legend: {
+              position: "bottom",
+              horizontalAlign: "left",
+              fontSize: "12px",
+              itemMargin: { horizontal: 8, vertical: 4 },
+            },
+            tooltip: {
+              y: {
+                formatter: (val) =>
+                  `${data.currency} ${Number(val).toLocaleString()}`,
+              },
+            },
+            responsive: [
+              {
+                breakpoint: 992,
+                options: {
+                  chart: {
+                    height: getResponsiveChartHeight(430),
+                  },
+                },
+              },
+              {
+                breakpoint: 576,
+                options: {
+                  chart: {
+                    height: getResponsiveChartHeight(430),
+                    toolbar: { show: false },
+                  },
+                  legend: {
+                    position: "bottom",
+                    horizontalAlign: "center",
+                    fontSize: "10px",
+                  },
+                  xaxis: {
+                    labels: {
+                      rotate: -45,
+                      hideOverlappingLabels: true,
+                      trim: true,
+                      style: { fontSize: "10px" },
+                    },
+                  },
+                },
+              },
+            ],
           };
 
           let options;
@@ -264,8 +408,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     ranges: [
                       { from: 0, to: 0, color: "#e0e0e0", name: "No Data" },
                       { from: 1, to: 10000, color: "#90EE90", name: "Low" },
-                      { from: 10001, to: 100000, color: "#00A100", name: "Medium" },
-                      { from: 100001, to: 1000000, color: "#007700", name: "High" },
+                      {
+                        from: 10001,
+                        to: 100000,
+                        color: "#00A100",
+                        name: "Medium",
+                      },
+                      {
+                        from: 100001,
+                        to: 1000000,
+                        color: "#007700",
+                        name: "High",
+                      },
                     ],
                   },
                 },
@@ -279,5 +433,38 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .catch((err) => console.error("Service chart error:", err));
     }
+
+    const servicesTab = document.getElementById("services-tab");
+    servicesTab?.addEventListener("shown.bs.tab", () => {
+      if (chartInstance) {
+        setTimeout(() => {
+          chartInstance.updateOptions(
+            {
+              chart: {
+                height: getResponsiveChartHeight(430),
+                parentHeightOffset: 0,
+              },
+            },
+            true,
+            false,
+          );
+        }, 50);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (chartInstance) {
+        chartInstance.updateOptions(
+          {
+            chart: {
+              height: getResponsiveChartHeight(430),
+              parentHeightOffset: 0,
+            },
+          },
+          true,
+          false,
+        );
+      }
+    });
   }
 });

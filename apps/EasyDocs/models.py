@@ -99,7 +99,7 @@ class DriveOAuthToken(models.Model):
 class SiteSettings(models.Model):
     # Enforce only one row
     singleton_enforcer = models.BooleanField(default=True, editable=False, unique=True)  
-    company_name = models.CharField(max_length=200, default="SMARTSURVEYOR")
+    company_name = models.CharField(max_length=200, default="Plotsync")
     logo = models.ImageField(upload_to="company/", blank=True, null=True)
     company_phone = models.CharField(max_length=20, blank=True, null=True)
     company_email = models.EmailField(unique=True, blank=True, null=True, db_index=True)
@@ -1061,7 +1061,7 @@ class Expense(models.Model):
                     ('cash','Cash'),
                     ('bank','Bank Transfer'),
                   ])
-    handled_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='expenses_handled')
+    recorded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='expenses_recorded')
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='expenses_approved')
     receipt_no  = models.CharField(max_length=64, blank=True)
 

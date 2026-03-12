@@ -18,7 +18,7 @@
 
     <!-- [Favicon] icon -->
     
-    <link rel="icon" href="{% if site_settings.logo %}{{ site_settings.logo.url }}?v={{ logo_ts }}{% else %}{% static 'assets/images/pages/smrtlg.png' %}{% endif %}" type="image/x-icon">
+    <link rel="icon" href="{% if site_settings.logo %}{{ site_settings.logo.url }}?v={{ logo_ts }}{% else %}{% static 'assets/images/plotsync.png' %}{% endif %}" type="image/x-icon">
  <!-- [Google Font] Family -->
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap"
@@ -104,9 +104,9 @@
                             alt="{{ site_settings.company_name }} logo"
                             class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
                     {% else %}
-                        <span class="h5 mb-0 px-3 py-1 rounded bg-green-100 text-dark">
-                            {{ site_settings.company_name }}
-                        </span>
+                        <img src="{{ logo_url }}"
+                            alt="{{ company_name }} logo"
+                            class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
 
                     {% endif %}
                 </a>
@@ -621,11 +621,15 @@
         <div class="row">
             <div class="col-sm my-1">
                 <p class="m-0"
-                > {% if site_settings %}
-                    <span class="h5">{{ site_settings.company_name }}</span>
-                {% else %}
-                    <span class="h5">SMARTSURVEYOR</span>
-                {% endif %}
+                > {% with brand_name=site_settings.company_name|default:"Plotsync" %}
+                    {% if brand_name|lower == 'plotsync' or brand_name|lower == 'smartsurveyor' %}
+                        <span class="h5 footer-brand-wordmark mb-0">
+                            <span class="footer-brand-plot">Plot</span><span class="footer-brand-sync">Sync</span>
+                        </span>
+                    {% else %}
+                        <span class="h5">{{ brand_name }}</span>
+                    {% endif %}
+                {% endwith %}
                 .</p >
                
             </div>

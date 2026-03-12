@@ -17,24 +17,10 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_target_user(self, obj):
-        """Return the display name or fallback for the notification sender."""
+        """Return a human-friendly sender label without exposing usernames."""
         user = obj.user
-        profile = getattr(user, 'employeeprofile', None)
-
-        # If profile has display_name (property or callable), use it
-        if profile:
-            display = getattr(profile, 'display_name', None)
-            if callable(display):
-                try:
-                    return display()
-                except Exception:
-                    pass
-            if display:
-                return display
-
-        # fallback: show full name or username
-        full_name = f"{user.first_name} {user.last_name}".strip()
-        return full_name or user.username
+        full_name = user.get_full_name().strip()
+        return full_name or f"User #{user.id}"
 
     
     

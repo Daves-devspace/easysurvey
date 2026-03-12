@@ -31,18 +31,33 @@
 
 
                                     .m-header1 .b-brand {
-        display: flex;
-        align-items: center;
-        padding: 0.5rem 1rem;
-        background: #fff;
-    }
+                      display: flex;
+                      align-items: center;
+                      padding: 0.5rem 1rem;
+                      background: transparent;
+                    }
 
-    .m-header .b-brand .logo-lg {
-        max-height: 3rem;
-        width: auto;
-        object-fit: contain;
-        display: block;
-    }
+                    .m-header .b-brand .logo-lg,
+                    .m-header1 .b-brand .logo-lg {
+                      max-height: 3rem;
+                      width: auto;
+                      object-fit: contain;
+                      display: block;
+                      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+                    }
+
+                    .footer-brand-wordmark {
+                      font-weight: 700;
+                      letter-spacing: -0.02em;
+                    }
+
+                    .footer-brand-plot {
+                      color: #1b5e9a;
+                    }
+
+                    .footer-brand-sync {
+                      color: #7bc043;
+                    }
     .user-avtar {
     width: 35px;
     height: 35px;

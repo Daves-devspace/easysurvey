@@ -205,7 +205,7 @@ class CustomPasswordResetForm(PasswordResetForm):
             settings_obj = None
 
         if not settings_obj:
-            settings_obj = SiteSettings(company_name="SMARTSURVEYOR")
+            settings_obj = SiteSettings(company_name="Plotsync")
 
         # Get logo URL
         logo_url = None
@@ -216,11 +216,11 @@ class CustomPasswordResetForm(PasswordResetForm):
                 pass
 
         if not logo_url:
-            logo_url = static('assets/images/pages/smrtlg.png')
+            logo_url = static('assets/images/plotsync.png')
 
         company_name = (settings_obj.company_name 
                        if settings_obj and settings_obj.company_name 
-                       else "SMARTSURVEYOR")
+                       else "Plotsync")
 
         # Merge with any existing extra_email_context
         if extra_email_context is None:
@@ -327,6 +327,12 @@ class ClientForm(forms.ModelForm):
 # forms.py
 
 
+class EmployeeNameChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        full_name = obj.get_full_name().strip()
+        return full_name or f"Employee #{obj.pk}"
+
+
 class ClientServiceForm(forms.ModelForm):
     category = forms.ChoiceField(
         choices=ServiceCategory.choices,
@@ -337,14 +343,20 @@ class ClientServiceForm(forms.ModelForm):
 
     service = forms.ModelChoiceField(
         queryset=Service.objects.none(),
-        widget=forms.Select(attrs={'class': 'form-select'})
+        widget=forms.Select(attrs={
+            'class': 'form-select searchable-select',
+            'data-search-placeholder': 'Search or select service',
+        })
     )
 
-    assigned_employee = forms.ModelChoiceField(
+    assigned_employee = EmployeeNameChoiceField(
         queryset=User.objects.filter(employeeprofile__isnull=False).order_by('first_name', 'last_name', 'username'),
         required=False,
-        label="Assign Employee",
-        widget=forms.Select(attrs={'class': 'form-select'})
+        label="Assign Task/Service",
+        widget=forms.Select(attrs={
+            'class': 'form-select searchable-select',
+            'data-search-placeholder': 'Search or select assignee',
+        })
     )
 
     expected_duration_days = forms.IntegerField(
@@ -399,6 +411,8 @@ class ClientServiceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['service'].empty_label = "Search or select service"
+        self.fields['assigned_employee'].empty_label = "Search or select assignee"
         # Filter services by selected category if present
         if 'category' in self.data:
             self.fields['service'].queryset = Service.objects.filter(
@@ -886,23 +900,73 @@ class SiteSettingsForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['date', 'description', 'amount', 'payment_mode', 'handled_by', 'approved_by', 'receipt_no']
+        fields = ['date', 'description', 'amount', 'payment_mode', 'recorded_by', 'approved_by', 'receipt_no']
         widgets = {
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'payment_mode': forms.Select(attrs={'class': 'form-control'}),
-            'handled_by': forms.Select(attrs={'class': 'form-control'}),
+            'recorded_by': forms.Select(attrs={'class': 'form-control'}),
             'approved_by': forms.Select(attrs={'class': 'form-control'}),
             'receipt_no': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
     def __init__(self, *args, **kwargs):
+        self.current_user = kwargs.pop('current_user', None)
         super().__init__(*args, **kwargs)
+
+        def recorded_label(user):
+            full_name = (user.get_full_name() or "").strip()
+            return full_name or user.username
+
+        def approved_label(user):
+            first = (user.first_name or "").strip() or (user.username or "User")
+            last_initial = (user.last_name or "").strip()[:1]
+            name_part = f"{first} {last_initial}".strip() if last_initial else first
+
+            role_label = "user"
+            try:
+                if hasattr(user, 'employeeprofile') and user.employeeprofile.role:
+                    role_label = user.employeeprofile.get_role_display().lower()
+            except Exception:
+                role_label = "user"
+
+            return f"{name_part}-{role_label}"
+
+        self.fields['recorded_by'].label = "Recorded By"
+        self.fields['recorded_by'].label_from_instance = recorded_label
+        self.fields['recorded_by'].empty_label = "Select recorder"
+
+        if (
+            self.current_user
+            and getattr(self.current_user, 'is_authenticated', False)
+            and not self.is_bound
+            and not (self.instance and self.instance.pk)
+        ):
+            self.initial.setdefault('recorded_by', self.current_user.pk)
+
         # Restrict approved_by to users who are Admins
         self.fields['approved_by'].queryset = User.objects.filter(
             employeeprofile__role=EmployeeProfile.RoleChoices.ADMIN
         )
+        self.fields['approved_by'].label_from_instance = approved_label
+        self.fields['approved_by'].empty_label = "Select approver"
+
+    def save(self, commit=True):
+        expense = super().save(commit=False)
+
+        if (
+            not expense.pk
+            and not expense.recorded_by
+            and self.current_user
+            and getattr(self.current_user, 'is_authenticated', False)
+        ):
+            expense.recorded_by = self.current_user
+
+        if commit:
+            expense.save()
+            self.save_m2m()
+        return expense
         
     def clean_amount(self):
         amount = self.cleaned_data["amount"]

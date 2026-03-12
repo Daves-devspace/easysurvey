@@ -510,7 +510,7 @@ class ExpenseView(LoginRequiredMixin,View):
     def post(self, request, *args, **kwargs):
         pk = request.POST.get("expense_id")
         instance = Expense.objects.filter(pk=pk).first() if pk else None
-        form = ExpenseForm(request.POST, instance=instance)
+        form = ExpenseForm(request.POST, instance=instance, current_user=request.user)
 
         if form.is_valid():
             form.save()
@@ -602,7 +602,7 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
         ctx['summary'] = self.compute_summary(qs)
         ctx['expenses'] = Expense.objects.all().order_by('-date')
         ctx['client_payments'] = get_all_payment_history()
-        ctx['form'] = ExpenseForm()
+        ctx['form'] = ExpenseForm(current_user=self.request.user)
         ctx['users'] = User.objects.all()
         return ctx
 

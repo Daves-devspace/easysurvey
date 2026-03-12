@@ -312,7 +312,7 @@
                                                                     {{ cs.requested_at|date:"M d, Y H:i" }}
                                                                 </small>
                                                                 <small class="text-muted d-block mt-1">
-                                                                    <strong class="text-orange-800">Assigned Employee:</strong>
+                                                                    <strong class="text-orange-800">Assigned to:</strong>
                                                                     {% if cs.assigned_employee %}
                                                                         {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username }}
                                                                     {% else %}
@@ -320,7 +320,7 @@
                                                                     {% endif %}
                                                                 </small>
                                                                 <small class="text-muted d-block mt-1">
-                                                                    <strong class="text-orange-800">Assignment:</strong>
+                                                                    <strong class="text-orange-800">Status:</strong>
                                                                     {% if cs.assignment_status %}
                                                                         <span class="badge bg-warning text-dark">{{ cs.get_assignment_status_display }}</span>
                                                                     {% else %}
@@ -462,7 +462,7 @@
                                                             {% if cs.service.category == "title" %}
                                                                 <h6 class="mt-4 text-orange-800">Processes:</h6>
                                                                 <div class="table-responsive">
-                                                                     <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                     <table class="datatable display table table-striped table-hover">
                                                                        <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -611,7 +611,7 @@
                                                                 {# —————————————————————— #}
                                                                 <h6 class="mt-4 text-orange-800">Booking Schedule:</h6>
                                                                 <div class="table-responsive">
-                                                                       <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                       <table class="datatable display table table-striped table-hover">
                                                                         <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -644,7 +644,7 @@
 
                                                             <div class="table-responsive">
                                                            
-                                                                 <table class=" display table table-striped table-hover dt-responsive nowrap">
+                                                                 <table class="datatable display table table-striped table-hover">
                                                                    <thead class="table-success">
                                                                     <tr>
                                                                         <th>
@@ -1002,7 +1002,7 @@
                                     </div>
                                     <div class="card-body table-card">
                                         <div class="table-responsive mt-3">
-                                            <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                            <table class="datatable display table table-striped table-hover w-100">
                                                 <thead class="table-success">
                                                 <tr>
                                                     <th>
@@ -1385,7 +1385,7 @@
                                                 <div class="card-body">
                                                     <div class="table-responsive mt-3">
                                                         <table id="serviceListTable"
-                                                               class="datatable table table-striped table-hover dt-responsive nowrap">
+                                                               class="datatable table table-striped table-hover">
                                                             <thead class="table-success">
                                                             <tr>
                                                                 <th>
@@ -1812,7 +1812,7 @@
 
                                             {% if message_logs %}
                                                 <div class="table-responsive mt-3">
-                                                    <table class="datatable display table table-striped table-hover dt-responsive nowrap">
+                                                    <table class="datatable display table table-striped table-hover">
                                                         <thead class="table-success">
                                                         <tr>
                                                             <th>Date</th>
@@ -1934,7 +1934,7 @@
                                 <tr>
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
-                                    <th>Completed at Onboarding</th>
+                                    <th>Completed</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>
@@ -2043,17 +2043,17 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="editService" class="form-label">Service</label>
-                                <select class="form-select" name="service" id="editService" required>
-                                    <option value="">Select Service</option>
+                                <select class="form-select searchable-select" name="service" id="editService" data-search-placeholder="Search or select service" required>
+                                    <option value="">Search or select service</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="editAssignedEmployee" class="form-label">Assign Employee</label>
-                                <select class="form-select" name="assigned_employee" id="editAssignedEmployee">
-                                    <option value="">Select employee</option>
+                                <label for="editAssignedEmployee" class="form-label">Assign Task/Service</label>
+                                <select class="form-select searchable-select" name="assigned_employee" id="editAssignedEmployee" data-search-placeholder="Search or select assignee">
+                                    <option value="">Search or select assignee</option>
                                     {% for employee in client_service_form.fields.assigned_employee.queryset %}
                                         <option value="{{ employee.id }}">
-                                            {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                                            {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}Employee #{{ employee.id }}{% endif %}
                                         </option>
                                     {% endfor %}
                                 </select>
@@ -2072,7 +2072,7 @@
                                 <tr>
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
-                                    <th>Completed at Onboarding</th>
+                                    <th>Completed</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>

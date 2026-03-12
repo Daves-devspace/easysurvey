@@ -245,14 +245,14 @@
 
                                         <div class="card-body table-card">
                                             <div class="table-responsive mt-3"  style="max-height: 600px; overflow-y: auto;">
-                                                <table class="datatable display table table-striped table-hover dt-responsive w-100 nowrap">
+                                                <table class="datatable display table table-striped table-hover w-100">
                                                     <thead class="table-success">
                                                     <tr>
                                                         <th>Date</th>
 
                                                         <th>Amount</th>
                                                         <th>Mode</th>
-                                                        <th>Handled By</th>
+                                                        <th>Recorded By</th>
                                                         <th>Approved By</th>
                                                         {% if perms.easydocs.change_expense %}
                                                             <th>Edit</th>
@@ -268,8 +268,8 @@
                                                             <td>{{ exp.date }}</td>
                                                             <td>{{ exp.amount }}</td>
                                                             <td>{{ exp.get_payment_mode_display }}</td>
-                                                            <td>{{ exp.handled_by|default:"-" }}</td>
-                                                            <td>{{ exp.approved_by|default:"-" }}</td>
+                                                            <td>{{ exp.recorded_by|person_name_role }}</td>
+                                                            <td>{{ exp.approved_by|first_initial_role }}</td>
 
                                                             {% if perms.easydocs.change_expense %}
 
@@ -280,9 +280,9 @@
                                                                             data-date="{{ exp.date|date:'Y-m-d' }}"
                                                                             data-amount="{{ exp.amount }}"
                                                                             data-payment_mode="{{ exp.payment_mode }}"
-                                                                            data-handled_by="
+                                                                                data-recorded_by="
 
-                                                                                    {% if exp.handled_by %}{{ exp.handled_by.id }}{% endif %}"
+                                                                                    {% if exp.recorded_by %}{{ exp.recorded_by.id }}{% endif %}"
                                                                             data-approved_by="
 
                                                                                     {% if exp.approved_by %}{{ exp.approved_by.id }}{% endif %}"
@@ -609,7 +609,7 @@ document.addEventListener("DOMContentLoaded", function () {
             setField("description", this.dataset.description);
             setField("amount", this.dataset.amount);
             setField("payment_mode", this.dataset.payment_mode);
-            setField("handled_by", this.dataset.handled_by);
+            setField("recorded_by", this.dataset.recorded_by);
             setField("approved_by", this.dataset.approved_by);
             setField("receipt_no", this.dataset.receipt_no);
 

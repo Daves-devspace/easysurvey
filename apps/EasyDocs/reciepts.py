@@ -87,9 +87,9 @@ def generate_service_receipt(client_service, printed_by_user: User):
     # ─── Watermark Background ────────────────────────────────────────────────
     try:
         site_settings = SiteSettings.objects.first()
-        company_name = site_settings.company_name if site_settings and site_settings.company_name else "SMARTSURVEYOR"
+        company_name = site_settings.company_name if site_settings and site_settings.company_name else "Plotsync"
     except Exception:
-        company_name = "SMARTSURVEYOR"
+        company_name = "Plotsync"
     
     # Create a semi-transparent watermark
     c.saveState()

@@ -215,4 +215,25 @@ class CashbookEntry(models.Model):
     
     @property
     def recorded_by_display(self):
-        return str(self.created_by) if self.created_by else "System / Auto Task"
+        if not self.created_by:
+            return "System / Auto Task"
+
+        user = self.created_by
+
+        full_name = ""
+        try:
+            full_name = (user.get_full_name() or "").strip()
+        except Exception:
+            full_name = ""
+
+        name_part = full_name or (getattr(user, "username", "") or "User")
+
+        role_label = "user"
+        try:
+            profile = getattr(user, "employeeprofile", None)
+            if profile and getattr(profile, "role", None):
+                role_label = profile.get_role_display().lower()
+        except Exception:
+            role_label = "user"
+
+        return f"{name_part}-{role_label}"

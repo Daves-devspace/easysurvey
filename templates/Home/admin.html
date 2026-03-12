@@ -21,6 +21,87 @@
         .nav-tabs {
             border-bottom: none;
         }
+
+        .dashboard-chart-header .chart-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .dashboard-chart-header .chart-toolbar > * {
+            min-width: 0;
+        }
+
+        .dashboard-chart-header .nav-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            overflow: visible;
+            max-width: 100%;
+            white-space: normal;
+            gap: 0.25rem;
+        }
+
+        .dashboard-chart-header .dashboard-chart-filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .dashboard-chart-header .dashboard-chart-filters .form-select,
+        .dashboard-chart-header .dashboard-chart-filters .btn {
+            width: 100%;
+            min-width: 0 !important;
+        }
+
+        .dashboard-chart-surface {
+            width: 100%;
+            min-height: 430px;
+            overflow: hidden;
+        }
+
+        .dashboard-chart-surface .apexcharts-canvas,
+        .dashboard-chart-surface .apexcharts-svg {
+            max-width: 100% !important;
+        }
+
+        @media (max-width: 991.98px) {
+            .dashboard-chart-surface {
+                min-height: 360px;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .dashboard-chart-surface {
+                min-height: 300px;
+            }
+
+            .dashboard-chart-header .nav-tabs .nav-link {
+                padding: 0.35rem 0.5rem;
+                font-size: 0.85rem;
+            }
+
+            #chart-summary h6,
+            #chart-summary p {
+                word-break: break-word;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-chart-header .dashboard-chart-filters {
+                width: auto;
+                justify-content: flex-end;
+            }
+
+            .dashboard-chart-header .dashboard-chart-filters .form-select,
+            .dashboard-chart-header .dashboard-chart-filters .btn {
+                width: auto;
+                min-width: 120px !important;
+            }
+        }
     </style>
 
     <!-- [ Main Content ] start -->
@@ -256,64 +337,60 @@
                                         87%
                                     </span>
                                 </div>
-                                <h4 class="mb-2 fw-bold">KES 2,450,000</h4>
-                                <p class="text-muted small mb-0">
-                                    <i class="fas fa-chart-line text-primary"></i> Projected for next quarter
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                                                                                                                                                                                                                                                                                                                                                                                    <h4 class="mb-2 fw-bold">KES 2,450,000</h4>
+                                                                                                                                                                                                                                                                                                                                                                                    <p class="text-muted small mb-0">
+                                                                                                                                                                                                                                                                                                                                                                                        <i class="fas fa-chart-line text-primary"></i> Projected for next quarter
+                                                                                                                                                                                                                                                                                                                                                                                    </p>
+                                                                                                                                                                                                                                                                                                                                                                                </div>
+                                                                                                                                                                                                                                                                                                                                                                            </div>
+                                                                                                                                                                                                                                                                                                                                                                        </div>
 
 
 
-                <div class="row g-4">
-                    <!-- Tabs + Shared Chart Area -->
-                    <div class="col-12 col-lg-6">
-                        <div class="card h-100">
-                            <div class="card-header bg-green-100">
+                                                                                                                                                                                                                                                                                                                                                                    <div class="row g-4">
+                                                                                                                                                                                                                                                                                                                                                                        <!-- Tabs + Shared Chart Area -->
+                                                                                                                                                                                                                                                                                                                                                                        <div class="col-12 col-lg-6">
+                                                                                                                                                                                                                                                                                                                                                                            <div class="card h-100">
+                                                                                                                                                                                                                                                                                                                                                                                <div class="card-header bg-green-100 dashboard-chart-header">
 
 
-                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <ul class="nav nav-tabs border-0" id="chartTab" role="tablist">
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab"
-                                                    data-bs-target="#revenue" type="button" role="tab">
-                                                Revenue
-                                            </button>
-                                        </li>
-                                        <li class="nav-item" role="presentation">
-                                            <button class="nav-link" id="services-tab" data-bs-toggle="tab"
-                                                    data-bs-target="#services" type="button" role="tab">
-                                                Service Analysis
-                                            </button>
-                                        </li>
-                                    </ul>
+                                                                                                                                                                                                                                                                                                                                                                                    <div class="chart-toolbar">
+                                                                                                                                                                                                                                                                                                                                                                                        <ul class="nav nav-tabs border-0" id="chartTab" role="tablist">
+                                                                                                                                                                                                                                                                                                                                                                                            <li class="nav-item" role="presentation">
+                                                                                                                                                                                                                                                                                                                                                                                                <button class="nav-link active" id="revenue-tab" data-bs-toggle="tab"
+                                                                                                                                                                                                                                                                                                                                                                                                        data-bs-target="#revenue" type="button" role="tab">
+                                                                                                                                                                                                                                                                                                                                                                                                    Revenue
+                                                                                                                                                                                                                                                                                                                                                                                                </button>
+                                                                                                                                                                                                                                                                                                                                                                                            </li>
+                                                                                                                                                                                                                                                                                                                                                                                            <li class="nav-item" role="presentation">
+                                                                                                                                                                                                                                                                                                                                                                                                <button class="nav-link" id="services-tab" data-bs-toggle="tab"
+                                                                                                                                                                                                                                                                                                                                                                                                        data-bs-target="#services" type="button" role="tab">
+                                                                                                                                                                                                                                                                                                                                                                                                    Service Analysis
+                                                                                                                                                                                                                                                                                                                                                                                                </button>
+                                                                                                                                                                                                                                                                                                                                                                                            </li>
+                                                                                                                                                                                                                                                                                                                                                                                        </ul>
 
-                                    <!-- Filters Container -->
-                                    <div id="revenue-filters" class="d-flex gap-2">
-                                        <select id="year-selector" class="form-select form-select-sm"
-                                                style="min-width: 120px;"></select>
-                                        <button id="export-csv-btn" class="btn btn-outline-primary btn-sm"
-                                                style="min-width: 120px;">
-                                            Export CSV
-                                        </button>
-                                    </div>
+                                                                                                                                                                                                                                                                                                                                                                                        <!-- Filters Container -->
+                                                                                                                                                                                                                                                                                                                                                                                        <div id="revenue-filters" class="dashboard-chart-filters">
+                                                                                                                                                                                                                                                                                                                                                                                            <select id="year-selector" class="form-select form-select-sm"></select>
+                                                                                                                                                                                                                                                                                                                                                                                            <button id="export-csv-btn" class="btn btn-outline-primary btn-sm">
+                                                                                                                                                                                                                                                                                                                                                                                                Export CSV
+                                                                                                                                                                                                                                                                                                                                                                                            </button>
+                                                                                                                                                                                                                                                                                                                                                                                        </div>
 
-                                    <div id="service-filters" class="d-flex gap-2 d-none">
-                                        <select id="service-year-selector" class="form-select form-select-sm"
-                                                style="min-width: 120px;"></select>
-                                        <select id="service-selector" class="form-select form-select-sm"
-                                                style="min-width: 150px;"></select>
-                                    </div>
-                                </div>
+                                                                                                                                                                                                                                                                                                                                                                                        <div id="service-filters" class="dashboard-chart-filters d-none">
+                                                                                                                                                                                                                                                                                                                                                                                            <select id="service-year-selector" class="form-select form-select-sm"></select>
+                                                                                                                                                                                                                                                                                                                                                                                            <select id="service-selector" class="form-select form-select-sm"></select>
+                                                                                                                                                                                                                                                                                                                                                                                        </div>
+                                                                                                                                                                                                                                                                                                                                                                                    </div>
 
-                            </div>
+                                                                                                                                                                                                                                                                                                                                                                                </div>
 
-                            <div class="card-body tab-content shadow-lg">
-                                <!-- Revenue Tab -->
-                                <div class="tab-pane fade show active" id="revenue" role="tabpanel">
-                                    <div id="survey-sales-report-chart" style="min-height: 430px;"></div>
-                                </div>
+                                                                                                                                                                                                                                                                                                                                                                                <div class="card-body tab-content shadow-lg">
+                                                                                                                                                                                                                                                                                                                                                                                    <!-- Revenue Tab -->
+                                                                                                                                                                                                                                                                                                                                                                                    <div class="tab-pane fade show active" id="revenue" role="tabpanel">
+                                                                                                                                                                                                                                                                                                                                                                                        <div id="survey-sales-report-chart" class="dashboard-chart-surface"></div>
+                                                                                                                                                                                                                                                                                                                                                                                    </div>
                                 <!-- Service Analysis Tab -->
                                 <div class="tab-pane fade" id="services" role="tabpanel">
 
@@ -322,7 +399,7 @@
                                         <p id="summary-services" class="mb-1"></p>
                                         <p id="summary-revenue"></p>
                                     </div>
-                                    <div id="chart" style="min-height: 300px;"></div>
+                                    <div id="chart" class="dashboard-chart-surface"></div>
                                 </div>
                             </div>
                         </div>

@@ -93,8 +93,9 @@ def send_surveyor_assignment_email_and_push(surveyor_id, booking_id, client_name
 
     # --- Email ---
     subject = f"New Booking Assigned - {service_name}"
+    greeting_name = surveyor.get_full_name().strip() or "there"
     message = (
-        f"Hello {surveyor.get_full_name() or surveyor.username},\n\n"
+        f"Hello {greeting_name},\n\n"
         f"You have been assigned a new booking for {service_name}.\n"
         f"Client: {client_name}\n"
         f"Scheduled Date: {scheduled_date}\n\n"
@@ -167,8 +168,9 @@ def send_surveyor_reminder_email_and_push(surveyor_id, client_name, service_name
         return
 
     subject = f"Reminder: Upcoming Booking for {service_name}"
+    greeting_name = surveyor.get_full_name().strip() or "there"
     message = (
-        f"Hello {surveyor.get_full_name() or surveyor.username},\n\n"
+        f"Hello {greeting_name},\n\n"
         f"This is a reminder for your upcoming booking:\n"
         f"Service: {service_name}\n"
         f"Client: {client_name}\n"

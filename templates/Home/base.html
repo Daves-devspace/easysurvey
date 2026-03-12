@@ -18,7 +18,7 @@
 
     <!-- [Favicon] icon -->
     
-    <link rel="icon" href="{% if site_settings.logo %}{{ site_settings.logo.url }}?v={{ logo_ts }}{% else %}{% static 'assets/images/pages/smrtlg.png' %}{% endif %}" type="image/x-icon">
+    <link rel="icon" href="{% if site_settings.logo %}{{ site_settings.logo.url }}?v={{ logo_ts }}{% else %}{% static 'assets/images/plotsync.png' %}{% endif %}" type="image/x-icon">
  <!-- [Google Font] Family -->
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap"
@@ -76,6 +76,130 @@
     .tools-card { margin-top: 1rem; }
     #map { height: 70vh; min-height: 350px; border-radius: .35rem; }
     .map-toolbar { gap: .5rem; }
+    
+    /* DataTable Horizontal Scrolling - Keep pagination/search, remove responsive modal */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    
+    .datatable {
+      min-width: 900px;  /* Ensure table has minimum width for scrolling */
+      margin-bottom: 1rem;
+    }
+    
+    /* DataTables pagination styling improvements */
+    .dataTables_wrapper {
+      padding: 0.75rem 0;
+    }
+    
+    .dataTables_paginate {
+      margin-top: 1rem;
+      float: right;
+    }
+    
+    .dataTables_filter {
+      margin-bottom: 1rem;
+    }
+    
+    /* Hide responsive column handler (we don't want modal dropdowns) */
+    .dtr-control {
+      display: none !important;
+    }
+
+        /* Modal Select2 polish */
+        .modal .select2-container {
+            width: 100% !important;
+        }
+
+        .modal .select2-container--default .select2-selection--single {
+            min-height: 42px;
+            border: 1px solid #ced4da;
+            border-radius: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background-color: #fff;
+        }
+
+        .modal .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #212529;
+            line-height: 1.5;
+            padding-left: 0;
+            padding-right: 1.5rem;
+        }
+
+        .modal .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #6c757d;
+        }
+
+        .modal .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px;
+            right: 8px;
+        }
+
+        .modal .select2-container--default.select2-container--focus .select2-selection--single,
+        .modal .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+        }
+
+        .modal .select2-dropdown {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+        }
+
+        .modal .select2-search--dropdown {
+            padding: 0.75rem;
+            background: #fff;
+        }
+
+        .modal .select2-search--dropdown .select2-search__field {
+            min-height: 38px;
+            border: 1px solid #dbe2ea;
+            border-radius: 0.5rem;
+            padding: 0.45rem 0.75rem;
+            background: #ffffff;
+            color: #111827;
+            caret-color: #111827;
+            opacity: 1;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .modal .select2-search--dropdown .select2-search__field::placeholder {
+            color: #6b7280;
+            opacity: 1;
+        }
+
+        .modal .select2-search--dropdown .select2-search__field:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+            outline: 0;
+        }
+
+        .modal .select2-container--default .select2-selection--single .select2-selection__clear {
+            color: #6b7280;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+
+        .modal .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+            color: #111827;
+        }
+
+        .modal .select2-results__option {
+            padding: 0.65rem 0.85rem;
+        }
+
+        .modal .select2-results__option--highlighted[aria-selected] {
+            background: #0d6efd;
+        }
   </style>
 
 </head>
@@ -104,9 +228,9 @@
                             alt="{{ site_settings.company_name }} logo"
                             class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
                     {% else %}
-                        <span class="h5 mb-0 px-3 py-1 rounded bg-green-100 text-dark">
-                            {{ site_settings.company_name }}
-                        </span>
+                        <img src="{{ logo_url }}"
+                            alt="{{ company_name }} logo"
+                            class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
 
                     {% endif %}
                 </a>
@@ -627,11 +751,15 @@
         <div class="row">
             <div class="col-sm my-1">
                 <p class="m-0"
-                > {% if site_settings %}
-                    <span class="h5">{{ site_settings.company_name }}</span>
-                {% else %}
-                    <span class="h5">SMARTSURVEYOR</span>
-                {% endif %}
+                > {% with brand_name=site_settings.company_name|default:"Plotsync" %}
+                    {% if brand_name|lower == 'plotsync' or brand_name|lower == 'smartsurveyor' %}
+                        <span class="h5 footer-brand-wordmark mb-0">
+                            <span class="footer-brand-plot">Plot</span><span class="footer-brand-sync">Sync</span>
+                        </span>
+                    {% else %}
+                        <span class="h5">{{ brand_name }}</span>
+                    {% endif %}
+                {% endwith %}
                 .</p >
                
             </div>
@@ -747,7 +875,7 @@ document.getElementById('viewAllNotifications').addEventListener('click', functi
     columns: [
       { data: 'id' },
       { data: 'title' },
-      { data: 'user.username', defaultContent: '—' },
+            { data: 'target_user', defaultContent: '—' },
       { data: 'created_at' },
       { 
         data: 'is_read',
@@ -778,7 +906,7 @@ function previewNotification(id) {
       document.getElementById('notificationTitle').innerText = notification.title || 'Notification Details';
       document.getElementById('notificationBody').innerHTML = `
         <p><strong>Message:</strong> ${notification.message || 'N/A'}</p>
-        <p><strong>User:</strong> ${notification.user?.username || 'N/A'}</p>
+                <p><strong>User:</strong> ${notification.target_user || 'N/A'}</p>
         <p><strong>Created At:</strong> ${notification.created_at || 'N/A'}</p>
         <p><strong>Status:</strong> ${notification.is_read ? 'Read' : 'Unread'}</p>
       `;
@@ -823,15 +951,45 @@ function previewNotification(id) {
 
 <script>
 $(document).ready(function () {
-    $('.datatable').DataTable({
-        responsive: true,
-        paging: true,
-        autoWidth: false,
-        searching: true,
-        ordering: true,
-        info: true,
-        language: {
-            emptyTable: "No data found."
+    function initDataTables(scope) {
+        const root = scope || document;
+        $(root).find('table.datatable').each(function () {
+            if ($.fn.dataTable.isDataTable(this)) {
+                return;
+            }
+
+            $(this).DataTable({
+                responsive: false,
+                paging: true,
+                autoWidth: false,
+                searching: true,
+                ordering: true,
+                info: true,
+                scrollX: true,
+                language: {
+                    emptyTable: "No data found."
+                }
+            });
+        });
+    }
+
+    initDataTables(document);
+
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        initDataTables(event.target || document);
+    });
+
+    document.addEventListener('shown.bs.tab', function (event) {
+        const targetSelector = event.target.getAttribute('data-bs-target') || event.target.getAttribute('href');
+        if (targetSelector) {
+            const tabPane = document.querySelector(targetSelector);
+            if (tabPane) {
+                initDataTables(tabPane);
+            }
+        }
+
+        if ($.fn.dataTable && $.fn.dataTable.tables) {
+            $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
         }
     });
 });

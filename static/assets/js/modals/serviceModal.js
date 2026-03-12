@@ -13,6 +13,46 @@ export function initServiceModal(modalSelector) {
   const modalEl = document.querySelector(modalSelector);
   if (!modalEl) return;
 
+  function getSearchableSelects() {
+    return Array.from(
+      modalEl.querySelectorAll(
+        "select.searchable-select, select[name='service'], select[name='assigned_employee']",
+      ),
+    ).filter((selectEl, index, all) => all.indexOf(selectEl) === index);
+  }
+
+  function enhanceSearchableSelect(selectEl) {
+    if (
+      !selectEl ||
+      typeof window.$ === "undefined" ||
+      typeof window.$.fn.select2 === "undefined"
+    ) {
+      return;
+    }
+
+    const $select = window.$(selectEl);
+    if ($select.hasClass("select2-hidden-accessible")) {
+      $select.select2("destroy");
+    }
+
+    const placeholder =
+      selectEl.dataset.searchPlaceholder ||
+      selectEl.querySelector("option[value='']")?.textContent?.trim() ||
+      "Search and select";
+
+    $select.select2({
+      dropdownParent: window.$(modalEl),
+      width: "100%",
+      placeholder,
+      allowClear: true,
+      minimumResultsForSearch: 0,
+    });
+  }
+
+  function refreshSearchableSelects() {
+    getSearchableSelects().forEach(enhanceSearchableSelect);
+  }
+
   // grab client name from a data-attribute on the modal wrapper
   const clientName = modalEl.dataset.clientName || "";
 
@@ -22,7 +62,7 @@ export function initServiceModal(modalSelector) {
   const previewTA = modalEl.querySelector("[name='dispatch_preview']");
   const procSec = modalEl.querySelector(".processCostSection");
   const priceSec = modalEl.querySelector(".totalPriceOverride");
-  const groundDiv = modalEl.querySelector("#groundFields");
+  const groundDiv = modalEl.querySelector("#groundFields, .ground-fields");
   const durationInp = modalEl.querySelector("[name='expected_duration_days']");
 
   function toggleGroundFields(isGround) {
@@ -31,6 +71,8 @@ export function initServiceModal(modalSelector) {
   }
 
   function updateDispatchPreview() {
+    if (!previewTA || !dateInp) return;
+
     // only build preview if it's a ground service and both fields have values
     if (catSel.value !== "ground" || !svcSel.value || !dateInp.value) {
       // leave existing preview alone if user has typed; otherwise clear
@@ -62,18 +104,23 @@ export function initServiceModal(modalSelector) {
   }
 
   // mark if user types to prevent auto‐overwrite
-  previewTA.addEventListener("input", () => {
-    previewTA.dataset.userEdited = "true";
-  });
+  if (previewTA) {
+    previewTA.addEventListener("input", () => {
+      previewTA.dataset.userEdited = "true";
+    });
+  }
 
   // when the category changes, reset things
-  catSel.addEventListener("change", () => {
-    loadServicesByCategory(catSel.value, svcSel);
+  catSel.addEventListener("change", async () => {
+    await loadServicesByCategory(catSel.value, svcSel);
+    refreshSearchableSelects();
     procSec.style.display = "none";
     priceSec.style.display = "none";
     toggleGroundFields(false);
-    previewTA.value = "";
-    delete previewTA.dataset.userEdited;
+    if (previewTA) {
+      previewTA.value = "";
+      delete previewTA.dataset.userEdited;
+    }
   });
 
   // when service changes, show fields and recompute
@@ -91,7 +138,26 @@ export function initServiceModal(modalSelector) {
   }
 
   // when date changes, recompute
-  dateInp.addEventListener("change", updateDispatchPreview);
+  if (dateInp) {
+    dateInp.addEventListener("change", updateDispatchPreview);
+  }
+
+  modalEl.addEventListener("shown.bs.modal", refreshSearchableSelects);
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    if (
+      typeof window.$ === "undefined" ||
+      typeof window.$.fn.select2 === "undefined"
+    ) {
+      return;
+    }
+
+    getSearchableSelects().forEach((selectEl) => {
+      const $select = window.$(selectEl);
+      if ($select.hasClass("select2-hidden-accessible")) {
+        $select.select2("close");
+      }
+    });
+  });
 }
 
 // export function initServiceModal(modalSelector) {

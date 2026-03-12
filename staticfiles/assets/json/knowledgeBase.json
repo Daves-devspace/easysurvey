@@ -774,6 +774,58 @@
     {
       "question": "why does the system ask me to sync opening frequently",
       "answer": "If manual edits or late postings were made yesterday, today’s flagged opening may not align. Run 'Sync Opening Balance'. It’s safe—only adjustments are logged. For long-term fix, ensure daily closing balance is finalized before day-end."
+    },
+    {
+      "question": "how do employee task assignments work",
+      "answer": "When a service is created, it can be assigned straight to a specific staff member. That person gets an alert, knows the work is theirs, and can start handling it without confusion. It makes responsibility clear from the very beginning."
+    },
+    {
+      "question": "can staff accept assigned tasks",
+      "answer": "Yes! When a task or service is assigned, the staff member can accept it in the system. This helps everyone know the work has been received and is being handled, instead of leaving assignments unclear."
+    },
+    {
+      "question": "how do managers see who is handling what",
+      "answer": "Managers can easily view which staff member is assigned to each service, whether the task has been accepted, and who may already have a heavy workload. It is a simple way to keep work balanced and make follow-up easier."
+    },
+    {
+      "question": "how do staff track their workload",
+      "answer": "Each staff member can follow their work from a personal dashboard. It shows the tasks and services assigned to them, what still needs attention, and what is already in progress. Think of it like a clear daily work list inside the system."
+    },
+    {
+      "question": "how do service timelines and reminders work",
+      "answer": "Every service can now have a clear timeline, such as 10 days, so everyone understands the expected turnaround time. Clients can check their portal to see how much time is left, and staff receive helpful daily reminders for work that is due today. It keeps expectations clear and helps work move on time."
+    },
+    {
+      "question": "can clients see how much time is left on their service",
+      "answer": "Yes! Clients can log into their portal and see the time remaining for their service. This gives them a simple progress view without needing to call the office for every update."
+    },
+    {
+      "question": "can a manager extend a service deadline",
+      "answer": "Yes, a manager can extend the deadline when there is a genuine delay, such as a government office or registry hold-up. Once updated, the new timeline is reflected in the system so the team and the client can see the revised expectation."
+    },
+    {
+      "question": "how do we track physical documents in the office",
+      "answer": "If a client drops off physical documents, the front desk can record them in the system and hand them over digitally to the correct employee. The receiving employee then confirms with one click that they physically received the documents. This creates a clear handover trail and greatly reduces the chance of anything getting lost."
+    },
+    {
+      "question": "can we handle custom surveying requests that are not title deed or ground services",
+      "answer": "Yes! The system now includes an **Others** service category for custom surveying requests that do not fit under standard **Title Deed** or **Ground** services. This means special jobs can still be tracked properly instead of being managed outside the system."
+    },
+    {
+      "question": "can i start a client from the middle of a process",
+      "answer": "Yes, you can. If a client comes in with part of the work already completed, the service can begin from the correct remaining step instead of starting again from the beginning. This saves time and keeps the record more accurate."
+    },
+    {
+      "question": "what happens if some service steps were already completed before we added the client",
+      "answer": "No problem at all! The earlier steps can be treated as already completed, and the system will continue from the next unfinished step. It is also smart enough not to send unnecessary messages for steps the client already passed."
+    },
+    {
+      "question": "can we control automatic notifications for a service",
+      "answer": "Yes! Notification controls now make it possible to switch off certain automatic alerts for specific steps in a service. So if a client or staff member wants fewer SMS or email updates, the team can adjust that without stopping the service itself."
+    },
+    {
+      "question": "how do notification preferences work",
+      "answer": "Notification preferences give your team more control over how often people are contacted. Instead of sending every automatic message, the system can turn off selected alerts for certain steps. This is especially helpful when someone prefers fewer reminders while still staying informed where it matters."
     }
 
 
