@@ -12,6 +12,7 @@ class EmployeeProfile(models.Model):
         SURVEYOR = 'Surveyor', 'Surveyor'
         FRONTOFFICE = 'FrontOffice', 'Front Office'
         ADMIN = 'Admin', 'Admin'
+        IT_SUPPORT = 'ITSupport', 'IT Support'
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     phone_number = models.CharField(max_length=15, blank=True, null=True)

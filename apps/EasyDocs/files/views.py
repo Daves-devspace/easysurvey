@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from apps.Employee.models import EmployeeProfile
 from apps.EasyDocs.models import DocType, ClientDoc, Document, Client, SiteSettings
 from apps.EasyDocs.forms import DocTypeForm
 from apps.EasyDocs.files.utils import get_drive_storage, log_audit
@@ -164,6 +165,7 @@ def delete_document_workflow(request, doc):
 # ----------------------------
 # CLIENT DOCUMENT VIEWS - REFINED
 # ----------------------------
+@login_required
 @require_POST
 def upload_client_document(request, client_id):
     client = get_object_or_404(Client, id=client_id)
@@ -192,10 +194,12 @@ def upload_client_document(request, client_id):
 
     return redirect(reverse("client_details", kwargs={"client_id": client_id}))
 
+@login_required
 def download_client_document(request, doc_id):
     doc = get_object_or_404(ClientDoc, id=doc_id)
     return download_document_workflow(request, doc)
 
+@login_required
 @require_POST
 def delete_client_document(request, client_id, doc_id):
     client = get_object_or_404(Client, id=client_id)
@@ -208,6 +212,7 @@ def delete_client_document(request, client_id, doc_id):
 # OFFICE DOCUMENT VIEWS - REFINED
 # ----------------------------
 
+@login_required
 @require_POST
 def upload_office_document(request):
     doc_type_id = request.POST.get("doc_type")
@@ -238,10 +243,12 @@ def upload_office_document(request):
     
     return redirect(reverse("document_list"))
 
+@login_required
 def download_office_document(request, doc_id):
     doc = get_object_or_404(Document, id=doc_id)
     return download_document_workflow(request, doc)
 
+@login_required
 @require_POST
 def delete_office_document(request, doc_id):
     doc = get_object_or_404(Document, id=doc_id)
@@ -249,6 +256,7 @@ def delete_office_document(request, doc_id):
     return redirect(reverse("document_list"))
 
 
+@login_required
 @require_POST
 def add_doctype(request):
     form = DocTypeForm(request.POST)
@@ -291,7 +299,12 @@ def assign_document_handoff(request):
         messages.error(request, 'You are not allowed to assign this document.')
         return redirect(referer)
 
-    assigned_to = User.objects.filter(pk=assigned_to_id).first()
+    assigned_to = User.objects.filter(
+        pk=assigned_to_id,
+        employeeprofile__isnull=False,
+    ).exclude(
+        employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+    ).first()
     if not assigned_to:
         messages.error(request, 'Selected assignee was not found.')
         return redirect(referer)
@@ -350,7 +363,9 @@ def office_documents(request):
             my_overdue_handoffs_count += 1
 
     doc_types = DocType.objects.all()
-    handoff_employees = User.objects.filter(employeeprofile__isnull=False).order_by('first_name', 'last_name', 'username')
+    handoff_employees = User.objects.filter(employeeprofile__isnull=False).exclude(
+        employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+    ).order_by('first_name', 'last_name', 'username')
     return render(request, "Management/documents.html", 
                  {
                      "documents": docs,
@@ -365,6 +380,7 @@ def office_documents(request):
 
 
 
+@login_required
 @require_POST
 def email_client_document(request, client_id, doc_id):
     """
@@ -436,6 +452,7 @@ def email_client_document(request, client_id, doc_id):
 
 
 
+@login_required
 @require_POST
 def migrate_client_documents_to_drive(request, client_id):
     """
@@ -456,6 +473,7 @@ def migrate_client_documents_to_drive(request, client_id):
     
     return redirect(reverse("client_details", kwargs={"client_id": client_id}))
 
+@login_required
 @require_POST
 def migrate_all_documents_to_drive(request):
     """

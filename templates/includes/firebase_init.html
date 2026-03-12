@@ -1,5 +1,4 @@
 {% load static %}
-{% if firebase_config and firebase_config.apiKey %}
 <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
@@ -8,19 +7,32 @@
   (function() {
     console.log("🔥 Firebase Init Script Loaded");
 
+        // Always expose a safe global function so inline buttons never fail.
+        window.requestNotificationPermission = function() {
+            console.warn("Push notifications are not configured.");
+            alert("Push notifications are not configured yet. Please contact admin.");
+            return;
+        };
+
     // 1. Configuration injected from Django Context Processor
     const firebaseConfig = {
-      apiKey: "{{ firebase_config.apiKey|escapejs }}",
-      authDomain: "{{ firebase_config.authDomain|escapejs }}",
-      projectId: "{{ firebase_config.projectId|escapejs }}",
-      storageBucket: "{{ firebase_config.storageBucket|escapejs }}",
-      messagingSenderId: "{{ firebase_config.messagingSenderId|escapejs }}",
-      appId: "{{ firebase_config.appId|escapejs }}"
+            apiKey: "{{ firebase_config.apiKey|default:''|escapejs }}",
+            authDomain: "{{ firebase_config.authDomain|default:''|escapejs }}",
+            projectId: "{{ firebase_config.projectId|default:''|escapejs }}",
+            storageBucket: "{{ firebase_config.storageBucket|default:''|escapejs }}",
+            messagingSenderId: "{{ firebase_config.messagingSenderId|default:''|escapejs }}",
+            appId: "{{ firebase_config.appId|default:''|escapejs }}"
     };
     
     // SAFETY FIX: Trim whitespace from the key
     const rawVapidKey = "{{ firebase_config.vapidKey|default:''|escapejs }}";
     const vapidKey = rawVapidKey.trim();
+
+        const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+        if (!hasFirebaseConfig || !vapidKey) {
+            console.warn("Firebase config or VAPID key missing. Push notifications disabled.");
+            return;
+        }
 
     // 2. Initialize Firebase
     if (!firebase.apps.length) {
@@ -137,4 +149,3 @@
 
   })();
 </script>
-{% endif %}

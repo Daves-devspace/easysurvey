@@ -89,7 +89,7 @@ fi
 log "Starting main process..."
 if [ $# -eq 0 ]; then
   case "$RUN_MODE" in
-    web) set -- gunicorn GGI.wsgi:application --bind 0.0.0.0:8000 ;;
+    web) set -- daphne -b 0.0.0.0 -p 8000 GGI.asgi:application ;;
     worker) set -- celery -A GGI worker -Q celery_${INSTANCE_NAME:-default} --loglevel=info ;;
     beat) set -- celery -A GGI beat -S django --loglevel=info ;;
     *) log "❌ Unknown RUN_MODE $RUN_MODE"; exit 1 ;;

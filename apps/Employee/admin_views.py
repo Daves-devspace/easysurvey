@@ -51,7 +51,9 @@ class AdminManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['users'] = User.objects.all()
+        ctx['users'] = User.objects.exclude(
+            employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+        )
         ctx['profile_form'] = UnifiedEmployeeProfileForm(instance=self.request.user.employeeprofile, user=self.request.user)
         return ctx
 
@@ -88,7 +90,9 @@ class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # List of all users
-        context['users'] = User.objects.all().order_by('username')
+        context['users'] = User.objects.exclude(
+            employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+        ).order_by('username')
         # If editing a specific user, include the form
         user_id = self.request.GET.get('edit')
         if user_id:

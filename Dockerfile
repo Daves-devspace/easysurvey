@@ -46,4 +46,4 @@ COPY --chown=appuser:appuser --chmod=0755 entrypoint.sh /app/entrypoint.sh
 USER appuser
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "GGI.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "GGI.asgi:application"]

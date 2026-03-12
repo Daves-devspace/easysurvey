@@ -65,4 +65,8 @@ ROLE_PERMISSIONS = {
             Document: ['add', 'view'],  # e.g., receptionist uploads scans
         }
     },
+
+    EmployeeProfile.RoleChoices.IT_SUPPORT: {
+        'permissions': {}
+    },
 }

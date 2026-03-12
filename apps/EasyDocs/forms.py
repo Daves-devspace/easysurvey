@@ -350,7 +350,9 @@ class ClientServiceForm(forms.ModelForm):
     )
 
     assigned_employee = EmployeeNameChoiceField(
-        queryset=User.objects.filter(employeeprofile__isnull=False).order_by('first_name', 'last_name', 'username'),
+        queryset=User.objects.filter(employeeprofile__isnull=False)
+        .exclude(employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT)
+        .order_by('first_name', 'last_name', 'username'),
         required=False,
         label="Assign Task/Service",
         widget=forms.Select(attrs={

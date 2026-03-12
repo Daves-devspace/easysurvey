@@ -3,6 +3,7 @@ from django.shortcuts import redirect, render
 from django.contrib import messages
 import logging
 from django.views.generic import TemplateView, View
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
 from django.db.models import Sum
 from django.db import IntegrityError, transaction
@@ -34,7 +35,7 @@ from django.utils import timezone
 from decimal import Decimal
 from apps.accounts.services.opening_balance import compute_latest_carried_balance, replace_flagged_snapshot, log_audit
 
-class SyncOpeningBalanceView(View):
+class SyncOpeningBalanceView(LoginRequiredMixin, View):
     """
     POST endpoint to sync the flagged opening balance for a given date.
     - If request is AJAX/JSON: return JSON payload.
@@ -95,7 +96,7 @@ class SyncOpeningBalanceView(View):
     
     
     
-class CheckOpeningSyncView(View):
+class CheckOpeningSyncView(LoginRequiredMixin, View):
     """
     GET /api/check-opening-sync/?date=YYYY-MM-DD
     Returns JSON:
@@ -205,7 +206,7 @@ class CheckOpeningSyncView(View):
 
 
 
-class CashbookDashboardView(TemplateView):
+class CashbookDashboardView(LoginRequiredMixin, TemplateView):
     """
     Main cashbook dashboard view.
     Handles both cashbook and revenue tabs with separation of concerns.
@@ -302,7 +303,7 @@ class CashbookDashboardView(TemplateView):
 # ---------------------------------------------------------
 # ✅ REVENUE REPORT FILTER (for HTMX dropdowns)
 # ---------------------------------------------------------
-class RevenueReportView(View):
+class RevenueReportView(LoginRequiredMixin, View):
     """Handles dynamic filtering of revenue by year/month via HTMX."""
     
     def get(self, request, *args, **kwargs):
@@ -379,7 +380,7 @@ class RevenueReportView(View):
 
 
 
-class RecordInstitutionPayoutView(View):
+class RecordInstitutionPayoutView(LoginRequiredMixin, View):
     template_name = "Accounts/cash_in_out.html"
 
     def post(self, request, *args, **kwargs):
@@ -407,7 +408,7 @@ class RecordInstitutionPayoutView(View):
 
 
 
-class CheckOpeningBalanceView(View):
+class CheckOpeningBalanceView(LoginRequiredMixin, View):
     """
     GET /api/check-opening-balance/?date=YYYY-MM-DD
     Returns JSON with:
@@ -447,7 +448,7 @@ class CheckOpeningBalanceView(View):
 
 
 
-class OpeningBalanceCreateView(View):
+class OpeningBalanceCreateView(LoginRequiredMixin, View):
     """
     Create opening contribution with optional immediate flagged snapshot adjustment.
     Handles both AJAX and standard requests.

@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import now
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 
 from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollectionForm, ClientDocumentForm, DocTypeForm, \
     SubServiceForm, ClientSubServiceForm, SiteSettingsForm, SmsProviderTokenForm, \
@@ -52,19 +53,23 @@ logger = logging.getLogger(__name__)
 
 
 
+@login_required
 def sessions(request):
     return render(request, "tools/sessions.html")
 
+@login_required
 def map_viewer(request):
     return render(request, "tools/map_viewer.html")
 
+@login_required
 def mutation_tool(request):
     return render(request, "tools/mutation.html")
 
-
+@login_required
 def mutation_export(request):
     return render(request, "tools/mutation_export.html")
 
+@login_required
 def file_upload(request):
     return render(request, "tools/file_upload.html")
 
@@ -76,6 +81,7 @@ def file_upload(request):
 #     data = get_yearly_revenue_data(year)
 #     return JsonResponse(data)
 
+@login_required
 def chart_data(request):
     year_str = request.GET.get('year')
     try:
@@ -92,6 +98,7 @@ def chart_data(request):
 #     return JsonResponse(chart_data)
 
 
+@login_required
 def get_years(request):
     years = get_available_years()
     return JsonResponse({'years': years})
@@ -718,6 +725,7 @@ class TaskManagementView(LoginRequiredMixin, TemplateView):
             'is_admin_user': is_admin_user,
             'employees': (
                 User.objects.filter(employeeprofile__isnull=False)
+                .exclude(employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT)
                 .select_related('employeeprofile')
                 .order_by('first_name', 'last_name', 'username')
                 if is_admin_user else []
@@ -897,6 +905,8 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
             context['client_docs'] = client_docs
             context['handoff_employees'] = User.objects.filter(
                 employeeprofile__isnull=False
+            ).exclude(
+                employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT
             ).order_by('first_name', 'last_name', 'username')
         except Exception:
             messages.error(self.request, "Could not load documents.")
@@ -943,6 +953,7 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
 
 
 
+@login_required
 def client_list(request):
     services = Service.objects.all()
     add_form = ClientForm()
@@ -992,6 +1003,7 @@ def client_list(request):
 
 
 
+@login_required
 def add_client(request):
     form = ClientForm(request.POST or None, request.FILES or None)
 
@@ -1042,6 +1054,7 @@ def add_client(request):
 
 
 # Edit Client
+@login_required
 def edit_client(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
@@ -1118,6 +1131,7 @@ class ClientServiceCreateView(LoginRequiredMixin,CreateView):
 
 
 
+@login_required
 def edit_client_service(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
@@ -1158,6 +1172,7 @@ def edit_client_service(request, client_id):
 
 
 
+@login_required
 def search_clients(request):
     term = request.GET.get('term', '').strip()
     qs = Client.objects.all()
@@ -1196,6 +1211,7 @@ def get_grouped_services(client):
 
 
 # views.py
+@login_required
 def update_site_settings(request):
     """
     Handle SiteSettings form submission. Redirect back to Referer.
@@ -1223,6 +1239,7 @@ def update_site_settings(request):
     return redirect(referer)
 
 
+@login_required
 @require_http_methods(["POST"])
 def update_process_notification_settings(request):
     """
@@ -1230,10 +1247,6 @@ def update_process_notification_settings(request):
     Access restricted to superusers and users with change_process permission.
     """
     referer = request.META.get('HTTP_REFERER', '/management/')
-
-    if not request.user.is_authenticated:
-        messages.error(request, "Please login to update notification settings.")
-        return redirect('login')
 
     if not (request.user.is_superuser or request.user.has_perm('easydocs.change_process')):
         messages.error(request, "You are not authorized to update process notification settings.")
@@ -1249,6 +1262,7 @@ def update_process_notification_settings(request):
     return redirect(referer)
 
 
+@login_required
 @require_http_methods(["POST"])
 def update_sms_token(request):
     instance = SmsProviderToken.objects.get_or_create(singleton_enforcer=True)[0]
@@ -1265,14 +1279,14 @@ def update_sms_token(request):
 
 
 
+@login_required
 @require_http_methods(["POST"])
+@login_required
 def accept_service_assignment(request, client_service_id):
     """
     Employee accepts a service assignment.
     AJAX endpoint returning JSON.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
     
     from apps.EasyDocs.services.assignments import handle_accept_service
     
@@ -1285,14 +1299,14 @@ def accept_service_assignment(request, client_service_id):
         return JsonResponse(result, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
+@login_required
 def decline_service_assignment(request, client_service_id):
     """
     Employee declines a service assignment.
     AJAX endpoint returning JSON.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
     
     from apps.EasyDocs.services.assignments import handle_decline_service
     
@@ -1305,14 +1319,14 @@ def decline_service_assignment(request, client_service_id):
         return JsonResponse(result, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
+@login_required
 def request_deadline_extension(request, client_service_id):
     """
     Employee requests a deadline extension for an assigned service.
     AJAX endpoint returning JSON.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
     
     from apps.EasyDocs.services.reminders import process_deadline_extension
     
@@ -1341,14 +1355,14 @@ def request_deadline_extension(request, client_service_id):
         return JsonResponse(result, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
+@login_required
 def accept_document_handoff(request, handoff_id):
     """
     Employee accepts a document handoff.
     AJAX endpoint returning JSON.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
     
     from apps.EasyDocs.services.handoffs import handle_accept_handoff
     
@@ -1360,14 +1374,14 @@ def accept_document_handoff(request, handoff_id):
         return JsonResponse(result, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
+@login_required
 def decline_document_handoff(request, handoff_id):
     """
     Employee declines a document handoff.
     AJAX endpoint returning JSON.
     """
-    if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": "Authentication required."}, status=401)
     
     from apps.EasyDocs.services.handoffs import handle_decline_handoff
     

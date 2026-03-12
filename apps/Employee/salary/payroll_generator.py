@@ -113,12 +113,16 @@ def generate_monthly_payroll(run_date=None):
     logger.info(f"[PayrollGenAll] start generation for {new_month}")
 
     # If *any* unpaid payroll exists, we abort globally.
-    if Payroll.objects.filter(is_paid=False).exists():
+    if Payroll.objects.filter(is_paid=False).exclude(
+        employee__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+    ).exists():
         logger.warning("[PayrollGenAll] abort: unpaid payrolls exist")
         return 0
 
     # Prefetch related data to minimize queries
-    qs = EmployeeProfile.objects.all().prefetch_related(
+    qs = EmployeeProfile.objects.exclude(
+        role=EmployeeProfile.RoleChoices.IT_SUPPORT
+    ).prefetch_related(
         Prefetch('salaries', queryset=EmployeeSalary.objects.filter(effective_to__isnull=True)),
         'allowance_templates',
         'deduction_templates',

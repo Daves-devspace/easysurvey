@@ -9,6 +9,7 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, CreateView, UpdateView
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import redirect, get_object_or_404, render
@@ -36,6 +37,7 @@ class EmployeeProfileUpdateView(LoginRequiredMixin, UpdateView):
 
 
 
+@login_required
 def filter_payrolls(request):
     month   = request.GET.get('month')
     is_paid = request.GET.get('is_paid')
@@ -50,6 +52,7 @@ def filter_payrolls(request):
         qs = qs.filter(is_paid=False)
 
     employees = EmployeeProfile.objects.select_related('user') \
+        .exclude(role=EmployeeProfile.RoleChoices.IT_SUPPORT) \
         .prefetch_related(
             Prefetch('payrolls', queryset=qs, to_attr='filtered_payrolls')
         )
@@ -64,7 +67,7 @@ def filter_payrolls(request):
 
 
 
-class EmployeeListView(ListView):
+class EmployeeListView(LoginRequiredMixin, ListView):
     model = EmployeeProfile
     template_name = 'Employees/employee_management.html'
     context_object_name = 'employees'
@@ -73,6 +76,7 @@ class EmployeeListView(ListView):
         latest_payrolls = Payroll.objects.order_by('-month')
         return EmployeeProfile.objects.select_related('user') \
             .filter(user__is_superuser=False) \
+            .exclude(role=EmployeeProfile.RoleChoices.IT_SUPPORT) \
             .prefetch_related(
             Prefetch('payrolls', queryset=latest_payrolls, to_attr='latest_payrolls')
         )
@@ -100,7 +104,10 @@ class EmployeeListView(ListView):
         edit_id = self.request.GET.get('edit')
         if edit_id:
             try:
-                employee = get_object_or_404(EmployeeProfile, pk=edit_id)
+                employee = get_object_or_404(
+                    EmployeeProfile.objects.exclude(role=EmployeeProfile.RoleChoices.IT_SUPPORT),
+                    pk=edit_id,
+                )
                 context['edit_form'] = EmployeeProfileForm(instance=employee)
                 context['edit_employee_id'] = employee.pk
             except Exception as e:
@@ -115,7 +122,7 @@ class EmployeeListView(ListView):
 
 
 
-class EmployeeCreateView(CreateView):
+class EmployeeCreateView(LoginRequiredMixin, CreateView):
     model = EmployeeProfile
     form_class = EmployeeProfileForm
     template_name = 'Employees/employee_management.html'
@@ -141,7 +148,7 @@ class EmployeeCreateView(CreateView):
         })
 
 
-class EmployeeUpdateView(UpdateView):
+class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
     model = EmployeeProfile
     form_class = EmployeeProfileForm
     pk_url_kwarg = 'pk'
@@ -169,6 +176,7 @@ class EmployeeUpdateView(UpdateView):
 
 
 
+@login_required
 def payroll_detail(request, pk):
     payroll = get_object_or_404(Payroll, pk=pk)
     allowances = list(payroll.allowances.values('id', 'name', 'amount', 'recurring'))
@@ -187,13 +195,15 @@ def payroll_detail(request, pk):
 
 
 
-class PayrollGenerateAllView(View):
+class PayrollGenerateAllView(LoginRequiredMixin, View):
     def post(self, request):
         today     = timezone.now().date()
         new_month = today.replace(day=1)
 
         # 1) Make sure there's no outstanding unpaid payroll anywhere
-        unpaid_qs = Payroll.objects.filter(is_paid=False)
+        unpaid_qs = Payroll.objects.filter(is_paid=False).exclude(
+            employee__role=EmployeeProfile.RoleChoices.IT_SUPPORT
+        )
         if unpaid_qs.exists():
             names = [p.employee.user.get_full_name() for p in unpaid_qs]
             messages.error(
@@ -213,7 +223,9 @@ class PayrollGenerateAllView(View):
             )
         else:
             # 3) No new payrolls — but *some* employees might already have one for this month.
-            up_to_date_qs = EmployeeProfile.objects.filter(
+            up_to_date_qs = EmployeeProfile.objects.exclude(
+                role=EmployeeProfile.RoleChoices.IT_SUPPORT
+            ).filter(
                 payrolls__month=new_month
             ).distinct()
             if up_to_date_qs.exists():

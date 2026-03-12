@@ -16,6 +16,9 @@ def site_settings(request):
         settings = SiteSettings.objects.first()
     except (ProgrammingError, OperationalError):
         settings = None
+    except Exception:
+        logger.exception("Failed to load SiteSettings; using fallback settings.")
+        settings = None
 
     if not settings:
         settings = get_fallback_settings()
@@ -23,13 +26,15 @@ def site_settings(request):
     logo_ts = None
     logo_url = None
 
-    if settings.logo:
+    logo_field = getattr(settings, 'logo', None)
+
+    if logo_field:
         try:
-            mtime = settings.logo.storage.get_modified_time(settings.logo.name)
+            mtime = logo_field.storage.get_modified_time(logo_field.name)
             logo_ts = int(mtime.timestamp())
-            logo_url = settings.logo.url
+            logo_url = logo_field.url
         except Exception:
-            pass
+            logger.exception("Failed to resolve SiteSettings logo; using fallback logo.")
 
     # Fallback logo
     if not logo_url:
@@ -58,22 +63,29 @@ def employee_profile_context(request):
     profile = None
     avatar_url = None
     role = 'Guest'
-    
-    if request.user.is_authenticated:
+
+    user = getattr(request, 'user', None)
+
+    try:
+        is_authenticated = bool(getattr(user, 'is_authenticated', False))
+    except Exception:
+        is_authenticated = False
+
+    if is_authenticated:
         try:
-            profile = request.user.employeeprofile
-            
+            profile = user.employeeprofile
+
             # Use the model's helper method for validation
             avatar_url = profile.get_avatar_url()
-            
+
             # Get role display
             role = profile.get_role_display() if profile.role else 'Employee'
-            
+
         except EmployeeProfile.DoesNotExist:
             # For superusers or users without employee profiles
-            if request.user.is_superuser:
-                role = 'Administrator'
-            else:
+            try:
+                role = 'Administrator' if bool(getattr(user, 'is_superuser', False)) else 'User'
+            except Exception:
                 role = 'User'
     
     # Fallback avatar if no valid profile picture
@@ -96,7 +108,11 @@ def sms_balance(request):
     """
     # 'global_sms_balance' is updated by MobileSasaAPI.get_balance()
     # in apps/EasyDocs/utils.py
-    balance = cache.get('global_sms_balance')
+    try:
+        balance = cache.get('global_sms_balance')
+    except Exception:
+        logger.exception("Failed to read SMS balance from cache.")
+        balance = None
     
     return {
         'sms_balance': balance
