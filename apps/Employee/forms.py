@@ -6,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
@@ -311,16 +312,24 @@ class EmployeeProfileForm(forms.ModelForm):
             # from_email = site.email if site and site.email else settings.DEFAULT_FROM_EMAIL
             from_email = settings.DEFAULT_FROM_EMAIL
 
-            subject = "Your Account Credentials"
-            message = (
-                f"Hello {first_name},\n\n"
-                f"Welcome to {site.company_name if site else 'our platform'}!\n\n"
-                f"To get started, please set your password by clicking the link below:\n"
-                f"{full_reset}\n\n"
-                f"If you did not expect this, please ignore this email.\n\n"
-                f"Best regards,\n"
-                f"{site.company_name if site else 'GGI'}\n"
-                f"https://greatguardianinvestment.co.ke"
+            company_name = (
+                site.company_name if site and site.company_name else "GGI"
+            )
+            site_domain = str(getattr(settings, "SITE_DOMAIN", "") or "").rstrip("/")
+            invite_context = {
+                "first_name": first_name,
+                "company_name": company_name,
+                "reset_link": full_reset,
+                "site_domain": site_domain,
+            }
+
+            subject = render_to_string(
+                "application/new_user_welcome_subject.txt",
+                invite_context,
+            ).strip().replace("\n", "")
+            message = render_to_string(
+                "application/new_user_welcome_email.txt",
+                invite_context,
             )
 
             try:

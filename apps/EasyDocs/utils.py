@@ -10,6 +10,12 @@ from apps.EasyDocs.models import MessageLog, Client, SmsProviderToken, SiteSetti
 
 logger = logging.getLogger(__name__)
 
+SMS_BALANCE_AUTH_COOLDOWN_CACHE_KEY = 'sms_balance_auth_cooldown_active'
+SMS_BALANCE_AUTH_COOLDOWN_SECONDS = max(
+    int(getattr(settings, 'SMS_BALANCE_AUTH_COOLDOWN_SECONDS', 600)),
+    60,
+)
+
 # Constants for DLR normalization
 DELIVERED_STATES = {'delivered', 'success', 'delivrd', 'deliveredtoterminal'}
 FAILED_STATES = {
@@ -251,7 +257,19 @@ class MobileSasaAPI:
         Fetches balance and updates the global cache for context processors.
         """
         if not self.api_key:
-            return {'status': False, 'balance': 0, 'error': "missing_config"}
+            return {'status': False, 'balance': None, 'error': "missing_config"}
+
+        # Circuit-breaker: after auth failure (401/403), avoid hammering provider
+        if cache.get(SMS_BALANCE_AUTH_COOLDOWN_CACHE_KEY):
+            return {
+                'status': False,
+                'balance': None,
+                'error': 'auth_cooldown_active',
+                'auth_error': True,
+                'status_code': 401,
+                'cooldown_active': True,
+            }
+
         try:
             resp = requests.get(self.BASE_URL_BALANCE, headers=self.headers, timeout=20)
             resp.raise_for_status()
@@ -267,9 +285,35 @@ class MobileSasaAPI:
                     cache.set('global_sms_balance', bal, timeout=86400)
                     
             return data
+
+        except requests.exceptions.HTTPError as e:
+            status_code = getattr(getattr(e, 'response', None), 'status_code', None)
+            if status_code in (401, 403):
+                cache.set(
+                    SMS_BALANCE_AUTH_COOLDOWN_CACHE_KEY,
+                    True,
+                    timeout=SMS_BALANCE_AUTH_COOLDOWN_SECONDS,
+                )
+                cache.delete('sms_provider_token')
+                self.logger.warning(
+                    "SMS balance auth failure (HTTP %s). Skipping balance checks for %ss.",
+                    status_code,
+                    SMS_BALANCE_AUTH_COOLDOWN_SECONDS,
+                )
+                return {
+                    'status': False,
+                    'balance': None,
+                    'error': 'unauthorized',
+                    'auth_error': True,
+                    'status_code': status_code,
+                }
+
+            self.logger.exception("Error fetching balance: %s", e)
+            return {'status': False, 'balance': None, 'error': str(e)}
+
         except Exception as e:
             self.logger.exception("Error fetching balance: %s", e)
-            return {'status': False, 'balance': 0, 'error': str(e)}
+            return {'status': False, 'balance': None, 'error': str(e)}
 
 def personalize(template: str, client) -> str:
     if not template:
@@ -362,7 +406,7 @@ def update_pending_sms_logs_and_balance():
     summary = {
         'checked': 0, 'delivered': 0, 'failed': 0, 
         'still_pending': 0, 'forced_failed': 0, 
-        'skipped_missing_message_id': 0, 'errors': 0, 'balance': None,
+        'skipped_missing_message_id': 0, 'errors': 0, 'balance': None, 'balance_error': None,
     }
 
     now = timezone.now()
@@ -437,9 +481,17 @@ def update_pending_sms_logs_and_balance():
 
     try:
         balance_data = api.get_balance()
-        summary['balance'] = balance_data.get('balance') if isinstance(balance_data, dict) else None
+        if isinstance(balance_data, dict):
+            summary['balance'] = balance_data.get('balance')
+            if balance_data.get('auth_error'):
+                summary['balance_error'] = 'auth_unauthorized'
+            elif balance_data.get('error'):
+                summary['balance_error'] = balance_data.get('error')
+        else:
+            summary['balance'] = None
     except Exception:
         summary['balance'] = None
+        summary['balance_error'] = 'balance_fetch_exception'
 
     logger.info(f"SMS DLR Summary: {summary}")
     return summary

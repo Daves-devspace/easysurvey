@@ -25,10 +25,25 @@ def send_and_log_sms(client_service, client, phone, message, reason):
     
     cache_key = 'sms_balance_check'
     cached_balance = cache.get(cache_key)
+
+    if cached_balance == '__auth_error__':
+        logger.warning("Skipping SMS send because provider auth is currently invalid.")
+        return MessageLog.objects.create(
+            client_service=client_service, client=client, phone=phone, message=message,
+            reason=reason, send_status='failed', delivery_status='failed', error_details='SMS provider unauthorized'
+        )
     
     if cached_balance is None:
         balance_info = sms_api.get_balance()
-        current_balance = balance_info.get('balance', 0)
+        if isinstance(balance_info, dict) and balance_info.get('auth_error'):
+            cache.set(cache_key, '__auth_error__', timeout=60)
+            logger.error("SMS provider auth error while checking balance; blocking send.")
+            return MessageLog.objects.create(
+                client_service=client_service, client=client, phone=phone, message=message,
+                reason=reason, send_status='failed', delivery_status='failed', error_details='SMS provider unauthorized'
+            )
+
+        current_balance = balance_info.get('balance', 0) if isinstance(balance_info, dict) else 0
         cache.set(cache_key, current_balance, timeout=60)
     else:
         current_balance = cached_balance

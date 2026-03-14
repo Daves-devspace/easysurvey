@@ -87,17 +87,27 @@ def get_revenue_from_payments(
     start_dt = timezone.make_aware(datetime.combine(s, _time.min), timezone=timezone.get_current_timezone())
     end_dt = _as_end_of_day(e)
 
-    # ------------- MAIN SERVICE PAYMENTS (exclude subservice payments by PaymentHistory) -------------
-    subservice_payment_ids = list(
-        PaymentHistory.objects.filter(
-            reason='sub_service'
-        ).values_list('payment_id', flat=True).distinct()
+    # ------------- MAIN SERVICE PAYMENTS (mixed-safe split) -------------
+    # For mixed allocations (same payment funding both main service steps and sub-services),
+    # use only the main-service slice of each payment. We derive that by subtracting
+    # positive sub-service allocations tied to the payment from the original amount.
+    subservice_positive_alloc_subq = (
+        PaymentHistory.objects
+        .filter(
+            payment_id=OuterRef('pk'),
+            reason='sub_service',
+            amount__gt=Decimal('0.00'),
+        )
+        .values('payment_id')
+        .annotate(
+            total=Coalesce(Sum('amount'), Value(Decimal('0.00')), output_field=DEC_FIELD)
+        )
+        .values('total')[:1]
     )
 
     main_pay_qs = (
         Payment.objects
         .filter(payment_date__gte=start_dt, payment_date__lte=end_dt)
-        .exclude(id__in=subservice_payment_ids)
         .select_related('client_service__service')
     )
 
@@ -111,7 +121,22 @@ def get_revenue_from_payments(
                                Value(Decimal('0.00')), output_field=DEC_FIELD),
         overridden_total_src=Coalesce('overridden_total_snapshot',
                                       'client_service__full_total_price',
-                                      Value(Decimal('0.00')), output_field=DEC_FIELD)
+                                      Value(Decimal('0.00')), output_field=DEC_FIELD),
+        subservice_allocated_src=Coalesce(
+            Subquery(subservice_positive_alloc_subq, output_field=DEC_FIELD),
+            Value(Decimal('0.00')),
+            output_field=DEC_FIELD,
+        ),
+    ).annotate(
+        main_payment_amount=Case(
+            When(applied_to_subservice__isnull=False, then=Value(Decimal('0.00'))),
+            default=Greatest(
+                ExpressionWrapper(F('amount') - F('subservice_allocated_src'), output_field=DEC_FIELD),
+                Value(Decimal('0.00')),
+                output_field=DEC_FIELD,
+            ),
+            output_field=DEC_FIELD,
+        )
     )
 
     safe_div = Case(
@@ -121,7 +146,7 @@ def get_revenue_from_payments(
     )
 
     proportional_expr = ExpressionWrapper(
-        F('amount') - (F('amount') * F('inst_cost_src') / safe_div),
+        F('main_payment_amount') - (F('main_payment_amount') * F('inst_cost_src') / safe_div),
         output_field=DEC_FIELD
     )
 
@@ -133,16 +158,16 @@ def get_revenue_from_payments(
         ),
         When(
             Q(client_service__service__category=ServiceCategory.TITLE),
-            then=ExpressionWrapper(F('amount') - F('inst_cost_src'), output_field=DEC_FIELD)
+            then=ExpressionWrapper(F('main_payment_amount') - F('inst_cost_src'), output_field=DEC_FIELD)
         ),
-        default=F('amount'),
+        default=F('main_payment_amount'),
         output_field=DEC_FIELD
     )
 
     main_annot = main_pay_qs.annotate(
-        gross=F('amount'),
+        gross=F('main_payment_amount'),
         company_revenue=Greatest(company_case, Value(Decimal('0.00')), output_field=DEC_FIELD),
-        institution_share=ExpressionWrapper(F('amount') - F('company_revenue'), output_field=DEC_FIELD)
+        institution_share=ExpressionWrapper(F('main_payment_amount') - F('company_revenue'), output_field=DEC_FIELD)
     )
 
     # raw payment-only aggregates (always positive — gross cash received from clients)
@@ -152,21 +177,29 @@ def get_revenue_from_payments(
         inst_total=Coalesce(Sum('institution_share'), Value(Decimal('0.00')), output_field=DEC_FIELD),
     )
 
+    # Main-service outflows come from negative service-step ledger entries.
+    # This keeps mixed-payment reversals correctly split between main and subservice sides.
     main_adj_qs = (
-        PaymentAdjustment.objects
-        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
-        .exclude(original_payment_id__in=subservice_payment_ids)
-        .select_related('original_payment__client_service__service')
+        PaymentHistory.objects
+        .filter(
+            reason='service_step',
+            payment__isnull=False,
+            amount__lt=Decimal('0.00'),
+            created_at__gte=start_dt,
+            created_at__lte=end_dt,
+        )
+        .select_related('payment__client_service__service')
         .annotate(
+            adj_amount=ExpressionWrapper(F('amount') * Value(Decimal('-1.00')), output_field=DEC_FIELD),
             inst_cost_src=Coalesce(
-                'original_payment__institution_cost_snapshot',
-                'original_payment__client_service__service__total_price',
+                'payment__institution_cost_snapshot',
+                'payment__client_service__service__total_price',
                 Value(Decimal('0.00')),
                 output_field=DEC_FIELD,
             ),
             overridden_total_src=Coalesce(
-                'original_payment__overridden_total_snapshot',
-                'original_payment__client_service__full_total_price',
+                'payment__overridden_total_snapshot',
+                'payment__client_service__full_total_price',
                 Value(Decimal('0.00')),
                 output_field=DEC_FIELD,
             )
@@ -174,7 +207,7 @@ def get_revenue_from_payments(
     )
 
     if service_status:
-        main_adj_qs = main_adj_qs.filter(original_payment__client_service__status=service_status)
+        main_adj_qs = main_adj_qs.filter(client_service__status=service_status)
 
     adj_safe_div = Case(
         When(overridden_total_src__gt=Value(Decimal('0.00')), then=F('overridden_total_src')),
@@ -183,34 +216,33 @@ def get_revenue_from_payments(
     )
 
     adj_proportional_expr = ExpressionWrapper(
-        F('amount') - (F('amount') * F('inst_cost_src') / adj_safe_div),
+        F('adj_amount') - (F('adj_amount') * F('inst_cost_src') / adj_safe_div),
         output_field=DEC_FIELD
     )
 
     adj_company_positive = Case(
         When(
-            Q(original_payment__client_service__service__category=ServiceCategory.TITLE) &
+            Q(payment__client_service__service__category=ServiceCategory.TITLE) &
             Q(overridden_total_src__gt=Value(Decimal('0.00'))),
             then=Greatest(adj_proportional_expr, Value(Decimal('0.00')), output_field=DEC_FIELD)
         ),
         When(
-            Q(original_payment__client_service__service__category=ServiceCategory.TITLE),
+            Q(payment__client_service__service__category=ServiceCategory.TITLE),
             then=Greatest(
-                ExpressionWrapper(F('amount') - F('inst_cost_src'), output_field=DEC_FIELD),
+                ExpressionWrapper(F('adj_amount') - F('inst_cost_src'), output_field=DEC_FIELD),
                 Value(Decimal('0.00')),
                 output_field=DEC_FIELD
             )
         ),
-        default=F('amount'),
+        default=F('adj_amount'),
         output_field=DEC_FIELD
     )
 
-    adj_gross_expr = ExpressionWrapper(F('amount') * Value(Decimal('-1.00')), output_field=DEC_FIELD)
     adj_company_expr = ExpressionWrapper(adj_company_positive * Value(Decimal('-1.00')), output_field=DEC_FIELD)
-    adj_inst_expr = ExpressionWrapper(adj_gross_expr - adj_company_expr, output_field=DEC_FIELD)
+    adj_inst_expr = ExpressionWrapper(F('amount') - adj_company_expr, output_field=DEC_FIELD)
 
     main_adj_annot = main_adj_qs.annotate(
-        gross=adj_gross_expr,
+        gross=F('amount'),
         company_revenue=adj_company_expr,
         institution_share=adj_inst_expr,
     )

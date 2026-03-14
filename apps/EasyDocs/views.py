@@ -22,6 +22,7 @@ from apps.EasyDocs.forms import ClientForm, ClientServiceForm, TitleDeedCollecti
 from apps.EasyDocs.models import Client, ClientService, ClientServiceProcess, ClientDoc, DocType, SubService, \
     ClientSubService, SiteSettings, SmsProviderToken, PaymentHistory, Expense, Payment, MessageLog, TitleDeedCollection, \
     Booking, ServiceCategory, Service, Process
+from apps.EasyDocs.models import ClientServiceProcessAssignment
 
 from django.views.generic import TemplateView, DetailView, CreateView
 from django.shortcuts import redirect
@@ -565,7 +566,17 @@ class TaskManagementView(LoginRequiredMixin, TemplateView):
             .prefetch_related(
                 Prefetch(
                     'service_processes',
-                    queryset=ClientServiceProcess.objects.select_related('process').order_by('process__step_order')
+                    queryset=ClientServiceProcess.objects.select_related('process')
+                    .prefetch_related(
+                        Prefetch(
+                            'assignments',
+                            queryset=ClientServiceProcessAssignment.objects.filter(
+                                is_active=True,
+                            ).select_related('assignee').order_by('created_at'),
+                            to_attr='active_assignments',
+                        )
+                    )
+                    .order_by('process__step_order')
                 ),
                 Prefetch(
                     'bookings',
@@ -630,6 +641,7 @@ class TaskManagementView(LoginRequiredMixin, TemplateView):
     def _decorate_task(self, task):
         process_steps = list(task.service_processes.all())
         bookings = list(task.bookings.all())
+        current_process = None
 
         total_steps = len(process_steps)
         completed_steps = 0
@@ -660,6 +672,52 @@ class TaskManagementView(LoginRequiredMixin, TemplateView):
 
         total_steps = max(total_steps, 1)
         task.current_process_name = current_process_name
+        task.current_process = current_process
+        task.current_process_step_id = current_process.id if current_process else None
+
+        current_process_assignments = []
+        if current_process is not None:
+            current_process_assignments = list(getattr(current_process, 'active_assignments', []))
+
+        task.current_process_assignments = current_process_assignments
+        task.has_process_assignments = bool(current_process_assignments)
+
+        current_user_assignment = next(
+            (assignment for assignment in current_process_assignments if assignment.assignee_id == self.request.user.id),
+            None,
+        )
+        task.current_user_process_assignment = current_user_assignment
+        task.current_user_process_assignment_id = current_user_assignment.id if current_user_assignment else None
+
+        if current_user_assignment is not None:
+            task.process_assignment_acceptance_status = current_user_assignment.acceptance_status
+            task.process_assignment_completion_status = current_user_assignment.completion_status
+            task.process_can_accept = current_user_assignment.acceptance_status == 'pending'
+            task.process_can_decline = current_user_assignment.acceptance_status in ('pending', 'accepted')
+            task.process_can_complete = (
+                current_user_assignment.acceptance_status == 'accepted'
+                and current_user_assignment.completion_status != 'completed'
+                and current_process is not None
+                and current_process.status == 'in_progress'
+            )
+            task.process_accept_url = reverse('accept_process_assignment', args=[current_user_assignment.id])
+            task.process_decline_url = reverse('decline_process_assignment', args=[current_user_assignment.id])
+            task.process_complete_url = reverse('complete_process_assignment', args=[current_user_assignment.id])
+        else:
+            task.process_assignment_acceptance_status = None
+            task.process_assignment_completion_status = None
+            task.process_can_accept = False
+            task.process_can_decline = False
+            task.process_can_complete = False
+            task.process_accept_url = ''
+            task.process_decline_url = ''
+            task.process_complete_url = ''
+
+        task.assign_users_to_step_url = (
+            reverse('assign_users_to_process_step', args=[current_process.id])
+            if current_process is not None
+            else ''
+        )
         task.progress_label = f"{completed_steps}/{total_steps}"
         task.is_overdue = bool(
             task.deadline and task.deadline < timezone.now() and task.status not in ('completed', 'collected')
@@ -829,6 +887,15 @@ class ClientDetailView(RolePermissionRequiredMixin, DetailView):
                 Prefetch(
                     'service_processes',
                     queryset=ClientServiceProcess.objects.select_related('process')
+                                                        .prefetch_related(
+                                                            Prefetch(
+                                                                'assignments',
+                                                                queryset=ClientServiceProcessAssignment.objects.filter(
+                                                                    is_active=True,
+                                                                ).select_related('assignee').order_by('created_at'),
+                                                                to_attr='active_assignments',
+                                                            )
+                                                        )
                                                         .order_by('process__step_order')
                 ),
                 Prefetch(

@@ -138,6 +138,7 @@ def schedule_service_reminders(
                     'employee_id': employee.id,
                     'percentage': percentage,
                     'deadline': deadline.isoformat(),
+                    'message': message,
                 }
             )
             created_tasks.append(task)

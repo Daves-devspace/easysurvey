@@ -1528,6 +1528,138 @@ class ServiceAssignmentLog(models.Model):
         return f"{self.action} - {self.client_service} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
 
 
+class ClientServiceProcessAssignment(models.Model):
+    """
+    Assignment state per process step per assignee.
+
+    This model is additive and co-exists with existing service-level assignment
+    fields for backwards compatibility during rollout.
+    """
+    ACCEPTANCE_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+    ]
+    COMPLETION_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    ]
+
+    client_service_process = models.ForeignKey(
+        'ClientServiceProcess',
+        on_delete=models.CASCADE,
+        related_name='assignments',
+        help_text="Process step being assigned",
+    )
+    assignee = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='process_assignments',
+        help_text="User assigned to this process step",
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='process_assignments_created',
+        help_text="User who assigned this process step",
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive rows are retained for audit when reassigned",
+    )
+
+    acceptance_status = models.CharField(
+        max_length=20,
+        choices=ACCEPTANCE_STATUS_CHOICES,
+        default='pending',
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    declined_at = models.DateTimeField(null=True, blank=True)
+    acceptance_reason = models.TextField(blank=True)
+
+    completion_status = models.CharField(
+        max_length=20,
+        choices=COMPLETION_STATUS_CHOICES,
+        default='pending',
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completion_note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['client_service_process', 'assignee'],
+                condition=Q(is_active=True),
+                name='uniq_active_process_assignment_per_assignee',
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=['client_service_process', 'is_active', 'acceptance_status'],
+                name='cspa_process_active_accept_idx',
+            ),
+            models.Index(
+                fields=['assignee', 'is_active', 'acceptance_status', 'completion_status'],
+                name='cspa_assignee_state_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"ProcessAssignment(step={self.client_service_process_id}, "
+            f"assignee={self.assignee_id}, acceptance={self.acceptance_status}, "
+            f"completion={self.completion_status}, active={self.is_active})"
+        )
+
+
+class ClientServiceProcessAssignmentLog(models.Model):
+    """
+    Immutable audit log of actions performed on process assignments.
+    """
+    ACTION_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('completed', 'Completed'),
+        ('reassigned', 'Reassigned'),
+    ]
+
+    assignment = models.ForeignKey(
+        'ClientServiceProcessAssignment',
+        on_delete=models.CASCADE,
+        related_name='logs',
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    acted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='process_assignment_logs',
+    )
+    reason = models.TextField(blank=True)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['assignment', '-created_at']),
+            models.Index(fields=['action', '-created_at']),
+            models.Index(fields=['acted_by', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.action} - assignment #{self.assignment_id} - {self.created_at:%Y-%m-%d %H:%M}"
+
+
 class ServiceDeadlineExtension(models.Model):
     """
     Track deadline extensions for services.

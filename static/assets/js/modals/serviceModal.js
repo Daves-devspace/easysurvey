@@ -116,6 +116,9 @@ export function initServiceModal(modalSelector) {
     refreshSearchableSelects();
     procSec.style.display = "none";
     priceSec.style.display = "none";
+    modalEl.querySelectorAll(".service-assignee-group").forEach((group) => {
+      group.style.display = "";
+    });
     toggleGroundFields(false);
     if (previewTA) {
       previewTA.value = "";
@@ -124,12 +127,18 @@ export function initServiceModal(modalSelector) {
   });
 
   // when service changes, show fields and recompute
-  svcSel.addEventListener("change", () => {
+  svcSel.addEventListener("change", async () => {
     const isGround = catSel.value === "ground";
     toggleGroundFields(isGround);
-    loadProcessesForService(svcSel.value, modalEl);
+    await loadProcessesForService(svcSel.value, modalEl);
+    refreshSearchableSelects();
     updateDispatchPreview();
   });
+
+  modalEl.addEventListener(
+    "process-assignees-rendered",
+    refreshSearchableSelects,
+  );
 
   if (durationInp) {
     durationInp.addEventListener("input", () => {

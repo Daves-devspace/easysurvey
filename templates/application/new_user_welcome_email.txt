@@ -1,0 +1,14 @@
+{% autoescape off %}
+Hello {{ first_name }},
+
+Welcome to {{ company_name }}!
+
+To get started, please set your password by clicking the link below:
+{{ reset_link }}
+
+If you did not expect this, please ignore this email.
+
+Best regards,
+{{ company_name }}
+{% if site_domain %}{{ site_domain }}{% endif %}
+{% endautoescape %}

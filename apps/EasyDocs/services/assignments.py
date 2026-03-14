@@ -26,6 +26,11 @@ from apps.EasyDocs.models import (
     ClientService,
     ServiceAssignmentLog,
 )
+from apps.EasyDocs.services.process_assignments import (
+    mark_process_assignments_accepted,
+    mark_process_assignments_declined,
+    sync_service_assignment_to_process_assignments,
+)
 from apps.notifications.models import Notification
 from apps.notifications.utils import send_push_to_user
 
@@ -87,7 +92,23 @@ def handle_accept_service(
             assigned_by=None,  # self-action
             reason=reason or "Accepted by employee",
         )
-        
+
+        # Dual-write compatibility: keep process-level assignment rows synchronized.
+        try:
+            sync_service_assignment_to_process_assignments(
+                client_service=cs,
+                assigned_employee=user,
+                assigned_by=None,
+                reason=reason or "Accepted by employee",
+            )
+            mark_process_assignments_accepted(cs, user, reason=reason or "Accepted by employee")
+        except Exception as exc:
+            logger.exception(
+                "Failed to sync process assignments on acceptance for ClientService %s: %s",
+                cs.id,
+                exc,
+            )
+
         # Schedule reminders if deadline is set
         try:
             from apps.EasyDocs.services.reminders import schedule_service_reminders
@@ -202,7 +223,23 @@ def handle_decline_service(
             assigned_by=None,  # self-action
             reason=reason or "Declined by employee",
         )
-        
+
+        # Dual-write compatibility: mark existing process rows declined and deactivate
+        try:
+            mark_process_assignments_declined(cs, user, reason=reason or "Declined by employee")
+            sync_service_assignment_to_process_assignments(
+                client_service=cs,
+                assigned_employee=None,
+                assigned_by=None,
+                reason=reason or "Declined by employee",
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to sync process assignments on decline for ClientService %s: %s",
+                cs.id,
+                exc,
+            )
+
         # Cancel pending reminders
         try:
             from apps.EasyDocs.services.reminders import cancel_service_reminders
@@ -236,11 +273,14 @@ def handle_decline_service(
         # Also notify admin-manager roles (EmployeeProfile with role=Admin or Manager)
         try:
             from apps.Employee.models import EmployeeProfile
+
+            role_values = [EmployeeProfile.RoleChoices.ADMIN]
+            manager_role = getattr(EmployeeProfile.RoleChoices, "MANAGER", None)
+            if manager_role:
+                role_values.append(manager_role)
+
             admin_managers = User.objects.filter(
-                employeeprofile__role__in=[
-                    EmployeeProfile.RoleChoices.ADMIN,
-                    EmployeeProfile.RoleChoices.MANAGER
-                ]
+                employeeprofile__role__in=role_values
             ).distinct()
             notify_users.extend(admin_managers)
         except Exception as exc:

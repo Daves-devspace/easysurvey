@@ -4,7 +4,8 @@ from .forms import ClientServiceForm
 from .models import (Client, Service, Process, ClientService,ClientSubService, ClientServiceProcess, Payment, PaymentAdjustment, SubServicePaymentAdjustment, Document, DocType,
                      SmsProviderToken, ClientDoc, TitleDeedCollection, SiteSettings, ScheduledTask, AuditLog,
                      DriveOAuthToken, MessageLog, ServiceAssignmentLog, ServiceDeadlineExtension,
-                     DocumentHandoff, DocumentHandoffLog)
+                     DocumentHandoff, DocumentHandoffLog, ClientServiceProcessAssignment,
+                     ClientServiceProcessAssignmentLog)
 
 
 from django.utils.timezone import now
@@ -548,6 +549,50 @@ class ServiceAssignmentLogAdmin(admin.ModelAdmin):
         'reason',
     )
     readonly_fields = ('timestamp',)
+
+
+@admin.register(ClientServiceProcessAssignment)
+class ClientServiceProcessAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'client_service_process',
+        'assignee',
+        'assigned_by',
+        'is_active',
+        'acceptance_status',
+        'completion_status',
+        'created_at',
+    )
+    list_filter = ('is_active', 'acceptance_status', 'completion_status', 'created_at')
+    search_fields = (
+        'client_service_process__client_service__client__first_name',
+        'client_service_process__client_service__client__last_name',
+        'client_service_process__process__name',
+        'assignee__username',
+        'assignee__first_name',
+        'assignee__last_name',
+    )
+    readonly_fields = ('created_at', 'updated_at', 'accepted_at', 'declined_at', 'completed_at')
+
+
+@admin.register(ClientServiceProcessAssignmentLog)
+class ClientServiceProcessAssignmentLogAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'assignment',
+        'action',
+        'acted_by',
+        'created_at',
+    )
+    list_filter = ('action', 'created_at')
+    search_fields = (
+        'assignment__client_service_process__client_service__client__first_name',
+        'assignment__client_service_process__client_service__client__last_name',
+        'assignment__assignee__username',
+        'acted_by__username',
+        'reason',
+    )
+    readonly_fields = ('created_at',)
 
 
 @admin.register(ServiceDeadlineExtension)

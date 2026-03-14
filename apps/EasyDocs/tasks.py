@@ -326,12 +326,105 @@ def send_today_ground_reminders(self):
         msg = f"Reminder: Visit today for {booking.client_service.service.name}"
         _send_single_util(client, msg, reason="Ground Service Reminder")
 
+
+@shared_task(bind=True)
+def send_service_deadline_reminder(
+    self,
+    client_service_id,
+    employee_id=None,
+    percentage=None,
+    deadline=None,
+    message=None,
+):
+    """
+    Dispatch a service deadline reminder to the assigned employee.
+
+    This task intentionally uses in-app notification + push so it does not
+    interfere with client SMS automation paths.
+    """
+    from django.contrib.auth import get_user_model
+    from apps.EasyDocs.models import ClientService
+    from apps.notifications.models import Notification
+    from apps.notifications.utils import send_push_to_user
+
+    try:
+        client_service = (
+            ClientService.objects
+            .select_related('service', 'client', 'assigned_employee')
+            .get(pk=client_service_id)
+        )
+    except ClientService.DoesNotExist:
+        logger.warning(
+            "Skipping deadline reminder: ClientService %s not found",
+            client_service_id,
+        )
+        return {"status": "skipped", "reason": "client_service_not_found"}
+
+    user_model = get_user_model()
+    assignee = None
+
+    if employee_id:
+        assignee = user_model.objects.filter(pk=employee_id).first()
+
+    if assignee is None:
+        assignee = client_service.assigned_employee
+
+    if assignee is None:
+        logger.warning(
+            "Skipping deadline reminder for ClientService %s: no assignee",
+            client_service.id,
+        )
+        return {"status": "skipped", "reason": "no_assignee"}
+
+    try:
+        pct = int(percentage)
+    except (TypeError, ValueError):
+        pct = None
+
+    if pct == 100:
+        title = "Service Deadline Reached"
+    elif pct is not None:
+        title = f"Service Deadline Reminder ({pct}%)"
+    else:
+        title = "Service Deadline Reminder"
+
+    if not message:
+        if pct == 100:
+            message = (
+                f"Deadline reached for {client_service.service.name} "
+                f"(Client: {client_service.client.first_name} {client_service.client.last_name})."
+            )
+        else:
+            message = (
+                f"Reminder: {client_service.service.name} for "
+                f"{client_service.client.first_name} {client_service.client.last_name} "
+                f"is approaching deadline."
+            )
+
+    if deadline:
+        message = f"{message} Due: {deadline}."
+
+    Notification.objects.create(
+        user=assignee,
+        title=title,
+        message=message,
+    )
+    send_push_to_user(assignee, title, message)
+
+    return {
+        "status": "sent",
+        "client_service_id": client_service.id,
+        "assignee_id": assignee.id,
+        "percentage": pct,
+    }
+
 DISPATCH_MAP = {
     "_send_chunk": _send_chunk,
     "send_employee_and_company_copy": send_employee_and_company_copy,
     "send_single_sms": send_single_sms,
     "send_today_ground_reminders": send_today_ground_reminders,
     "update_sms_delivery_and_balance": update_sms_delivery_and_balance,
+    "send_service_deadline_reminder": send_service_deadline_reminder,
 }
 
 # @shared_task
@@ -382,11 +475,42 @@ def dispatch_due_scheduled_tasks():
         
         for scheduled in due_qs:
             task_callable = DISPATCH_MAP.get(scheduled.task_name)
-            if task_callable:
+
+            if task_callable is None and scheduled.task_type == 'reminder':
+                task_callable = send_service_deadline_reminder
+
+            if task_callable is None:
+                scheduled.status = "failed"
+                scheduled.completed_at = now
+                scheduled.notes = (
+                    f"No dispatcher found for task_name='{scheduled.task_name}' "
+                    f"task_type='{scheduled.task_type}'."
+                )
+                scheduled.save(update_fields=['status', 'completed_at', 'notes'])
+                logger.warning(
+                    "No dispatcher found for ScheduledTask %s (name=%s type=%s)",
+                    scheduled.id,
+                    scheduled.task_name,
+                    scheduled.task_type,
+                )
+                continue
+
+            try:
                 res = task_callable.apply_async(kwargs=scheduled.payload or {})
                 scheduled.status = "sent"
                 scheduled.task_id = res.id
-                scheduled.save()
+                scheduled.save(update_fields=['status', 'task_id'])
+            except Exception as exc:
+                scheduled.status = "failed"
+                scheduled.completed_at = now
+                scheduled.notes = f"Dispatch failed: {exc}"
+                scheduled.save(update_fields=['status', 'completed_at', 'notes'])
+                logger.exception(
+                    "Failed to dispatch ScheduledTask %s (name=%s type=%s)",
+                    scheduled.id,
+                    scheduled.task_name,
+                    scheduled.task_type,
+                )
 
 @shared_task(bind=True, autoretry_for=(Exception,), retry_kwargs={'max_retries': 3})
 def check_and_escalate_expired_handoffs(self):

@@ -85,6 +85,7 @@
     }
     
     .datatable {
+            width: 100% !important;
       min-width: 900px;  /* Ensure table has minimum width for scrolling */
       margin-bottom: 1rem;
     }
@@ -951,10 +952,30 @@ function previewNotification(id) {
 
 <script>
 $(document).ready(function () {
+    function adjustVisibleDataTables(scope) {
+        const root = scope || document;
+
+        if (!$.fn.dataTable || !$.fn.dataTable.tables) {
+            return;
+        }
+
+        $(root).find('table.datatable').each(function () {
+            if (!$.fn.dataTable.isDataTable(this) || !$(this).is(':visible')) {
+                return;
+            }
+
+            $(this).DataTable().columns.adjust();
+        });
+    }
+
     function initDataTables(scope) {
         const root = scope || document;
         $(root).find('table.datatable').each(function () {
             if ($.fn.dataTable.isDataTable(this)) {
+                return;
+            }
+
+            if (!$(this).is(':visible')) {
                 return;
             }
 
@@ -966,6 +987,7 @@ $(document).ready(function () {
                 ordering: true,
                 info: true,
                 scrollX: true,
+                scrollCollapse: true,
                 language: {
                     emptyTable: "No data found."
                 }
@@ -977,6 +999,7 @@ $(document).ready(function () {
 
     document.body.addEventListener('htmx:afterSwap', function (event) {
         initDataTables(event.target || document);
+        adjustVisibleDataTables(event.target || document);
     });
 
     document.addEventListener('shown.bs.tab', function (event) {
@@ -985,12 +1008,27 @@ $(document).ready(function () {
             const tabPane = document.querySelector(targetSelector);
             if (tabPane) {
                 initDataTables(tabPane);
+                window.requestAnimationFrame(function () {
+                    adjustVisibleDataTables(tabPane);
+                });
             }
         }
 
         if ($.fn.dataTable && $.fn.dataTable.tables) {
             $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
         }
+    });
+
+    document.addEventListener('shown.bs.collapse', function (event) {
+        const collapsePane = event.target;
+        if (!collapsePane) {
+            return;
+        }
+
+        initDataTables(collapsePane);
+        window.requestAnimationFrame(function () {
+            adjustVisibleDataTables(collapsePane);
+        });
     });
 });
 </script>

@@ -22,6 +22,12 @@ from .views import ManagementView, ClientDetailView, ClientServiceCreateView, Ho
 from django.contrib.auth.views import PasswordResetDoneView, PasswordResetCompleteView
 from apps.EasyDocs.files.oauth import  drive_oauth_start, drive_oauth_callback,RefreshDriveTokenView
 from apps.notifications.views import firebase_messaging_sw
+from apps.EasyDocs.services.process_assignment_views import (
+    accept_process_assignment,
+    decline_process_assignment,
+    complete_process_assignment,
+    assign_users_to_process_step as assign_users_to_process_step_view,
+)
 
 
 urlpatterns = [
@@ -145,6 +151,13 @@ urlpatterns = [
     path('assignments/<int:client_service_id>/accept/', views.accept_service_assignment, name='accept_service_assignment'),
     path('assignments/<int:client_service_id>/decline/', views.decline_service_assignment, name='decline_service_assignment'),
     path('assignments/<int:client_service_id>/extend-deadline/', views.request_deadline_extension, name='request_deadline_extension'),
+
+        # Process-assignment endpoints (per-assignment accept / decline / complete)
+        path('process-assignments/<int:assignment_id>/accept/', accept_process_assignment, name='accept_process_assignment'),
+        path('process-assignments/<int:assignment_id>/decline/', decline_process_assignment, name='decline_process_assignment'),
+        path('process-assignments/<int:assignment_id>/complete/', complete_process_assignment, name='complete_process_assignment'),
+        # Admin: assign multiple users to a process step
+        path('process-steps/<int:process_step_id>/assign-users/', assign_users_to_process_step_view, name='assign_users_to_process_step'),
     
     # Document handoff accept/decline endpoints
     path('handoffs/assign/', file_views.assign_document_handoff, name='assign_document_handoff'),

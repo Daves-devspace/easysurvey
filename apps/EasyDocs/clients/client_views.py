@@ -1,8 +1,10 @@
 # views/actions.py
 from datetime import timedelta
 from decimal import Decimal
+import re
 
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import Value, F, Sum, DecimalField
@@ -18,6 +20,10 @@ from apps.EasyDocs.forms import ClientSmsForm, ClientServiceForm, ClientSubServi
 from apps.EasyDocs.models import Client, MessageLog, ClientService, ClientSubService, ServiceCategory, ServiceAssignmentLog
 from apps.EasyDocs.services.services import create_client_service_with_overrides, \
     apply_client_service_logic, handle_ground_booking, default_scheduled_date
+from apps.EasyDocs.services.process_assignments import (
+    sync_service_assignment_to_process_assignments,
+    handle_assign_users_to_process_step,
+)
 from apps.EasyDocs.utils import MobileSasaAPI
 
 from django.contrib.auth.decorators import login_required, permission_required     
@@ -98,6 +104,8 @@ class SendClientSMSView(ClientActionView):
 # views.py
 
 class ClientServiceManageView(View):
+    PROCESS_ASSIGNEE_KEY_RE = re.compile(r"^process_assignees_(\d+)(?:\[\])?$")
+
     _permission_map = {
         'add': ['easydocs.add_clientservice'],
         'edit': ['easydocs.change_clientservice'],
@@ -116,13 +124,108 @@ class ClientServiceManageView(View):
     def _detect_action(self, request):
         return 'edit' if request.POST.get('client_service_id') else 'add'
 
+    def _extract_process_assignee_map(self, post_data):
+        if not hasattr(post_data, 'keys'):
+            return {}
+
+        assignee_map = {}
+
+        for key in post_data.keys():
+            match = self.PROCESS_ASSIGNEE_KEY_RE.match(key)
+            if not match:
+                continue
+
+            process_id = int(match.group(1))
+            raw_values = post_data.getlist(key) if hasattr(post_data, 'getlist') else post_data.get(key, [])
+            if isinstance(raw_values, str):
+                raw_values = [raw_values]
+
+            seen = set()
+            user_ids = []
+            for raw in raw_values:
+                try:
+                    user_id = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if user_id <= 0 or user_id in seen:
+                    continue
+                seen.add(user_id)
+                user_ids.append(user_id)
+
+            assignee_map[process_id] = user_ids
+
+        return assignee_map
+
+    @staticmethod
+    def _derive_primary_assignee(process_assignee_map):
+        all_ids = []
+        for process_id in sorted(process_assignee_map.keys()):
+            all_ids.extend(process_assignee_map.get(process_id, []))
+
+        if not all_ids:
+            return None
+
+        users = User.objects.filter(id__in=all_ids)
+        user_lookup = {user.id: user for user in users}
+
+        for process_id in sorted(process_assignee_map.keys()):
+            for user_id in process_assignee_map.get(process_id, []):
+                user = user_lookup.get(user_id)
+                if user is not None:
+                    return user
+        return None
+
+    def _apply_process_level_assignments(self, request, cs, process_assignee_map, fallback_assignee=None, assignment_reason=''):
+        steps = list(cs.service_processes.select_related('process').all())
+        if not steps:
+            return
+
+        assigned_by = request.user if request.user.is_authenticated else None
+        reason = assignment_reason or 'Configured from service modal'
+
+        for step in steps:
+            target_user_ids = process_assignee_map.get(step.process_id)
+
+            if target_user_ids is None:
+                if fallback_assignee is None:
+                    continue
+                target_user_ids = [fallback_assignee.id]
+
+            result = handle_assign_users_to_process_step(
+                process_step_id=step.id,
+                user_ids=target_user_ids,
+                assigned_by=assigned_by,
+                reason=reason,
+            )
+
+            if not result.get('success'):
+                logger.warning(
+                    "Failed to apply process assignees for cs=%s step=%s: %s",
+                    cs.id,
+                    step.id,
+                    result.get('message'),
+                )
+
     def handle_add_client_service(self, request, client):
         form = ClientServiceForm(request.POST)
         if not form.is_valid():
             return self._handle_form_errors(form, client.id)
 
-        if not form.cleaned_data.get('assigned_employee'):
-            form.add_error('assigned_employee', 'Please assign an employee before saving this service.')
+        process_assignee_map = self._extract_process_assignee_map(request.POST)
+        service = form.cleaned_data.get('service')
+        service_has_processes = bool(service and service.processes.exists())
+
+        assigned_employee = form.cleaned_data.get('assigned_employee')
+        if assigned_employee is None and service_has_processes:
+            assigned_employee = self._derive_primary_assignee(process_assignee_map)
+            if assigned_employee is not None:
+                form.cleaned_data['assigned_employee'] = assigned_employee
+
+        if not assigned_employee:
+            if service_has_processes:
+                form.add_error('assigned_employee', 'Assign at least one employee to a process step.')
+            else:
+                form.add_error('assigned_employee', 'Please assign an employee before saving this service.')
             return self._handle_form_errors(form, client.id)
 
         try:
@@ -162,6 +265,17 @@ class ClientServiceManageView(View):
             # detect service change BEFORE saving so we know whether to rebuild CSPs
             new_service = form.cleaned_data['service']
             service_changed = cs.service_id != new_service.id
+            process_assignee_map = self._extract_process_assignee_map(request.POST)
+
+            assigned_employee = form.cleaned_data.get('assigned_employee')
+            if assigned_employee is None and new_service.processes.exists():
+                assigned_employee = self._derive_primary_assignee(process_assignee_map)
+                if assigned_employee is not None:
+                    form.cleaned_data['assigned_employee'] = assigned_employee
+
+            if assigned_employee is None and new_service.processes.exists():
+                form.add_error('assigned_employee', 'Assign at least one employee to a process step.')
+                return self._handle_form_errors(form, client.id)
 
             # Save the basic ClientService changes
             cs = form.save(commit=False)
@@ -204,12 +318,23 @@ class ClientServiceManageView(View):
 
     def _apply_assignment_and_deadline(self, request, cs, form, previous_assigned_employee=None, is_new=False):
         assigned_employee = form.cleaned_data.get('assigned_employee')
+        process_assignee_map = self._extract_process_assignee_map(request.POST)
+
+        if assigned_employee is None and process_assignee_map:
+            assigned_employee = self._derive_primary_assignee(process_assignee_map)
+
         configured_duration = form.cleaned_data.get('expected_duration_days') or cs.service.expected_duration_days
 
         update_fields = []
         assignment_action = None
+        assignment_reason = (request.POST.get('assignment_reason') or '').strip()
 
         # Assignment handling
+        new_assignee_id = assigned_employee.id if assigned_employee else None
+        if cs.assigned_employee_id != new_assignee_id:
+            cs.assigned_employee = assigned_employee
+            update_fields.append('assigned_employee')
+
         if assigned_employee:
             if previous_assigned_employee and previous_assigned_employee != assigned_employee:
                 cs.assignment_status = 'reassigned'
@@ -252,7 +377,29 @@ class ClientServiceManageView(View):
                 previous_employee=previous_assigned_employee if assignment_action == 'reassigned' else None,
                 action=assignment_action,
                 assigned_by=request.user if request.user.is_authenticated else None,
-                reason=(request.POST.get('assignment_reason') or '').strip(),
+                reason=assignment_reason,
+            )
+
+        try:
+            sync_service_assignment_to_process_assignments(
+                client_service=cs,
+                assigned_employee=assigned_employee,
+                assigned_by=request.user if request.user.is_authenticated else None,
+                reason=assignment_reason,
+            )
+
+            self._apply_process_level_assignments(
+                request=request,
+                cs=cs,
+                process_assignee_map=process_assignee_map,
+                fallback_assignee=assigned_employee,
+                assignment_reason=assignment_reason,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to sync process assignments for ClientService %s: %s",
+                cs.id,
+                exc,
             )
 
     def _handle_form_errors(self, form, client_id):

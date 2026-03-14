@@ -9,6 +9,43 @@
 
 {% block body %}
 
+<style>
+    .service-actions {
+        row-gap: 0.5rem;
+    }
+
+    .service-action-item {
+        flex: 1 1 calc(50% - 0.5rem);
+        min-width: 0;
+    }
+
+    .service-action-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        border-radius: 0.5rem;
+        white-space: nowrap;
+        font-weight: 500;
+    }
+
+    .service-action-btn .ti {
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+
+    @media (min-width: 768px) {
+        .service-action-item {
+            flex: 0 0 auto;
+        }
+
+        .service-action-btn {
+            width: auto;
+        }
+    }
+</style>
+
 
     <!-- [ Main Content ] start -->
     <div class="pc-container">
@@ -311,59 +348,70 @@
                                                                     <strong class="text-orange-800">Requested At:</strong>
                                                                     {{ cs.requested_at|date:"M d, Y H:i" }}
                                                                 </small>
-                                                                <small class="text-muted d-block mt-1">
-                                                                    <strong class="text-orange-800">Assigned to:</strong>
-                                                                    {% if cs.assigned_employee %}
-                                                                        {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username }}
-                                                                    {% else %}
-                                                                        <span class="text-danger">Unassigned</span>
-                                                                    {% endif %}
-                                                                </small>
-                                                                <small class="text-muted d-block mt-1">
-                                                                    <strong class="text-orange-800">Status:</strong>
-                                                                    {% if cs.assignment_status %}
-                                                                        <span class="badge bg-warning text-dark">{{ cs.get_assignment_status_display }}</span>
-                                                                    {% else %}
-                                                                        <span class="badge bg-secondary">Not set</span>
-                                                                    {% endif %}
-                                                                </small>
+                                                                {% if not cs.service_processes.all %}
+                                                                    <small class="text-muted d-block mt-1">
+                                                                        <strong class="text-orange-800">Assigned to:</strong>
+                                                                        {% if cs.assigned_employee %}
+                                                                            {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username }}
+                                                                        {% else %}
+                                                                            <span class="text-danger">Unassigned</span>
+                                                                        {% endif %}
+                                                                    </small>
+                                                                    <small class="text-muted d-block mt-1">
+                                                                        <strong class="text-orange-800">Status:</strong>
+                                                                        {% if cs.assignment_status %}
+                                                                            <span class="badge bg-warning text-dark">{{ cs.get_assignment_status_display }}</span>
+                                                                        {% else %}
+                                                                            <span class="badge bg-secondary">Not set</span>
+                                                                        {% endif %}
+                                                                    </small>
+                                                                {% endif %}
                                                             </div>
                                                             <div class="col-12 col-md-6 text-md-end">
-                                                                <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2">
+                                                                <div class="d-flex flex-wrap justify-content-start justify-content-md-end gap-2 service-actions">
                                                                     {% if perms.easydocs.add_clientsubservice %}
-                                                                        <button
-                                                                            type="button"
-                                                                            class="btn btn-sm bg-green-200 br-3"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#addSubServiceModal"
-                                                                            data-service-id="{{ cs.id }}"
-                                                                            data-service-name="{{ cs.service.name|escape }}"
+                                                                        <div class="service-action-item">
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-sm btn-outline-success service-action-btn"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#addSubServiceModal"
+                                                                                data-service-id="{{ cs.id }}"
+                                                                                data-service-name="{{ cs.service.name|escape }}"
+                                                                                title="Add subservice"
                                                                             >
-                                                                            <i class="ti ti-circle-plus"></i>SubService
+                                                                                <i class="ti ti-circle-plus"></i>
+                                                                                <span>SubService</span>
                                                                             </button>
+                                                                        </div>
 
                                                                     {% endif %}
                                                                     {% if cs.service %}
-                                                                     <div>
-                                                                        <button
-                                                                        type="button"
-                                                                        class="btn btn-sm btn-success br-3 open-booking-modal"
-                                                                        data-action="create"
-                                                                        data-url="{% url 'booking_create' cs.id %}"
-                                                                        data-client-name="{{ cs.client.first_name }}"
-                                                                        data-service-name="{{ cs.service.name }}"
-                                                                        data-service-id="{{ cs.id }}"
-                                                                        data-service-id-label="{{ cs.service.name }}">  {# optional label fallback #}
-                                                                        <i class="ti ti-circle-plus me-1 txt-white"></i> Booking
-                                                                        </button>
-                                                                    </div>
+                                                                        <div class="service-action-item">
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-sm btn-success service-action-btn open-booking-modal"
+                                                                                data-action="create"
+                                                                                data-url="{% url 'booking_create' cs.id %}"
+                                                                                data-client-name="{{ cs.client.first_name }}"
+                                                                                data-service-name="{{ cs.service.name }}"
+                                                                                data-service-id="{{ cs.id }}"
+                                                                                data-service-id-label="{{ cs.service.name }}"
+                                                                                title="Create booking"
+                                                                            >
+                                                                                <i class="ti ti-circle-plus"></i>
+                                                                                <span>Booking</span>
+                                                                            </button>
+                                                                        </div>
                                                                     
                                                                         
                                                                     {% endif %}
 
                                                                     {% if perms.easydocs.change_clientservice %}
-                                                                        <button
-                                                                                class="btn btn-sm btn-primary edit-client-service-btn br-3"
+                                                                        <div class="service-action-item">
+                                                                            <button
+                                                                                type="button"
+                                                                                class="btn btn-sm btn-primary edit-client-service-btn service-action-btn"
                                                                                 data-bs-toggle="modal"
                                                                                 data-bs-target="#editClientServiceModal"
 
@@ -373,35 +421,44 @@
 
                                                                                 data-category="{{ cs.service.category }}"
                                                                                 data-service-id="{{ cs.service.id }}"
+                                                                                data-service-name="{{ cs.service.name|escape }}"
 
                                                                                 data-land-description="{{ cs.land_description|default_if_none:'' }}"
                                                                                 data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
                                                                                 data-assigned-employee-id="{{ cs.assigned_employee_id|default:'' }}"
+                                                                                data-assigned-employee-name="{% if cs.assigned_employee %}{{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username|escape }}{% endif %}"
                                                                                 data-expected-duration-days="{{ cs.expected_duration_days|default:cs.service.expected_duration_days|default:'' }}"
 
                                                                                 data-scheduled-date="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.scheduled_date|date:'Y-m-d\\TH:i' }}{% endif %}"
                                                                                 data-dispatch-preview="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.dispatch_message|default:'' }}{% endif %}"
 
                                                                                 data-ps-ids="{% for p in cs.service_processes.all %}{{ p.process.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                                                data-ps-costs="{% for p in cs.service_processes.all %}{{ p.overridden_cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                                                data-ps-costs="{% for p in cs.service_processes.all %}{{ p.cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                                 data-ps-onboarding-ids="{% for p in cs.service_processes.all %}{% if p.completed_at_onboarding %}{{ p.process.id }} {% endif %}{% endfor %}"
+                                                                                data-ps-assignees="{% for p in cs.service_processes.all %}{{ p.process.id }}:{% for pa in p.active_assignments %}{{ pa.assignee_id }}{% if not forloop.last %}|{% endif %}{% endfor %}{% if not forloop.last %};{% endif %}{% endfor %}"
+                                                                                title="{% if cs.assigned_employee %}Reassign service{% else %}Assign service{% endif %}"
                                                                             >
                                                                                 <i class="ti ti-user-check"></i>
-                                                                                {% if cs.assigned_employee %}Reassign{% else %}Assign{% endif %}
+                                                                                <span>{% if cs.assigned_employee %}Reassign{% else %}Assign{% endif %}</span>
                                                                             </button>
+                                                                        </div>
 
                                                                     {% endif %}
 
                                                                     {% if perms.easydocs.delete_clientservice %}
-
-                                                                        <button
-                                                                                class="btn btn-sm btn-danger br-3"
+                                                                        <div class="service-action-item">
+                                                                            <button
+                                                                                class="btn btn-sm btn-outline-danger service-action-btn"
                                                                                 data-bs-toggle="modal"
                                                                                 data-bs-target="#deleteClientServiceModal"
                                                                                 data-csid="{{ cs.id }}"
-                                                                                data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}">
-                                                                            <i class="ti ti-trash"></i>
-                                                                        </button>
+                                                                                data-csinfo="{{ cs.service.name }} — {{ cs.land_description }}"
+                                                                                title="Delete service"
+                                                                            >
+                                                                                <i class="ti ti-trash"></i>
+                                                                                <span>Delete</span>
+                                                                            </button>
+                                                                        </div>
                                                                     {% endif %}
                                                                 </div>
                                                             </div>
@@ -462,7 +519,7 @@
                                                             {% if cs.service.category == "title" %}
                                                                 <h6 class="mt-4 text-orange-800">Processes:</h6>
                                                                 <div class="table-responsive">
-                                                                     <table class="datatable display table table-striped table-hover">
+                                                                     <table class="datatable display table table-striped table-hover w-100">
                                                                        <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -489,10 +546,30 @@
                                                                                             <input class="form-check-input" type="checkbox" id="select-all">
                                                                                         </div>
                                                                                     </td>
-                                                                                    <td>{{ sp.process.name }}</td>
+                                                                                    <td>
+                                                                                        <div class="fw-semibold">{{ sp.process.name }}</div>
+                                                                                        {% if sp.active_assignments %}
+                                                                                            <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+                                                                                                {% for pa in sp.active_assignments %}
+                                                                                                    <span class="badge text-bg-light border rounded-pill fw-normal px-2 py-1" title="{{ pa.assignee.get_full_name|default:pa.assignee.username }}">
+                                                                                                        <span class="text-dark">{{ pa.assignee.get_full_name|default:pa.assignee.username }}</span>
+                                                                                                        {% if pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
+                                                                                                            <span class="text-success"> · done</span>
+                                                                                                        {% elif pa.acceptance_status == 'accepted' %}
+                                                                                                            <span class="text-primary"> · accepted</span>
+                                                                                                        {% elif pa.acceptance_status == 'pending' %}
+                                                                                                            <span class="text-secondary"> · pending</span>
+                                                                                                        {% else %}
+                                                                                                            <span class="text-danger"> · declined</span>
+                                                                                                        {% endif %}
+                                                                                                    </span>
+                                                                                                {% endfor %}
+                                                                                            </div>
+                                                                                        {% endif %}
+                                                                                    </td>
                                                                                     <td>{{ sp.cost }}</td>
                                                                                     <td>
-                                                                                    <span class="badge
+                                                                                    <span class="badge rounded-pill px-2 py-1
                                                                                         {% if sp == cs.service_processes.last and cs.has_title_deed_collection %}bg-info
                                                                                         {% elif sp.status == 'completed' %}bg-green-500 
                                                                                         {% elif sp.status == 'in_progress' %}bg-orange-400
@@ -506,6 +583,62 @@
                                                                                     </td>
 
                                                                                     <td>
+                                                                                        {% if sp.active_assignments %}
+                                                                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                                                                                {% for pa in sp.active_assignments %}
+                                                                                                    {% if pa.assignee_id == request.user.id %}
+                                                                                                        {% if pa.acceptance_status == 'pending' %}
+                                                                                                            <form action="{% url 'accept_process_assignment' pa.id %}" method="POST" class="d-inline">
+                                                                                                                {% csrf_token %}
+                                                                                                                <button class="btn btn-sm btn-success px-2 py-1" type="submit" title="Accept assignment">
+                                                                                                                    <i class="bi bi-check-circle"></i><span class="d-none d-md-inline ms-1">Accept</span>
+                                                                                                                </button>
+                                                                                                            </form>
+                                                                                                            <form action="{% url 'decline_process_assignment' pa.id %}" method="POST" class="d-inline">
+                                                                                                                {% csrf_token %}
+                                                                                                                <button class="btn btn-sm btn-outline-danger px-2 py-1" type="submit" title="Decline assignment">
+                                                                                                                    <i class="bi bi-x-circle"></i><span class="d-none d-md-inline ms-1">Decline</span>
+                                                                                                                </button>
+                                                                                                            </form>
+                                                                                                        {% elif pa.acceptance_status == 'accepted' and pa.completion_status != 'completed' and sp.status == 'in_progress' %}
+                                                                                                            <form action="{% url 'complete_process_assignment' pa.id %}" method="POST" class="d-inline">
+                                                                                                                {% csrf_token %}
+                                                                                                                <button class="btn btn-sm btn-success px-2 py-1" type="submit" title="{% if sp == cs.latest_process and cs.needs_collection %}Confirm final step{% else %}Mark assignment complete{% endif %}">
+                                                                                                                    <i class="bi bi-check-circle"></i><span class="d-none d-md-inline ms-1">{% if sp == cs.latest_process and cs.needs_collection %}Confirm{% else %}Complete{% endif %}</span>
+                                                                                                                </button>
+                                                                                                            </form>
+                                                                                                        {% elif pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
+                                                                                                            <span class="badge text-bg-light border rounded-pill px-2 py-1">Done</span>
+                                                                                                        {% endif %}
+                                                                                                    {% endif %}
+                                                                                                {% endfor %}
+                                                                                            </div>
+                                                                                            {% if sp == cs.latest_process and cs.needs_collection %}
+                                                                                                <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                                                                                    {% if sp.status == 'completed' and not cs.has_title_deed_collection %}
+                                                                                                        {% if perms.easydocs.add_titledeedcollection %}
+                                                                                                            <button type="button"
+                                                                                                                    class="btn btn-primary btn-sm"
+                                                                                                                    data-bs-toggle="modal"
+                                                                                                                    data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                                <i class="bi bi-box"></i>
+                                                                                                                <span class="d-none d-md-inline ms-1">Collect</span>
+                                                                                                            </button>
+                                                                                                        {% endif %}
+                                                                                                    {% elif cs.has_title_deed_collection %}
+                                                                                                        {% if perms.easydocs.view_titledeedcollection %}
+                                                                                                            <button type="button"
+                                                                                                                    class="btn btn-secondary btn-sm"
+                                                                                                                    data-bs-toggle="modal"
+                                                                                                                    data-bs-target="#collectModal{{ cs.id }}">
+                                                                                                                <i class="bi bi-eye"></i>
+                                                                                                                <span class="d-none d-md-inline ms-1">View</span>
+                                                                                                            </button>
+                                                                                                        {% endif %}
+                                                                                                    {% endif %}
+                                                                                                </div>
+                                                                                            {% endif %}
+                                                                                        {% else %}
                                                                                         {% comment %} Determine if this is the final step {% endcomment %}
                                                                                         {% if sp == cs.latest_process %}
                                                                                             {% if cs.needs_collection %}
@@ -585,6 +718,7 @@
                                                                                             <span class="text-muted small"><i
                                                                                                     class="ti ti-list-check"></i></span>
                                                                                         {% endif %}
+                                                                                        {% endif %}
                                                                                     </td>
 
 
@@ -611,7 +745,7 @@
                                                                 {# —————————————————————— #}
                                                                 <h6 class="mt-4 text-orange-800">Booking Schedule:</h6>
                                                                 <div class="table-responsive">
-                                                                       <table class="datatable display table table-striped table-hover">
+                                                                       <table class="datatable display table table-striped table-hover w-100">
                                                                         <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -644,7 +778,7 @@
 
                                                             <div class="table-responsive">
                                                            
-                                                                 <table class="datatable display table table-striped table-hover">
+                                                                 <table class="datatable display table table-striped table-hover w-100">
                                                                    <thead class="table-success">
                                                                     <tr>
                                                                         <th>
@@ -1916,9 +2050,10 @@
                                 {{ client_service_form.service.label_tag }}
                                 {{ client_service_form.service }}
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 service-assignee-group">
                                 {{ client_service_form.assigned_employee.label_tag }}
                                 {{ client_service_form.assigned_employee }}
+                                <small class="text-muted d-block mt-1">Shown when the selected service has no process steps.</small>
                             </div>
                             <div class="col-md-6">
                                 {{ client_service_form.expected_duration_days.label_tag }}
@@ -1935,6 +2070,7 @@
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
                                     <th>Completed</th>
+                                    <th>Assignees</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>
@@ -1942,9 +2078,12 @@
                                 <tr>
                                     <td><strong>Total</strong></td>
                                     <td><strong class="totalCost">0.00</strong></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                                 </tfoot>
                             </table>
+                            <small class="text-muted d-block mt-1">Add one or more employees per process step.</small>
                         </div>
 
                         <!-- Override total price if no processes -->
@@ -2047,7 +2186,7 @@
                                     <option value="">Search or select service</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-6 service-assignee-group">
                                 <label for="editAssignedEmployee" class="form-label">Assign Task/Service</label>
                                 <select class="form-select searchable-select" name="assigned_employee" id="editAssignedEmployee" data-search-placeholder="Search or select assignee">
                                     <option value="">Search or select assignee</option>
@@ -2057,6 +2196,7 @@
                                         </option>
                                     {% endfor %}
                                 </select>
+                                <small class="text-muted d-block mt-1">Shown when the selected service has no process steps.</small>
                             </div>
                             <div class="col-md-6">
                                 <label for="editExpectedDurationDays" class="form-label">Expected Duration (days)</label>
@@ -2073,6 +2213,7 @@
                                     <th>Process</th>
                                     <th>Custom Cost (Ksh)</th>
                                     <th>Completed</th>
+                                    <th>Assignees</th>
                                 </tr>
                                 </thead>
                                 <tbody class="processTableBody"></tbody>
@@ -2080,15 +2221,17 @@
                                 <tr>
                                     <td><strong>Total</strong></td>
                                     <td><strong class="totalCost">0.00</strong></td>
+                                    <td></td>
+                                    <td></td>
                                 </tr>
                                 </tfoot>
                             </table>
+                            <small class="text-muted d-block mt-1">Add one or more employees per process step.</small>
                         </div>
 
                         <!-- Override total price if no processes -->
                         <div class="mt-4 totalPriceOverride" style="display:none;">
-                            <label for="editOverrideTotalPrice" class="form-label">Override Total Price
-                                (Ksh)</label>
+                            <label for="editOverrideTotalPrice" class="form-label">Client Price (KES)</label>
                             <input type="number" step="0.01" name="overridden_total_price"
                                    class="form-control overrideTotalPrice" id="editOverrideTotalPrice">
                         </div>

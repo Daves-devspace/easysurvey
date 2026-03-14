@@ -72,6 +72,9 @@ def update_client_service_overrides(cs, data) -> None:
     """
     Updates per-process overridden_cost if process_id[] and process_cost[] are posted,
     otherwise updates overridden_total_price.
+
+    Accepts either `overridden_total_price` (current field name) or
+    `override_total_price` (legacy/add-modal key) for compatibility.
     """
     pids = data.getlist('process_id[]') if hasattr(data, 'getlist') else data.get('process_id[]', [])
     costs = data.getlist('process_cost[]') if hasattr(data, 'getlist') else data.get('process_cost[]', [])
@@ -94,7 +97,14 @@ def update_client_service_overrides(cs, data) -> None:
             csp.save(update_fields=['overridden_cost'])
             logger.debug("Applied override for cs=%s pid=%s cost=%s", cs.pk, pid, cost)
     else:
-        otp = data.get('overridden_total_price', '').strip() if hasattr(data, 'get') else (data.get('overridden_total_price') or '').strip()
+        if hasattr(data, 'get'):
+            otp_raw = data.get('overridden_total_price', '')
+            if otp_raw in (None, ''):
+                otp_raw = data.get('override_total_price', '')
+        else:
+            otp_raw = data.get('overridden_total_price') or data.get('override_total_price') or ''
+
+        otp = str(otp_raw).strip()
         if otp:
             try:
                 cs.overridden_total_price = Decimal(otp)

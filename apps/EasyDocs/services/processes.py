@@ -14,6 +14,20 @@ def is_authorized(user):
     return user.is_authenticated and user.is_staff  # or custom permission check
 
 
+def _can_complete_process(user, step):
+    if not user.is_authenticated:
+        return False
+
+    if user.is_superuser or user.has_perm('easydocs.change_clientserviceprocess'):
+        return True
+
+    client_service = step.client_service
+    return (
+        client_service.assigned_employee_id == user.id
+        and client_service.assignment_status == 'accepted'
+    )
+
+
 def safe_complete_process(process_id):
     try:
         process = ClientServiceProcess.objects.get(pk=process_id)
@@ -27,11 +41,15 @@ def safe_complete_process(process_id):
         return False
 
 
-# @login_required
-# @user_passes_test(is_authorized)
+@login_required
 @require_POST
 def mark_process_completed(request, pk):
     step = get_object_or_404(ClientServiceProcess, pk=pk)
+
+    if not _can_complete_process(request.user, step):
+        messages.error(request, "You are not authorized to complete this process.")
+        return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
+
     cs   = step.client_service
     service = ProcessWorkflowService(cs)
 

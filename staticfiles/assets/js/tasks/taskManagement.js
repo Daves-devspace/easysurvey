@@ -30,6 +30,27 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  document.querySelectorAll(".task-complete-action").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const taskName = button.dataset.taskName || "this task";
+      const clientName = button.dataset.clientName || "the client";
+      if (
+        !window.confirm(
+          `Complete your process assignment for ${taskName} (${clientName})?`,
+        )
+      ) {
+        return;
+      }
+
+      await submitTaskAction({
+        url: button.dataset.url,
+        body: "note=Completed from tasks page",
+        successPrefix: "Success: ",
+        fallbackError: "Failed to complete process assignment.",
+      });
+    });
+  });
+
   document.querySelectorAll(".task-decline-action").forEach((button) => {
     button.addEventListener("click", () => {
       declineUrl = button.dataset.url || "";
@@ -115,6 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: {
           "X-CSRFToken": getCookie("csrftoken"),
+          "X-Requested-With": "XMLHttpRequest",
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body,

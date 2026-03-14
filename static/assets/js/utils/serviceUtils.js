@@ -1,3 +1,155 @@
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function getEmployeeOptions(modalEl) {
+  const serviceAssigneeSelect = modalEl.querySelector(
+    "[name='assigned_employee']",
+  );
+  if (!serviceAssigneeSelect) {
+    return [{ value: "", label: "Search or select assignee" }];
+  }
+
+  const options = Array.from(serviceAssigneeSelect.options || []).map(
+    (option) => ({
+      value: String(option.value ?? "").trim(),
+      label: option.textContent?.trim() || "",
+    }),
+  );
+
+  if (!options.length || options[0].value !== "") {
+    options.unshift({ value: "", label: "Search or select assignee" });
+  }
+
+  return options;
+}
+
+function normalizeAssigneeMap(rawMap) {
+  if (!rawMap || typeof rawMap !== "object") {
+    return {};
+  }
+
+  const normalized = {};
+  Object.entries(rawMap).forEach(([processId, assigneeIds]) => {
+    const key = String(processId);
+    if (!Array.isArray(assigneeIds)) {
+      normalized[key] = [];
+      return;
+    }
+
+    const seen = new Set();
+    const values = [];
+    assigneeIds.forEach((value) => {
+      const normalizedValue = String(value ?? "").trim();
+      if (!normalizedValue || seen.has(normalizedValue)) {
+        return;
+      }
+      seen.add(normalizedValue);
+      values.push(normalizedValue);
+    });
+
+    normalized[key] = values;
+  });
+
+  return normalized;
+}
+
+function renderAssigneeSelectRow(
+  processId,
+  employeeOptions,
+  selectedEmployeeId = "",
+) {
+  const normalizedSelected = String(selectedEmployeeId ?? "").trim();
+  const optionsHtml = employeeOptions
+    .map((option) => {
+      const value = String(option.value ?? "").trim();
+      const selected = value === normalizedSelected ? "selected" : "";
+      return `<option value="${escapeHtml(value)}" ${selected}>${escapeHtml(option.label)}</option>`;
+    })
+    .join("");
+
+  return `
+    <div class="input-group input-group-sm mb-1 process-assignee-row">
+      <select class="form-select searchable-select process-assignee-select"
+              name="process_assignees_${processId}[]"
+              data-search-placeholder="Search or select assignee">
+        ${optionsHtml}
+      </select>
+      <button type="button" class="btn btn-outline-secondary add-process-assignee" data-process-id="${processId}" title="Add assignee" aria-label="Add assignee">+</button>
+      <button type="button" class="btn btn-outline-danger remove-process-assignee" title="Remove assignee" aria-label="Remove assignee">&times;</button>
+    </div>
+  `;
+}
+
+function toggleServiceAssignmentFields(modalEl, hasProcesses) {
+  modalEl.querySelectorAll(".service-assignee-group").forEach((group) => {
+    group.style.display = hasProcesses ? "none" : "";
+  });
+}
+
+function notifyProcessAssigneeRender(modalEl) {
+  modalEl.dispatchEvent(new CustomEvent("process-assignees-rendered"));
+}
+
+function initProcessAssigneeInteractions(procBody, modalEl, employeeOptions) {
+  if (!procBody) {
+    return;
+  }
+
+  procBody.onclick = (event) => {
+    const addBtn = event.target.closest(".add-process-assignee");
+    if (addBtn) {
+      const processId = String(addBtn.dataset.processId || "").trim();
+      if (!processId) {
+        return;
+      }
+
+      const list = procBody.querySelector(
+        `.process-assignee-list[data-process-id="${processId}"]`,
+      );
+      if (!list) {
+        return;
+      }
+
+      list.insertAdjacentHTML(
+        "beforeend",
+        renderAssigneeSelectRow(processId, employeeOptions, ""),
+      );
+      notifyProcessAssigneeRender(modalEl);
+      return;
+    }
+
+    const removeBtn = event.target.closest(".remove-process-assignee");
+    if (!removeBtn) {
+      return;
+    }
+
+    const row = removeBtn.closest(".process-assignee-row");
+    const list = row?.closest(".process-assignee-list");
+    if (!row || !list) {
+      return;
+    }
+
+    const rows = list.querySelectorAll(".process-assignee-row");
+    if (rows.length <= 1) {
+      const select = row.querySelector("select");
+      if (select) {
+        select.value = "";
+      }
+      notifyProcessAssigneeRender(modalEl);
+      return;
+    }
+
+    row.remove();
+    notifyProcessAssigneeRender(modalEl);
+  };
+}
+
 export async function loadServicesByCategory(category, selectEl) {
   selectEl.innerHTML = "<option>Loading…</option>";
   try {
@@ -27,16 +179,43 @@ export async function loadProcessesForService(
   const overInp = modalEl.querySelector(".overrideTotalPrice");
   const durationInp = modalEl.querySelector("[name='expected_duration_days']");
 
+  if (!serviceId) {
+    if (procBody) {
+      procBody.innerHTML = "";
+    }
+    if (procSec) {
+      procSec.style.display = "none";
+    }
+    if (overSec) {
+      overSec.style.display = "none";
+    }
+    toggleServiceAssignmentFields(modalEl, false);
+    totalEls.forEach((el) => (el.textContent = "0.00"));
+    notifyProcessAssigneeRender(modalEl);
+    return { processes: [] };
+  }
+
   try {
     const res = await fetch(`/get_service_processes/${serviceId}/`);
     const json = await res.json();
 
-    procBody.innerHTML = "";
+    if (procBody) {
+      procBody.innerHTML = "";
+    }
     let total = 0;
+
+    const employeeOptions = getEmployeeOptions(modalEl);
+    const assigneeMap = normalizeAssigneeMap(overridden?.assigneeMap);
+    const defaultAssigneeId = String(
+      overridden?.defaultAssigneeId ||
+        modalEl.querySelector("[name='assigned_employee']")?.value ||
+        "",
+    ).trim();
 
     if (json.processes.length) {
       overSec.style.display = "none";
       procSec.style.display = "block";
+      toggleServiceAssignmentFields(modalEl, true);
 
       const onboardingSet = new Set(
         (overridden?.onboardingIds || []).map((item) => String(item)),
@@ -49,6 +228,19 @@ export async function loadProcessesForService(
         const isOnboarded = onboardingSet.has(String(p.id));
         const effectiveCost = isOnboarded ? 0 : cost;
         total += effectiveCost;
+
+        const configuredAssignees = assigneeMap[String(p.id)] || [];
+        const initialAssignees = configuredAssignees.length
+          ? configuredAssignees
+          : defaultAssigneeId
+            ? [defaultAssigneeId]
+            : [""];
+
+        const assigneeRowsHtml = initialAssignees
+          .map((employeeId) =>
+            renderAssigneeSelectRow(p.id, employeeOptions, employeeId),
+          )
+          .join("");
 
         procBody.innerHTML += `
                     <tr>
@@ -71,13 +263,23 @@ export async function loadProcessesForService(
                               value="${p.id}" ${isOnboarded ? "checked" : ""}>
                           </div>
                         </td>
+                        <td>
+                          <div class="process-assignee-list" data-process-id="${p.id}">
+                            ${assigneeRowsHtml}
+                          </div>
+                        </td>
                     </tr>`;
       });
+
+      initProcessAssigneeInteractions(procBody, modalEl, employeeOptions);
+      notifyProcessAssigneeRender(modalEl);
     } else {
       procSec.style.display = "none";
       overSec.style.display = "block";
+      toggleServiceAssignmentFields(modalEl, false);
       overInp.value = overridden?.total || json.total_price;
       total = overridden?.total || json.total_price;
+      notifyProcessAssigneeRender(modalEl);
     }
 
     procBody.querySelectorAll(".onboarding-toggle").forEach((checkbox) => {
@@ -156,6 +358,8 @@ export async function loadProcessesForService(
     return json;
   } catch (error) {
     console.error("Error loading processes:", error);
+    toggleServiceAssignmentFields(modalEl, false);
+    notifyProcessAssigneeRender(modalEl);
   }
 }
 

@@ -47,7 +47,15 @@ def allocate_payment_shares(payment, service_processes=None, sub_services=None):
         if remaining <= 0:
             break
 
-        pending = (step.overridden_cost or Decimal('0.00')) - (step.paid_amount or Decimal('0.00'))
+        step_cost = getattr(step, 'cost', None)
+        if step_cost is None:
+            step_cost = (
+                step.overridden_cost
+                if step.overridden_cost is not None
+                else getattr(step.process, 'cost', Decimal('0.00'))
+            )
+
+        pending = Decimal(step_cost or Decimal('0.00')) - Decimal(step.paid_amount or Decimal('0.00'))
         if pending <= 0:
             continue
 

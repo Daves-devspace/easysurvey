@@ -209,7 +209,24 @@
                                     <span class="badge bg-light text-dark border">{{ task.progress_label }}</span>
                                 </td>
                                 <td>
-                                    {% if task.assigned_employee %}
+                                    {% if task.has_process_assignments %}
+                                        <div class="d-flex flex-column gap-1">
+                                            {% for pa in task.current_process_assignments %}
+                                                <span class="badge bg-light text-dark border text-start">
+                                                    {{ pa.assignee.get_full_name|default:pa.assignee.username }} ·
+                                                    {% if pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
+                                                        done
+                                                    {% elif pa.acceptance_status == 'accepted' %}
+                                                        accepted
+                                                    {% elif pa.acceptance_status == 'pending' %}
+                                                        pending
+                                                    {% else %}
+                                                        declined
+                                                    {% endif %}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    {% elif task.assigned_employee %}
                                         {{ task.assigned_employee_display }}
                                     {% else %}
                                         <span class="text-danger">Unassigned</span>
@@ -260,7 +277,40 @@
                                                 </a>
                                             </li>
                                             {% endif %}
-                                            {% if task.can_accept %}
+                                            {% if task.process_can_accept %}
+                                            <li>
+                                                <button type="button" class="dropdown-item task-accept-action"
+                                                        data-url="{{ task.process_accept_url }}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}">
+                                                    <i class="ti ti-circle-check me-2"></i>Accept Process Assignment
+                                                </button>
+                                            </li>
+                                            {% endif %}
+                                            {% if task.process_can_decline %}
+                                            <li>
+                                                <button type="button" class="dropdown-item task-decline-action"
+                                                        data-url="{{ task.process_decline_url }}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#taskDeclineModal">
+                                                    <i class="ti ti-circle-x me-2"></i>Decline Process Assignment
+                                                </button>
+                                            </li>
+                                            {% endif %}
+                                            {% if task.process_can_complete %}
+                                            <li>
+                                                <button type="button" class="dropdown-item task-complete-action"
+                                                        data-url="{{ task.process_complete_url }}"
+                                                        data-task-name="{{ task.service.name|escape }}"
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}">
+                                                    <i class="ti ti-checklist me-2"></i>Complete My Process Step
+                                                </button>
+                                            </li>
+                                            {% endif %}
+
+                                            {% if not task.has_process_assignments and task.can_accept %}
                                             <li>
                                                 <button type="button" class="dropdown-item task-accept-action"
                                                         data-url="{% url 'accept_service_assignment' task.id %}"
