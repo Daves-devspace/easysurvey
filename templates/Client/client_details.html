@@ -518,8 +518,8 @@
                                                             {# —————————————————————— #}
                                                             {% if cs.service.category == "title" %}
                                                                 <h6 class="mt-4 text-orange-800">Processes:</h6>
-                                                                <div class="table-responsive">
-                                                                     <table class="datatable display table table-striped table-hover w-100">
+                                                                    <div class="table-responsive client-process-table-wrap">
+                                                                        <table class="datatable display table table-striped table-hover w-100 client-processes-table">
                                                                        <thead class="table-success">
                                                                         <tr>
                                                                             <th>
@@ -582,29 +582,29 @@
                                                                                     </span>
                                                                                     </td>
 
-                                                                                    <td>
+                                                                                    <td class="process-update-cell">
                                                                                         {% if sp.active_assignments %}
-                                                                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                                                                            <div class="process-update-actions">
                                                                                                 {% for pa in sp.active_assignments %}
                                                                                                     {% if pa.assignee_id == request.user.id %}
                                                                                                         {% if pa.acceptance_status == 'pending' %}
                                                                                                             <form action="{% url 'accept_process_assignment' pa.id %}" method="POST" class="d-inline">
                                                                                                                 {% csrf_token %}
                                                                                                                 <button class="btn btn-sm btn-success px-2 py-1" type="submit" title="Accept assignment">
-                                                                                                                    <i class="bi bi-check-circle"></i><span class="d-none d-md-inline ms-1">Accept</span>
+                                                                                                                    <i class="bi bi-check-circle"></i><span class="process-action-label">Accept</span>
                                                                                                                 </button>
                                                                                                             </form>
                                                                                                             <form action="{% url 'decline_process_assignment' pa.id %}" method="POST" class="d-inline">
                                                                                                                 {% csrf_token %}
                                                                                                                 <button class="btn btn-sm btn-outline-danger px-2 py-1" type="submit" title="Decline assignment">
-                                                                                                                    <i class="bi bi-x-circle"></i><span class="d-none d-md-inline ms-1">Decline</span>
+                                                                                                                    <i class="bi bi-x-circle"></i><span class="process-action-label">Decline</span>
                                                                                                                 </button>
                                                                                                             </form>
                                                                                                         {% elif pa.acceptance_status == 'accepted' and pa.completion_status != 'completed' and sp.status == 'in_progress' %}
                                                                                                             <form action="{% url 'complete_process_assignment' pa.id %}" method="POST" class="d-inline">
                                                                                                                 {% csrf_token %}
                                                                                                                 <button class="btn btn-sm btn-success px-2 py-1" type="submit" title="{% if sp == cs.latest_process and cs.needs_collection %}Confirm final step{% else %}Mark assignment complete{% endif %}">
-                                                                                                                    <i class="bi bi-check-circle"></i><span class="d-none d-md-inline ms-1">{% if sp == cs.latest_process and cs.needs_collection %}Confirm{% else %}Complete{% endif %}</span>
+                                                                                                                    <i class="bi bi-check-circle"></i><span class="process-action-label">{% if sp == cs.latest_process and cs.needs_collection %}Confirm{% else %}Complete{% endif %}</span>
                                                                                                                 </button>
                                                                                                             </form>
                                                                                                         {% elif pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
@@ -614,7 +614,7 @@
                                                                                                 {% endfor %}
                                                                                             </div>
                                                                                             {% if sp == cs.latest_process and cs.needs_collection %}
-                                                                                                <div class="d-flex flex-wrap gap-1 align-items-center mt-1">
+                                                                                                <div class="process-update-actions mt-1">
                                                                                                     {% if sp.status == 'completed' and not cs.has_title_deed_collection %}
                                                                                                         {% if perms.easydocs.add_titledeedcollection %}
                                                                                                             <button type="button"
@@ -622,7 +622,7 @@
                                                                                                                     data-bs-toggle="modal"
                                                                                                                     data-bs-target="#collectModal{{ cs.id }}">
                                                                                                                 <i class="bi bi-box"></i>
-                                                                                                                <span class="d-none d-md-inline ms-1">Collect</span>
+                                                                                                                <span class="process-action-label">Collect</span>
                                                                                                             </button>
                                                                                                         {% endif %}
                                                                                                     {% elif cs.has_title_deed_collection %}
@@ -632,7 +632,7 @@
                                                                                                                     data-bs-toggle="modal"
                                                                                                                     data-bs-target="#collectModal{{ cs.id }}">
                                                                                                                 <i class="bi bi-eye"></i>
-                                                                                                                <span class="d-none d-md-inline ms-1">View</span>
+                                                                                                                <span class="process-action-label">View</span>
                                                                                                             </button>
                                                                                                         {% endif %}
                                                                                                     {% endif %}
@@ -676,7 +676,7 @@
                                                                                                             <button class="btn btn-sm bg-green-400 br-2 "
                                                                                                                     type="submit">
                                                                                                                 <i class="bi bi-check-circle"></i>
-                                                                                                                Confirm
+                                                                                                                <span class="process-action-label">Confirm</span>
                                                                                                             </button>
                                                                                                         </form>
                                                                                                     {% endif %}
@@ -692,7 +692,7 @@
                                                                                                             <button class="btn btn-sm btn-success"
                                                                                                                     type="submit">
                                                                                                                 <i class="bi bi-check-circle"></i>
-                                                                                                                Complete
+                                                                                                                <span class="process-action-label">Complete</span>
                                                                                                             </button>
                                                                                                         </form>
                                                                                                     {% endif %}
@@ -710,13 +710,13 @@
                                                                                                     <button class="btn btn-sm btn-success"
                                                                                                             type="submit">
                                                                                                         <i class="bi bi-check-circle"></i>
-                                                                                                        Complete
+                                                                                                        <span class="process-action-label">Complete</span>
                                                                                                     </button>
                                                                                                 </form>
                                                                                             {% endif %}
                                                                                         {% else %}
-                                                                                            <span class="text-muted small"><i
-                                                                                                    class="ti ti-list-check"></i></span>
+                                                                                            <span class="text-muted small process-update-empty"><i
+                                                                                                    class="ti ti-list-check"></i><span class="process-action-label">No action</span></span>
                                                                                         {% endif %}
                                                                                         {% endif %}
                                                                                     </td>
@@ -2011,11 +2011,11 @@
 </div>
 
     <!-- Add Client Service Modal -->
-    <div class="modal fade" data-client-name="{{ client.first_name }}" id="addClientServiceModal" tabindex="-1"
+    <div class="modal fade client-service-modal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="1" id="addClientServiceModal" tabindex="-1"
          aria-labelledby="addClientServiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-lg-down client-service-modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client-service' client.id %}">
+                <form method="POST" action="{% url 'client-service' client.id %}" class="client-service-modal-form">
                     {% csrf_token %}
                     <input type="hidden" name="add_client_service" value="1">
                     <input type="hidden" name="client" value="{{ client.id }}">
@@ -2026,15 +2026,15 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
-                    <div class="modal-body">
+                    <div class="modal-body client-service-modal-body">
                         <!-- Read‑only client -->
-                        <div class="row mb-3">
-                            <div class="col">
+                        <div class="row g-3 mb-3 client-service-summary-row">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Client Name</label>
                                 <input class="form-control"
                                        value="{{ client.first_name }} {{ client.last_name }}" readonly>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Phone</label>
                                 <input class="form-control" value="{{ client.phone }}" readonly>
                             </div>
@@ -2062,28 +2062,34 @@
                         </div>
 
                         <!-- Process override table -->
-                        <div class="mt-4 processCostSection" style="display:none;">
-                            <h6>Customize Service Processes</h6>
-                            <table class="table table-bordered">
-                                <thead>
-                                <tr>
-                                    <th>Process</th>
-                                    <th>Custom Cost (Ksh)</th>
-                                    <th>Completed</th>
-                                    <th>Assignees</th>
-                                </tr>
-                                </thead>
-                                <tbody class="processTableBody"></tbody>
-                                <tfoot>
-                                <tr>
-                                    <td><strong>Total</strong></td>
-                                    <td><strong class="totalCost">0.00</strong></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                                </tfoot>
-                            </table>
-                            <small class="text-muted d-block mt-1">Add one or more employees per process step.</small>
+                        <div class="mt-4 processCostSection client-service-process-section" style="display:none;">
+                            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+                                <div>
+                                    <h6 class="mb-1">Customize Service Processes</h6>
+                                    <small class="text-muted d-block">Add one or more employees per process step.</small>
+                                </div>
+                            </div>
+                            <div class="table-responsive client-service-process-table-wrap">
+                                <table class="table table-bordered align-middle mb-0 client-service-process-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Process</th>
+                                        <th>Custom Cost (Ksh)</th>
+                                        <th>Completed</th>
+                                        <th>Assignees</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody class="processTableBody"></tbody>
+                                    <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td><strong class="totalCost">0.00</strong></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
 
                         <!-- Override total price if no processes -->
@@ -2127,7 +2133,7 @@
 
                     </div>
 
-                    <div class="modal-footer">
+                    <div class="modal-footer client-service-modal-footer">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i>
                             Assign Service
                         </button>
@@ -2139,11 +2145,11 @@
         </div>
     </div>
     <!-- Edit Client Service Modal -->
-    <div class="modal fade" id="editClientServiceModal" data-client-name="{{ client.first_name }}" tabindex="-1"
+    <div class="modal fade client-service-modal" id="editClientServiceModal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="0" tabindex="-1"
          aria-labelledby="editClientServiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-lg-down client-service-modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{% url 'client-service' client.id %}">
+                <form method="POST" action="{% url 'client-service' client.id %}" class="client-service-modal-form">
                     {% csrf_token %}
                     <input type="hidden" name="edit_client_service" value="1">
                     <input type="hidden" name="client" value="{{ client.id }}">
@@ -2156,14 +2162,14 @@
 
                     </div>
 
-                    <div class="modal-body">
+                    <div class="modal-body client-service-modal-body">
                         <!-- Read‑only client -->
-                        <div class="row mb-3">
-                            <div class="col">
+                        <div class="row g-3 mb-3 client-service-summary-row">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Client Name</label>
                                 <input class="form-control" id="editClientName" readonly>
                             </div>
-                            <div class="col">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Phone</label>
                                 <input class="form-control" id="editClientPhone" readonly>
                             </div>
@@ -2205,28 +2211,34 @@
                         </div>
 
                         <!-- Process override table -->
-                        <div class="mt-4 processCostSection" style="display:none;">
-                            <h6>Customize Service Processes</h6>
-                            <table class="table table-bordered">
-                                <thead>
-                                <tr>
-                                    <th>Process</th>
-                                    <th>Custom Cost (Ksh)</th>
-                                    <th>Completed</th>
-                                    <th>Assignees</th>
-                                </tr>
-                                </thead>
-                                <tbody class="processTableBody"></tbody>
-                                <tfoot>
-                                <tr>
-                                    <td><strong>Total</strong></td>
-                                    <td><strong class="totalCost">0.00</strong></td>
-                                    <td></td>
-                                    <td></td>
-                                </tr>
-                                </tfoot>
-                            </table>
-                            <small class="text-muted d-block mt-1">Add one or more employees per process step.</small>
+                        <div class="mt-4 processCostSection client-service-process-section" style="display:none;">
+                            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+                                <div>
+                                    <h6 class="mb-1">Customize Service Processes</h6>
+                                    <small class="text-muted d-block">Add one or more employees per process step.</small>
+                                </div>
+                            </div>
+                            <div class="table-responsive client-service-process-table-wrap">
+                                <table class="table table-bordered align-middle mb-0 client-service-process-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Process</th>
+                                        <th>Custom Cost (Ksh)</th>
+                                        <th>Completed</th>
+                                        <th>Assignees</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody class="processTableBody"></tbody>
+                                    <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td><strong class="totalCost">0.00</strong></td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
 
                         <!-- Override total price if no processes -->
@@ -2260,7 +2272,7 @@
 
                     </div>
 
-                    <div class="modal-footer">
+                    <div class="modal-footer client-service-modal-footer">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save
                             Changes
                         </button>
@@ -2514,7 +2526,7 @@
                                     name="client_service_id" required>
                                 <option value="">-- Choose Service --
                                 </option>
-                                {% for cs in client.client_services.all %}
+                                {% for cs in all_services %}
                                     <option value="{{ cs.id }}"
                                             data-total="{{ cs.full_total_price }}"
                                             data-paid="{{ cs.total_paid }}"

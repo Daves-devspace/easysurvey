@@ -10,6 +10,7 @@ from apps.EasyDocs.models import (
     ClientServiceProcess,
     ClientServiceProcessAssignment,
     ClientServiceProcessAssignmentLog,
+    ServiceAssignmentLog,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,6 +191,22 @@ def handle_accept_process_assignment(assignment_id: int, user, reason: str = "")
         reason=reason,
         meta={"source": "process_assignment_accept_endpoint"},
     )
+
+    client_service = assignment.client_service_process.client_service
+    if (
+        client_service.assigned_employee_id == user.id
+        and client_service.assignment_status in ("pending_acceptance", "reassigned")
+    ):
+        client_service.assignment_status = "accepted"
+        client_service.save(update_fields=["assignment_status"])
+
+        ServiceAssignmentLog.objects.create(
+            client_service=client_service,
+            assigned_employee=user,
+            action="accepted",
+            assigned_by=None,
+            reason=reason or "Accepted via process assignment",
+        )
 
     return {"success": True, "message": "Process assignment accepted.", "assignment_id": assignment.id}
 

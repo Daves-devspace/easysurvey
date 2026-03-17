@@ -160,6 +160,18 @@ class TestAssigneeAcceptDecline(ProcessAssignmentEndpointTestCase):
         self.assertEqual(self.assignment.acceptance_status, "accepted")
         self.assertIsNotNone(self.assignment.accepted_at)
 
+    def test_process_accept_promotes_service_assignment_to_accepted(self):
+        self.client_service.assignment_status = "pending_acceptance"
+        self.client_service.save(update_fields=["assignment_status"])
+
+        resp = self._post_json(self._accept_url(), payload={"reason": "ok"}, user=self.assignee)
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.content)
+        self.assertTrue(data["success"])
+
+        self.client_service.refresh_from_db()
+        self.assertEqual(self.client_service.assignment_status, "accepted")
+
     def test_assignee_form_post_accept_redirects_and_updates(self):
         self.http.force_login(self.assignee)
         resp = self.http.post(self._accept_url(), data={"reason": "form-accept"})

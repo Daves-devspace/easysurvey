@@ -174,6 +174,20 @@ class CustomSetPasswordForm(SetPasswordForm):
         }),
     )
 
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        logger.info(
+            "CustomSetPasswordForm.save: setting password for user=%s (id=%s)",
+            user.username, user.pk,
+        )
+        if commit:
+            user.save(update_fields=['password'])
+            logger.info(
+                "CustomSetPasswordForm.save: password saved for user=%s (id=%s)",
+                user.username, user.pk,
+            )
+        return user
+
 class CustomPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(
         max_length=254,
@@ -183,6 +197,20 @@ class CustomPasswordResetForm(PasswordResetForm):
             'type': 'email',
         })
     )
+
+    def clean_email(self):
+        email = str(self.cleaned_data.get('email') or '').strip().lower()
+        matching_users = User._default_manager.filter(
+            email__iexact=email,
+            is_active=True,
+        )
+
+        if matching_users.count() > 1:
+            raise forms.ValidationError(
+                "Multiple active accounts use this email. Contact an administrator to resolve duplicate emails."
+            )
+
+        return email
 
     def save(self, domain_override=None,
              subject_template_name=None,
@@ -333,6 +361,15 @@ class EmployeeNameChoiceField(forms.ModelChoiceField):
         return full_name or f"Employee #{obj.pk}"
 
 
+def non_it_support_employee_queryset():
+    return (
+        User.objects.filter(employeeprofile__isnull=False)
+        .exclude(employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT)
+        .select_related('employeeprofile')
+        .order_by('first_name', 'last_name', 'username')
+    )
+
+
 class ClientServiceForm(forms.ModelForm):
     category = forms.ChoiceField(
         choices=ServiceCategory.choices,
@@ -350,9 +387,7 @@ class ClientServiceForm(forms.ModelForm):
     )
 
     assigned_employee = EmployeeNameChoiceField(
-        queryset=User.objects.filter(employeeprofile__isnull=False)
-        .exclude(employeeprofile__role=EmployeeProfile.RoleChoices.IT_SUPPORT)
-        .order_by('first_name', 'last_name', 'username'),
+        queryset=non_it_support_employee_queryset(),
         required=False,
         label="Assign Task/Service",
         widget=forms.Select(attrs={
@@ -916,6 +951,7 @@ class ExpenseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.current_user = kwargs.pop('current_user', None)
         super().__init__(*args, **kwargs)
+        recorded_by_queryset = non_it_support_employee_queryset()
 
         def recorded_label(user):
             full_name = (user.get_full_name() or "").strip()
@@ -935,6 +971,7 @@ class ExpenseForm(forms.ModelForm):
 
             return f"{name_part}-{role_label}"
 
+        self.fields['recorded_by'].queryset = recorded_by_queryset
         self.fields['recorded_by'].label = "Recorded By"
         self.fields['recorded_by'].label_from_instance = recorded_label
         self.fields['recorded_by'].empty_label = "Select recorder"
@@ -944,6 +981,7 @@ class ExpenseForm(forms.ModelForm):
             and getattr(self.current_user, 'is_authenticated', False)
             and not self.is_bound
             and not (self.instance and self.instance.pk)
+            and recorded_by_queryset.filter(pk=self.current_user.pk).exists()
         ):
             self.initial.setdefault('recorded_by', self.current_user.pk)
 
@@ -962,6 +1000,7 @@ class ExpenseForm(forms.ModelForm):
             and not expense.recorded_by
             and self.current_user
             and getattr(self.current_user, 'is_authenticated', False)
+            and self.fields['recorded_by'].queryset.filter(pk=self.current_user.pk).exists()
         ):
             expense.recorded_by = self.current_user
 

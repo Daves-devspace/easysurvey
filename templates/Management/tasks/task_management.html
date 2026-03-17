@@ -282,7 +282,9 @@
                                                 <button type="button" class="dropdown-item task-accept-action"
                                                         data-url="{{ task.process_accept_url }}"
                                                         data-task-name="{{ task.service.name|escape }}"
-                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}">
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#taskAcceptModal">
                                                     <i class="ti ti-circle-check me-2"></i>Accept Process Assignment
                                                 </button>
                                             </li>
@@ -315,7 +317,9 @@
                                                 <button type="button" class="dropdown-item task-accept-action"
                                                         data-url="{% url 'accept_service_assignment' task.id %}"
                                                         data-task-name="{{ task.service.name|escape }}"
-                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}">
+                                                        data-client-name="{{ task.client.first_name }} {{ task.client.last_name }}"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#taskAcceptModal">
                                                     <i class="ti ti-circle-check me-2"></i>Accept Task
                                                 </button>
                                             </li>
@@ -352,6 +356,25 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="taskAcceptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Confirm Task Acceptance</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="taskAcceptSummary" class="fw-semibold mb-2"></p>
+                <p class="text-muted mb-0">This will mark the assignment as accepted and update your task status.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmTaskAccept">Confirm Accept</button>
             </div>
         </div>
     </div>
@@ -398,6 +421,23 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirmTaskExtend">Submit Request</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="taskActionResultModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" id="taskActionResultHeader">
+                <h5 class="modal-title" id="taskActionResultTitle">Result</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="taskActionResultMessage" class="mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>

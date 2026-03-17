@@ -13,6 +13,8 @@ export function initServiceModal(modalSelector) {
   const modalEl = document.querySelector(modalSelector);
   if (!modalEl) return;
 
+  let isHandlingServiceSelection = false;
+
   function getSearchableSelects() {
     return Array.from(
       modalEl.querySelectorAll(
@@ -47,6 +49,16 @@ export function initServiceModal(modalSelector) {
       allowClear: true,
       minimumResultsForSearch: 0,
     });
+
+    if (selectEl === svcSel) {
+      $select.off(".serviceModal");
+      $select.on(
+        "select2:select.serviceModal select2:clear.serviceModal",
+        () => {
+          void handleServiceSelection();
+        },
+      );
+    }
   }
 
   function refreshSearchableSelects() {
@@ -64,6 +76,24 @@ export function initServiceModal(modalSelector) {
   const priceSec = modalEl.querySelector(".totalPriceOverride");
   const groundDiv = modalEl.querySelector("#groundFields, .ground-fields");
   const durationInp = modalEl.querySelector("[name='expected_duration_days']");
+
+  async function handleServiceSelection() {
+    if (isHandlingServiceSelection) {
+      return;
+    }
+
+    isHandlingServiceSelection = true;
+
+    try {
+      const isGround = catSel.value === "ground";
+      toggleGroundFields(isGround);
+      await loadProcessesForService(svcSel.value, modalEl);
+      refreshSearchableSelects();
+      updateDispatchPreview();
+    } finally {
+      isHandlingServiceSelection = false;
+    }
+  }
 
   function toggleGroundFields(isGround) {
     if (!groundDiv) return;
@@ -128,11 +158,7 @@ export function initServiceModal(modalSelector) {
 
   // when service changes, show fields and recompute
   svcSel.addEventListener("change", async () => {
-    const isGround = catSel.value === "ground";
-    toggleGroundFields(isGround);
-    await loadProcessesForService(svcSel.value, modalEl);
-    refreshSearchableSelects();
-    updateDispatchPreview();
+    await handleServiceSelection();
   });
 
   modalEl.addEventListener(

@@ -423,6 +423,9 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'Home/staff_dashboard.html'
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+
         try:
             employee_profile = request.user.employeeprofile
             if request.user.is_superuser or employee_profile.role == EmployeeProfile.RoleChoices.ADMIN:
@@ -681,6 +684,21 @@ class TaskManagementView(LoginRequiredMixin, TemplateView):
 
         task.current_process_assignments = current_process_assignments
         task.has_process_assignments = bool(current_process_assignments)
+
+        primary_process_assignment = next(
+            (
+                assignment
+                for assignment in current_process_assignments
+                if task.assigned_employee_id and assignment.assignee_id == task.assigned_employee_id
+            ),
+            None,
+        )
+        if (
+            primary_process_assignment is not None
+            and primary_process_assignment.acceptance_status == 'accepted'
+            and task.assignment_status in ('pending_acceptance', 'reassigned')
+        ):
+            task.assignment_status = 'accepted'
 
         current_user_assignment = next(
             (assignment for assignment in current_process_assignments if assignment.assignee_id == self.request.user.id),

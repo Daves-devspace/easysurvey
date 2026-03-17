@@ -144,9 +144,28 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
     success_url = reverse_lazy('password_reset_complete')
 
     def form_valid(self, form):
+        logger.info(
+            "PasswordResetConfirm.form_valid: resetting password for user=%s (id=%s)",
+            self.user.username, self.user.pk,
+        )
+        logger.info(
+            "CustomPasswordResetConfirmView.form_valid: password reset confirmed for user=%s (id=%s)",
+            self.user.get_username(), self.user.pk,
+        )
         response = super().form_valid(form)
+        logger.info(
+            "PasswordResetConfirm.form_valid: password reset complete for user=%s (id=%s)",
+            self.user.username, self.user.pk,
+        )
         # Save username in session to prefill on login
         self.request.session['prefill_username'] = self.user.get_username()
         return response
+
+    def form_invalid(self, form):
+        logger.warning(
+            "PasswordResetConfirm.form_invalid: errors=%s",
+            form.errors.as_json(),
+        )
+        return super().form_invalid(form)
 
 

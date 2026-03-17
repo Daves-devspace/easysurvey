@@ -1,7 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
   // ── Action modals & buttons ───────────────────────────────────────────────
+  const acceptModalEl = document.getElementById("taskAcceptModal");
   const declineModalEl = document.getElementById("taskDeclineModal");
   const extendModalEl = document.getElementById("taskExtendModal");
+  const acceptSummaryEl = document.getElementById("taskAcceptSummary");
+  const confirmAcceptBtn = document.getElementById("confirmTaskAccept");
   const declineSummaryEl = document.getElementById("taskDeclineSummary");
   const declineReasonEl = document.getElementById("taskDeclineReason");
   const confirmDeclineBtn = document.getElementById("confirmTaskDecline");
@@ -9,24 +12,65 @@ document.addEventListener("DOMContentLoaded", () => {
   const extendDaysEl = document.getElementById("taskExtendDays");
   const extendReasonEl = document.getElementById("taskExtendReason");
   const confirmExtendBtn = document.getElementById("confirmTaskExtend");
+  const actionResultModalEl = document.getElementById("taskActionResultModal");
+  const actionResultHeaderEl = document.getElementById("taskActionResultHeader");
+  const actionResultTitleEl = document.getElementById("taskActionResultTitle");
+  const actionResultMessageEl = document.getElementById("taskActionResultMessage");
 
+  let acceptUrl = "";
   let declineUrl = "";
   let extendUrl = "";
 
-  document.querySelectorAll(".task-accept-action").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const taskName = button.dataset.taskName || "this task";
-      const clientName = button.dataset.clientName || "the client";
-      if (!window.confirm(`Accept ${taskName} for ${clientName}?`)) {
-        return;
+  function showTaskActionResult({ success, message, reloadOnClose = false }) {
+    if (
+      !actionResultModalEl ||
+      !actionResultHeaderEl ||
+      !actionResultTitleEl ||
+      !actionResultMessageEl
+    ) {
+      if (success && reloadOnClose) {
+        window.location.reload();
       }
+      return;
+    }
 
-      await submitTaskAction({
-        url: button.dataset.url,
-        body: "reason=Accepted from tasks page",
-        successPrefix: "Success: ",
-        fallbackError: "Failed to accept task.",
-      });
+    actionResultHeaderEl.classList.remove("bg-success", "bg-danger", "text-white");
+    actionResultHeaderEl.classList.add(success ? "bg-success" : "bg-danger", "text-white");
+    actionResultTitleEl.textContent = success ? "Success" : "Action Failed";
+    actionResultMessageEl.textContent = message;
+
+    const resultModal = bootstrap.Modal.getOrCreateInstance(actionResultModalEl);
+    if (success && reloadOnClose) {
+      const reloadHandler = () => {
+        actionResultModalEl.removeEventListener("hidden.bs.modal", reloadHandler);
+        window.location.reload();
+      };
+      actionResultModalEl.addEventListener("hidden.bs.modal", reloadHandler);
+    }
+
+    resultModal.show();
+  }
+
+  document.querySelectorAll(".task-accept-action").forEach((button) => {
+    button.addEventListener("click", () => {
+      acceptUrl = button.dataset.url || "";
+      if (acceptSummaryEl) {
+        const taskName = button.dataset.taskName || "Task";
+        const clientName = button.dataset.clientName || "client";
+        acceptSummaryEl.textContent = `Accept ${taskName} for ${clientName}?`;
+      }
+    });
+  });
+
+  confirmAcceptBtn?.addEventListener("click", async () => {
+    await submitTaskAction({
+      url: acceptUrl,
+      body: "reason=Accepted from tasks page",
+      fallbackError: "Failed to accept task.",
+      onSuccess: () => {
+        const modal = bootstrap.Modal.getInstance(acceptModalEl);
+        modal?.hide();
+      },
     });
   });
 
@@ -45,7 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
       await submitTaskAction({
         url: button.dataset.url,
         body: "note=Completed from tasks page",
-        successPrefix: "Success: ",
         fallbackError: "Failed to complete process assignment.",
       });
     });
@@ -68,7 +111,6 @@ document.addEventListener("DOMContentLoaded", () => {
     await submitTaskAction({
       url: declineUrl,
       body: `reason=${encodeURIComponent(reason)}`,
-      successPrefix: "Success: ",
       fallbackError: "Failed to decline task.",
       onSuccess: () => {
         const modal = bootstrap.Modal.getInstance(declineModalEl);
@@ -98,19 +140,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const reason = extendReasonEl?.value?.trim() || "";
 
     if (!days || days < 1 || days > 30) {
-      window.alert("Please enter a valid number of additional days (1-30).");
+      showTaskActionResult({
+        success: false,
+        message: "Please enter a valid number of additional days (1-30).",
+      });
       return;
     }
 
     if (!reason) {
-      window.alert("Please provide a reason for the deadline extension.");
+      showTaskActionResult({
+        success: false,
+        message: "Please provide a reason for the deadline extension.",
+      });
       return;
     }
 
     await submitTaskAction({
       url: extendUrl,
       body: `additional_days=${days}&reason=${encodeURIComponent(reason)}`,
-      successPrefix: "Success: ",
       fallbackError: "Failed to request deadline extension.",
       onSuccess: () => {
         const modal = bootstrap.Modal.getInstance(extendModalEl);
@@ -119,15 +166,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  async function submitTaskAction({
-    url,
-    body,
-    successPrefix,
-    fallbackError,
-    onSuccess,
-  }) {
+  async function submitTaskAction({ url, body, fallbackError, onSuccess }) {
     if (!url) {
-      window.alert(fallbackError);
+      showTaskActionResult({ success: false, message: fallbackError });
       return;
     }
 
@@ -142,20 +183,35 @@ document.addEventListener("DOMContentLoaded", () => {
         body,
       });
 
-      const data = await response.json();
+      let data = {};
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        data = { message: text || fallbackError };
+      }
+
       if (!response.ok || !data.success) {
-        window.alert(`Error: ${data.message || fallbackError}`);
+        showTaskActionResult({
+          success: false,
+          message: data.message || fallbackError,
+        });
         return;
       }
 
       if (typeof onSuccess === "function") {
         onSuccess();
       }
-      window.alert(`${successPrefix}${data.message}`);
-      window.location.reload();
+
+      showTaskActionResult({
+        success: true,
+        message: data.message || "Action completed successfully.",
+        reloadOnClose: true,
+      });
     } catch (error) {
       console.error(error);
-      window.alert(fallbackError);
+      showTaskActionResult({ success: false, message: fallbackError });
     }
   }
 

@@ -4,14 +4,13 @@ from decimal import ROUND_HALF_UP, InvalidOperation, Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 
-from apps.EasyDocs.forms import ExpenseForm
+from apps.EasyDocs.forms import ExpenseForm, non_it_support_employee_queryset
 from apps.EasyDocs.models import (
     ClientServiceProcess,
     Payment,
@@ -603,7 +602,7 @@ class AccountsDashboardView(LoginRequiredMixin, TemplateView):
         ctx['expenses'] = Expense.objects.all().order_by('-date')
         ctx['client_payments'] = get_all_payment_history()
         ctx['form'] = ExpenseForm(current_user=self.request.user)
-        ctx['users'] = User.objects.all()
+        ctx['users'] = non_it_support_employee_queryset()
         return ctx
 
     def compute_summary(self, qs):

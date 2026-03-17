@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
@@ -10,7 +11,7 @@ from django.views.generic import UpdateView
 
 from apps.EasyDocs.exceptions import OverrideError, BookingError, ClientServiceError
 from apps.EasyDocs.models import Service, Process, SubService, ClientService, Client, Booking, ClientServiceProcess, \
-    ServiceCategory
+    ServiceCategory, ClientServiceProcessAssignment
 from apps.EasyDocs.forms import ServiceForm, ClientSubServiceForm
 from decimal import Decimal, InvalidOperation
 import logging
@@ -463,15 +464,107 @@ def delete_subservice(request, id):
     return redirect('management')
 
 
+def _safe_int(raw_value):
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_assignee_prefill_from_client_service(client_service):
+    prefill = {
+        "suggested_default_assignee_id": None,
+        "suggested_assignee_map": {},
+    }
+
+    if client_service is None:
+        return prefill
+
+    prefill["suggested_default_assignee_id"] = client_service.assigned_employee_id
+
+    steps = (
+        ClientServiceProcess.objects
+        .filter(client_service=client_service)
+        .select_related("process")
+        .prefetch_related(
+            Prefetch(
+                "assignments",
+                queryset=ClientServiceProcessAssignment.objects.filter(is_active=True).order_by("id"),
+                to_attr="active_assignments",
+            )
+        )
+    )
+
+    for step in steps:
+        assignee_ids = []
+        seen = set()
+        for assignment in getattr(step, "active_assignments", []):
+            assignee_id = assignment.assignee_id
+            if not assignee_id or assignee_id in seen:
+                continue
+            seen.add(assignee_id)
+            assignee_ids.append(assignee_id)
+
+        prefill["suggested_assignee_map"][str(step.process_id)] = assignee_ids
+
+    return prefill
+
+
+def _get_last_service_assignee_prefill(
+    service_id,
+    client_id=None,
+    exclude_client_service_id=None,
+    allow_global_fallback=False,
+):
+    empty_prefill = {
+        "suggested_default_assignee_id": None,
+        "suggested_assignee_map": {},
+    }
+
+    base_qs = ClientService.objects.filter(service_id=service_id)
+    if exclude_client_service_id:
+        base_qs = base_qs.exclude(pk=exclude_client_service_id)
+
+    if client_id:
+        local_latest = base_qs.filter(client_id=client_id).order_by("-updated_at", "-requested_at", "-id").first()
+        if local_latest is not None:
+            return _build_assignee_prefill_from_client_service(local_latest)
+
+    if not allow_global_fallback:
+        return empty_prefill
+
+    global_latest = base_qs.order_by("-updated_at", "-requested_at", "-id").first()
+    if global_latest is None:
+        return empty_prefill
+
+    return _build_assignee_prefill_from_client_service(global_latest)
+
+
 def get_service_processes(request, service_id):
     service = get_object_or_404(Service, id=service_id)
     processes = Process.objects.filter(service_id=service_id)
+    client_id = _safe_int(request.GET.get("client_id"))
+    exclude_client_service_id = _safe_int(request.GET.get("exclude_client_service_id"))
+    global_fallback = str(request.GET.get("global_fallback") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    prefill = _get_last_service_assignee_prefill(
+        service_id=service_id,
+        client_id=client_id,
+        exclude_client_service_id=exclude_client_service_id,
+        allow_global_fallback=global_fallback,
+    )
 
     if not processes.exists():
         return JsonResponse({
             "processes": [],
             "total_price": float(service.total_price),
             "expected_duration_days": service.expected_duration_days,
+            "suggested_default_assignee_id": prefill["suggested_default_assignee_id"],
+            "suggested_assignee_map": prefill["suggested_assignee_map"],
         })
 
     data = {
@@ -484,6 +577,8 @@ def get_service_processes(request, service_id):
             for p in processes
         ],
         "expected_duration_days": service.expected_duration_days,
+        "suggested_default_assignee_id": prefill["suggested_default_assignee_id"],
+        "suggested_assignee_map": prefill["suggested_assignee_map"],
     }
     return JsonResponse(data)
 

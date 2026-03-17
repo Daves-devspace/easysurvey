@@ -154,7 +154,8 @@ def handle_accept_service(
         return {
             "success": True,
             "message": "Service accepted successfully.",
-            "client_service": cs,
+            "client_service_id": cs.id,
+            "assignment_status": cs.assignment_status,
         }
     
 
@@ -341,7 +342,8 @@ def handle_decline_service(
         return {
             "success": True,
             "message": "Service declined. The assignment has been unassigned.",
-            "client_service": cs,
+            "client_service_id": cs.id,
+            "assignment_status": cs.assignment_status,
         }
 
 

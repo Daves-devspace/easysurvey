@@ -74,14 +74,18 @@ function renderAssigneeSelectRow(
     .join("");
 
   return `
-    <div class="input-group input-group-sm mb-1 process-assignee-row">
-      <select class="form-select searchable-select process-assignee-select"
-              name="process_assignees_${processId}[]"
-              data-search-placeholder="Search or select assignee">
-        ${optionsHtml}
-      </select>
-      <button type="button" class="btn btn-outline-secondary add-process-assignee" data-process-id="${processId}" title="Add assignee" aria-label="Add assignee">+</button>
-      <button type="button" class="btn btn-outline-danger remove-process-assignee" title="Remove assignee" aria-label="Remove assignee">&times;</button>
+    <div class="mb-1 process-assignee-row">
+      <div class="process-assignee-select-wrap">
+        <select class="form-select searchable-select process-assignee-select"
+                name="process_assignees_${processId}[]"
+                data-search-placeholder="Search or select assignee">
+          ${optionsHtml}
+        </select>
+      </div>
+      <div class="btn-group btn-group-sm process-assignee-actions" role="group" aria-label="Assignee actions">
+        <button type="button" class="btn btn-outline-secondary add-process-assignee" data-process-id="${processId}" title="Add assignee" aria-label="Add assignee">+</button>
+        <button type="button" class="btn btn-outline-danger remove-process-assignee" title="Remove assignee" aria-label="Remove assignee">&times;</button>
+      </div>
     </div>
   `;
 }
@@ -196,7 +200,33 @@ export async function loadProcessesForService(
   }
 
   try {
-    const res = await fetch(`/get_service_processes/${serviceId}/`);
+    const query = new URLSearchParams();
+    const clientId = String(
+      modalEl.querySelector("input[name='client']")?.value || "",
+    ).trim();
+    const editingClientServiceId = String(
+      modalEl.querySelector("input[name='client_service_id']")?.value || "",
+    ).trim();
+    const globalFallbackFlag = String(
+      modalEl.dataset.useGlobalPrefillFallback || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    if (clientId) {
+      query.set("client_id", clientId);
+    }
+    if (editingClientServiceId) {
+      query.set("exclude_client_service_id", editingClientServiceId);
+    }
+    if (["1", "true", "yes", "on"].includes(globalFallbackFlag)) {
+      query.set("global_fallback", "1");
+    }
+
+    const endpoint = query.toString()
+      ? `/get_service_processes/${serviceId}/?${query.toString()}`
+      : `/get_service_processes/${serviceId}/`;
+    const res = await fetch(endpoint);
     const json = await res.json();
 
     if (procBody) {
@@ -205,10 +235,18 @@ export async function loadProcessesForService(
     let total = 0;
 
     const employeeOptions = getEmployeeOptions(modalEl);
-    const assigneeMap = normalizeAssigneeMap(overridden?.assigneeMap);
+    const hasOverrideAssigneeMap =
+      Boolean(overridden) &&
+      Object.prototype.hasOwnProperty.call(overridden, "assigneeMap");
+    const assigneeMap = hasOverrideAssigneeMap
+      ? normalizeAssigneeMap(overridden?.assigneeMap)
+      : normalizeAssigneeMap(json?.suggested_assignee_map);
+    const useDefaultAssigneeFallback = Boolean(
+      overridden?.useDefaultAssigneeFallback ?? !hasOverrideAssigneeMap,
+    );
     const defaultAssigneeId = String(
-      overridden?.defaultAssigneeId ||
-        modalEl.querySelector("[name='assigned_employee']")?.value ||
+      overridden?.defaultAssigneeId ??
+        json?.suggested_default_assignee_id ??
         "",
     ).trim();
 
@@ -229,10 +267,19 @@ export async function loadProcessesForService(
         const effectiveCost = isOnboarded ? 0 : cost;
         total += effectiveCost;
 
-        const configuredAssignees = assigneeMap[String(p.id)] || [];
-        const initialAssignees = configuredAssignees.length
-          ? configuredAssignees
-          : defaultAssigneeId
+        const processKey = String(p.id);
+        const hasConfiguredAssignees = Object.prototype.hasOwnProperty.call(
+          assigneeMap,
+          processKey,
+        );
+        const configuredAssignees = hasConfiguredAssignees
+          ? assigneeMap[processKey]
+          : [];
+        const initialAssignees = hasConfiguredAssignees
+          ? configuredAssignees.length
+            ? configuredAssignees
+            : [""]
+          : useDefaultAssigneeFallback && defaultAssigneeId
             ? [defaultAssigneeId]
             : [""];
 

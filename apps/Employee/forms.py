@@ -22,6 +22,21 @@ from ..EasyDocs.models import SiteSettings
 
 logger = logging.getLogger(__name__)
 
+
+def _validate_unique_user_email(email_value, current_user=None):
+    normalized_email = str(email_value or "").strip().lower()
+    if not normalized_email:
+        raise forms.ValidationError("Email is required.")
+
+    existing_users = User.objects.filter(email__iexact=normalized_email)
+    if current_user is not None and getattr(current_user, "pk", None):
+        existing_users = existing_users.exclude(pk=current_user.pk)
+
+    if existing_users.exists():
+        raise forms.ValidationError("A user with this email already exists.")
+
+    return normalized_email
+
 def generate_random_password(length=8):
     # Define the characters to choose from
     alphabet = string.ascii_letters + string.digits + string.punctuation
@@ -89,6 +104,12 @@ class UnifiedEmployeeProfileForm(forms.ModelForm):
             for field in self.fields:
                 self.fields[field].disabled = False
 
+    def clean_email(self):
+        current_user = None
+        if self.instance and hasattr(self.instance, 'user'):
+            current_user = self.instance.user
+        return _validate_unique_user_email(self.cleaned_data.get('email'), current_user)
+
     def save(self, commit=True):
         profile = super().save(commit=False)
         
@@ -100,7 +121,7 @@ class UnifiedEmployeeProfileForm(forms.ModelForm):
             user.last_name = self.cleaned_data['last_name']
             user.email = self.cleaned_data['email']
             if commit:
-                user.save()
+                user.save(update_fields=['username', 'first_name', 'last_name', 'email'])
         
         # Save the profile picture if uploaded
         if 'profile_picture' in self.cleaned_data and self.cleaned_data['profile_picture']:
@@ -204,6 +225,12 @@ class EmployeeProfileUpdateForm(forms.ModelForm):
             self.fields['last_name'].disabled  = True
             self.fields['email'].disabled      = True
 
+    def clean_email(self):
+        current_user = None
+        if self.instance and hasattr(self.instance, 'user'):
+            current_user = self.instance.user
+        return _validate_unique_user_email(self.cleaned_data.get('email'), current_user)
+
     def save(self, commit=True):
         profile = super().save(commit=False)
 
@@ -214,7 +241,7 @@ class EmployeeProfileUpdateForm(forms.ModelForm):
         user.last_name = self.cleaned_data['last_name']
         user.email = self.cleaned_data['email']
         if commit:
-            user.save()
+            user.save(update_fields=['username', 'first_name', 'last_name', 'email'])
             profile.save()
         return profile
 
@@ -267,6 +294,12 @@ class EmployeeProfileForm(forms.ModelForm):
             self.fields['last_name'].initial = user.last_name
             self.fields['email'].initial = user.email
 
+    def clean_email(self):
+        current_user = None
+        if self.instance and self.instance.pk and hasattr(self.instance, 'user'):
+            current_user = self.instance.user
+        return _validate_unique_user_email(self.cleaned_data.get('email'), current_user)
+
     def save(self, commit=True):
         first_name = self.cleaned_data.pop('first_name')
         last_name = self.cleaned_data.pop('last_name')
@@ -280,7 +313,9 @@ class EmployeeProfileForm(forms.ModelForm):
             user.last_name = last_name
             user.email = email
             user.username = email.split('@')[0]
-            user.save()
+            # Use update_fields to avoid overwriting the password or other fields
+            # edited concurrently (e.g. via password reset).
+            user.save(update_fields=['username', 'first_name', 'last_name', 'email'])
         else:
             username = email.split('@')[0]
             password = generate_random_password()
@@ -292,7 +327,7 @@ class EmployeeProfileForm(forms.ModelForm):
                 last_name=last_name,
             )
             user.set_password(password)
-            user.save()
+            user.save(update_fields=['password'])
 
         profile = super().save(commit=False)
         profile.user = user

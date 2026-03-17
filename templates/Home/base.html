@@ -89,6 +89,47 @@
       min-width: 900px;  /* Ensure table has minimum width for scrolling */
       margin-bottom: 1rem;
     }
+
+        .client-process-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .client-processes-table .process-update-cell {
+            min-width: 9.5rem;
+        }
+
+        .client-processes-table .process-update-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: max-content;
+        }
+
+        .client-processes-table .process-update-cell .btn,
+        .client-processes-table .process-update-actions .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            white-space: nowrap;
+        }
+
+        .client-processes-table .process-update-cell .badge,
+        .client-processes-table .process-update-cell .text-muted,
+        .client-processes-table .process-update-actions .badge,
+        .client-processes-table .process-update-actions .text-muted,
+        .client-processes-table .process-action-label {
+            white-space: nowrap;
+        }
+
+        .client-processes-table .process-update-empty {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            white-space: nowrap;
+        }
     
     /* DataTables pagination styling improvements */
     .dataTables_wrapper {
@@ -103,6 +144,16 @@
     .dataTables_filter {
       margin-bottom: 1rem;
     }
+
+        @media (max-width: 767.98px) {
+            .client-processes-table .process-update-cell {
+                min-width: 10rem;
+            }
+
+            .client-processes-table .process-update-actions {
+                min-width: 10rem;
+            }
+        }
     
     /* Hide responsive column handler (we don't want modal dropdowns) */
     .dtr-control {
@@ -192,6 +243,204 @@
 
         .modal .select2-container--default .select2-selection--single .select2-selection__clear:hover {
             color: #111827;
+        }
+
+        .modal .process-assignee-row {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            flex-wrap: nowrap;
+        }
+
+        .modal .process-assignee-select-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .modal .process-assignee-row .select2-container {
+            width: 100% !important;
+            min-width: 0;
+        }
+
+        .modal .process-assignee-row .select2-container--default .select2-selection--single {
+            min-height: 38px;
+            padding: 0.2rem 0.65rem;
+            border-radius: 0.4rem;
+        }
+
+        .modal .process-assignee-row .select2-container--default .select2-selection--single .select2-selection__rendered {
+            font-size: 0.92rem;
+            padding-right: 1.25rem;
+        }
+
+        .modal .process-assignee-row .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px;
+            right: 6px;
+        }
+
+        .modal .process-assignee-actions {
+            flex: 0 0 auto;
+            display: inline-flex;
+        }
+
+        .modal .process-assignee-actions .btn {
+            min-width: 2rem;
+            padding: 0.2rem 0.55rem;
+            line-height: 1.15;
+        }
+
+        .client-service-modal .modal-dialog {
+            max-width: min(1140px, calc(100vw - 1rem));
+            margin: 0.5rem auto;
+        }
+
+        .client-service-modal .modal-content {
+            border: 0;
+            border-radius: 1rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 1rem);
+            max-height: calc(100dvh - 1rem);
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+        }
+
+        .client-service-modal .client-service-modal-form {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .client-service-modal .modal-header,
+        .client-service-modal .modal-footer {
+            padding: 1rem 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .client-service-modal .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 1rem 1.25rem 1.5rem;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-gutter: stable;
+        }
+
+        .client-service-modal .client-service-summary-row {
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .client-service-modal .client-service-process-section {
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            background: #f8fafc;
+        }
+
+        .client-service-modal .client-service-process-table-wrap {
+            max-width: 100%;
+            max-height: min(50vh, 28rem);
+            overflow: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.85rem;
+            background: #fff;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .client-service-modal .client-service-process-table {
+            min-width: 760px;
+        }
+
+        .client-service-modal .client-service-process-table th,
+        .client-service-modal .client-service-process-table td {
+            vertical-align: top;
+        }
+
+        .client-service-modal .client-service-process-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #f8fafc;
+        }
+
+        .client-service-modal .client-service-process-table tfoot td {
+            position: sticky;
+            bottom: 0;
+            background: #fff;
+            z-index: 1;
+        }
+
+        .client-service-modal .modal-footer {
+            gap: 0.75rem;
+            background: #fff;
+            border-top: 1px solid #eef2f7;
+            box-shadow: 0 -10px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 991.98px) {
+            .client-service-modal .modal-dialog {
+                max-width: 100%;
+                margin: 0;
+            }
+
+            .client-service-modal .modal-content {
+                border-radius: 0;
+                min-height: 100vh;
+                min-height: 100dvh;
+                max-height: 100vh;
+                max-height: 100dvh;
+            }
+
+            .client-service-modal .modal-body {
+                padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+            }
+
+            .client-service-modal .client-service-process-table-wrap {
+                max-height: min(40vh, 22rem);
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .client-service-modal .modal-header,
+            .client-service-modal .modal-footer,
+            .client-service-modal .modal-body {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .client-service-modal .modal-title {
+                font-size: 1rem;
+                line-height: 1.35;
+                padding-right: 0.75rem;
+            }
+
+            .client-service-modal .client-service-process-section {
+                padding: 0.85rem;
+                border-radius: 0.85rem;
+            }
+
+            .client-service-modal .client-service-process-table {
+                min-width: 680px;
+            }
+
+            .client-service-modal .client-service-process-table-wrap {
+                max-height: min(32vh, 18rem);
+            }
+
+            .client-service-modal .modal-footer {
+                flex-direction: column-reverse;
+                align-items: stretch;
+            }
+
+            .client-service-modal .modal-footer .btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
 
         .modal .select2-results__option {
@@ -688,8 +937,8 @@
 
 {% endblock %}
 {% block extra_js %}
-    <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}"></script>
-    <script type="module" src="{% static 'assets/js/clientdetails.js' %}"></script>
+    <script src="{% static 'assets/js/InlineScripts/client_details_payments.js' %}?v=20260317a"></script>
+    <script type="module" src="{% static 'assets/js/clientdetails.js' %}?v=20260317a"></script>
    
 
     {#    <script src="{% static 'assets/js/InlineScripts/client_details_services.js' %}" defer></script>#}
@@ -922,7 +1171,13 @@ function previewNotification(id) {
 
 
 <!--modal-->
-<!-- jQuery -->
+<!-- jQuery (required before Select2/DataTables) -->
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script>
+    if (typeof window.jQuery === "undefined") {
+        document.write('<script src="https://code.jquery.com/jquery-3.6.0.min.js"><\\/script>');
+    }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
@@ -932,7 +1187,6 @@ function previewNotification(id) {
 
 <!-- [Page Specific JS] start -->
 <!-- datatable Js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="{% static 'assets/js/plugins/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'assets/js/plugins/dataTables.bootstrap5.min.js' %}"></script>
 <script src="{% static 'assets/js/plugins/dataTables.responsive.min.js' %}"></script>

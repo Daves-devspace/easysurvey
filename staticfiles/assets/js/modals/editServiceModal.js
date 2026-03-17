@@ -249,6 +249,7 @@ export function bindEditService(btn) {
       onboardingIds,
       assigneeMap,
       defaultAssigneeId: assignedEmployeeId || "",
+      useDefaultAssigneeFallback: false,
       total: overrideTotal || "",
     };
     ids.forEach((id, index) => {

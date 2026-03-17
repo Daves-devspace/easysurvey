@@ -4,6 +4,16 @@ set -e
 log() { echo "$(date +'%Y-%m-%d %H:%M:%S') - $1"; }
 
 RUN_MODE="${RUN_MODE:-web}"  # web, worker, beat
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-true}"
+RUN_COLLECT_STATIC="${RUN_COLLECT_STATIC:-true}"
+
+is_truthy() {
+  value=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$value" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 # -------------------------
 # DB environment mapping
@@ -71,14 +81,22 @@ if [ "$RUN_MODE" = "web" ]; then
   # fi
 
   # Migrations
-  log "Applying migrations..."
-  python manage.py migrate --noinput
-  log "✅ Migrations applied"
+  if is_truthy "$RUN_MIGRATIONS"; then
+    log "Applying migrations..."
+    python manage.py migrate --noinput
+    log "✅ Migrations applied"
+  else
+    log "⏭ Skipping migrations (RUN_MIGRATIONS=$RUN_MIGRATIONS)"
+  fi
 
   # Collect static files
-  log "Collecting static files..."
-  python manage.py collectstatic --noinput
-  log "✅ Static files collected"
+  if is_truthy "$RUN_COLLECT_STATIC"; then
+    log "Collecting static files..."
+    python manage.py collectstatic --noinput
+    log "✅ Static files collected"
+  else
+    log "⏭ Skipping collectstatic (RUN_COLLECT_STATIC=$RUN_COLLECT_STATIC)"
+  fi
 else
   log "⏭ Skipping web-only steps"
 fi
