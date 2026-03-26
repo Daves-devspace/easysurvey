@@ -85,6 +85,7 @@
                         <div class="card-body">
                             <!-- Filter Section -->
                             <div class="d-flex align-items-center gap-2 mb-3">
+                                {% if document_assigning_enabled %}
                                 <span class="text-muted small">Filter:</span>
                                 <div class="btn-group btn-group-sm" role="group">
                                   <input type="radio" class="btn-check" name="doc-filter" id="filter-all" value="all" {% if not my_pending_handoffs_count %}checked{% endif %}>
@@ -97,10 +98,11 @@
                                         <i class="ti ti-user me-1"></i>My Documents
                                     </label>
                                 </div>
+                                {% endif %}
                                 <span class="badge bg-light text-dark ms-2" id="doc-count-badge">{{ documents|length }} total</span>
                             </div>
 
-                              {% if my_pending_handoffs_count > 0 %}
+                              {% if document_assigning_enabled and my_pending_handoffs_count > 0 %}
                               <div class="alert {% if my_overdue_handoffs_count > 0 %}alert-danger{% else %}alert-warning{% endif %} py-2 px-3 mb-3" role="alert">
                                 <strong>Action needed:</strong>
                                 You have {{ my_pending_handoffs_count }} assigned document handoff{{ my_pending_handoffs_count|pluralize }} pending acceptance{% if my_overdue_handoffs_count > 0 %}, including {{ my_overdue_handoffs_count }} overdue{% endif %}.
@@ -108,11 +110,13 @@
                               </div>
                               {% endif %}
 
+                              {% if document_assigning_enabled %}
                               <div class="d-none d-md-flex flex-wrap gap-2 mb-2">
                                 <span class="badge bg-info text-dark">Assigned to me</span>
                                 <span class="badge bg-warning text-dark">Pending acceptance</span>
                                 <span class="badge bg-danger">Due / overdue</span>
                               </div>
+                              {% endif %}
 
                             <!-- Table -->
                             <div class="table-responsive mt-3">
@@ -132,8 +136,10 @@
                                         <th>Reference</th>
                                         <th>Uploaded At</th>
                                         <th>Storage</th>
+                                        {% if document_assigning_enabled %}
                                         <th>Holder</th>
                                         <th>Handoff</th>
+                                        {% endif %}
                                         <th>Action</th>
                                     </tr>
                                     </thead>
@@ -153,6 +159,7 @@
                                             <td>{{ document.reference }}</td>
                                             <td>{{ document.uploaded_at }}</td>
                                             <td>{{ document.storage_backend|storage_badge|safe }}</td>
+                                            {% if document_assigning_enabled %}
                                             <td>
                                               {% if document.latest_handoff %}
                                                 {{ document.latest_handoff.assigned_to.get_full_name|default:document.latest_handoff.assigned_to.username }}
@@ -183,6 +190,7 @@
                                                 <span class="badge bg-secondary">Unassigned</span>
                                               {% endif %}
                                             </td>
+                                            {% endif %}
                                             <td>
                                               <div class="dropdown">
                                                 <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -198,21 +206,21 @@
                                                       <span class="dropdown-item-text text-muted">No file available</span>
                                                     {% endif %}
                                                   </li>
-                                                  {% if document.is_overdue_acceptance %}
+                                                  {% if document_assigning_enabled and document.is_overdue_acceptance %}
                                                   <li>
                                                     <span class="dropdown-item-text text-danger fw-semibold">
                                                       <i class="ti ti-alert-triangle me-1"></i>Recommended: accept or decline now
                                                     </span>
                                                   </li>
                                                   <li><hr class="dropdown-divider"></li>
-                                                  {% elif document.is_pending_acceptance %}
+                                                  {% elif document_assigning_enabled and document.is_pending_acceptance %}
                                                   <li>
                                                     <span class="dropdown-item-text text-warning fw-semibold">
                                                       <i class="ti ti-bolt me-1"></i>Recommended: review and accept handoff
                                                     </span>
                                                   </li>
                                                   <li><hr class="dropdown-divider"></li>
-                                                  {% elif document.is_assigned_to_me and document.latest_handoff and document.latest_handoff.status == 'accepted' %}
+                                                  {% elif document_assigning_enabled and document.is_assigned_to_me and document.latest_handoff and document.latest_handoff.status == 'accepted' %}
                                                   <li>
                                                     <span class="dropdown-item-text text-info fw-semibold">
                                                       <i class="ti ti-check me-1"></i>Recommended: proceed with this task
@@ -220,7 +228,7 @@
                                                   </li>
                                                   <li><hr class="dropdown-divider"></li>
                                                   {% endif %}
-                                                  {% if document.is_pending_acceptance %}
+                                                  {% if document_assigning_enabled and document.is_pending_acceptance %}
                                                   <li>
                                                     <button
                                                       type="button"
@@ -245,6 +253,7 @@
                                                   </li>
                                                   <li><hr class="dropdown-divider"></li>
                                                   {% endif %}
+                                                  {% if document_assigning_enabled %}
                                                   <li>
                                                     <button
                                                       type="button"
@@ -259,6 +268,7 @@
                                                       <i class="ti ti-user-share me-1"></i>{% if document.latest_handoff %}Reassign{% else %}Assign{% endif %}
                                                     </button>
                                                   </li>
+                                                  {% endif %}
                                                 </ul>
                                               </div>
                                             </td>
@@ -520,6 +530,7 @@
         });
 
         // ========== Document Filter Functionality ==========
+        const documentAssigningEnabled = {{ document_assigning_enabled|yesno:"true,false" }};
         const filterRadios = document.querySelectorAll('input[name="doc-filter"]');
         const tableBody = document.getElementById('documents-table-body');
         const countBadge = document.getElementById('doc-count-badge');
@@ -567,13 +578,17 @@
 
           const totalCount = rows.length;
           if (filterValue === 'mine') {
-            countBadge.textContent = visibleCount + ' of ' + totalCount;
-            countBadge.classList.add('bg-info');
-            countBadge.classList.remove('bg-light');
+            if (countBadge) {
+              countBadge.textContent = visibleCount + ' of ' + totalCount;
+              countBadge.classList.add('bg-info');
+              countBadge.classList.remove('bg-light');
+            }
           } else {
-            countBadge.textContent = totalCount + ' total';
-            countBadge.classList.add('bg-light');
-            countBadge.classList.remove('bg-info');
+            if (countBadge) {
+              countBadge.textContent = totalCount + ' total';
+              countBadge.classList.add('bg-light');
+              countBadge.classList.remove('bg-info');
+            }
           }
 
           setTimeout(adjustDocumentsTableColumns, 0);
@@ -585,12 +600,16 @@
           });
         });
 
-        const defaultFilterValue = pendingHandoffsCount > 0 ? 'mine' : 'all';
-        const defaultFilterRadio = document.querySelector('input[name="doc-filter"][value="' + defaultFilterValue + '"]');
-        if (defaultFilterRadio) {
-          defaultFilterRadio.checked = true;
+        if (documentAssigningEnabled) {
+          const defaultFilterValue = pendingHandoffsCount > 0 ? 'mine' : 'all';
+          const defaultFilterRadio = document.querySelector('input[name="doc-filter"][value="' + defaultFilterValue + '"]');
+          if (defaultFilterRadio) {
+            defaultFilterRadio.checked = true;
+          }
+          applyFilter(defaultFilterValue);
+        } else {
+          applyFilter('all');
         }
-        applyFilter(defaultFilterValue);
 
         window.addEventListener('resize', function () {
           adjustDocumentsTableColumns();

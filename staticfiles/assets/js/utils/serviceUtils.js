@@ -176,6 +176,13 @@ export async function loadProcessesForService(
   skipListeners = false,
   overridden = null,
 ) {
+  const taskAssigningFlag = String(modalEl?.dataset?.taskAssigningEnabled || "")
+    .trim()
+    .toLowerCase();
+  const taskAssigningEnabled =
+    !taskAssigningFlag ||
+    ["1", "true", "yes", "on"].includes(taskAssigningFlag);
+
   const procSec = modalEl.querySelector(".processCostSection");
   const procBody = modalEl.querySelector(".processTableBody");
   const totalEls = modalEl.querySelectorAll(".totalCost");
@@ -253,7 +260,7 @@ export async function loadProcessesForService(
     if (json.processes.length) {
       overSec.style.display = "none";
       procSec.style.display = "block";
-      toggleServiceAssignmentFields(modalEl, true);
+      toggleServiceAssignmentFields(modalEl, taskAssigningEnabled);
 
       const onboardingSet = new Set(
         (overridden?.onboardingIds || []).map((item) => String(item)),
@@ -283,11 +290,21 @@ export async function loadProcessesForService(
             ? [defaultAssigneeId]
             : [""];
 
-        const assigneeRowsHtml = initialAssignees
-          .map((employeeId) =>
-            renderAssigneeSelectRow(p.id, employeeOptions, employeeId),
-          )
-          .join("");
+        const assigneeRowsHtml = taskAssigningEnabled
+          ? initialAssignees
+              .map((employeeId) =>
+                renderAssigneeSelectRow(p.id, employeeOptions, employeeId),
+              )
+              .join("")
+          : "";
+
+        const assigneeCellHtml = taskAssigningEnabled
+          ? `<td>
+                          <div class="process-assignee-list" data-process-id="${p.id}">
+                            ${assigneeRowsHtml}
+                          </div>
+                        </td>`
+          : "";
 
         procBody.innerHTML += `
                     <tr>
@@ -310,15 +327,13 @@ export async function loadProcessesForService(
                               value="${p.id}" ${isOnboarded ? "checked" : ""}>
                           </div>
                         </td>
-                        <td>
-                          <div class="process-assignee-list" data-process-id="${p.id}">
-                            ${assigneeRowsHtml}
-                          </div>
-                        </td>
+                        ${assigneeCellHtml}
                     </tr>`;
       });
 
-      initProcessAssigneeInteractions(procBody, modalEl, employeeOptions);
+      if (taskAssigningEnabled) {
+        initProcessAssigneeInteractions(procBody, modalEl, employeeOptions);
+      }
       notifyProcessAssigneeRender(modalEl);
     } else {
       procSec.style.display = "none";

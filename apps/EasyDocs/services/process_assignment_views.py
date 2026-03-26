@@ -28,6 +28,7 @@ from apps.EasyDocs.services.process_assignments import (
     handle_complete_process_assignment,
     handle_assign_users_to_process_step,
 )
+from apps.EasyDocs.services.feature_flags import is_task_assigning_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,13 @@ def _respond(request, result: dict, *, extra: dict = None, fail_status: int = 40
 @login_required
 @require_POST
 def accept_process_assignment(request, assignment_id: int):
+    if not is_task_assigning_enabled():
+        return _respond(
+            request,
+            {"success": False, "message": "Task assigning is currently disabled."},
+            fail_status=403,
+        )
+
     body = _request_data(request)
     reason = body.get("reason", "")
 
@@ -133,6 +141,13 @@ def accept_process_assignment(request, assignment_id: int):
 @login_required
 @require_POST
 def decline_process_assignment(request, assignment_id: int):
+    if not is_task_assigning_enabled():
+        return _respond(
+            request,
+            {"success": False, "message": "Task assigning is currently disabled."},
+            fail_status=403,
+        )
+
     body = _request_data(request)
     reason = body.get("reason", "")
 
@@ -153,6 +168,13 @@ def decline_process_assignment(request, assignment_id: int):
 @login_required
 @require_POST
 def complete_process_assignment(request, assignment_id: int):
+    if not is_task_assigning_enabled():
+        return _respond(
+            request,
+            {"success": False, "message": "Task assigning is currently disabled."},
+            fail_status=403,
+        )
+
     body = _request_data(request)
     note = body.get("note", "")
 
@@ -182,6 +204,13 @@ def complete_process_assignment(request, assignment_id: int):
 @login_required
 @require_POST
 def assign_users_to_process_step(request, process_step_id: int):
+    if not is_task_assigning_enabled():
+        return _respond(
+            request,
+            {"success": False, "message": "Task assigning is currently disabled."},
+            fail_status=403,
+        )
+
     if not _is_admin_or_manager(request.user):
         return _respond(request, {"success": False, "message": "Permission denied."}, fail_status=403)
 

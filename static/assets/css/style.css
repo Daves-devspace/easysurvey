@@ -22198,6 +22198,78 @@ select.form-control[data-multiselectsplitter-firstselect-selector], select.form-
   margin-bottom: 0;
   display: none;
 }
+
+/* ── Client-service modal refinements ── */
+.client-service-modal .modal-body {
+  padding: 1rem 1.25rem;
+}
+.client-service-modal .row.g-3 {
+  --bs-gutter-y: 0.75rem;
+}
+.client-service-modal .form-control,
+.client-service-modal .form-select {
+  height: 40px;
+  font-size: 0.95rem;
+}
+.client-service-modal .form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+.client-service-modal textarea.form-control {
+  height: auto;
+  min-height: 80px;
+  max-height: 100px;
+  overflow-y: auto;
+  resize: none;
+}
+.client-service-process-table-wrap {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.client-service-process-table {
+  table-layout: fixed;
+  width: auto;
+  min-width: 505px;
+  max-width: none;
+}
+.client-service-process-table th,
+.client-service-process-table td {
+  padding: 0.55rem 0.65rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.client-service-process-table td:first-child {
+  white-space: normal;
+}
+.client-service-process-table th:first-child,
+.client-service-process-table td:first-child {
+  width: 260px;
+}
+.client-service-process-table th:nth-child(2),
+.client-service-process-table td:nth-child(2) {
+  width: 150px;
+}
+.client-service-process-table th:nth-child(3),
+.client-service-process-table td:nth-child(3) {
+  width: 95px;
+  text-align: center;
+}
+.client-service-process-table th:nth-child(4),
+.client-service-process-table td:nth-child(4) {
+  width: 240px;
+}
+.client-service-process-table .cost-input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+.client-service-modal-footer .btn {
+  min-width: 110px;
+}
 .i-main .i-block span.ic-badge {
   position: absolute;
   bottom: 0;

@@ -29,7 +29,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.utils.dateformat import format as dformat
-from django.db import transaction   
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseBadRequest
 from typing import List
 
@@ -75,11 +75,29 @@ class BookingCreateView(CreateView):
 
     def form_valid(self, form):
         cs_id = self.kwargs.get('client_service_id')
-        client_service = get_object_or_404(ClientService, id=cs_id)
+        scheduled_date = form.cleaned_data['scheduled_date']
 
-        booking = form.save(commit=False)
-        booking.client_service = client_service
-        booking.save()
+        with transaction.atomic():
+            client_service = get_object_or_404(
+                ClientService.objects.select_for_update().select_related('client'),
+                id=cs_id,
+            )
+
+            duplicate_exists = Booking.objects.filter(
+                client_service=client_service,
+                scheduled_date=scheduled_date,
+            ).exists()
+            if duplicate_exists:
+                form.add_error('scheduled_date', 'A booking already exists for this exact date and time.')
+                return self.form_invalid(form)
+
+            booking = form.save(commit=False)
+            booking.client_service = client_service
+            try:
+                booking.save()
+            except IntegrityError:
+                form.add_error('scheduled_date', 'A booking already exists for this exact date and time.')
+                return self.form_invalid(form)
 
         sched = timezone.localtime(booking.scheduled_date)
         sched_str = sched.strftime('%a, %d %b %Y %H:%M')
@@ -129,7 +147,23 @@ class BookingUpdateView(UpdateView):
     fields = ['scheduled_date', 'dispatch_message']
 
     def form_valid(self, form):
-        booking = form.save()
+        with transaction.atomic():
+            booking = form.save(commit=False)
+            client_service = ClientService.objects.select_for_update().get(pk=booking.client_service_id)
+
+            duplicate_exists = Booking.objects.filter(
+                client_service=client_service,
+                scheduled_date=booking.scheduled_date,
+            ).exclude(pk=booking.pk).exists()
+            if duplicate_exists:
+                form.add_error('scheduled_date', 'A booking already exists for this exact date and time.')
+                return self.form_invalid(form)
+
+            try:
+                booking.save()
+            except IntegrityError:
+                form.add_error('scheduled_date', 'A booking already exists for this exact date and time.')
+                return self.form_invalid(form)
 
         sched = timezone.localtime(booking.scheduled_date)
         sched_str = sched.strftime('%a, %d %b %Y %H:%M')

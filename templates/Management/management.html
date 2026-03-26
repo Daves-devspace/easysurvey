@@ -648,6 +648,27 @@
                                                             {{ settings_form.allow_employee_email.errors }}
                                                         </div>
 
+                                                        <div class="col-md-6 form-check">
+                                                            {{ settings_form.allow_task_assigning }}
+                                                            <label for="{{ settings_form.allow_task_assigning.id_for_label }}"
+                                                                   class="form-check-label">Allow Task Assigning</label>
+                                                            {{ settings_form.allow_task_assigning.errors }}
+                                                        </div>
+
+                                                        <div class="col-md-6 form-check">
+                                                            {{ settings_form.allow_document_assigning }}
+                                                            <label for="{{ settings_form.allow_document_assigning.id_for_label }}"
+                                                                   class="form-check-label">Allow Document Assigning</label>
+                                                            {{ settings_form.allow_document_assigning.errors }}
+                                                        </div>
+
+                                                        <div class="col-md-6 form-check">
+                                                            {{ settings_form.allow_service_tracking }}
+                                                            <label for="{{ settings_form.allow_service_tracking.id_for_label }}"
+                                                                   class="form-check-label">Allow Service Tracking / Timer</label>
+                                                            {{ settings_form.allow_service_tracking.errors }}
+                                                        </div>
+
                                                         <!-- Tagline -->
                                                         <div class="col-12">
                                                             <label for="{{ settings_form.tagline.id_for_label }}"

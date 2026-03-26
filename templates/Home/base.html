@@ -290,7 +290,7 @@
         }
 
         .client-service-modal .modal-dialog {
-            max-width: min(1140px, calc(100vw - 1rem));
+            max-width: min(940px, calc(100vw - 1rem));
             margin: 0.5rem auto;
         }
 
@@ -330,6 +330,24 @@
             scrollbar-gutter: stable;
         }
 
+        .client-service-modal .row.g-3 {
+            --bs-gutter-y: 0.65rem;
+        }
+
+        .client-service-modal .form-control,
+        .client-service-modal .form-select {
+            height: 38px;
+            font-size: 0.92rem;
+        }
+
+        .client-service-modal textarea.form-control {
+            height: auto;
+            min-height: 72px;
+            max-height: 90px;
+            resize: none;
+            overflow-y: auto;
+        }
+
         .client-service-modal .client-service-summary-row {
             padding-bottom: 0.5rem;
             border-bottom: 1px solid #eef2f7;
@@ -343,6 +361,8 @@
         }
 
         .client-service-modal .client-service-process-table-wrap {
+            display: block;
+            width: max-content;
             max-width: 100%;
             max-height: min(50vh, 28rem);
             overflow: auto;
@@ -353,7 +373,31 @@
         }
 
         .client-service-modal .client-service-process-table {
-            min-width: 760px;
+            table-layout: fixed;
+            width: auto;
+            min-width: 505px;
+            max-width: none;
+        }
+
+        .client-service-modal .client-service-process-table th:first-child,
+        .client-service-modal .client-service-process-table td:first-child {
+            width: 260px;
+        }
+
+        .client-service-modal .client-service-process-table th:nth-child(2),
+        .client-service-modal .client-service-process-table td:nth-child(2) {
+            width: 150px;
+        }
+
+        .client-service-modal .client-service-process-table th:nth-child(3),
+        .client-service-modal .client-service-process-table td:nth-child(3) {
+            width: 95px;
+            text-align: center;
+        }
+
+        .client-service-modal .client-service-process-table th:nth-child(4),
+        .client-service-modal .client-service-process-table td:nth-child(4) {
+            width: 240px;
         }
 
         .client-service-modal .client-service-process-table th,
@@ -425,7 +469,7 @@
             }
 
             .client-service-modal .client-service-process-table {
-                min-width: 680px;
+                min-width: 505px;
             }
 
             .client-service-modal .client-service-process-table-wrap {
@@ -515,12 +559,14 @@
                         <span class="pc-mtext">Bookings</span>
                     </a>
                 </li>
+                {% if site_settings.allow_task_assigning %}
                 <li class="pc-item">
                     <a href="{% url 'task-management' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-list-check"></i></span>
                         <span class="pc-mtext">Tasks</span>
                     </a>
                 </li>
+                {% endif %}
                 <li class="pc-item">
                     <a href="{% url 'document_list' %}" class="pc-link">
                         <span class="pc-micon"><i class="ti ti-file-upload"></i></span>

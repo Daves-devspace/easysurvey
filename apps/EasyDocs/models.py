@@ -118,6 +118,21 @@ class SiteSettings(models.Model):
         help_text="If enabled, employees will also receive bulk email messages"
     )
 
+    allow_task_assigning = models.BooleanField(
+        default=False,
+        help_text="If enabled, task and process assignment workflows are available"
+    )
+
+    allow_document_assigning = models.BooleanField(
+        default=False,
+        help_text="If enabled, document assign/accept workflows are available"
+    )
+
+    allow_service_tracking = models.BooleanField(
+        default=True,
+        help_text="If enabled, expected duration and deadline tracking is available"
+    )
+
     # optional: who exactly?
     employee_sms_roles = models.JSONField(
         default=list,
@@ -529,6 +544,12 @@ class Booking(models.Model):
     
     class Meta:
         ordering = ['-created_at']  # 👈 Most recent first
+        constraints = [
+            models.UniqueConstraint(
+                fields=['client_service', 'scheduled_date'],
+                name='unique_booking_client_service_datetime',
+            )
+        ]
 
     def generate_default_message(self):
         scheduled_local = timezone.localtime(self.scheduled_date)

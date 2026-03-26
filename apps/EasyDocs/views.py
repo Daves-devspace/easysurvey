@@ -33,6 +33,7 @@ from .accounts.revenue import get_revenue_from_payments
 from .clients.client_views import get_client_service_summary
 from .services.services import apply_client_service_logic
 from .services.handoffs import get_pending_handoffs_for_user, get_latest_handoffs_for_documents
+from .services.feature_flags import is_task_assigning_enabled, is_document_assigning_enabled
 from .models import Service, Process
 from .forms import ServiceForm, ProcessForm
 from types import SimpleNamespace
@@ -552,6 +553,12 @@ class StaffDashboardView(LoginRequiredMixin, TemplateView):
 
 class TaskManagementView(LoginRequiredMixin, TemplateView):
     template_name = 'Management/tasks/task_management.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not is_task_assigning_enabled():
+            messages.error(request, 'Task assigning is currently disabled.')
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
 
     def _is_admin_user(self):
         if self.request.user.is_superuser:
@@ -1303,18 +1310,33 @@ def update_site_settings(request):
     """
     # Only allow POST
     if request.method == 'POST':
+        settings_instance = None
+        previous_tracking_enabled = True
         try:
             settings_instance = SiteSettings.objects.get(singleton_enforcer=True)
+            previous_tracking_enabled = bool(settings_instance.allow_service_tracking)
             form = SiteSettingsForm(request.POST, request.FILES, instance=settings_instance)
         except SiteSettings.DoesNotExist:
             # Create new instance
             form = SiteSettingsForm(request.POST, request.FILES)
 
         if form.is_valid():
-            settings = form.save(commit=False)
-            # Set singleton_enforcer field to ensure uniqueness
-            settings.singleton_enforcer = True
-            settings.save()
+            with transaction.atomic():
+                settings = form.save(commit=False)
+                # Set singleton_enforcer field to ensure uniqueness
+                settings.singleton_enforcer = True
+                settings.save()
+
+                if previous_tracking_enabled and not settings.allow_service_tracking:
+                    ClientService.objects.filter(
+                        Q(expected_duration_days__isnull=False)
+                        | Q(deadline__isnull=False)
+                        | Q(original_deadline__isnull=False)
+                    ).update(
+                        expected_duration_days=None,
+                        deadline=None,
+                        original_deadline=None,
+                    )
             messages.success(request, "Site settings saved successfully.")
         else:
             messages.error(request, "Please correct the errors in the form.")
@@ -1449,6 +1471,12 @@ def accept_document_handoff(request, handoff_id):
     AJAX endpoint returning JSON.
     """
     
+    if not is_document_assigning_enabled():
+        return JsonResponse({
+            'success': False,
+            'message': 'Document assigning is currently disabled.'
+        }, status=403)
+
     from apps.EasyDocs.services.handoffs import handle_accept_handoff
     
     result = handle_accept_handoff(handoff_id, request.user)
@@ -1468,6 +1496,12 @@ def decline_document_handoff(request, handoff_id):
     AJAX endpoint returning JSON.
     """
     
+    if not is_document_assigning_enabled():
+        return JsonResponse({
+            'success': False,
+            'message': 'Document assigning is currently disabled.'
+        }, status=403)
+
     from apps.EasyDocs.services.handoffs import handle_decline_handoff
     
     reason = request.POST.get('reason', '').strip()

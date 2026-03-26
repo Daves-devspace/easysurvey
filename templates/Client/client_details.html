@@ -436,10 +436,15 @@
                                                                                 data-ps-costs="{% for p in cs.service_processes.all %}{{ p.cost|floatformat:2 }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                                                 data-ps-onboarding-ids="{% for p in cs.service_processes.all %}{% if p.completed_at_onboarding %}{{ p.process.id }} {% endif %}{% endfor %}"
                                                                                 data-ps-assignees="{% for p in cs.service_processes.all %}{{ p.process.id }}:{% for pa in p.active_assignments %}{{ pa.assignee_id }}{% if not forloop.last %}|{% endif %}{% endfor %}{% if not forloop.last %};{% endif %}{% endfor %}"
-                                                                                title="{% if cs.assigned_employee %}Reassign service{% else %}Assign service{% endif %}"
+                                                                                title="{% if site_settings.allow_task_assigning %}{% if cs.assigned_employee %}Reassign service{% else %}Assign service{% endif %}{% else %}Edit service{% endif %}"
                                                                             >
+                                                                                {% if site_settings.allow_task_assigning %}
                                                                                 <i class="ti ti-user-check"></i>
                                                                                 <span>{% if cs.assigned_employee %}Reassign{% else %}Assign{% endif %}</span>
+                                                                                {% else %}
+                                                                                <i class="ti ti-edit"></i>
+                                                                                <span>Edit</span>
+                                                                                {% endif %}
                                                                             </button>
                                                                         </div>
 
@@ -1227,6 +1232,7 @@
                                                                         </li>
                                                                     {% endif %}
 
+                                                                    {% if site_settings.allow_document_assigning %}
                                                                     <li>
                                                                         <button
                                                                             type="button"
@@ -1241,8 +1247,9 @@
                                                                             <i class="ti ti-user-share me-1"></i>{% if doc.latest_handoff %}Reassign{% else %}Assign{% endif %}
                                                                         </button>
                                                                     </li>
+                                                                    {% endif %}
 
-                                                                    {% if doc.latest_handoff and doc.latest_handoff.status == 'pending' and doc.latest_handoff.assigned_to_id == request.user.id %}
+                                                                    {% if site_settings.allow_document_assigning and doc.latest_handoff and doc.latest_handoff.status == 'pending' and doc.latest_handoff.assigned_to_id == request.user.id %}
                                                                         <li>
                                                                             <button
                                                                                 type="button"
@@ -1293,6 +1300,7 @@
 
                                 </div>
 
+                                {% if site_settings.allow_document_assigning %}
                                 <div class="modal fade" id="clientDocHandoffModal" tabindex="-1" aria-labelledby="clientDocHandoffModalLabel" aria-hidden="true">
                                     <div class="modal-dialog">
                                         <div class="modal-content">
@@ -1335,6 +1343,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                {% endif %}
 
                                 <div class="modal fade" id="clientDeclineDocumentHandoffModal" tabindex="-1" aria-labelledby="clientDeclineDocumentHandoffModalLabel" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
@@ -2011,9 +2020,9 @@
 </div>
 
     <!-- Add Client Service Modal -->
-    <div class="modal fade client-service-modal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="1" id="addClientServiceModal" tabindex="-1"
+    <div class="modal fade client-service-modal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="1" data-task-assigning-enabled="{{ site_settings.allow_task_assigning|yesno:'1,0' }}" id="addClientServiceModal" tabindex="-1"
          aria-labelledby="addClientServiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-lg-down client-service-modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg modal-fullscreen-lg-down client-service-modal-dialog">
             <div class="modal-content">
                 <form method="POST" action="{% url 'client-service' client.id %}" class="client-service-modal-form">
                     {% csrf_token %}
@@ -2050,15 +2059,19 @@
                                 {{ client_service_form.service.label_tag }}
                                 {{ client_service_form.service }}
                             </div>
+                            {% if site_settings.allow_task_assigning %}
                             <div class="col-md-6 service-assignee-group">
                                 {{ client_service_form.assigned_employee.label_tag }}
                                 {{ client_service_form.assigned_employee }}
                                 <small class="text-muted d-block mt-1">Shown when the selected service has no process steps.</small>
                             </div>
+                            {% endif %}
+                            {% if site_settings.allow_service_tracking %}
                             <div class="col-md-6">
                                 {{ client_service_form.expected_duration_days.label_tag }}
                                 {{ client_service_form.expected_duration_days }}
                             </div>
+                            {% endif %}
                         </div>
 
                         <!-- Process override table -->
@@ -2073,10 +2086,12 @@
                                 <table class="table table-bordered align-middle mb-0 client-service-process-table">
                                     <thead>
                                     <tr>
-                                        <th>Process</th>
-                                        <th>Custom Cost (Ksh)</th>
-                                        <th>Completed</th>
+                                        <th style="width: 55%;">Process</th>
+                                        <th style="width: 150px;">Custom Cost (Ksh)</th>
+                                        <th style="width: 95px; text-align: center;">Completed</th>
+                                        {% if site_settings.allow_task_assigning %}
                                         <th>Assignees</th>
+                                        {% endif %}
                                     </tr>
                                     </thead>
                                     <tbody class="processTableBody"></tbody>
@@ -2085,7 +2100,9 @@
                                         <td><strong>Total</strong></td>
                                         <td><strong class="totalCost">0.00</strong></td>
                                         <td></td>
+                                        {% if site_settings.allow_task_assigning %}
                                         <td></td>
+                                        {% endif %}
                                     </tr>
                                     </tfoot>
                                 </table>
@@ -2145,9 +2162,9 @@
         </div>
     </div>
     <!-- Edit Client Service Modal -->
-    <div class="modal fade client-service-modal" id="editClientServiceModal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="0" tabindex="-1"
+    <div class="modal fade client-service-modal" id="editClientServiceModal" data-client-name="{{ client.first_name }}" data-use-global-prefill-fallback="0" data-task-assigning-enabled="{{ site_settings.allow_task_assigning|yesno:'1,0' }}" tabindex="-1"
          aria-labelledby="editClientServiceModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-lg-down client-service-modal-dialog">
+        <div class="modal-dialog modal-dialog-scrollable modal-lg modal-fullscreen-lg-down client-service-modal-dialog">
             <div class="modal-content">
                 <form method="POST" action="{% url 'client-service' client.id %}" class="client-service-modal-form">
                     {% csrf_token %}
@@ -2192,6 +2209,7 @@
                                     <option value="">Search or select service</option>
                                 </select>
                             </div>
+                            {% if site_settings.allow_task_assigning %}
                             <div class="col-md-6 service-assignee-group">
                                 <label for="editAssignedEmployee" class="form-label">Assign Task/Service</label>
                                 <select class="form-select searchable-select" name="assigned_employee" id="editAssignedEmployee" data-search-placeholder="Search or select assignee">
@@ -2204,10 +2222,13 @@
                                 </select>
                                 <small class="text-muted d-block mt-1">Shown when the selected service has no process steps.</small>
                             </div>
+                            {% endif %}
+                            {% if site_settings.allow_service_tracking %}
                             <div class="col-md-6">
                                 <label for="editExpectedDurationDays" class="form-label">Expected Duration (days)</label>
                                 <input type="number" min="1" class="form-control" name="expected_duration_days" id="editExpectedDurationDays">
                             </div>
+                            {% endif %}
                         </div>
 
                         <!-- Process override table -->
@@ -2222,10 +2243,12 @@
                                 <table class="table table-bordered align-middle mb-0 client-service-process-table">
                                     <thead>
                                     <tr>
-                                        <th>Process</th>
-                                        <th>Custom Cost (Ksh)</th>
-                                        <th>Completed</th>
+                                        <th style="width: 55%;">Process</th>
+                                        <th style="width: 150px;">Custom Cost (Ksh)</th>
+                                        <th style="width: 95px; text-align: center;">Completed</th>
+                                        {% if site_settings.allow_task_assigning %}
                                         <th>Assignees</th>
+                                        {% endif %}
                                     </tr>
                                     </thead>
                                     <tbody class="processTableBody"></tbody>
@@ -2234,7 +2257,9 @@
                                         <td><strong>Total</strong></td>
                                         <td><strong class="totalCost">0.00</strong></td>
                                         <td></td>
+                                        {% if site_settings.allow_task_assigning %}
                                         <td></td>
+                                        {% endif %}
                                     </tr>
                                     </tfoot>
                                 </table>
@@ -2252,7 +2277,7 @@
                         <div class="mt-4">
                             <label for="editLandDescription" class="form-label">Land Description</label>
                             <textarea name="land_description" id="editLandDescription" class="form-control"
-                                      rows="3"></textarea>
+                                      rows="2"></textarea>
                         </div>
                         <!-- inside both Add & Edit modals, below land description -->
                         <!-- Instead of manual markup, do this: -->

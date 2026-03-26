@@ -441,7 +441,7 @@ class ClientServiceForm(forms.ModelForm):
             'client': forms.Select(attrs={'class': 'form-select'}),
             'land_description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 4,
+                'rows': 2,
                 'placeholder': 'Enter a brief land description...',
             }),
         }
@@ -917,11 +917,26 @@ class ClientSubServiceEditForm(forms.ModelForm):
 class SiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['company_name', 'company_phone','company_email','allow_employee_sms','allow_employee_email','tagline', 'logo', 'stamp_signature']
+        fields = [
+            'company_name',
+            'company_phone',
+            'company_email',
+            'allow_employee_sms',
+            'allow_employee_email',
+            'allow_task_assigning',
+            'allow_document_assigning',
+            'allow_service_tracking',
+            'tagline',
+            'logo',
+            'stamp_signature',
+        ]
         widgets = {
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
             'allow_employee_sms': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'allow_employee_email': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'allow_task_assigning': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'allow_document_assigning': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'allow_service_tracking': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
 
             'company_phone':        forms.TextInput(attrs={'class': 'form-control'}),
             'company_email':        forms.EmailInput(attrs={'class': 'form-control'}),

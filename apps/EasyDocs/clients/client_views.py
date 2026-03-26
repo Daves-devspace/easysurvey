@@ -24,6 +24,7 @@ from apps.EasyDocs.services.process_assignments import (
     sync_service_assignment_to_process_assignments,
     handle_assign_users_to_process_step,
 )
+from apps.EasyDocs.services.feature_flags import is_service_tracking_enabled, is_task_assigning_enabled
 from apps.EasyDocs.utils import MobileSasaAPI
 
 from django.contrib.auth.decorators import login_required, permission_required     
@@ -176,6 +177,9 @@ class ClientServiceManageView(View):
         return None
 
     def _apply_process_level_assignments(self, request, cs, process_assignee_map, fallback_assignee=None, assignment_reason=''):
+        if not is_task_assigning_enabled():
+            return
+
         steps = list(cs.service_processes.select_related('process').all())
         if not steps:
             return
@@ -211,17 +215,18 @@ class ClientServiceManageView(View):
         if not form.is_valid():
             return self._handle_form_errors(form, client.id)
 
+        task_assigning_enabled = is_task_assigning_enabled()
         process_assignee_map = self._extract_process_assignee_map(request.POST)
         service = form.cleaned_data.get('service')
         service_has_processes = bool(service and service.processes.exists())
 
         assigned_employee = form.cleaned_data.get('assigned_employee')
-        if assigned_employee is None and service_has_processes:
+        if task_assigning_enabled and assigned_employee is None and service_has_processes:
             assigned_employee = self._derive_primary_assignee(process_assignee_map)
             if assigned_employee is not None:
                 form.cleaned_data['assigned_employee'] = assigned_employee
 
-        if not assigned_employee:
+        if task_assigning_enabled and not assigned_employee:
             if service_has_processes:
                 form.add_error('assigned_employee', 'Assign at least one employee to a process step.')
             else:
@@ -262,18 +267,19 @@ class ClientServiceManageView(View):
             return self._handle_form_errors(form, client.id)
 
         try:
+            task_assigning_enabled = is_task_assigning_enabled()
             # detect service change BEFORE saving so we know whether to rebuild CSPs
             new_service = form.cleaned_data['service']
             service_changed = cs.service_id != new_service.id
             process_assignee_map = self._extract_process_assignee_map(request.POST)
 
             assigned_employee = form.cleaned_data.get('assigned_employee')
-            if assigned_employee is None and new_service.processes.exists():
+            if task_assigning_enabled and assigned_employee is None and new_service.processes.exists():
                 assigned_employee = self._derive_primary_assignee(process_assignee_map)
                 if assigned_employee is not None:
                     form.cleaned_data['assigned_employee'] = assigned_employee
 
-            if assigned_employee is None and new_service.processes.exists():
+            if task_assigning_enabled and assigned_employee is None and new_service.processes.exists():
                 form.add_error('assigned_employee', 'Assign at least one employee to a process step.')
                 return self._handle_form_errors(form, client.id)
 
@@ -323,7 +329,10 @@ class ClientServiceManageView(View):
         if assigned_employee is None and process_assignee_map:
             assigned_employee = self._derive_primary_assignee(process_assignee_map)
 
-        configured_duration = form.cleaned_data.get('expected_duration_days') or cs.service.expected_duration_days
+        service_tracking_enabled = is_service_tracking_enabled()
+        configured_duration = None
+        if service_tracking_enabled:
+            configured_duration = form.cleaned_data.get('expected_duration_days') or cs.service.expected_duration_days
 
         update_fields = []
         assignment_action = None
@@ -352,7 +361,17 @@ class ClientServiceManageView(View):
             update_fields.append('assignment_status')
 
         # Duration and deadline handling
-        if configured_duration:
+        if not service_tracking_enabled:
+            if cs.expected_duration_days is not None:
+                cs.expected_duration_days = None
+                update_fields.append('expected_duration_days')
+            if cs.deadline is not None:
+                cs.deadline = None
+                update_fields.append('deadline')
+            if cs.original_deadline is not None:
+                cs.original_deadline = None
+                update_fields.append('original_deadline')
+        elif configured_duration:
             if cs.expected_duration_days != configured_duration:
                 cs.expected_duration_days = configured_duration
                 update_fields.append('expected_duration_days')
@@ -381,6 +400,9 @@ class ClientServiceManageView(View):
             )
 
         try:
+            if not is_task_assigning_enabled():
+                return
+
             sync_service_assignment_to_process_assignments(
                 client_service=cs,
                 assigned_employee=assigned_employee,

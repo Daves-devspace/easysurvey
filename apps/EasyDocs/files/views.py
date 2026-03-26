@@ -29,6 +29,7 @@ from apps.EasyDocs.services.handoffs import (
     create_document_handoff,
     get_latest_handoffs_for_documents,
 )
+from apps.EasyDocs.services.feature_flags import is_document_assigning_enabled
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -273,6 +274,10 @@ def add_doctype(request):
 def assign_document_handoff(request):
     referer = request.META.get('HTTP_REFERER', reverse('document_list'))
 
+    if not is_document_assigning_enabled():
+        messages.error(request, 'Document assigning is currently disabled.')
+        return redirect(referer)
+
     doc_kind = (request.POST.get('doc_kind') or '').strip().lower()
     document_id = request.POST.get('document_id')
     assigned_to_id = request.POST.get('assigned_to')
@@ -374,6 +379,7 @@ def office_documents(request):
                      'handoff_employees': handoff_employees,
                      'my_pending_handoffs_count': my_pending_handoffs_count,
                      'my_overdue_handoffs_count': my_overdue_handoffs_count,
+                     'document_assigning_enabled': is_document_assigning_enabled(),
                  })
 
 
