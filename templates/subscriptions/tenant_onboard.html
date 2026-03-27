@@ -1,0 +1,230 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="pc-container">
+  <div class="pc-content">
+
+    <!-- breadcrumb -->
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+              <li class="breadcrumb-item"><a href="{% url 'tenant_list' %}">Tenants</a></li>
+              <li class="breadcrumb-item" aria-current="page">Onboard Company</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="row justify-content-center">
+      <div class="col-lg-9 col-xxl-8">
+        <div class="card">
+
+          <!-- wizard tab strip -->
+          <div class="card-header pb-0">
+            <ul class="nav nav-tabs profile-tabs" id="onboardTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="step1-tab" data-bs-toggle="tab" href="#step1" role="tab">
+                  <i class="ti ti-building me-1"></i>1. Basics
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="step2-tab" data-bs-toggle="tab" href="#step2" role="tab">
+                  <i class="ti ti-adjustments me-1"></i>2. Limits
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="step3-tab" data-bs-toggle="tab" href="#step3" role="tab">
+                  <i class="ti ti-check me-1"></i>3. Confirm
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card-body">
+            <form method="post" id="onboardForm">
+              {% csrf_token %}
+              <div class="tab-content" id="onboardTabContent">
+
+                <!-- ─── STEP 1: BASICS ─── -->
+                <div class="tab-pane fade show active" id="step1" role="tabpanel">
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                      <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" name="name" id="f_name"
+                             value="{{ form_data.name|default:'' }}" required
+                             oninput="autoSlug(this.value)">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Primary Domain <span class="text-danger">*</span>
+                        <small class="text-muted">(e.g. acme.plotsync.com)</small>
+                      </label>
+                      <input type="text" class="form-control" name="domain"
+                             value="{{ form_data.domain|default:'' }}" required
+                             placeholder="company.plotsync.com">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Admin Email <span class="text-danger">*</span></label>
+                      <input type="email" class="form-control" name="admin_email"
+                             value="{{ form_data.admin_email|default:'' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Admin Name</label>
+                      <input type="text" class="form-control" name="admin_name"
+                             value="{{ form_data.admin_name|default:'' }}">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Plan</label>
+                      <select class="form-select" name="plan" id="f_plan">
+                        {% for val, label in plans %}
+                          <option value="{{ val }}" {% if form_data.plan == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Paid Until
+                        <small class="text-muted">(leave blank for trial)</small>
+                      </label>
+                      <input type="date" class="form-control" name="paid_until"
+                             value="{{ form_data.paid_until|default:'' }}">
+                    </div>
+                  </div>
+                  <div class="d-flex justify-content-end mt-4">
+                    <button type="button" class="btn btn-primary" onclick="goStep('step2')">
+                      Next: Limits <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- ─── STEP 2: LIMITS ─── -->
+                <div class="tab-pane fade" id="step2" role="tabpanel">
+                  <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                      <label class="form-label">Max Users</label>
+                      <input type="number" class="form-control" name="max_users"
+                             value="{{ form_data.max_users|default:'10' }}" min="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Max Clients</label>
+                      <input type="number" class="form-control" name="max_clients"
+                             value="{{ form_data.max_clients|default:'100' }}" min="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Max Storage (GB)</label>
+                      <input type="number" class="form-control" name="max_storage_gb"
+                             value="{{ form_data.max_storage_gb|default:'10' }}" min="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Trial Period (days)</label>
+                      <input type="number" class="form-control" name="trial_period_days"
+                             value="{{ form_data.trial_period_days|default:'30' }}" min="0">
+                    </div>
+                  </div>
+
+                  <hr class="my-4">
+                  <p class="text-muted mb-2"><i class="ti ti-credit-card me-1"></i>Initial Payment <small>(optional)</small></p>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label">Amount</label>
+                      <input type="number" step="0.01" class="form-control" name="initial_amount"
+                             value="{{ form_data.initial_amount|default:'' }}" placeholder="0.00">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Months Purchased</label>
+                      <input type="number" class="form-control" name="months_purchased"
+                             value="{{ form_data.months_purchased|default:'1' }}" min="1">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label">Reference</label>
+                      <input type="text" class="form-control" name="initial_reference"
+                             value="{{ form_data.initial_reference|default:'' }}" placeholder="TXN-000">
+                    </div>
+                  </div>
+
+                  <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" onclick="goStep('step1')">
+                      <i class="ti ti-arrow-left me-1"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="buildReview(); goStep('step3')">
+                      Review <i class="ti ti-arrow-right ms-1"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- ─── STEP 3: CONFIRM ─── -->
+                <div class="tab-pane fade" id="step3" role="tabpanel">
+                  <p class="text-muted mb-3 mt-2">Review the details before creating the tenant.</p>
+                  <div id="reviewPanel" class="row g-2">
+                    <!-- filled by JS -->
+                  </div>
+                  <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" onclick="goStep('step2')">
+                      <i class="ti ti-arrow-left me-1"></i> Back
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                      <i class="ti ti-building-plus me-1"></i> Create Tenant
+                    </button>
+                  </div>
+                </div>
+
+              </div><!-- /tab-content -->
+            </form>
+          </div><!-- /card-body -->
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function goStep(id) {
+  // activate the nav tab
+  const tab = document.getElementById(id + '-tab');
+  if (tab) bootstrap.Tab.getOrCreateInstance(tab).show();
+}
+
+function autoSlug(val) {
+  // show a domain hint based on company name
+}
+
+function buildReview() {
+  const form = document.getElementById('onboardForm');
+  const data = new FormData(form);
+  const fields = [
+    ['Company Name', data.get('name')],
+    ['Domain', data.get('domain')],
+    ['Admin Email', data.get('admin_email')],
+    ['Admin Name', data.get('admin_name') || '—'],
+    ['Plan', data.get('plan')],
+    ['Paid Until', data.get('paid_until') || 'Trial'],
+    ['Max Users', data.get('max_users')],
+    ['Max Clients', data.get('max_clients')],
+    ['Max Storage (GB)', data.get('max_storage_gb')],
+    ['Trial Days', data.get('trial_period_days')],
+    ['Initial Payment', data.get('initial_amount') ? data.get('initial_amount') + ' (ref: ' + (data.get('initial_reference')||'—') + ')' : '—'],
+  ];
+  const panel = document.getElementById('reviewPanel');
+  panel.innerHTML = fields.map(([k, v]) => `
+    <div class="col-md-6">
+      <div class="d-flex border-bottom py-1">
+        <span class="text-muted me-2" style="min-width:140px">${k}</span>
+        <strong>${v}</strong>
+      </div>
+    </div>
+  `).join('');
+}
+</script>
+{% endblock %}

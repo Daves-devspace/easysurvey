@@ -7,6 +7,7 @@ asgiref==3.8.1
 tzdata==2025.2
 python-dotenv==1.1.0
 daphne
+django-tenants==3.10.1
 # Databases
 psycopg2-binary==2.9.10
 django-crum

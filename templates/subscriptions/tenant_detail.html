@@ -1,0 +1,315 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="pc-container">
+  <div class="pc-content">
+
+    <!-- breadcrumb -->
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+              <li class="breadcrumb-item"><a href="{% url 'tenant_list' %}">Tenants</a></li>
+              <li class="breadcrumb-item" aria-current="page">{{ company.name }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="card">
+          <!-- tabs -->
+          <div class="card-header pb-0">
+            <ul class="nav nav-tabs profile-tabs" id="tenantDetailTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#overview" role="tab">
+                  <i class="ti ti-building me-1"></i>Overview
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="subscription-tab" data-bs-toggle="tab" href="#subscription" role="tab">
+                  <i class="ti ti-credit-card me-1"></i>Subscription
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="payments-tab" data-bs-toggle="tab" href="#payments" role="tab">
+                  <i class="ti ti-cash me-1"></i>Payments
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="card-body">
+            <div class="tab-content">
+
+              <!-- ─── OVERVIEW ─── -->
+              <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="row g-3 mt-1">
+                  <!-- company info card -->
+                  <div class="col-lg-5">
+                    <div class="card h-100">
+                      <div class="card-header"><h6 class="mb-0">Company Info</h6></div>
+                      <div class="card-body">
+                        <table class="table table-borderless table-sm mb-0">
+                          <tr><td class="text-muted w-50">Name</td><td><strong>{{ company.name }}</strong></td></tr>
+                          <tr><td class="text-muted">Slug</td><td>{{ company.slug }}</td></tr>
+                          <tr><td class="text-muted">Schema</td><td><code>{{ company.schema_name }}</code></td></tr>
+                          <tr><td class="text-muted">Admin Email</td><td>{{ company.admin_email }}</td></tr>
+                          <tr><td class="text-muted">Admin Name</td><td>{{ company.admin_name|default:"—" }}</td></tr>
+                          <tr><td class="text-muted">Phone</td><td>{{ company.phone|default:"—" }}</td></tr>
+                          <tr><td class="text-muted">Website</td><td>{{ company.website|default:"—" }}</td></tr>
+                          <tr><td class="text-muted">Created</td><td>{{ company.created_on|date:"Y-m-d H:i" }}</td></tr>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-7" id="tenant-edit">
+                    <div class="card h-100">
+                      <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Edit Tenant</h6>
+                        <span class="badge bg-secondary">Primary domain required</span>
+                      </div>
+                      <div class="card-body">
+                        <form method="post" action="{% url 'tenant_update' company.slug %}">
+                          {% csrf_token %}
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <label class="form-label">Company Name</label>
+                              <input type="text" class="form-control form-control-sm" name="name" value="{{ company.name }}" required>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Primary Domain</label>
+                              <input type="text" class="form-control form-control-sm" name="domain" value="{{ primary_domain.domain|default:'' }}" placeholder="geo.127.0.0.1.sslip.io" required>
+                              <small class="text-muted">Use a real domain in production or a localhost-resolving domain in dev.</small>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Admin Email</label>
+                              <input type="email" class="form-control form-control-sm" name="admin_email" value="{{ company.admin_email }}" required>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Admin Name</label>
+                              <input type="text" class="form-control form-control-sm" name="admin_name" value="{{ company.admin_name|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Company Email</label>
+                              <input type="email" class="form-control form-control-sm" name="email" value="{{ company.email|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Phone</label>
+                              <input type="text" class="form-control form-control-sm" name="phone" value="{{ company.phone|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Website</label>
+                              <input type="url" class="form-control form-control-sm" name="website" value="{{ company.website|default:'' }}" placeholder="https://example.com">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Schema</label>
+                              <input type="text" class="form-control form-control-sm" value="{{ company.schema_name }}" disabled>
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label">Description</label>
+                              <textarea class="form-control form-control-sm" name="description" rows="2">{{ company.description|default:'' }}</textarea>
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label">Internal Notes</label>
+                              <textarea class="form-control form-control-sm" name="notes" rows="2">{{ company.notes|default:'' }}</textarea>
+                            </div>
+                            <div class="col-12 d-flex justify-content-between align-items-center">
+                              <div>
+                                {% for d in domains %}
+                                  <span class="badge bg-primary me-1 mb-1">{{ d.domain }}{% if d.is_primary %} · Primary{% endif %}</span>
+                                {% empty %}
+                                  <span class="text-muted">No domains configured.</span>
+                                {% endfor %}
+                              </div>
+                              <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="ti ti-device-floppy me-1"></i>Update Tenant
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ─── SUBSCRIPTION ─── -->
+              <div class="tab-pane fade" id="subscription" role="tabpanel">
+                <div class="row g-3 mt-1">
+                  <!-- status card -->
+                  <div class="col-md-5">
+                    <div class="card h-100">
+                      <div class="card-header"><h6 class="mb-0">Current Status</h6></div>
+                      <div class="card-body">
+                        <table class="table table-borderless table-sm mb-0">
+                          <tr>
+                            <td class="text-muted w-50">Plan</td>
+                            <td>
+                              {% if company.plan == 'starter' %}<span class="badge bg-primary">Starter</span>
+                              {% elif company.plan == 'professional' %}<span class="badge bg-success">Professional</span>
+                              {% else %}<span class="badge bg-warning text-dark">Enterprise</span>{% endif %}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td class="text-muted">Status</td>
+                            <td>
+                              {% if not company.is_active %}<span class="badge bg-danger">Suspended</span>
+                              {% elif company.is_expired %}<span class="badge bg-warning text-dark">Expired</span>
+                              {% elif company.is_on_trial %}<span class="badge bg-info">Trial</span>
+                              {% else %}<span class="badge bg-success">Active</span>{% endif %}
+                            </td>
+                          </tr>
+                          <tr><td class="text-muted">Paid Until</td><td>{{ company.paid_until|default:"—" }}</td></tr>
+                          <tr><td class="text-muted">Days Left</td><td>{{ company.days_until_expiry }}</td></tr>
+                          <tr><td class="text-muted">Max Users</td><td>{{ company.max_users }}</td></tr>
+                          <tr><td class="text-muted">Max Clients</td><td>{{ company.max_clients }}</td></tr>
+                          <tr><td class="text-muted">Max Storage</td><td>{{ company.max_storage_gb }} GB</td></tr>
+                          <tr><td class="text-muted">Total Paid</td><td><strong>{{ total_paid|floatformat:2 }}</strong></td></tr>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- update form -->
+                  <div class="col-md-7">
+                    <div class="card h-100">
+                      <div class="card-header"><h6 class="mb-0">Update Subscription</h6></div>
+                      <div class="card-body">
+                        <form method="post" action="{% url 'subscription_setup' company.slug %}">
+                          {% csrf_token %}
+                          <div class="row g-2">
+                            <div class="col-md-6">
+                              <label class="form-label">Plan</label>
+                              <select class="form-select form-select-sm" name="plan">
+                                {% for val, label in plans %}
+                                  <option value="{{ val }}" {% if company.plan == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                              </select>
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">Paid Until</label>
+                              <input type="date" class="form-control form-control-sm" name="paid_until"
+                                     value="{{ company.paid_until|date:'Y-m-d'|default:'' }}">
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Max Users</label>
+                              <input type="number" class="form-control form-control-sm" name="max_users" value="{{ company.max_users }}" min="1">
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Max Clients</label>
+                              <input type="number" class="form-control form-control-sm" name="max_clients" value="{{ company.max_clients }}" min="1">
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Max Storage (GB)</label>
+                              <input type="number" class="form-control form-control-sm" name="max_storage_gb" value="{{ company.max_storage_gb }}" min="1">
+                            </div>
+                            <div class="col-12">
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="is_active" value="1"
+                                  {% if company.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">Active (uncheck to suspend)</label>
+                              </div>
+                            </div>
+                            <hr>
+                            <p class="text-muted mb-1"><small>Record a payment (optional)</small></p>
+                            <div class="col-md-4">
+                              <label class="form-label">Amount</label>
+                              <input type="number" step="0.01" class="form-control form-control-sm" name="amount" placeholder="0.00">
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Months</label>
+                              <input type="number" class="form-control form-control-sm" name="months_purchased" value="1" min="1">
+                            </div>
+                            <div class="col-md-4">
+                              <label class="form-label">Reference</label>
+                              <input type="text" class="form-control form-control-sm" name="reference" placeholder="TXN-000">
+                            </div>
+                            <div class="col-12">
+                              <label class="form-label">Notes</label>
+                              <textarea class="form-control form-control-sm" name="notes" rows="2"></textarea>
+                            </div>
+                            <div class="col-12 mt-2">
+                              <button type="submit" class="btn btn-success btn-sm">
+                                <i class="ti ti-device-floppy me-1"></i>Save Changes
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ─── PAYMENTS ─── -->
+              <div class="tab-pane fade" id="payments" role="tabpanel">
+                <div class="mt-2">
+                  <div class="table-responsive">
+                    <table class="datatable display table table-striped table-hover w-100">
+                      <thead class="table-success">
+                        <tr>
+                          <th>#</th>
+                          <th>Date</th>
+                          <th>Plan</th>
+                          <th>Amount</th>
+                          <th>Months</th>
+                          <th>Reference</th>
+                          <th>Recorded By</th>
+                          <th>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for p in payments %}
+                        <tr>
+                          <td>{{ forloop.counter }}</td>
+                          <td>{{ p.payment_date }}</td>
+                          <td>
+                            {% if p.plan == 'starter' %}<span class="badge bg-primary">Starter</span>
+                            {% elif p.plan == 'professional' %}<span class="badge bg-success">Professional</span>
+                            {% else %}<span class="badge bg-warning text-dark">Enterprise</span>{% endif %}
+                          </td>
+                          <td>{{ p.amount|floatformat:2 }}</td>
+                          <td>{{ p.months_purchased }}</td>
+                          <td>{{ p.reference|default:"—" }}</td>
+                          <td>{{ p.recorded_by|default:"—" }}</td>
+                          <td>{{ p.notes|default:"—"|truncatechars:40 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                      {% if payments %}
+                      <tfoot>
+                        <tr>
+                          <td colspan="3" class="text-end"><strong>Total</strong></td>
+                          <td><strong>{{ total_paid|floatformat:2 }}</strong></td>
+                          <td colspan="4"></td>
+                        </tr>
+                      </tfoot>
+                      {% endif %}
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /tab-content -->
+          </div><!-- /card-body -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

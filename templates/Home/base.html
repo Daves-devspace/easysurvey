@@ -703,6 +703,31 @@
                     </ul>
                 </li>
 
+              {% if request.user.is_superuser %}
+                <li class="pc-item pc-caption">
+                    <label>Platform</label>
+                    <i class="ti ti-building-store"></i>
+                </li>
+                <li class="pc-item pc-hasmenu">
+                    <a href="#!" class="pc-link">
+                        <span class="pc-micon"><i class="ti ti-building-community"></i></span>
+                        <span class="pc-mtext">Subscriptions</span>
+                        <span class="pc-arrow"><i data-feather="chevron-right"></i></span>
+                    </a>
+                    <ul class="pc-submenu">
+                        <li class="pc-item">
+                            <a class="pc-link" href="{% url 'tenant_list' %}">All Tenants</a>
+                        </li>
+                        <li class="pc-item">
+                            <a class="pc-link" href="{% url 'tenant_onboard' %}">Onboard Company</a>
+                        </li>
+                        <li class="pc-item">
+                            <a class="pc-link" href="{% url 'subscription_transactions' %}">Transactions</a>
+                        </li>
+                    </ul>
+                </li>
+              {% endif %}
+
 
             </ul>
             <!-- Sidebar Bottom User Section -->

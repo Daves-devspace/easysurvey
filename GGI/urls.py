@@ -26,6 +26,7 @@ from django.http import HttpResponseNotFound
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('apps.EasyDocs.urls')),
+    path('', include('apps.tenants.urls')),
     path('employee/', include('apps.Employee.urls')),
     path('accounts/', include('apps.accounts.urls')),
     path('notifications/', include('apps.notifications.urls')),

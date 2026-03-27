@@ -1,0 +1,128 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="pc-container">
+  <div class="pc-content">
+
+    <!-- breadcrumb -->
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+              <li class="breadcrumb-item"><a href="{% url 'tenant_list' %}">Tenants</a></li>
+              <li class="breadcrumb-item" aria-current="page">Transactions</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="ti ti-cash me-2"></i>All Subscription Payments</h5>
+            <span class="badge bg-success fs-6">Total: {{ total|floatformat:2 }}</span>
+          </div>
+
+          <!-- filter bar -->
+          <div class="card-body border-bottom pb-3">
+            <form method="get" class="row g-2 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label form-label-sm">Company</label>
+                <select class="form-select form-select-sm" name="company">
+                  <option value="">All Companies</option>
+                  {% for c in companies %}
+                    <option value="{{ c.slug }}" {% if filters.company == c.slug %}selected{% endif %}>{{ c.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm">Plan</label>
+                <select class="form-select form-select-sm" name="plan">
+                  <option value="">All Plans</option>
+                  {% for val, label in plans %}
+                    <option value="{{ val }}" {% if filters.plan == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm">From</label>
+                <input type="date" class="form-control form-control-sm" name="date_from" value="{{ filters.date_from }}">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label form-label-sm">To</label>
+                <input type="date" class="form-control form-control-sm" name="date_to" value="{{ filters.date_to }}">
+              </div>
+              <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-primary">
+                  <i class="ti ti-filter me-1"></i>Filter
+                </button>
+                <a href="{% url 'subscription_transactions' %}" class="btn btn-sm btn-outline-secondary">
+                  <i class="ti ti-x me-1"></i>Clear
+                </a>
+              </div>
+            </form>
+          </div>
+
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="datatable display table table-striped table-hover w-100">
+                <thead class="table-success">
+                  <tr>
+                    <th>#</th>
+                    <th>Company</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Months</th>
+                    <th>Date</th>
+                    <th>Reference</th>
+                    <th>Recorded By</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in payments %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                      <a href="{% url 'tenant_detail' p.company.slug %}">{{ p.company.name }}</a>
+                    </td>
+                    <td>
+                      {% if p.plan == 'starter' %}<span class="badge bg-primary">Starter</span>
+                      {% elif p.plan == 'professional' %}<span class="badge bg-success">Professional</span>
+                      {% else %}<span class="badge bg-warning text-dark">Enterprise</span>{% endif %}
+                    </td>
+                    <td>{{ p.amount|floatformat:2 }}</td>
+                    <td>{{ p.months_purchased }}</td>
+                    <td>{{ p.payment_date }}</td>
+                    <td>{{ p.reference|default:"—" }}</td>
+                    <td>{{ p.recorded_by|default:"—" }}</td>
+                    <td>{{ p.notes|default:"—"|truncatechars:50 }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="9" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+                {% if payments %}
+                <tfoot>
+                  <tr>
+                    <td colspan="3" class="text-end fw-bold">Total</td>
+                    <td class="fw-bold">{{ total|floatformat:2 }}</td>
+                    <td colspan="5"></td>
+                  </tr>
+                </tfoot>
+                {% endif %}
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

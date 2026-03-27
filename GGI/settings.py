@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import sentry_sdk
 from dotenv import load_dotenv
@@ -37,10 +38,58 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # DEBUG = True
 
 SITE_DOMAIN = os.getenv("SITE_DOMAIN","http://localhost:8080")  # or your production domain
+TENANT_BASE_DOMAIN = os.getenv("TENANT_BASE_DOMAIN", "").strip()
+TENANT_DEV_BASE_DOMAIN = os.getenv("TENANT_DEV_BASE_DOMAIN", "").strip()
+
+
+def _split_env_list(value: str):
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _site_origin(value: str):
+    if not value:
+        return ""
+    parsed = urlparse(value if "://" in value else f"http://{value}")
+    if not parsed.netloc:
+        return ""
+    return f"{parsed.scheme or 'http'}://{parsed.netloc}"
+
+
+def _wildcard_origin(base_domain: str, scheme: str, port=None):
+    if not base_domain:
+        return ""
+    host = base_domain.lstrip(".")
+    suffix = f":{port}" if port else ""
+    return f"{scheme}://*.{host}{suffix}"
+
+
+def _build_csrf_trusted_origins():
+    origins = set(_split_env_list(os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")))
+
+    site_origin = _site_origin(SITE_DOMAIN)
+    if site_origin:
+        origins.add(site_origin)
+
+    parsed_site = urlparse(site_origin) if site_origin else None
+    site_scheme = parsed_site.scheme if parsed_site else "http"
+    site_port = parsed_site.port if parsed_site else None
+
+    if TENANT_DEV_BASE_DOMAIN:
+        dev_origin = _wildcard_origin(TENANT_DEV_BASE_DOMAIN, site_scheme, site_port)
+        if dev_origin:
+            origins.add(dev_origin)
+
+    if TENANT_BASE_DOMAIN:
+        prod_origin = _wildcard_origin(TENANT_BASE_DOMAIN, "https")
+        if prod_origin:
+            origins.add(prod_origin)
+
+    return sorted(origins)
 
 # Application definition
 
 INSTALLED_APPS = [
+    # Core Django apps
     'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -49,16 +98,22 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    
+    # Multi-tenancy (must be before other custom apps)
+    'django_tenants',
+    'apps.tenants',
+    
+    # Third-party apps
     'django_celery_beat',
     'djcelery_email',
     'channels',
+    'widget_tweaks',
+    
+    # Project apps
     'apps.Employee',
     'apps.EasyDocs',
     'apps.accounts',
     'apps.notifications',
-    
-    'widget_tweaks',
-    
 ]
 
 # settings.py
@@ -74,6 +129,10 @@ REST_FRAMEWORK = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    
+    # Tenant middleware (must be before session middleware)
+    'django_tenants.middleware.main.TenantMainMiddleware',
+    
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -195,11 +254,7 @@ CELERY_EMAIL_TASK_CONFIG = {
     "retry": True,
 }
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
-    if origin.strip()
-]
+CSRF_TRUSTED_ORIGINS = _build_csrf_trusted_origins()
 
 #change to True in production
 CSRF_COOKIE_SECURE = False
@@ -448,9 +503,16 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
 if DEBUG:
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
+# ============================================================================
+# MULTI-TENANT DATABASE CONFIGURATION
+# ============================================================================
+# Each tenant gets its own PostgreSQL schema. The 'default' database
+# contains public schema models (Company, Domain). All tenant-specific
+# models are queried through their respective schemas.
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': os.getenv("POSTGRES_DB"),
         'USER': os.getenv("POSTGRES_USER"),
         'PASSWORD': os.getenv("POSTGRES_PASSWORD"),
@@ -460,6 +522,53 @@ DATABASES = {
         "CONN_MAX_AGE": 0,
     }
 }
+
+# Database router for multi-tenancy
+DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+
+# ============================================================================
+# DJANGO-TENANTS CONFIGURATION
+# ============================================================================
+# Specify which model represents the Tenant
+TENANT_MODEL = "tenants.Company"
+
+# Specify which model represents tenant domains
+TENANT_DOMAIN_MODEL = "tenants.Domain"
+
+# Specify which apps should be installed in each tenant schema
+# Apps here will be installed per-tenant (isolated data per company)
+TENANT_APPS = [
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'apps.Employee',
+    'apps.EasyDocs',
+    'apps.accounts',
+    'apps.notifications',
+]
+
+# Specify which apps should be installed in the public schema only
+# (where Company and Domain models live)
+PUBLIC_APPS = [
+    'daphne',
+    'django.contrib.admin',
+    'django.contrib.humanize',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django_celery_beat',
+    'djcelery_email',
+    'channels',
+    'widget_tweaks',
+    'django_tenants',
+    'apps.tenants',
+    # Also needed in public schema so platform superadmin can log in
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+]
+
+# django-tenants expects SHARED_APPS for migration routing
+SHARED_APPS = PUBLIC_APPS
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 

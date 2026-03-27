@@ -80,11 +80,23 @@ if [ "$RUN_MODE" = "web" ]; then
   #     log "⏭ Skipping Firebase SW generation"
   # fi
 
-  # Migrations
+  # Migrations (django-tenants requires migrate_schemas, not plain migrate)
   if is_truthy "$RUN_MIGRATIONS"; then
-    log "Applying migrations..."
-    python manage.py migrate --noinput
-    log "✅ Migrations applied"
+    log "Applying shared schema migrations..."
+    python manage.py migrate_schemas --shared --noinput
+    log "✅ Shared schema migrations applied"
+
+    log "Bootstrapping public tenant (idempotent)..."
+    python manage.py create_public_tenant \
+      --domain "${PUBLIC_TENANT_DOMAIN:-localhost}" \
+      --name "${PUBLIC_TENANT_NAME:-PlotSync Public}" \
+      --admin-email "${PUBLIC_TENANT_EMAIL:-admin@plotsync.com}" \
+      --create-demo \
+      --demo-domain "${DEMO_TENANT_DOMAIN:-demo.localhost}" \
+      --superadmin-username "${SUPERADMIN_USERNAME:-}" \
+      --superadmin-email "${SUPERADMIN_EMAIL:-}" \
+      --superadmin-password "${SUPERADMIN_PASSWORD:-}"
+    log "✅ Public tenant ready"
   else
     log "⏭ Skipping migrations (RUN_MIGRATIONS=$RUN_MIGRATIONS)"
   fi

@@ -1,0 +1,164 @@
+{% extends 'Home/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="pc-container">
+  <div class="pc-content">
+
+    <!-- breadcrumb -->
+    <div class="page-header">
+      <div class="page-block">
+        <div class="row align-items-center">
+          <div class="col-md-12">
+            <ul class="breadcrumb">
+              <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+              <li class="breadcrumb-item">Platform</li>
+              <li class="breadcrumb-item" aria-current="page">All Tenants</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'success' %}success{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+          {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- summary cards -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="card text-center">
+          <div class="card-body py-3">
+            <h3 class="mb-0">{{ total }}</h3>
+            <small class="text-muted">Total Tenants</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center">
+          <div class="card-body py-3">
+            <h3 class="mb-0 text-success">{{ active }}</h3>
+            <small class="text-muted">Active</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center">
+          <div class="card-body py-3">
+            <h3 class="mb-0 text-danger">{{ expired }}</h3>
+            <small class="text-muted">Expired</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card text-center">
+          <div class="card-body py-3">
+            <a href="{% url 'tenant_onboard' %}" class="btn btn-success w-100">
+              <i class="ti ti-building-plus me-1"></i> Onboard New
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- main table -->
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="ti ti-building-community me-2"></i>Companies</h5>
+            <a href="{% url 'tenant_onboard' %}" class="btn btn-sm btn-primary">
+              <i class="ti ti-plus me-1"></i>Onboard Company
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="datatable display table table-striped table-hover w-100">
+                <thead class="table-success">
+                  <tr>
+                    <th>#</th>
+                    <th>Company</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Primary Domain</th>
+                    <th>Paid Until</th>
+                    <th>Payments</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for company in companies %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                      <strong>{{ company.name }}</strong><br>
+                      <small class="text-muted">{{ company.slug }}</small>
+                    </td>
+                    <td>
+                      {% if company.plan == 'starter' %}
+                        <span class="badge bg-primary">Starter</span>
+                      {% elif company.plan == 'professional' %}
+                        <span class="badge bg-success">Professional</span>
+                      {% else %}
+                        <span class="badge bg-warning text-dark">Enterprise</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if not company.is_active %}
+                        <span class="badge bg-danger">Suspended</span>
+                      {% elif company.is_expired %}
+                        <span class="badge bg-warning text-dark">Expired</span>
+                      {% elif company.is_on_trial %}
+                        <span class="badge bg-info">Trial</span>
+                      {% else %}
+                        <span class="badge bg-success">Active</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% with primary=company.domains.all %}
+                        {% for d in primary %}{% if d.is_primary %}{{ d.domain }}{% endif %}{% endfor %}
+                      {% endwith %}
+                    </td>
+                    <td>
+                      {% if company.paid_until %}
+                        {% if company.paid_until < today %}
+                          <span class="text-danger">{{ company.paid_until }}</span>
+                        {% else %}
+                          {{ company.paid_until }}
+                        {% endif %}
+                      {% elif company.is_on_trial %}
+                        <span class="text-info">Trial ({{ company.days_until_expiry }}d left)</span>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ company.payment_count }}</td>
+                    <td>{{ company.created_on|date:"Y-m-d" }}</td>
+                    <td>
+                      <a href="{% url 'tenant_detail' company.slug %}" class="btn btn-sm btn-outline-primary">
+                        <i class="ti ti-eye"></i>
+                      </a>
+                      <a href="{% url 'tenant_detail' company.slug %}#tenant-edit" class="btn btn-sm btn-outline-secondary">
+                        <i class="ti ti-edit"></i>
+                      </a>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="9" class="text-center text-muted py-4">No tenants yet. <a href="{% url 'tenant_onboard' %}">Onboard the first one.</a></td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
