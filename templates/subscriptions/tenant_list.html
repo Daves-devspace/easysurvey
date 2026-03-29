@@ -268,12 +268,20 @@
                           data-domain="{% for d in company.domains.all %}{% if d.is_primary %}{{ d.domain }}{% endif %}{% endfor %}"
                           data-admin-email="{{ company.admin_email }}"
                           data-admin-name="{{ company.admin_name }}"
+                          data-bootstrap-it-email="{{ company.bootstrap_it_email }}"
+                          data-bootstrap-it-name="{{ company.bootstrap_it_name }}"
                           data-email="{{ company.email }}"
                           data-phone="{{ company.phone }}"
                           data-website="{{ company.website }}"
                           data-description="{{ company.description }}"
                           data-notes="{{ company.notes }}"
                           data-schema="{{ company.schema_name }}"
+                          data-plan="{{ company.plan }}"
+                          data-max-users="{{ company.max_users }}"
+                          data-max-clients="{{ company.max_clients }}"
+                          data-max-storage-gb="{{ company.max_storage_gb }}"
+                          data-trial-period-days="{{ company.trial_period_days }}"
+                          data-paid-until="{{ company.paid_until|default:'' }}"
                           data-update-url="{% url 'tenant_update' company.slug %}"
                         ><i class="ti ti-edit"></i></button>
                         <!-- Open Tenant Portal in new tab -->
@@ -564,10 +572,10 @@
 
 
 <!-- ═══════════════════════════════════════════════════════
-     UPDATE COMPANY MODAL
+     UPDATE COMPANY MODAL  (3-step wizard)
 ════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
     <div class="modal-content border-0 shadow">
 
       <div class="modal-header text-white" style="background: linear-gradient(135deg, #597ef7 0%, #2f54eb 100%);">
@@ -577,65 +585,186 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
 
+      <!-- Step progress indicator -->
+      <div class="px-4 pt-3 pb-0 border-bottom">
+        <div class="d-flex align-items-center mb-2">
+          <div class="ob-step-dot active" id="upd-dot-1">1</div>
+          <div class="ob-step-line flex-fill" id="upd-line-1"></div>
+          <div class="ob-step-dot" id="upd-dot-2">2</div>
+          <div class="ob-step-line flex-fill" id="upd-line-2"></div>
+          <div class="ob-step-dot" id="upd-dot-3">3</div>
+        </div>
+        <div class="d-flex justify-content-between small text-muted pb-2">
+          <span><i class="ti ti-building me-1"></i>Company Basics</span>
+          <span><i class="ti ti-adjustments me-1"></i>Limits &amp; Details</span>
+          <span><i class="ti ti-check me-1"></i>Review &amp; Save</span>
+        </div>
+      </div>
+
       <form method="post" action="" id="updateForm">
         {% csrf_token %}
         <div class="modal-body px-4">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" name="name" id="upd_name" required>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Primary Domain <span class="text-danger">*</span></label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="ti ti-world"></i></span>
-                <input type="text" class="form-control" name="domain" id="upd_domain" required>
+
+          <!-- ─ STEP 1: Company Basics ─ -->
+          <div class="upd-step" id="upd-step1">
+            <div class="row g-3 mt-1">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Company Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="name" id="upd_name" required placeholder="Acme Corp">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                  Primary Domain <span class="text-danger">*</span>
+                  <small class="fw-normal text-muted">(no http://)</small>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-world"></i></span>
+                  <input type="text" class="form-control" name="domain" id="upd_domain" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Admin Email <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-mail"></i></span>
+                  <input type="email" class="form-control" name="admin_email" id="upd_admin_email" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Admin Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-user"></i></span>
+                  <input type="text" class="form-control" name="admin_name" id="upd_admin_name">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Bootstrap IT Support Email <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-shield-lock"></i></span>
+                  <input type="email" class="form-control" name="bootstrap_it_email" id="upd_bootstrap_it_email" required>
+                </div>
+                <small class="text-muted">Changing this will re-provision the bootstrap IT account.</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Bootstrap IT Support Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-user-shield"></i></span>
+                  <input type="text" class="form-control" name="bootstrap_it_name" id="upd_bootstrap_it_name">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Subscription Plan</label>
+                <select class="form-select" name="plan" id="upd_plan">
+                  {% for val, label in plans %}
+                    <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                  Paid Until
+                  <small class="fw-normal text-muted">(leave blank to keep current)</small>
+                </label>
+                <input type="date" class="form-control" name="paid_until" id="upd_paid_until">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Schema <small class="fw-normal text-muted">(readonly)</small></label>
+                <input type="text" class="form-control bg-light font-monospace" id="upd_schema" readonly>
               </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Admin Email <span class="text-danger">*</span></label>
-              <input type="email" class="form-control" name="admin_email" id="upd_admin_email" required>
+          </div>
+
+          <!-- ─ STEP 2: Limits & Details ─ -->
+          <div class="upd-step d-none" id="upd-step2">
+            <h6 class="text-muted fw-semibold mb-3 mt-2">
+              <i class="ti ti-adjustments me-1"></i>Account Limits
+            </h6>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Max Users</label>
+                <input type="number" class="form-control" name="max_users" id="upd_max_users" min="1">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Max Clients</label>
+                <input type="number" class="form-control" name="max_clients" id="upd_max_clients" min="1">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Max Storage (GB)</label>
+                <input type="number" class="form-control" name="max_storage_gb" id="upd_max_storage_gb" min="1">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Trial Days</label>
+                <input type="number" class="form-control" name="trial_period_days" id="upd_trial_period_days" min="0">
+              </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Admin Name</label>
-              <input type="text" class="form-control" name="admin_name" id="upd_admin_name">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Company Email</label>
-              <input type="email" class="form-control" name="email" id="upd_email">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Phone</label>
-              <input type="text" class="form-control" name="phone" id="upd_phone">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Website</label>
-              <input type="url" class="form-control" name="website" id="upd_website" placeholder="https://...">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Schema <small class="fw-normal text-muted">(readonly)</small></label>
-              <input type="text" class="form-control bg-light font-monospace" id="upd_schema" readonly>
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold">Description</label>
-              <textarea class="form-control" name="description" id="upd_description" rows="2"
-                        placeholder="Brief description of this company..."></textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label fw-semibold">Internal Notes <small class="fw-normal text-muted">(support/admin only)</small></label>
-              <textarea class="form-control" name="notes" id="upd_notes" rows="2"
-                        placeholder="Private notes about this tenant..."></textarea>
+            <hr class="my-4">
+            <h6 class="text-muted fw-semibold mb-3">
+              <i class="ti ti-building me-1"></i>Contact Details
+            </h6>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Company Email</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-mail"></i></span>
+                  <input type="email" class="form-control" name="email" id="upd_email">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Phone</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-phone"></i></span>
+                  <input type="text" class="form-control" name="phone" id="upd_phone">
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Website</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="ti ti-world"></i></span>
+                  <input type="url" class="form-control" name="website" id="upd_website" placeholder="https://...">
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="modal-footer border-top">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">
-            <i class="ti ti-device-floppy me-1"></i>Save Changes
+
+          <!-- ─ STEP 3: Review & Save ─ -->
+          <div class="upd-step d-none" id="upd-step3">
+            <div class="alert alert-primary d-flex align-items-center gap-2 mt-2 mb-3">
+              <i class="ti ti-info-circle f-18"></i>
+              <span>Review the changes below before saving.</span>
+            </div>
+            <div id="updReviewPanel" class="row g-2"></div>
+            <hr class="my-3">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Description</label>
+                <textarea class="form-control" name="description" id="upd_description" rows="2"
+                          placeholder="Brief description of this company..."></textarea>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Internal Notes <small class="fw-normal text-muted">(support/admin only)</small></label>
+                <textarea class="form-control" name="notes" id="upd_notes" rows="2"
+                          placeholder="Private notes about this tenant..."></textarea>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /modal-body -->
+
+        <div class="modal-footer d-flex justify-content-between border-top">
+          <button type="button" class="btn btn-outline-secondary" id="updPrevBtn"
+                  onclick="updPrev()" style="display:none">
+            <i class="ti ti-arrow-left me-1"></i>Back
           </button>
+          <div class="d-flex gap-2 ms-auto">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="updNextBtn" onclick="updNext()">
+              Next <i class="ti ti-arrow-right ms-1"></i>
+            </button>
+            <button type="submit" class="btn btn-primary d-none" id="updSubmitBtn">
+              <i class="ti ti-device-floppy me-1"></i>Save Changes
+            </button>
+          </div>
         </div>
       </form>
-
     </div>
   </div>
 </div>
@@ -732,22 +861,108 @@ function openArchiveModal(btn) {
 }
 
 /* ────────────────────────────────
-   Update modal — populate & show
+   Update modal wizard
 ──────────────────────────────── */
+let updCurrent = 1;
+const UPD_TOTAL = 3;
+
+function updShowStep(n) {
+  for (let i = 1; i <= UPD_TOTAL; i++) {
+    const step = document.getElementById('upd-step' + i);
+    const dot  = document.getElementById('upd-dot-' + i);
+    if (step) step.classList.toggle('d-none', i !== n);
+    if (dot) {
+      dot.classList.remove('active', 'done');
+      if (i < n)  dot.classList.add('done');
+      if (i === n) dot.classList.add('active');
+    }
+  }
+  document.querySelectorAll('#updateModal .ob-step-line').forEach((line, idx) => {
+    line.classList.toggle('done', idx < n - 1);
+  });
+  document.getElementById('updPrevBtn').style.display = n > 1 ? '' : 'none';
+  document.getElementById('updNextBtn').classList.toggle('d-none', n === UPD_TOTAL);
+  document.getElementById('updSubmitBtn').classList.toggle('d-none', n !== UPD_TOTAL);
+  updCurrent = n;
+}
+
+function updNext() {
+  if (updCurrent === 1) {
+    const name    = document.getElementById('upd_name').value.trim();
+    const domain  = document.getElementById('upd_domain').value.trim();
+    const email   = document.getElementById('upd_admin_email').value.trim();
+    const itEmail = document.getElementById('upd_bootstrap_it_email').value.trim();
+    if (!name || !domain || !email || !itEmail) {
+      alert('Please fill in Company Name, Domain, Admin Email and Bootstrap IT Support Email before proceeding.');
+      return;
+    }
+    if (email.toLowerCase() === itEmail.toLowerCase()) {
+      alert('Admin Email and Bootstrap IT Support Email must be different.');
+      return;
+    }
+  }
+  if (updCurrent < UPD_TOTAL) {
+    if (updCurrent === UPD_TOTAL - 1) updBuildReview();
+    updShowStep(updCurrent + 1);
+  }
+}
+
+function updPrev() {
+  if (updCurrent > 1) updShowStep(updCurrent - 1);
+}
+
+function updBuildReview() {
+  const d = new FormData(document.getElementById('updateForm'));
+  const rows = [
+    ['Company Name',        d.get('name')],
+    ['Primary Domain',      d.get('domain')],
+    ['Admin Email',         d.get('admin_email')],
+    ['Admin Name',          d.get('admin_name') || '—'],
+    ['Bootstrap IT Email',  d.get('bootstrap_it_email')],
+    ['Bootstrap IT Name',   d.get('bootstrap_it_name') || '—'],
+    ['Plan',                d.get('plan')],
+    ['Paid Until',          d.get('paid_until') || '(unchanged)'],
+    ['Max Users',           d.get('max_users')],
+    ['Max Clients',         d.get('max_clients')],
+    ['Max Storage (GB)',    d.get('max_storage_gb')],
+    ['Trial Days',          d.get('trial_period_days')],
+    ['Company Email',       d.get('email') || '—'],
+    ['Phone',               d.get('phone') || '—'],
+    ['Website',             d.get('website') || '—'],
+  ];
+  document.getElementById('updReviewPanel').innerHTML = rows.map(([k, v]) => `
+    <div class="col-md-6">
+      <div class="d-flex align-items-start border-bottom py-2 gap-2">
+        <span class="text-muted flex-shrink-0" style="min-width:145px;font-size:.83rem">${k}</span>
+        <strong class="text-truncate small">${v}</strong>
+      </div>
+    </div>`).join('');
+}
+
 function openUpdateModal(btn) {
   const d = btn.dataset;
-  document.getElementById('upd_modal_name').textContent   = d.name;
-  document.getElementById('upd_name').value               = d.name        || '';
-  document.getElementById('upd_domain').value             = d.domain      || '';
-  document.getElementById('upd_admin_email').value        = d.adminEmail  || '';
-  document.getElementById('upd_admin_name').value         = d.adminName   || '';
-  document.getElementById('upd_email').value              = d.email       || '';
-  document.getElementById('upd_phone').value              = d.phone       || '';
-  document.getElementById('upd_website').value            = d.website     || '';
-  document.getElementById('upd_description').value        = d.description || '';
-  document.getElementById('upd_notes').value              = d.notes       || '';
-  document.getElementById('upd_schema').value             = d.schema      || '';
-  document.getElementById('updateForm').action            = d.updateUrl;
+  document.getElementById('upd_modal_name').textContent       = d.name;
+  document.getElementById('upd_name').value                   = d.name             || '';
+  document.getElementById('upd_domain').value                 = d.domain           || '';
+  document.getElementById('upd_admin_email').value            = d.adminEmail       || '';
+  document.getElementById('upd_admin_name').value             = d.adminName        || '';
+  document.getElementById('upd_bootstrap_it_email').value     = d.bootstrapItEmail || '';
+  document.getElementById('upd_bootstrap_it_name').value      = d.bootstrapItName  || '';
+  document.getElementById('upd_email').value                  = d.email            || '';
+  document.getElementById('upd_phone').value                  = d.phone            || '';
+  document.getElementById('upd_website').value                = d.website          || '';
+  document.getElementById('upd_description').value            = d.description      || '';
+  document.getElementById('upd_notes').value                  = d.notes            || '';
+  document.getElementById('upd_schema').value                 = d.schema           || '';
+  const planSel = document.getElementById('upd_plan');
+  if (planSel) planSel.value                                  = d.plan             || '';
+  document.getElementById('upd_paid_until').value             = d.paidUntil        || '';
+  document.getElementById('upd_max_users').value              = d.maxUsers         || '';
+  document.getElementById('upd_max_clients').value            = d.maxClients       || '';
+  document.getElementById('upd_max_storage_gb').value         = d.maxStorageGb     || '';
+  document.getElementById('upd_trial_period_days').value      = d.trialPeriodDays  || '';
+  document.getElementById('updateForm').action                = d.updateUrl;
+  updShowStep(1);
   bootstrap.Modal.getOrCreateInstance(document.getElementById('updateModal')).show();
 }
 
@@ -849,6 +1064,13 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('onboardForm').reset();
       if (domEl) delete domEl.dataset.touched;
       obShowStep(1);
+    });
+  }
+
+  const updModal = document.getElementById('updateModal');
+  if (updModal) {
+    updModal.addEventListener('hidden.bs.modal', function () {
+      updShowStep(1);
     });
   }
 

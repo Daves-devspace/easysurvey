@@ -293,18 +293,32 @@ class TenantUpdateView(SuperAdminRequired, View):
         name = request.POST.get("name", "").strip()
         admin_email = request.POST.get("admin_email", "").strip()
         admin_name = request.POST.get("admin_name", "").strip()
+        bootstrap_it_email = request.POST.get("bootstrap_it_email", "").strip().lower()
+        bootstrap_it_name = request.POST.get("bootstrap_it_name", "").strip()
         company_email = request.POST.get("email", "").strip()
         phone = request.POST.get("phone", "").strip()
         website = request.POST.get("website", "").strip()
         description = request.POST.get("description", "").strip()
         notes = request.POST.get("notes", "").strip()
         domain = _normalize_domain(request.POST.get("domain", "").strip())
+        plan = request.POST.get("plan", "").strip()
+        paid_until = request.POST.get("paid_until", "").strip()
+        max_users = _safe_int(request.POST.get("max_users"), None)
+        max_clients = _safe_int(request.POST.get("max_clients"), None)
+        max_storage_gb = _safe_int(request.POST.get("max_storage_gb"), None)
+        trial_period_days = _safe_int(request.POST.get("trial_period_days"), None)
 
         errors = []
         if not name:
             errors.append("Company name is required.")
         if not admin_email:
             errors.append("Admin email is required.")
+        if not bootstrap_it_email:
+            errors.append("IT Support email is required.")
+        if bootstrap_it_email and admin_email and bootstrap_it_email == admin_email.lower():
+            errors.append("Admin email and IT Support email must be different.")
+        if plan and plan not in dict(Company.PLAN_CHOICES):
+            errors.append("Invalid plan selected.")
         if not domain:
             errors.append("Primary domain is required.")
         if name and Company.objects.exclude(pk=company.pk).filter(name=name).exists():
@@ -329,11 +343,28 @@ class TenantUpdateView(SuperAdminRequired, View):
                 company.name = name
                 company.admin_email = admin_email
                 company.admin_name = admin_name
+                if bootstrap_it_email:
+                    company.bootstrap_it_email = bootstrap_it_email
+                if bootstrap_it_name:
+                    company.bootstrap_it_name = bootstrap_it_name
                 company.email = company_email
                 company.phone = phone
                 company.website = website
                 company.description = description
                 company.notes = notes
+                if plan and plan in dict(Company.PLAN_CHOICES):
+                    company.plan = plan
+                if max_users and max_users >= 1:
+                    company.max_users = max_users
+                if max_clients and max_clients >= 1:
+                    company.max_clients = max_clients
+                if max_storage_gb and max_storage_gb >= 1:
+                    company.max_storage_gb = max_storage_gb
+                if trial_period_days is not None and trial_period_days >= 0:
+                    company.trial_period_days = trial_period_days
+                if paid_until:
+                    from datetime import date
+                    company.paid_until = date.fromisoformat(paid_until)
                 company.save()
 
                 if primary_domain:
