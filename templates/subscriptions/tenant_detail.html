@@ -66,8 +66,36 @@
                           <tr><td class="text-muted w-50">Name</td><td><strong>{{ company.name }}</strong></td></tr>
                           <tr><td class="text-muted">Slug</td><td>{{ company.slug }}</td></tr>
                           <tr><td class="text-muted">Schema</td><td><code>{{ company.schema_name }}</code></td></tr>
-                          <tr><td class="text-muted">Admin Email</td><td>{{ company.admin_email }}</td></tr>
+                          <tr>
+                            <td class="text-muted">Admin Email</td>
+                            <td>
+                              {{ company.admin_email }}
+                              <form method="post" action="{% url 'tenant_send_reset' company.slug %}" class="d-inline ms-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="email" value="{{ company.admin_email }}">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Send password reset link">
+                                  <i class="ti ti-lock-plus" style="font-size:.8rem"></i> Reset
+                                </button>
+                              </form>
+                            </td>
+                          </tr>
                           <tr><td class="text-muted">Admin Name</td><td>{{ company.admin_name|default:"—" }}</td></tr>
+                          <tr>
+                            <td class="text-muted">IT Support Email</td>
+                            <td>
+                              {{ company.bootstrap_it_email|default:"—" }}
+                              {% if company.bootstrap_it_email %}
+                              <form method="post" action="{% url 'tenant_send_reset' company.slug %}" class="d-inline ms-2">
+                                {% csrf_token %}
+                                <input type="hidden" name="email" value="{{ company.bootstrap_it_email }}">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Send password reset link">
+                                  <i class="ti ti-lock-plus" style="font-size:.8rem"></i> Reset
+                                </button>
+                              </form>
+                              {% endif %}
+                            </td>
+                          </tr>
+                          <tr><td class="text-muted">IT Support Name</td><td>{{ company.bootstrap_it_name|default:"—" }}</td></tr>
                           <tr><td class="text-muted">Phone</td><td>{{ company.phone|default:"—" }}</td></tr>
                           <tr><td class="text-muted">Website</td><td>{{ company.website|default:"—" }}</td></tr>
                           <tr><td class="text-muted">Created</td><td>{{ company.created_on|date:"Y-m-d H:i" }}</td></tr>
@@ -101,6 +129,14 @@
                             <div class="col-md-6">
                               <label class="form-label">Admin Name</label>
                               <input type="text" class="form-control form-control-sm" name="admin_name" value="{{ company.admin_name|default:'' }}">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">IT Support Email</label>
+                              <input type="email" class="form-control form-control-sm" name="bootstrap_it_email" value="{{ company.bootstrap_it_email|default:'' }}" placeholder="it@company.com">
+                            </div>
+                            <div class="col-md-6">
+                              <label class="form-label">IT Support Name</label>
+                              <input type="text" class="form-control form-control-sm" name="bootstrap_it_name" value="{{ company.bootstrap_it_name|default:'' }}" placeholder="IT Support">
                             </div>
                             <div class="col-md-6">
                               <label class="form-label">Company Email</label>

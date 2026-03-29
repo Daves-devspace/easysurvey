@@ -7,6 +7,7 @@ from .views import (
     TenantArchiveView,
     TenantRestoreView,
     SubscriptionSetupView,
+    TenantSendResetView,
     TransactionsListView,
 )
 
@@ -18,5 +19,6 @@ urlpatterns = [
     path("subscriptions/tenants/<slug:slug>/archive/", TenantArchiveView.as_view(), name="tenant_archive"),
     path("subscriptions/tenants/<slug:slug>/restore/", TenantRestoreView.as_view(), name="tenant_restore"),
     path("subscriptions/tenants/<slug:slug>/setup/", SubscriptionSetupView.as_view(), name="subscription_setup"),
+    path("subscriptions/tenants/<slug:slug>/send-reset/", TenantSendResetView.as_view(), name="tenant_send_reset"),
     path("subscriptions/transactions/", TransactionsListView.as_view(), name="subscription_transactions"),
 ]

@@ -457,7 +457,31 @@ class SubscriptionSetupView(SuperAdminRequired, View):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Transactions
+# 5. Send Reset Password Link (on-demand)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TenantSendResetView(SuperAdminRequired, View):
+    """POST-only: send a password-reset link for a specific email in a tenant."""
+
+    def post(self, request, slug):
+        company = get_object_or_404(Company, slug=slug)
+        email = request.POST.get("email", "").strip().lower()
+
+        if not email:
+            messages.error(request, "No email address provided.")
+            return redirect("tenant_detail", slug=slug)
+
+        result = _send_bootstrap_reset_links(request, company, [email])
+        if result["sent"]:
+            messages.success(request, f"Password reset link sent to {email}.")
+        else:
+            messages.warning(request, f"Could not send reset link to {email}. Check the email is registered on this tenant.")
+
+        return redirect("tenant_detail", slug=slug)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. Transactions
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TransactionsListView(SuperAdminRequired, TemplateView):
