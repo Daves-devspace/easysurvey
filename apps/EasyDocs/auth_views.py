@@ -11,6 +11,9 @@ from django.urls import reverse_lazy
 from django.views.generic import TemplateView
 
 from apps.EasyDocs.forms import CustomPasswordResetForm, CustomSetPasswordForm, CustomAuthenticationForm
+from apps.Employee.models import EmployeeProfile
+from apps.tenants.support_access import get_company_for_schema, support_access_is_enabled
+from django.db import connection
 logger = logging.getLogger(__name__)
 
 # Any view for testing
@@ -45,6 +48,38 @@ class CustomLoginView(LoginView):
     def form_valid(self, form):
         # Called when the credentials are correct
         user = form.get_user()
+
+        profile = getattr(user, 'employeeprofile', None)
+        if profile and profile.role == EmployeeProfile.RoleChoices.IT_SUPPORT:
+            company = get_company_for_schema(connection.schema_name)
+            if company and not support_access_is_enabled(company):
+                messages.error(
+                    self.request,
+                    "IT Support access is currently disabled for this tenant. Ask a tenant admin to grant temporary support access.",
+                )
+                return redirect('login')
+
+        if profile and profile.force_password_reset:
+            if not user.email:
+                messages.error(self.request, "Password reset is required, but no email is configured for your account.")
+                return self.form_invalid(form)
+
+            reset_form = CustomPasswordResetForm({'email': user.email})
+            if reset_form.is_valid():
+                reset_form.save(
+                    request=self.request,
+                    use_https=self.request.is_secure(),
+                    from_email=None,
+                )
+                messages.warning(
+                    self.request,
+                    "Password reset is required before login. A reset link has been sent to your email.",
+                )
+                return redirect('password_reset_done')
+
+            messages.error(self.request, "Password reset is required. Please use the password reset form.")
+            return redirect('password_reset')
+
         logger.info("CustomLoginView.form_valid: logging in user=%s (id=%s)", user.username, user.pk)
 
         response = super().form_valid(form)
@@ -153,6 +188,10 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
             self.user.get_username(), self.user.pk,
         )
         response = super().form_valid(form)
+        profile = getattr(self.user, 'employeeprofile', None)
+        if profile and profile.force_password_reset:
+            profile.force_password_reset = False
+            profile.save(update_fields=['force_password_reset'])
         logger.info(
             "PasswordResetConfirm.form_valid: password reset complete for user=%s (id=%s)",
             self.user.username, self.user.pk,

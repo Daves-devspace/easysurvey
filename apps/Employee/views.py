@@ -85,7 +85,7 @@ class EmployeeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         employees = context['employees']
 
-        context['add_form'] = EmployeeProfileForm()
+        context['add_form'] = EmployeeProfileForm(request=self.request)
 
         context['total_payable'] = sum(e.latest_net_salary() for e in employees)
         context['total_allowances'] = sum(e.latest_total_allowances() for e in employees)
@@ -108,7 +108,7 @@ class EmployeeListView(LoginRequiredMixin, ListView):
                     EmployeeProfile.objects.exclude(role=EmployeeProfile.RoleChoices.IT_SUPPORT),
                     pk=edit_id,
                 )
-                context['edit_form'] = EmployeeProfileForm(instance=employee)
+                context['edit_form'] = EmployeeProfileForm(instance=employee, request=self.request)
                 context['edit_employee_id'] = employee.pk
             except Exception as e:
                 context['edit_form'] = None
@@ -127,6 +127,11 @@ class EmployeeCreateView(LoginRequiredMixin, CreateView):
     form_class = EmployeeProfileForm
     template_name = 'Employees/employee_management.html'
     success_url = reverse_lazy('employee_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
 
     @transaction.atomic
     def form_valid(self, form):
@@ -154,6 +159,11 @@ class EmployeeUpdateView(LoginRequiredMixin, UpdateView):
     pk_url_kwarg = 'pk'
     template_name = 'Employees/employee_management.html'
     success_url = reverse_lazy('employee_list')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
 
     @transaction.atomic
     def form_valid(self, form):

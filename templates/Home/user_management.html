@@ -75,6 +75,70 @@
 
                                 <div class="tab-pane show active" id="profile-5" role="tabpanel"
                                      aria-labelledby="profile-tab-5">
+                                    <div class="card mb-3 border-0 shadow-sm">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h5 class="mb-0">Support Privacy Mode</h5>
+                                            <div>
+                                                {% if support_company %}
+                                                    {% if support_company.support_access_mode == 'always' %}
+                                                        <span class="badge bg-success">Always Allowed</span>
+                                                    {% elif support_access_enabled %}
+                                                        <span class="badge bg-warning text-dark">Temporary Access Active</span>
+                                                    {% elif support_company.support_access_mode == 'disabled' %}
+                                                        <span class="badge bg-danger">Disabled</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">On Request Only</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted mb-3">
+                                                Control whether vendor IT Support can access this tenant. When access is granted temporarily,
+                                                support users are re-enabled only for this tenant and are forced through password reset before use.
+                                            </p>
+                                            <form method="post" class="row g-3 align-items-end">
+                                                {% csrf_token %}
+                                                <div class="col-md-4">
+                                                    <label class="form-label">Support Access Mode</label>
+                                                    <select name="support_access_mode" class="form-select">
+                                                        {% for value, label in support_modes %}
+                                                            <option value="{{ value }}" {% if support_company and support_company.support_access_mode == value %}selected{% endif %}>{{ label }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Grant Hours</label>
+                                                    <input type="number" name="support_access_hours" class="form-control" min="1" max="168" value="24">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label class="form-label">Reason</label>
+                                                    <input type="text" name="support_access_reason" class="form-control"
+                                                           value="{% if support_company %}{{ support_company.support_access_reason }}{% endif %}"
+                                                           placeholder="e.g. Client requested troubleshooting access">
+                                                </div>
+                                                <div class="col-12 d-flex flex-wrap gap-2">
+                                                    <button type="submit" name="support_policy_submit" value="1" class="btn btn-outline-primary btn-sm">
+                                                        Save Policy
+                                                    </button>
+                                                    <button type="submit" name="grant_support_access" value="1" class="btn btn-outline-success btn-sm">
+                                                        Grant Temporary Support Access
+                                                    </button>
+                                                    <button type="submit" name="revoke_support_access" value="1" class="btn btn-outline-danger btn-sm">
+                                                        Revoke Support Access
+                                                    </button>
+                                                </div>
+                                            </form>
+                                            {% if support_company %}
+                                            <div class="mt-3 small text-muted">
+                                                Last updated by: {{ support_company.support_access_updated_by|default:'—' }}
+                                                {% if support_company.support_access_until %}
+                                                    <span class="ms-3">Temporary access until: {{ support_company.support_access_until }}</span>
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                     <div class="card">
                                         <div class="card-header">
                                             <h5>Invite Team Members</h5>
@@ -132,6 +196,9 @@
                                                                 {% else %}
                                                                     <span class="badge bg-secondary">Inactive</span>
                                                                 {% endif %}
+                                                                {% if u.employeeprofile and u.employeeprofile.force_password_reset %}
+                                                                    <span class="badge bg-warning text-dark ms-1">Reset Required</span>
+                                                                {% endif %}
                                                             </td>
                                                             <td>
                                                                 <form method="post" class="d-inline">
@@ -148,6 +215,30 @@
                                                                         {{ u.is_active|yesno:'Deactivate,Activate' }}
                                                                     </button>
                                                                 </form>
+                                                                {% if u.email %}
+                                                                <form method="post" class="d-inline ms-1">
+                                                                    {% csrf_token %}
+                                                                    <button
+                                                                            type="submit"
+                                                                            name="send_reset"
+                                                                            value="{{ u.id }}"
+                                                                            class="btn btn-outline-primary btn-sm"
+                                                                    >
+                                                                        Send Reset Link
+                                                                    </button>
+                                                                </form>
+                                                                <form method="post" class="d-inline ms-1">
+                                                                    {% csrf_token %}
+                                                                    <button
+                                                                            type="submit"
+                                                                            name="force_reset"
+                                                                            value="{{ u.id }}"
+                                                                            class="btn btn-outline-warning btn-sm"
+                                                                    >
+                                                                        Force Reset
+                                                                    </button>
+                                                                </form>
+                                                                {% endif %}
                                                             </td>
                                                         </tr>
                                                     {% endfor %}

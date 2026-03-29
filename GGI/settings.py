@@ -63,6 +63,30 @@ def _wildcard_origin(base_domain: str, scheme: str, port=None):
     return f"{scheme}://*.{host}{suffix}"
 
 
+def _host_without_port(value: str):
+    if not value:
+        return ""
+    parsed = urlparse(value if "://" in value else f"http://{value}")
+    return (parsed.hostname or "").strip().lower()
+
+
+def _infer_local_tenant_dev_bases(site_origin: str):
+    """Return safe local wildcard bases when explicit env config is missing."""
+    host = _host_without_port(site_origin)
+    inferred = set()
+
+    if host in {"localhost", "127.0.0.1"}:
+        inferred.add("localhost")
+
+    # Support local wildcard routing patterns like demo.127.0.0.1.sslip.io.
+    if host.endswith(".sslip.io"):
+        labels = host.split(".")
+        if len(labels) >= 4:
+            inferred.add(".".join(labels[-4:]))
+
+    return inferred
+
+
 def _build_csrf_trusted_origins():
     origins = set(_split_env_list(os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "")))
 
@@ -78,6 +102,11 @@ def _build_csrf_trusted_origins():
         dev_origin = _wildcard_origin(TENANT_DEV_BASE_DOMAIN, site_scheme, site_port)
         if dev_origin:
             origins.add(dev_origin)
+
+    for inferred_base in _infer_local_tenant_dev_bases(site_origin):
+        inferred_origin = _wildcard_origin(inferred_base, site_scheme, site_port)
+        if inferred_origin:
+            origins.add(inferred_origin)
 
     if TENANT_BASE_DOMAIN:
         prod_origin = _wildcard_origin(TENANT_BASE_DOMAIN, "https")

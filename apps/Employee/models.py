@@ -24,6 +24,10 @@ class EmployeeProfile(models.Model):
         choices=RoleChoices.choices,
         default=RoleChoices.FRONTOFFICE
     )
+    force_password_reset = models.BooleanField(
+        default=False,
+        help_text="If True, user must reset password before next successful login."
+    )
     push_notifications_allowed = models.BooleanField(
         default=False, 
         help_text="True if the user has granted permission and has a valid FCM token."

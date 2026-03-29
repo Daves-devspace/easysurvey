@@ -68,3 +68,5 @@ class RevenueComputationTest(TestCase):
         self.assertEqual(res['gross_total'], Decimal('3000.00'))
         self.assertEqual(res['company_total'], Decimal('1000.00'))
         self.assertEqual(res['inst_total'], Decimal('2000.00'))
+
+

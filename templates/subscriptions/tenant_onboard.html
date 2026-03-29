@@ -86,6 +86,16 @@
                              value="{{ form_data.admin_name|default:'' }}">
                     </div>
                     <div class="col-md-6">
+                      <label class="form-label">Bootstrap IT Support Email <span class="text-danger">*</span></label>
+                      <input type="email" class="form-control" name="bootstrap_it_email"
+                             value="{{ form_data.bootstrap_it_email|default:'' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Bootstrap IT Support Name</label>
+                      <input type="text" class="form-control" name="bootstrap_it_name"
+                             value="{{ form_data.bootstrap_it_name|default:'' }}">
+                    </div>
+                    <div class="col-md-6">
                       <label class="form-label">Plan</label>
                       <select class="form-select" name="plan" id="f_plan">
                         {% for val, label in plans %}
@@ -208,6 +218,8 @@ function buildReview() {
     ['Domain', data.get('domain')],
     ['Admin Email', data.get('admin_email')],
     ['Admin Name', data.get('admin_name') || '—'],
+    ['Bootstrap IT Email', data.get('bootstrap_it_email')],
+    ['Bootstrap IT Name', data.get('bootstrap_it_name') || '—'],
     ['Plan', data.get('plan')],
     ['Paid Until', data.get('paid_until') || 'Trial'],
     ['Max Users', data.get('max_users')],

@@ -193,14 +193,36 @@ def log_model_delete(sender, instance, **kwargs):
     """
     ✅ FIXED: Handle models with UUID or non-integer primary keys
     """
-    from .models import AuditLog  # local import to avoid import-time side-effects
-    
-    if sender == AuditLog:
+    # Skip internal models and avoid work when metadata is unavailable.
+    if not getattr(sender, "_meta", None):
         return
-    
+
     if sender._meta.app_label in ["sessions", "admin", "contenttypes", "auth"]:
         return
-    
+
+    # Skip AuditLog itself to avoid infinite recursion.
+    if sender._meta.app_label == "easydocs" and sender._meta.model_name == "auditlog":
+        return
+
+    # Guard against teardown/migration phases where the table may not exist.
+    try:
+        from django.db import connection, ProgrammingError, OperationalError
+        tables = connection.introspection.table_names()
+    except (ProgrammingError, OperationalError, Exception) as e:
+        logger.debug("Skipping AuditLog delete write: DB not ready (%s).", e)
+        return
+
+    audit_table_name = "easydocs_auditlog"
+    if audit_table_name not in tables:
+        logger.debug("Skipping AuditLog delete write: table %s not present.", audit_table_name)
+        return
+
+    try:
+        from .models import AuditLog  # local import to avoid import-time side-effects
+    except Exception as e:
+        logger.warning("Could not import AuditLog model for delete logging; skipping (%s).", e)
+        return
+
     # ✅ NEW: Skip ScheduledTask (UUID primary key)
     if sender._meta.model_name == "scheduledtask":
         logger.debug("Skipping AuditLog delete for ScheduledTask (UUID primary key)")
@@ -224,6 +246,8 @@ def log_model_delete(sender, instance, **kwargs):
             object_id=object_id,  # ✅ Now safely validated as integer
             description=f"Deleted {sender.__name__} #{object_id}",
         )
+    except (ProgrammingError, OperationalError) as db_err:
+        logger.warning("Failed to write delete AuditLog due to DB error (possibly teardown race): %s", db_err)
     except Exception as exc:
         logger.exception("Unexpected error while deleting AuditLog (skipping). %s", exc)
 

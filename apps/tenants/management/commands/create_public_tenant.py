@@ -6,13 +6,13 @@ Idempotent — safe to run on every container start.
 
 Usage:
     python manage.py create_public_tenant
-    python manage.py create_public_tenant --domain localhost --create-demo --demo-domain demo.localhost \\
+    python manage.py create_public_tenant --domain localhost --create-demo --demo-domain demo.localhost \
         --superadmin-username admin --superadmin-email admin@plotsync.com --superadmin-password changeme
 """
 import os
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import ProgrammingError
 
 from apps.tenants.models import Company, Domain
@@ -25,6 +25,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         site_domain = _strip_domain(os.environ.get("SITE_DOMAIN", "localhost"))
+        demo_domain = _default_demo_domain(site_domain)
 
         parser.add_argument(
             "--domain",
@@ -36,7 +37,7 @@ class Command(BaseCommand):
             nargs="*",
             default=[],
             metavar="DOMAIN",
-            help="Additional domains to map to the public tenant",
+            help="Deprecated. Single-domain mode is enforced; extra domains are ignored.",
         )
         parser.add_argument(
             "--name",
@@ -57,8 +58,8 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--demo-domain",
-            default=f"demo.{site_domain}",
-            help="Domain for the demo tenant",
+            default=demo_domain,
+            help=f"Domain for the demo tenant (default: {demo_domain})",
         )
         parser.add_argument(
             "--demo-name",
@@ -75,10 +76,8 @@ class Command(BaseCommand):
         # 1. Public tenant                                                     #
         # ------------------------------------------------------------------ #
         primary_domain = _strip_domain(options["domain"])
-        all_domains = [
-            primary_domain,
-            *[_strip_domain(d) for d in (options["extra_domains"] or []) if _strip_domain(d) != primary_domain],
-        ]
+        if options["extra_domains"]:
+            self.stdout.write(self.style.WARNING("Ignoring --extra-domains because single-domain mode is enforced."))
 
         tenant, created = _get_or_create_tenant(
             schema_name="public",
@@ -89,7 +88,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"{'Created' if created else 'Exists'}: public tenant '{tenant.name}'")
         )
-        _ensure_domains(self, tenant, all_domains)
+        _sync_single_domain(self, tenant, primary_domain)
 
         # ------------------------------------------------------------------ #
         # 2. Demo tenant (optional)                                           #
@@ -106,7 +105,7 @@ class Command(BaseCommand):
                     f"{'Created' if demo_created else 'Exists'}: demo tenant '{demo_tenant.name}'"
                 )
             )
-            _ensure_domains(self, demo_tenant, [_strip_domain(options["demo_domain"])])
+            _sync_single_domain(self, demo_tenant, _strip_domain(options["demo_domain"]))
 
         # ------------------------------------------------------------------ #
         # 3. Platform superadmin                                              #
@@ -146,6 +145,13 @@ def _strip_domain(value: str) -> str:
     return value or "localhost"
 
 
+def _default_demo_domain(site_domain: str) -> str:
+    dev_base = _strip_domain(os.environ.get("TENANT_DEV_BASE_DOMAIN", ""))
+    if dev_base and dev_base != "localhost":
+        return f"demo.{dev_base}"
+    return f"demo.{site_domain}"
+
+
 def _get_or_create_tenant(schema_name, name, slug, admin_email):
     """Create a Company, skipping auto_create_schema for the public schema."""
     try:
@@ -164,6 +170,8 @@ def _get_or_create_tenant(schema_name, name, slug, admin_email):
             name=name,
             slug=slug,
             admin_email=admin_email,
+            bootstrap_it_email=admin_email,
+            bootstrap_it_name="Tenant IT Support",
             is_active=True,
         )
         company.save()
@@ -178,12 +186,32 @@ def _get_or_create_tenant(schema_name, name, slug, admin_email):
         Company.auto_create_schema = True
 
 
-def _ensure_domains(cmd, tenant, domains):
-    for i, domain_str in enumerate(domains):
-        obj, created = Domain.objects.get_or_create(
-            domain=domain_str,
-            defaults={"tenant": tenant, "is_primary": i == 0},
+def _sync_single_domain(cmd, tenant, domain_str):
+    conflict = Domain.objects.exclude(tenant=tenant).filter(domain=domain_str).select_related('tenant').first()
+    if conflict:
+        raise CommandError(
+            f'Domain "{domain_str}" already belongs to tenant "{conflict.tenant.name}".'
         )
-        cmd.stdout.write(
-            cmd.style.SUCCESS(f"  {'Added' if created else 'Exists'} domain: {domain_str}")
-        )
+
+    existing_domains = list(Domain.objects.filter(tenant=tenant).order_by('-is_primary', 'created_on', 'pk'))
+    canonical = next((item for item in existing_domains if item.domain == domain_str), None)
+
+    if canonical is None and existing_domains:
+        canonical = existing_domains[0]
+        canonical.domain = domain_str
+
+    if canonical is None:
+        Domain.objects.create(domain=domain_str, tenant=tenant, is_primary=True)
+        cmd.stdout.write(cmd.style.SUCCESS(f'  Added domain: {domain_str}'))
+        return
+
+    canonical.is_primary = True
+    canonical.save()
+
+    duplicates = [item.pk for item in existing_domains if item.pk != canonical.pk]
+    if duplicates:
+        Domain.objects.filter(pk__in=duplicates).delete()
+        cmd.stdout.write(cmd.style.WARNING(f'  Removed {len(duplicates)} extra domain(s) for {tenant.name}'))
+
+    if canonical.domain == domain_str:
+        cmd.stdout.write(cmd.style.SUCCESS(f'  Synced domain: {domain_str}'))

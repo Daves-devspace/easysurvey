@@ -10,9 +10,24 @@ database schemas, while these models live in the public schema.
 from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from django_tenants.models import TenantMixin, DomainMixin
 from datetime import timedelta
 import uuid
+
+
+class SoftDeleteManager(models.Manager):
+    """Default manager that excludes soft-deleted (archived) Company records."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
+class AllTenantsManager(models.Manager):
+    """Unfiltered manager — includes soft-deleted records. Used by admin and recovery tools."""
+
+    def get_queryset(self):
+        return super().get_queryset()
 
 
 class Company(TenantMixin):
@@ -42,7 +57,13 @@ class Company(TenantMixin):
     """
 
     auto_create_schema = True
-    
+
+    # ── Managers ────────────────────────────────────────────
+    # objects returns only non-deleted tenants (safe default for all app code)
+    objects = SoftDeleteManager()
+    # objects_with_deleted returns everything — use in admin, recovery tools, migrations
+    objects_with_deleted = AllTenantsManager()
+
     # ==================== CORE IDENTITY ====================
     name = models.CharField(
         max_length=255,
@@ -83,6 +104,11 @@ class Company(TenantMixin):
         ('professional', 'Professional - Advanced Features'),
         ('enterprise', 'Enterprise - Custom Solution'),
     ]
+
+    class SupportAccessMode(models.TextChoices):
+        ALWAYS = 'always', 'Always Allowed'
+        ON_REQUEST = 'on_request', 'On Request Only'
+        DISABLED = 'disabled', 'Disabled'
     
     plan = models.CharField(
         max_length=20,
@@ -172,6 +198,37 @@ class Company(TenantMixin):
         blank=True,
         help_text="Name of primary administrator"
     )
+
+    # ==================== BOOTSTRAP ACCESS CONTACT ====================
+    bootstrap_it_email = models.EmailField(
+        blank=True,
+        help_text="Mandatory tenant IT-support bootstrap email used for first login setup."
+    )
+    bootstrap_it_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Display name of the initial tenant IT-support user."
+    )
+    support_access_mode = models.CharField(
+        max_length=20,
+        choices=SupportAccessMode.choices,
+        default=SupportAccessMode.ALWAYS,
+        help_text="Controls whether vendor IT Support can access this tenant by default or only on request."
+    )
+    support_access_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="If set in the future, tenant IT Support access is temporarily granted until this time."
+    )
+    support_access_reason = models.TextField(
+        blank=True,
+        help_text="Most recent reason provided when support access policy or window was changed."
+    )
+    support_access_updated_by = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Username that last changed the support access policy/window."
+    )
     
     # ==================== USAGE TRACKING ====================
     max_users = models.IntegerField(
@@ -198,6 +255,23 @@ class Company(TenantMixin):
         blank=True,
         help_text="Internal notes (for support/admin purposes)"
     )
+
+    # ==================== SOFT-DELETE / ARCHIVE ====================
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Set when this tenant is soft-deleted (archived). NULL = not deleted."
+    )
+    deleted_by = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Username of the platform admin who archived this tenant."
+    )
+    deletion_reason = models.TextField(
+        blank=True,
+        help_text="Optional reason recorded at time of archiving."
+    )
     
     class Meta:
         ordering = ['created_on']
@@ -207,6 +281,7 @@ class Company(TenantMixin):
             models.Index(fields=['is_active', 'created_on']),
             models.Index(fields=['plan']),
             models.Index(fields=['slug']),
+            models.Index(fields=['deleted_at']),
         ]
     
     def __str__(self):
@@ -216,6 +291,47 @@ class Company(TenantMixin):
     def __repr__(self):
         return f"<Company: {self.name} | Schema: {self.schema_name}>"
     
+    def soft_delete(self, user=None, reason: str = "") -> None:
+        """Archive this tenant without removing the DB row or PostgreSQL schema."""
+        if self.schema_name == "public":
+            raise ValueError("The public tenant cannot be deleted or archived.")
+        self.deleted_at = timezone.now()
+        self.deleted_by = getattr(user, "username", str(user)) if user else "system"
+        self.deletion_reason = reason
+        self.is_active = False
+        self.save(update_fields=["deleted_at", "deleted_by", "deletion_reason", "is_active", "updated_on"])
+
+    def restore(self) -> None:
+        """Restore a previously soft-deleted tenant back to active status."""
+        self.deleted_at = None
+        self.deleted_by = ""
+        self.deletion_reason = ""
+        self.is_active = True
+        self.save(update_fields=["deleted_at", "deleted_by", "deletion_reason", "is_active", "updated_on"])
+
+    @property
+    def is_archived(self) -> bool:
+        """True when this tenant has been soft-deleted."""
+        return self.deleted_at is not None
+
+    @property
+    def support_access_is_enabled(self) -> bool:
+        """True when tenant IT Support access should currently be allowed."""
+        if self.support_access_mode == self.SupportAccessMode.ALWAYS:
+            return True
+        return bool(self.support_access_until and self.support_access_until > timezone.now())
+
+    def delete(self, *args, **kwargs):
+        """Override Django delete — performs a soft-delete instead of a real one.
+
+        Pass force=True as a kwarg to bypass this (migrations / management commands only).
+        """
+        if kwargs.pop("force", False):
+            return super().delete(*args, **kwargs)
+        user = kwargs.pop("user", None)
+        reason = kwargs.pop("reason", "")
+        self.soft_delete(user=user, reason=reason)
+
     def save(self, *args, **kwargs):
         """
         Override save to auto-generate slug from name if not provided.
@@ -229,24 +345,15 @@ class Company(TenantMixin):
 
 class Domain(DomainMixin):
     """
-    Represents a domain/subdomain linked to a Company (Tenant).
+    Represents the single canonical domain linked to a Company (Tenant).
     
     Inherits from django_tenants.models.DomainMixin which provides:
     - tenant: ForeignKey to Company
     - domain: The actual domain/subdomain
     - is_primary: Whether this is the primary domain for the tenant
     
-    Multiple domains can point to the same tenant, allowing:
-    - Subdomains: ggi.plotsync.com, water-fiti.plotsync.com
-    - Custom domains: surveyor.ggi.com
-    - White-labeled domains: customdomain.com
-    
-    Examples:
-        # Primary subdomain
-        Domain.objects.create(domain='ggi.plotsync.com', tenant=company, is_primary=True)
-        
-        # Custom domain
-        Domain.objects.create(domain='surveyor.ggi.com', tenant=company, is_primary=False)
+    This project enforces exactly one domain row per tenant. Changing the
+    hostname means updating the existing Domain row, not adding another one.
     """
     
     tenant = models.ForeignKey(
@@ -280,6 +387,9 @@ class Domain(DomainMixin):
         ordering = ['is_primary', '-created_on']
         verbose_name = 'Domain'
         verbose_name_plural = 'Domains'
+        constraints = [
+            models.UniqueConstraint(fields=['tenant'], name='unique_domain_per_tenant'),
+        ]
         indexes = [
             models.Index(fields=['tenant', 'is_primary']),
             models.Index(fields=['domain']),
@@ -291,6 +401,23 @@ class Domain(DomainMixin):
     
     def __repr__(self):
         return f"<Domain: {self.domain}>"
+
+    def clean(self):
+        self.domain = (self.domain or "").strip().lower()
+        self.is_primary = True
+
+        if not self.tenant_id:
+            return
+
+        if Domain.objects.exclude(pk=self.pk).filter(tenant_id=self.tenant_id).exists():
+            raise ValidationError({
+                'tenant': 'Each tenant can have only one domain. Update the existing domain instead of adding another.',
+            })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        self.is_primary = True
+        super().save(*args, **kwargs)
 
 
 class SubscriptionPayment(models.Model):

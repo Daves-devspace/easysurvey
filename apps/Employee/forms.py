@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from urllib.parse import urljoin
 from django import forms
 
 from django.conf import settings
@@ -281,6 +282,7 @@ class EmployeeProfileForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
 
         # Make required only for non-superuser creation
@@ -340,7 +342,7 @@ class EmployeeProfileForm(forms.ModelForm):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
             url = reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-            full_reset = f"{settings.SITE_DOMAIN}{url}"
+            full_reset = urljoin(self._resolve_base_url(), url)
 
             # From address
             site = SiteSettings.objects.first()
@@ -397,6 +399,19 @@ class EmployeeProfileForm(forms.ModelForm):
                 )
 
         return profile
+
+    def _resolve_base_url(self):
+        """Resolve tenant-aware origin for invitation/reset links."""
+        if self.request:
+            return self.request.build_absolute_uri('/').rstrip('/')
+
+        site_domain = str(getattr(settings, 'SITE_DOMAIN', '') or '').strip().rstrip('/')
+        if site_domain:
+            if '://' not in site_domain:
+                site_domain = f"http://{site_domain}"
+            return site_domain
+
+        return 'http://localhost:8080'
 
 
 

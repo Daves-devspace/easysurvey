@@ -103,8 +103,7 @@
                     <td>{{ p.recorded_by|default:"—" }}</td>
                     <td>{{ p.notes|default:"—"|truncatechars:50 }}</td>
                   </tr>
-                  {% empty %}
-                  <tr><td colspan="9" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+                  
                   {% endfor %}
                 </tbody>
                 {% if payments %}

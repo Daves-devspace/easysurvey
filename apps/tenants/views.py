@@ -50,17 +50,28 @@ class TenantListView(SuperAdminRequired, TemplateView):
     template_name = "subscriptions/tenant_list.html"
 
     def get_context_data(self, **kwargs):
+        from django.conf import settings as django_settings
         ctx = super().get_context_data(**kwargs)
-        companies = (
-            Company.objects
+        all_qs = (
+            Company.objects_with_deleted
             .exclude(schema_name="public")
             .prefetch_related("domains")
             .annotate(payment_count=Count("subscription_payments"))
         )
-        ctx["companies"] = companies
-        ctx["total"] = companies.count()
-        ctx["active"] = companies.filter(is_active=True).count()
-        ctx["expired"] = sum(1 for c in companies if c.is_expired)
+        companies    = [c for c in all_qs if not c.is_archived]
+        deleted_cos  = [c for c in all_qs if c.is_archived]
+        ctx["companies"]        = companies
+        ctx["deleted_companies"] = deleted_cos
+        ctx["deleted_count"]    = len(deleted_cos)
+        ctx["total"]   = len(companies)
+        ctx["active"]  = sum(1 for c in companies if c.is_active and not c.is_expired and not c.is_on_trial)
+        ctx["on_trial"]= sum(1 for c in companies if c.is_active and not c.is_expired and c.is_on_trial)
+        ctx["expired"] = sum(1 for c in companies if c.is_active and c.is_expired)
+        ctx["inactive"]= sum(1 for c in companies if not c.is_active)
+        ctx["unpaid"]  = sum(1 for c in companies if c.payment_count == 0)
+        ctx["total_income"] = SubscriptionPayment.objects.aggregate(total=Sum("amount"))["total"] or 0
+        ctx["plans"] = Company.PLAN_CHOICES
+        ctx["tenant_dev_base"] = getattr(django_settings, "TENANT_DEV_BASE_DOMAIN", "")
         ctx["today"] = timezone.now().date()
         return ctx
 
@@ -90,6 +101,8 @@ class TenantOnboardView(SuperAdminRequired, View):
         domain = _normalize_domain(request.POST.get("domain", "").strip())
         admin_email = request.POST.get("admin_email", "").strip()
         admin_name = request.POST.get("admin_name", "").strip()
+        bootstrap_it_email = request.POST.get("bootstrap_it_email", "").strip().lower()
+        bootstrap_it_name = request.POST.get("bootstrap_it_name", "").strip()
         plan = request.POST.get("plan", "starter")
         max_users = _safe_int(request.POST.get("max_users"), 10)
         max_clients = _safe_int(request.POST.get("max_clients"), 100)
@@ -109,6 +122,10 @@ class TenantOnboardView(SuperAdminRequired, View):
             errors.append("Domain is required.")
         if not admin_email:
             errors.append("Admin email is required.")
+        if not bootstrap_it_email:
+            errors.append("Bootstrap IT Support email is required.")
+        if bootstrap_it_email and admin_email and bootstrap_it_email.lower() == admin_email.lower():
+            errors.append("Admin email and Bootstrap IT Support email must be different.")
         if plan not in dict(Company.PLAN_CHOICES):
             errors.append("Invalid plan selected.")
         if max_users < 1 or max_clients < 1 or max_storage_gb < 1:
@@ -136,10 +153,7 @@ class TenantOnboardView(SuperAdminRequired, View):
 
         if errors:
             messages.error(request, " ".join(errors))
-            return render(request, self.template_name, {
-                "plans": Company.PLAN_CHOICES,
-                "form_data": _build_onboard_form_data(request.POST),
-            })
+            return redirect("tenant_list")
 
         try:
             with transaction.atomic():
@@ -150,6 +164,8 @@ class TenantOnboardView(SuperAdminRequired, View):
                     schema_name=schema_name,
                     admin_email=admin_email,
                     admin_name=admin_name,
+                    bootstrap_it_email=bootstrap_it_email,
+                    bootstrap_it_name=bootstrap_it_name,
                     plan=plan,
                     max_users=max_users,
                     max_clients=max_clients,
@@ -176,22 +192,69 @@ class TenantOnboardView(SuperAdminRequired, View):
                     )
         except (IntegrityError, ValueError) as exc:
             messages.error(request, f"Could not onboard company: {exc}")
-            return render(request, self.template_name, {
-                "plans": Company.PLAN_CHOICES,
-                "form_data": _build_onboard_form_data(request.POST),
-            })
+            return redirect("tenant_list")
 
-        created_admin = _ensure_default_tenant_superadmin(company)
-        if created_admin:
+        bootstrap_result = _ensure_bootstrap_tenant_users(company)
+        reset_result = _send_bootstrap_reset_links(request, company, bootstrap_result["created_emails"])
+        if bootstrap_result["created_users"]:
             messages.success(
                 request,
-                (
-                    f"Tenant admin created for '{company.name}'. Username: {created_admin['username']} "
-                    f"Temporary password: {created_admin['password']}"
-                ),
+                f"Bootstrap users ready for '{company.name}': {', '.join(bootstrap_result['created_users'])}.",
             )
+            messages.info(
+                request,
+                "Use the tenant password-reset flow to set first-login credentials. Plaintext passwords are never displayed.",
+            )
+        if bootstrap_result["note"]:
+            messages.info(request, bootstrap_result["note"])
+        if reset_result["sent"]:
+            messages.success(request, f"Bootstrap reset links sent to: {', '.join(reset_result['sent'])}.")
+        if reset_result["failed"]:
+            messages.warning(request, f"Could not send reset links to: {', '.join(reset_result['failed'])}.")
 
         messages.success(request, f"Company '{name}' onboarded successfully. Schema '{schema_name}' created.")
+        return redirect("tenant_list")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3b. Tenant Archive (soft-delete)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TenantArchiveView(SuperAdminRequired, View):
+    """POST-only: soft-delete a tenant (archive). Blocks public tenant."""
+
+    def post(self, request, slug):
+        company = get_object_or_404(Company.objects_with_deleted, slug=slug)
+        if company.schema_name == "public":
+            messages.error(request, "The public tenant cannot be archived.")
+            return redirect("tenant_list")
+        if company.is_archived:
+            messages.warning(request, f"Tenant '{company.name}' is already archived.")
+            return redirect("tenant_list")
+        reason = request.POST.get("reason", "").strip()
+        company.soft_delete(user=request.user, reason=reason)
+        messages.warning(
+            request,
+            f"Tenant '{company.name}' has been archived (soft-deleted). "
+            f"All its data is preserved. You can restore it at any time."
+        )
+        return redirect("tenant_list")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3c. Tenant Restore
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TenantRestoreView(SuperAdminRequired, View):
+    """POST-only: restore a soft-deleted tenant back to active."""
+
+    def post(self, request, slug):
+        company = get_object_or_404(Company.objects_with_deleted, slug=slug)
+        if not company.is_archived:
+            messages.info(request, f"Tenant '{company.name}' is not archived.")
+            return redirect("tenant_list")
+        company.restore()
+        messages.success(request, f"Tenant '{company.name}' has been restored and is active again.")
         return redirect("tenant_list")
 
 
@@ -259,7 +322,7 @@ class TenantUpdateView(SuperAdminRequired, View):
 
         if errors:
             messages.error(request, " ".join(errors))
-            return redirect("tenant_detail", slug=company.slug)
+            return redirect("tenant_list")
 
         try:
             with transaction.atomic():
@@ -281,20 +344,28 @@ class TenantUpdateView(SuperAdminRequired, View):
                     Domain.objects.create(domain=domain, tenant=company, is_primary=True)
         except (IntegrityError, ValueError, ValidationError) as exc:
             messages.error(request, f"Could not update tenant details: {exc}")
-            return redirect("tenant_detail", slug=company.slug)
+            return redirect("tenant_list")
 
-        created_admin = _ensure_default_tenant_superadmin(company)
-        if created_admin:
+        bootstrap_result = _ensure_bootstrap_tenant_users(company)
+        reset_result = _send_bootstrap_reset_links(request, company, bootstrap_result["created_emails"])
+        if bootstrap_result["created_users"]:
             messages.success(
                 request,
-                (
-                    f"No users existed in '{company.name}', so a tenant superadmin was created. "
-                    f"Username: {created_admin['username']} Temporary password: {created_admin['password']}"
-                ),
+                f"Bootstrap users ensured for '{company.name}': {', '.join(bootstrap_result['created_users'])}.",
             )
+            messages.info(
+                request,
+                "Use tenant password-reset to activate credentials securely.",
+            )
+        if bootstrap_result["note"]:
+            messages.info(request, bootstrap_result["note"])
+        if reset_result["sent"]:
+            messages.success(request, f"Bootstrap reset links sent to: {', '.join(reset_result['sent'])}.")
+        if reset_result["failed"]:
+            messages.warning(request, f"Could not send reset links to: {', '.join(reset_result['failed'])}.")
 
         messages.success(request, f"Tenant '{company.name}' updated successfully.")
-        return redirect("tenant_detail", slug=company.slug)
+        return redirect("tenant_list")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -428,6 +499,8 @@ def _build_onboard_form_data(post_data=None) -> dict:
         "domain": "",
         "admin_email": "",
         "admin_name": "",
+        "bootstrap_it_email": "",
+        "bootstrap_it_name": "",
         "plan": "starter",
         "paid_until": "",
         "max_users": "10",
@@ -449,37 +522,161 @@ def _build_onboard_form_data(post_data=None) -> dict:
     return merged
 
 
-def _ensure_default_tenant_superadmin(company: Company):
-    """Create a default tenant superadmin when the tenant schema has no users."""
+def _ensure_bootstrap_tenant_users(company: Company):
+    """Ensure bootstrap IT Support and Tenant Admin users exist in the tenant schema."""
     User = get_user_model()
 
+    created_users = []
+    created_emails = []
+    note = ""
+
     with tenant_context(company):
-        if User.objects.exists():
-            return None
+        from apps.Employee.models import EmployeeProfile
 
-        username = _build_tenant_admin_username(company)
-        password = secrets.token_urlsafe(12)
-        first_name, last_name = _split_name(company.admin_name)
-        user = User.objects.create_superuser(
-            username=username,
-            email=company.admin_email,
-            password=password,
+        it_email = (company.bootstrap_it_email or company.admin_email or "").strip().lower()
+        it_name = (company.bootstrap_it_name or "Tenant IT Support").strip()
+
+        if not it_email:
+            return {
+                "created_users": created_users,
+                "note": "No bootstrap IT email is configured for this tenant.",
+            }
+
+        it_user, it_created = _get_or_create_tenant_superuser(
+            User=User,
+            email=it_email,
+            full_name=it_name,
+            fallback_username=f"{company.slug}_it",
         )
-        if hasattr(user, "first_name"):
-            user.first_name = first_name
-        if hasattr(user, "last_name"):
-            user.last_name = last_name
-        user.save()
+        _ensure_employee_role(EmployeeProfile, it_user, EmployeeProfile.RoleChoices.IT_SUPPORT)
+        if it_created:
+            created_users.append(f"IT Support ({it_user.username})")
+            created_emails.append(it_user.email)
 
-    return {"username": username, "password": password}
+        admin_email = (company.admin_email or "").strip().lower()
+        admin_name = (company.admin_name or "Tenant Admin").strip()
+        if admin_email and admin_email != it_email:
+            admin_user, admin_created = _get_or_create_tenant_superuser(
+                User=User,
+                email=admin_email,
+                full_name=admin_name,
+                fallback_username=f"{company.slug}_admin",
+            )
+            _ensure_employee_role(EmployeeProfile, admin_user, EmployeeProfile.RoleChoices.ADMIN)
+            if admin_created:
+                created_users.append(f"Tenant Admin ({admin_user.username})")
+                created_emails.append(admin_user.email)
+        elif admin_email == it_email:
+            note = "Admin email matches IT Support email; one bootstrap superuser is in use."
+
+    return {
+        "created_users": created_users,
+        "created_emails": created_emails,
+        "note": note,
+    }
 
 
-def _build_tenant_admin_username(company: Company) -> str:
-    email_local_part = (company.admin_email or "").split("@", 1)[0]
-    candidate = slugify(email_local_part).replace("-", "_")
+def _send_bootstrap_reset_links(request, company: Company, emails):
+    """Send tenant-domain password reset links for newly created bootstrap users."""
+    unique_emails = sorted({(email or "").strip().lower() for email in emails if email})
+    if not unique_emails:
+        return {"sent": [], "failed": []}
+
+    primary_domain = company.domains.filter(is_primary=True).first()
+    if not primary_domain:
+        return {"sent": [], "failed": unique_emails}
+
+    from apps.EasyDocs.forms import CustomPasswordResetForm
+
+    sent = []
+    failed = []
+    for email in unique_emails:
+        form = CustomPasswordResetForm({"email": email})
+        if not form.is_valid():
+            failed.append(email)
+            continue
+
+        try:
+            form.save(
+                request=request,
+                domain_override=primary_domain.domain,
+                use_https=request.is_secure(),
+            )
+            sent.append(email)
+        except Exception:
+            failed.append(email)
+
+    return {"sent": sent, "failed": failed}
+
+
+def _get_or_create_tenant_superuser(User, email: str, full_name: str, fallback_username: str):
+    """Create or upgrade a tenant-local superuser by email."""
+    first_name, last_name = _split_name(full_name)
+    existing = User.objects.filter(email__iexact=email).order_by("id").first()
+
+    if existing:
+        fields_to_update = []
+        if not existing.is_active:
+            existing.is_active = True
+            fields_to_update.append("is_active")
+        if not existing.is_staff:
+            existing.is_staff = True
+            fields_to_update.append("is_staff")
+        if not existing.is_superuser:
+            existing.is_superuser = True
+            fields_to_update.append("is_superuser")
+        if first_name and existing.first_name != first_name:
+            existing.first_name = first_name
+            fields_to_update.append("first_name")
+        if last_name and existing.last_name != last_name:
+            existing.last_name = last_name
+            fields_to_update.append("last_name")
+        if fields_to_update:
+            existing.save(update_fields=fields_to_update)
+        return existing, False
+
+        
+    username_seed = _username_seed_from_email(email, fallback_username)
+    username = _next_available_username(User, username_seed)
+    user = User.objects.create_user(
+        username=username,
+        email=email,
+        password=secrets.token_urlsafe(32),
+        is_staff=True,
+        is_superuser=True,
+        is_active=True,
+        first_name=first_name,
+        last_name=last_name,
+    )
+    return user, True
+
+
+def _ensure_employee_role(EmployeeProfile, user, role):
+    profile, _ = EmployeeProfile.objects.get_or_create(user=user)
+    if profile.role != role:
+        profile.role = role
+        profile.save(update_fields=["role"])
+
+
+def _username_seed_from_email(email: str, fallback: str) -> str:
+    local_part = (email or "").split("@", 1)[0]
+    candidate = slugify(local_part).replace("-", "_")
     if not candidate:
-        candidate = f"{slugify(company.slug or company.schema_name).replace('-', '_')}_admin"
-    return candidate[:150]
+        candidate = slugify(fallback).replace("-", "_")
+    return candidate[:150] or "tenant_user"
+
+
+def _next_available_username(User, seed: str) -> str:
+    base = (seed or "tenant_user")[:150]
+    if not User.objects.filter(username=base).exists():
+        return base
+
+    suffix = 2
+    while True:
+        candidate = f"{base[:146]}_{suffix}"
+        if not User.objects.filter(username=candidate).exists():
+            return candidate
+        suffix += 1
 
 
 def _split_name(value: str):
