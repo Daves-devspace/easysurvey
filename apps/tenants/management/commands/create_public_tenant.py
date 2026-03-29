@@ -66,6 +66,12 @@ class Command(BaseCommand):
             default="Demo Company",
             help="Display name for the demo tenant",
         )
+        parser.add_argument(
+            "--force-demo-domain-sync",
+            action="store_true",
+            default=False,
+            help="Overwrite the existing demo tenant domain with --demo-domain if the tenant already exists.",
+        )
         # --- Superadmin ---
         parser.add_argument("--superadmin-username", default=os.environ.get("SUPERADMIN_USERNAME", ""))
         parser.add_argument("--superadmin-email", default=os.environ.get("SUPERADMIN_EMAIL", ""))
@@ -105,7 +111,18 @@ class Command(BaseCommand):
                     f"{'Created' if demo_created else 'Exists'}: demo tenant '{demo_tenant.name}'"
                 )
             )
-            _sync_single_domain(self, demo_tenant, _strip_domain(options["demo_domain"]))
+            demo_domain = _strip_domain(options["demo_domain"])
+            if demo_created or options["force_demo_domain_sync"] or not Domain.objects.filter(tenant=demo_tenant).exists():
+                _sync_single_domain(self, demo_tenant, demo_domain)
+            else:
+                existing_primary = Domain.objects.filter(tenant=demo_tenant, is_primary=True).first()
+                current_domain = existing_primary.domain if existing_primary else "(none)"
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  Preserving existing demo domain: {current_domain}. "
+                        f"Use --force-demo-domain-sync to replace it with {demo_domain}."
+                    )
+                )
 
         # ------------------------------------------------------------------ #
         # 3. Platform superadmin                                              #

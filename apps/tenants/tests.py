@@ -1,7 +1,9 @@
 from datetime import timedelta
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.core.management import call_command
 from django.db import connection
 from django.db.models.signals import post_save
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -178,3 +180,63 @@ class TenantArchiveRestoreViewTests(TestCase):
         public_company.refresh_from_db()
         self.assertIsNone(public_company.deleted_at)
         self.assertTrue(public_company.is_active)
+
+
+class CreatePublicTenantCommandTests(TestCase):
+    def setUp(self):
+        connection.set_schema_to_public()
+
+        original_auto_create = Company.auto_create_schema
+        Company.auto_create_schema = False
+        try:
+            with schema_context('public'):
+                self.demo_tenant, _ = Company.objects_with_deleted.update_or_create(
+                    schema_name='demo_company',
+                    defaults={
+                        'name': 'Demo Company',
+                        'slug': 'demo',
+                        'admin_email': 'admin@example.com',
+                        'is_active': True,
+                    },
+                )
+
+                Domain.objects.filter(tenant=self.demo_tenant).delete()
+                self.demo_domain = Domain.objects.create(
+                    tenant=self.demo_tenant,
+                    domain='demo.localhost',
+                    is_primary=True,
+                )
+        finally:
+            Company.auto_create_schema = original_auto_create
+
+    def test_create_public_tenant_preserves_existing_demo_domain(self):
+        out = StringIO()
+        call_command(
+            'create_public_tenant',
+            '--domain', 'localhost',
+            '--create-demo',
+            '--demo-domain', 'demo.127.0.0.1.sslip.io',
+            '--superadmin-username', '',
+            '--superadmin-email', '',
+            '--superadmin-password', '',
+            stdout=out,
+        )
+
+        self.demo_domain.refresh_from_db()
+        self.assertEqual(self.demo_domain.domain, 'demo.localhost')
+        self.assertIn('Preserving existing demo domain', out.getvalue())
+
+    def test_create_public_tenant_force_sync_overwrites_demo_domain(self):
+        call_command(
+            'create_public_tenant',
+            '--domain', 'localhost',
+            '--create-demo',
+            '--demo-domain', 'demo.127.0.0.1.sslip.io',
+            '--force-demo-domain-sync',
+            '--superadmin-username', '',
+            '--superadmin-email', '',
+            '--superadmin-password', '',
+        )
+
+        self.demo_domain.refresh_from_db()
+        self.assertEqual(self.demo_domain.domain, 'demo.127.0.0.1.sslip.io')

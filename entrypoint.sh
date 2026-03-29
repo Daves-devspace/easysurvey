@@ -91,13 +91,20 @@ if [ "$RUN_MODE" = "web" ]; then
       DEFAULT_DEMO_DOMAIN="demo.${TENANT_DEV_BASE_DOMAIN#.}"
     fi
 
+    DEMO_DOMAIN_ARGS=""
+    if [ -n "$DEMO_TENANT_DOMAIN" ]; then
+      DEMO_DOMAIN_ARGS="--demo-domain $DEMO_TENANT_DOMAIN --force-demo-domain-sync"
+    else
+      DEMO_DOMAIN_ARGS="--demo-domain $DEFAULT_DEMO_DOMAIN"
+    fi
+
     log "Bootstrapping public tenant (idempotent)..."
     python manage.py create_public_tenant \
       --domain "${PUBLIC_TENANT_DOMAIN:-localhost}" \
       --name "${PUBLIC_TENANT_NAME:-PlotSync Public}" \
       --admin-email "${PUBLIC_TENANT_EMAIL:-admin@plotsync.com}" \
       --create-demo \
-      --demo-domain "${DEMO_TENANT_DOMAIN:-$DEFAULT_DEMO_DOMAIN}" \
+      $DEMO_DOMAIN_ARGS \
       --superadmin-username "${SUPERADMIN_USERNAME:-}" \
       --superadmin-email "${SUPERADMIN_EMAIL:-}" \
       --superadmin-password "${SUPERADMIN_PASSWORD:-}"
