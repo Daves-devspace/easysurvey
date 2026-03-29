@@ -260,6 +260,14 @@ class CustomPasswordResetForm(PasswordResetForm):
             'company_name': company_name,
         })
 
+        # Provide default template names
+        if not subject_template_name:
+            subject_template_name = 'registration/password_reset_subject.txt'
+        if not email_template_name:
+            email_template_name = 'registration/password_reset_email.html'
+        if not html_email_template_name:
+            html_email_template_name = 'registration/password_reset_email.html'
+
         # Call parent's save with updated context
         return super().save(
             domain_override=domain_override,
@@ -280,6 +288,14 @@ class CustomPasswordResetForm(PasswordResetForm):
         """
         print("CustomPasswordResetForm.send_mail called")
         try:
+            # Provide default template names if not specified
+            if not subject_template_name:
+                subject_template_name = 'registration/password_reset_subject.txt'
+            if not email_template_name:
+                email_template_name = 'registration/password_reset_email.html'
+            if not html_email_template_name:
+                html_email_template_name = 'registration/password_reset_email.html'
+
             # Log backend and connection settings
             logger.debug("Email backend: %s", settings.EMAIL_BACKEND)
             logger.debug("Using SMTP server: %s:%s TLS=%s SSL=%s", 
