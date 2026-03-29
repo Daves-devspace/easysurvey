@@ -122,19 +122,19 @@
                 <div class="tab-pane fade" id="step2" role="tabpanel">
                   <div class="row g-3 mt-1">
                     <div class="col-md-4">
-                      <label class="form-label">Max Users</label>
+                      <label class="form-label">Max Users <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
                       <input type="number" class="form-control" name="max_users"
-                             value="{{ form_data.max_users|default:'10' }}" min="1">
+                             value="{{ form_data.max_users|default:'' }}" placeholder="Unlimited" min="1">
                     </div>
                     <div class="col-md-4">
-                      <label class="form-label">Max Clients</label>
+                      <label class="form-label">Max Clients <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
                       <input type="number" class="form-control" name="max_clients"
-                             value="{{ form_data.max_clients|default:'100' }}" min="1">
+                             value="{{ form_data.max_clients|default:'' }}" placeholder="Unlimited" min="1">
                     </div>
                     <div class="col-md-4">
-                      <label class="form-label">Max Storage (GB)</label>
+                      <label class="form-label">Max Storage (GB) <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
                       <input type="number" class="form-control" name="max_storage_gb"
-                             value="{{ form_data.max_storage_gb|default:'10' }}" min="1">
+                             value="{{ form_data.max_storage_gb|default:'' }}" placeholder="Unlimited" min="1">
                     </div>
                     <div class="col-md-4">
                       <label class="form-label">Trial Period (days)</label>

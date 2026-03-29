@@ -104,9 +104,9 @@ class TenantOnboardView(SuperAdminRequired, View):
         bootstrap_it_email = request.POST.get("bootstrap_it_email", "").strip().lower()
         bootstrap_it_name = request.POST.get("bootstrap_it_name", "").strip()
         plan = request.POST.get("plan", "starter")
-        max_users = _safe_int(request.POST.get("max_users"), 10)
-        max_clients = _safe_int(request.POST.get("max_clients"), 100)
-        max_storage_gb = _safe_int(request.POST.get("max_storage_gb"), 10)
+        max_users = _safe_int(request.POST.get("max_users"), None)
+        max_clients = _safe_int(request.POST.get("max_clients"), None)
+        max_storage_gb = _safe_int(request.POST.get("max_storage_gb"), None)
         trial_period_days = _safe_int(request.POST.get("trial_period_days"), 30)
         paid_until = request.POST.get("paid_until") or None
         # optional initial payment
@@ -128,8 +128,10 @@ class TenantOnboardView(SuperAdminRequired, View):
             errors.append("Admin email and Bootstrap IT Support email must be different.")
         if plan not in dict(Company.PLAN_CHOICES):
             errors.append("Invalid plan selected.")
-        if max_users < 1 or max_clients < 1 or max_storage_gb < 1:
-            errors.append("Limits must be at least 1.")
+        if (max_users is not None and max_users < 1) or \
+                (max_clients is not None and max_clients < 1) or \
+                (max_storage_gb is not None and max_storage_gb < 1):
+            errors.append("Limits must be at least 1 (or leave blank for unlimited).")
         if trial_period_days < 0:
             errors.append("Trial period cannot be negative.")
         if months_purchased < 1:
@@ -319,6 +321,10 @@ class TenantUpdateView(SuperAdminRequired, View):
             errors.append("Admin email and IT Support email must be different.")
         if plan and plan not in dict(Company.PLAN_CHOICES):
             errors.append("Invalid plan selected.")
+        if (max_users is not None and max_users < 1) or \
+                (max_clients is not None and max_clients < 1) or \
+                (max_storage_gb is not None and max_storage_gb < 1):
+            errors.append("Limits must be at least 1 (or leave blank for unlimited).")
         if not domain:
             errors.append("Primary domain is required.")
         if name and Company.objects.exclude(pk=company.pk).filter(name=name).exists():
@@ -354,11 +360,11 @@ class TenantUpdateView(SuperAdminRequired, View):
                 company.notes = notes
                 if plan and plan in dict(Company.PLAN_CHOICES):
                     company.plan = plan
-                if max_users and max_users >= 1:
+                if max_users is None or max_users >= 1:
                     company.max_users = max_users
-                if max_clients and max_clients >= 1:
+                if max_clients is None or max_clients >= 1:
                     company.max_clients = max_clients
-                if max_storage_gb and max_storage_gb >= 1:
+                if max_storage_gb is None or max_storage_gb >= 1:
                     company.max_storage_gb = max_storage_gb
                 if trial_period_days is not None and trial_period_days >= 0:
                     company.trial_period_days = trial_period_days
@@ -411,9 +417,9 @@ class SubscriptionSetupView(SuperAdminRequired, View):
 
         plan = request.POST.get("plan", company.plan)
         paid_until = request.POST.get("paid_until", "").strip()
-        max_users = request.POST.get("max_users", "").strip()
-        max_clients = request.POST.get("max_clients", "").strip()
-        max_storage_gb = request.POST.get("max_storage_gb", "").strip()
+        max_users = _safe_int(request.POST.get("max_users"), None)
+        max_clients = _safe_int(request.POST.get("max_clients"), None)
+        max_storage_gb = _safe_int(request.POST.get("max_storage_gb"), None)
         is_active = request.POST.get("is_active") == "1"
         amount = request.POST.get("amount", "").strip()
         months_purchased = _safe_int(request.POST.get("months_purchased"), 1)
@@ -426,12 +432,9 @@ class SubscriptionSetupView(SuperAdminRequired, View):
         if paid_until:
             from datetime import date
             company.paid_until = date.fromisoformat(paid_until)
-        if max_users:
-            company.max_users = int(max_users)
-        if max_clients:
-            company.max_clients = int(max_clients)
-        if max_storage_gb:
-            company.max_storage_gb = int(max_storage_gb)
+        company.max_users = max_users
+        company.max_clients = max_clients
+        company.max_storage_gb = max_storage_gb
         company.save()
 
         # Record payment if amount provided

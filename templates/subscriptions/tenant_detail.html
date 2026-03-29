@@ -174,9 +174,9 @@
                           </tr>
                           <tr><td class="text-muted">Paid Until</td><td>{{ company.paid_until|default:"—" }}</td></tr>
                           <tr><td class="text-muted">Days Left</td><td>{{ company.days_until_expiry }}</td></tr>
-                          <tr><td class="text-muted">Max Users</td><td>{{ company.max_users }}</td></tr>
-                          <tr><td class="text-muted">Max Clients</td><td>{{ company.max_clients }}</td></tr>
-                          <tr><td class="text-muted">Max Storage</td><td>{{ company.max_storage_gb }} GB</td></tr>
+                          <tr><td class="text-muted">Max Users</td><td>{{ company.max_users|default:"Unlimited" }}</td></tr>
+                          <tr><td class="text-muted">Max Clients</td><td>{{ company.max_clients|default:"Unlimited" }}</td></tr>
+                          <tr><td class="text-muted">Max Storage</td><td>{% if company.max_storage_gb %}{{ company.max_storage_gb }} GB{% else %}Unlimited{% endif %}</td></tr>
                           <tr><td class="text-muted">Total Paid</td><td><strong>{{ total_paid|floatformat:2 }}</strong></td></tr>
                         </table>
                       </div>
@@ -204,16 +204,16 @@
                                      value="{{ company.paid_until|date:'Y-m-d'|default:'' }}">
                             </div>
                             <div class="col-md-4">
-                              <label class="form-label">Max Users</label>
-                              <input type="number" class="form-control form-control-sm" name="max_users" value="{{ company.max_users }}" min="1">
+                              <label class="form-label">Max Users <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                              <input type="number" class="form-control form-control-sm" name="max_users" value="{{ company.max_users|default:'' }}" placeholder="Unlimited" min="1">
                             </div>
                             <div class="col-md-4">
-                              <label class="form-label">Max Clients</label>
-                              <input type="number" class="form-control form-control-sm" name="max_clients" value="{{ company.max_clients }}" min="1">
+                              <label class="form-label">Max Clients <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                              <input type="number" class="form-control form-control-sm" name="max_clients" value="{{ company.max_clients|default:'' }}" placeholder="Unlimited" min="1">
                             </div>
                             <div class="col-md-4">
-                              <label class="form-label">Max Storage (GB)</label>
-                              <input type="number" class="form-control form-control-sm" name="max_storage_gb" value="{{ company.max_storage_gb }}" min="1">
+                              <label class="form-label">Max Storage (GB) <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                              <input type="number" class="form-control form-control-sm" name="max_storage_gb" value="{{ company.max_storage_gb|default:'' }}" placeholder="Unlimited" min="1">
                             </div>
                             <div class="col-12">
                               <div class="form-check">

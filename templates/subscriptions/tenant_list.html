@@ -495,16 +495,16 @@
             </h6>
             <div class="row g-3">
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Users</label>
-                <input type="number" class="form-control" name="max_users" value="10" min="1">
+                <label class="form-label fw-semibold">Max Users <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_users" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Clients</label>
-                <input type="number" class="form-control" name="max_clients" value="100" min="1">
+                <label class="form-label fw-semibold">Max Clients <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_clients" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Storage (GB)</label>
-                <input type="number" class="form-control" name="max_storage_gb" value="10" min="1">
+                <label class="form-label fw-semibold">Max Storage (GB) <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_storage_gb" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
                 <label class="form-label fw-semibold">Trial Days</label>
@@ -680,16 +680,16 @@
             </h6>
             <div class="row g-3">
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Users</label>
-                <input type="number" class="form-control" name="max_users" id="upd_max_users" min="1">
+                <label class="form-label fw-semibold">Max Users <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_users" id="upd_max_users" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Clients</label>
-                <input type="number" class="form-control" name="max_clients" id="upd_max_clients" min="1">
+                <label class="form-label fw-semibold">Max Clients <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_clients" id="upd_max_clients" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
-                <label class="form-label fw-semibold">Max Storage (GB)</label>
-                <input type="number" class="form-control" name="max_storage_gb" id="upd_max_storage_gb" min="1">
+                <label class="form-label fw-semibold">Max Storage (GB) <small class="text-muted">(blank&nbsp;=&nbsp;unlimited)</small></label>
+                <input type="number" class="form-control" name="max_storage_gb" id="upd_max_storage_gb" placeholder="Unlimited" min="1">
               </div>
               <div class="col-md-3">
                 <label class="form-label fw-semibold">Trial Days</label>
@@ -922,9 +922,9 @@ function updBuildReview() {
     ['Bootstrap IT Name',   d.get('bootstrap_it_name') || '—'],
     ['Plan',                d.get('plan')],
     ['Paid Until',          d.get('paid_until') || '(unchanged)'],
-    ['Max Users',           d.get('max_users')],
-    ['Max Clients',         d.get('max_clients')],
-    ['Max Storage (GB)',    d.get('max_storage_gb')],
+    ['Max Users',           d.get('max_users') || 'Unlimited'],
+    ['Max Clients',         d.get('max_clients') || 'Unlimited'],
+    ['Max Storage (GB)',    d.get('max_storage_gb') || 'Unlimited'],
     ['Trial Days',          d.get('trial_period_days')],
     ['Company Email',       d.get('email') || '—'],
     ['Phone',               d.get('phone') || '—'],
@@ -1028,9 +1028,9 @@ function obBuildReview() {
     ['Bootstrap IT Name',  d.get('bootstrap_it_name') || '—'],
     ['Plan',             d.get('plan')],
     ['Paid Until',       d.get('paid_until') || 'Trial period'],
-    ['Max Users',        d.get('max_users')],
-    ['Max Clients',      d.get('max_clients')],
-    ['Max Storage (GB)', d.get('max_storage_gb')],
+    ['Max Users',        d.get('max_users') || 'Unlimited'],
+    ['Max Clients',      d.get('max_clients') || 'Unlimited'],
+    ['Max Storage (GB)', d.get('max_storage_gb') || 'Unlimited'],
     ['Trial Days',       d.get('trial_period_days')],
     ['Initial Payment',  d.get('initial_amount')
       ? 'KES ' + d.get('initial_amount') + ' · ref: ' + (d.get('initial_reference') || '—') + ' · ' + d.get('months_purchased') + ' mo'

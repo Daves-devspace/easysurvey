@@ -232,16 +232,16 @@ class Company(TenantMixin):
     
     # ==================== USAGE TRACKING ====================
     max_users = models.IntegerField(
-        default=10,
-        help_text="Maximum number of users allowed (based on plan)"
+        null=True, blank=True, default=None,
+        help_text="Maximum number of users allowed (null = unlimited)"
     )
     max_clients = models.IntegerField(
-        default=100,
-        help_text="Maximum number of clients (based on plan)"
+        null=True, blank=True, default=None,
+        help_text="Maximum number of clients (null = unlimited)"
     )
     max_storage_gb = models.IntegerField(
-        default=10,
-        help_text="Maximum storage in GB (based on plan)"
+        null=True, blank=True, default=None,
+        help_text="Maximum storage in GB (null = unlimited)"
     )
     
     # ==================== INTERNAL TRACKING ====================
