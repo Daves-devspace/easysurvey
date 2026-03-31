@@ -2,7 +2,7 @@
     {% if employee.filtered_payrolls %}
         {% for payroll in employee.filtered_payrolls %}
         <tr>
-            <td>{{ employee.user.get_full_name }}</td>
+            <td>{{ employee.user.get_full_name|default:employee.user.username|default:"User" }}</td>
             <td>{{ employee.department.name }}</td>
             <td>{{ employee.role }}</td>
             <td>{{ employee.phone }}</td>

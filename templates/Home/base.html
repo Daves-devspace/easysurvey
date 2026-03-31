@@ -737,12 +737,12 @@
                             <div class="card-body d-flex align-items-center bg-green-100 justify-content-between p-2">
                                 <div class="flex-shrink-0">
                                     <img src="{{ employee_avatar_url }}" 
-                                        alt="{{ request.user.get_full_name|default:'User' }}" 
+                                        alt="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username|default:'User' }}{% else %}User{% endif %}" 
                                         class="rounded-circle user-avatar" style="width:48px;height:48px;object-fit:cover;"
                                         onerror="this.onerror=null;this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">
                                 </div>
                                 <div class="flex-grow-1 ms-2 text-start bg-green-100">
-                                    <h6 class="mb-0">{{ request.user.get_full_name|default:'User' }}</h6>
+                                    <h6 class="mb-0">{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username|default:'User' }}{% else %}User{% endif %}</h6>
                                     <small class="text-muted">{{ employee_role }}</small>
                                 </div>
                                 <div class="flex-shrink-0 ms-2">
@@ -875,7 +875,7 @@
                                     {% with request.user.employeeprofile as profile %}
                                         {% if profile and profile.profile_picture %}
                                             <img src="{{ employee_avatar_url }}" 
-                                        alt="{{ request.user.get_full_name|default:'User' }}" 
+                                        alt="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username|default:'User' }}{% else %}User{% endif %}" 
                                         class="rounded-circle user-avatar " 
                                         style="width: 35px; height: 35px; object-fit: cover;"
                                         onerror="this.onerror=null; this.src='{% static 'assets/images/user/avatar-2.jpg' %}';">

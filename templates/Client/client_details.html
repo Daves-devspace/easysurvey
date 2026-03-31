@@ -352,7 +352,7 @@
                                                                     <small class="text-muted d-block mt-1">
                                                                         <strong class="text-orange-800">Assigned to:</strong>
                                                                         {% if cs.assigned_employee %}
-                                                                            {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username }}
+                                                                            {{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username|default:"User" }}
                                                                         {% else %}
                                                                             <span class="text-danger">Unassigned</span>
                                                                         {% endif %}
@@ -426,7 +426,7 @@
                                                                                 data-land-description="{{ cs.land_description|default_if_none:'' }}"
                                                                                 data-override-total="{{ cs.overridden_total_price|floatformat:2 }}"
                                                                                 data-assigned-employee-id="{{ cs.assigned_employee_id|default:'' }}"
-                                                                                data-assigned-employee-name="{% if cs.assigned_employee %}{{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username|escape }}{% endif %}"
+                                                                                data-assigned-employee-name="{% if cs.assigned_employee %}{{ cs.assigned_employee.get_full_name|default:cs.assigned_employee.username|default:'User'|escape }}{% endif %}"
                                                                                 data-expected-duration-days="{{ cs.expected_duration_days|default:cs.service.expected_duration_days|default:'' }}"
 
                                                                                 data-scheduled-date="{% if cs.ground_data and cs.ground_data.0 %}{{ cs.ground_data.0.scheduled_date|date:'Y-m-d\\TH:i' }}{% endif %}"
@@ -556,8 +556,8 @@
                                                                                         {% if sp.active_assignments %}
                                                                                             <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
                                                                                                 {% for pa in sp.active_assignments %}
-                                                                                                    <span class="badge text-bg-light border rounded-pill fw-normal px-2 py-1" title="{{ pa.assignee.get_full_name|default:pa.assignee.username }}">
-                                                                                                        <span class="text-dark">{{ pa.assignee.get_full_name|default:pa.assignee.username }}</span>
+                                                                                                    <span class="badge text-bg-light border rounded-pill fw-normal px-2 py-1" title="{{ pa.assignee.get_full_name|default:pa.assignee.username|default:'User' }}">
+                                                                                                        <span class="text-dark">{{ pa.assignee.get_full_name|default:pa.assignee.username|default:'User' }}</span>
                                                                                                         {% if pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
                                                                                                             <span class="text-success"> · done</span>
                                                                                                         {% elif pa.acceptance_status == 'accepted' %}
@@ -947,7 +947,7 @@
                                                                 <small class="text-muted">
                                                                     Submitted by:
                                                                     {% if cs.title_deed_collection.submitted_by %}
-                                                                        {{ cs.title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username }}
+                                                                        {{ cs.title_deed_collection.submitted_by.get_full_name|default:cs.title_deed_collection.submitted_by.username|default:'User' }}
                                                                     {% else %}
                                                                         <em>Unknown user</em>
                                                                     {% endif %}
@@ -1175,7 +1175,7 @@
                                                         </td>
                                                         <td>
                                                             {% if doc.latest_handoff %}
-                                                                {{ doc.latest_handoff.assigned_to.get_full_name|default:doc.latest_handoff.assigned_to.username }}
+                                                                {{ doc.latest_handoff.assigned_to.get_full_name|default:doc.latest_handoff.assigned_to.username|default:'User' }}
                                                             {% else %}
                                                                 <span class="text-muted">Unassigned</span>
                                                             {% endif %}
@@ -1323,7 +1323,7 @@
                                                             <option value="">Select employee</option>
                                                             {% for employee in handoff_employees %}
                                                                 <option value="{{ employee.id }}">
-                                                                    {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                                                                    {% if employee.get_full_name %}{{ employee.get_full_name }}{% elif employee.username %}{{ employee.username }}{% else %}User{% endif %}
                                                                 </option>
                                                             {% endfor %}
                                                         </select>

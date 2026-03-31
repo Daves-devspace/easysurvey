@@ -5,3 +5,6 @@ sentence-transformers
 transformers
 torch
 mysqlclient==2.2.7
+
+pytest
+pytest-django

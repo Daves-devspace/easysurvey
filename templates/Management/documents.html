@@ -162,7 +162,7 @@
                                             {% if document_assigning_enabled %}
                                             <td>
                                               {% if document.latest_handoff %}
-                                                {{ document.latest_handoff.assigned_to.get_full_name|default:document.latest_handoff.assigned_to.username }}
+                                                {{ document.latest_handoff.assigned_to.get_full_name|default:document.latest_handoff.assigned_to.username|default:"User" }}
                                               {% else %}
                                                 <span class="text-muted">Unassigned</span>
                                               {% endif %}
@@ -335,7 +335,7 @@
               <option value="">Select employee</option>
               {% for employee in handoff_employees %}
                 <option value="{{ employee.id }}">
-                  {% if employee.get_full_name %}{{ employee.get_full_name }}{% else %}{{ employee.username }}{% endif %}
+                  {% if employee.get_full_name %}{{ employee.get_full_name }}{% elif employee.username %}{{ employee.username }}{% else %}User{% endif %}
                 </option>
               {% endfor %}
             </select>

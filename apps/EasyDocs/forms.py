@@ -225,6 +225,17 @@ class CustomPasswordResetForm(PasswordResetForm):
         logger.debug("CustomPasswordResetForm.save called with email: %s", 
                      self.cleaned_data.get('email', 'unknown'))
 
+        # Strict PK/email logging for all users matching this email
+        email = self.cleaned_data.get('email', '').strip().lower()
+        UserModel = self._meta.model if hasattr(self, '_meta') and hasattr(self._meta, 'model') else User
+        matching_users = UserModel._default_manager.filter(email__iexact=email)
+        logger.info(f"[DEBUG] PasswordResetForm.save: Matching users for email '{email}': {[{'pk': u.pk, 'username': u.username, 'is_active': u.is_active} for u in matching_users]}")
+
+        # If any PK does not exist, log an error
+        for u in matching_users:
+            if not UserModel._default_manager.filter(pk=u.pk).exists():
+                logger.error(f"[SECURITY] PasswordResetForm.save: User with pk={u.pk} for email={email} does not exist in DB!")
+
         # Get site settings
         try:
             settings_obj = SiteSettings.objects.first()

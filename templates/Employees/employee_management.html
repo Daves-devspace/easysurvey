@@ -220,7 +220,7 @@
                                                                     aria-controls="collapse-{{ employee.id }}">
 
                                                                 <div class="d-flex align-items-center flex-wrap gap-3">
-                                                                    <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name }}</span>
+                                                                    <span class="fw-semibold fs-5 mb-0">{{ employee.user.get_full_name|default:employee.user.username|default:"User" }}</span>
 
                                                                     <small class="text-muted mb-0">
                                                                         {{ employee.department }}
@@ -521,7 +521,7 @@
                                                 {% for employee in employees_with_payroll %}
                                                     {% with payroll=employee.latest_payrolls.0 %}
                                                         <tr>
-                                                            <td>{{ employee.user.get_full_name }}</td>
+                                                            <td>{{ employee.user.get_full_name|default:employee.user.username|default:"User" }}</td>
                                                             <td>{{ employee.department }}</td>
                                                             <td>{{ employee.get_role_display }}</td>
                                                             <td>{{ employee.phone_number }}</td>

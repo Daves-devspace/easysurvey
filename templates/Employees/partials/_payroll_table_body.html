@@ -2,7 +2,7 @@
   {% for employee in employees %}
     {% with payroll=employee.filtered_payrolls|first %}
       <tr>
-        <td>{{ employee.user.get_full_name }}</td>
+        <td>{{ employee.user.get_full_name|default:employee.user.username|default:"User" }}</td>
         <td>{{ employee.department }}</td>
         <td>{{ employee.get_role_display }}</td>
         <td>{{ employee.phone_number }}</td>

@@ -57,7 +57,8 @@ class CustomLoginView(LoginView):
                     self.request,
                     "IT Support access is currently disabled for this tenant. Ask a tenant admin to grant temporary support access.",
                 )
-                return redirect('login')
+                # Redirect to a dedicated support access denied page
+                return redirect('support_access_denied')
 
         if profile and profile.force_password_reset:
             if not user.email:
@@ -174,11 +175,34 @@ class CustomPasswordResetView(SuccessMessageMixin, PasswordResetView):
 
 
 class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    def dispatch(self, request, *args, **kwargs):
+        from django.db import connection
+        from django.utils.http import urlsafe_base64_decode
+        from django.contrib.auth.tokens import default_token_generator
+        from django.contrib.auth import get_user_model
+        logger.warning(f"[DEBUG] PasswordResetConfirmView.dispatch: current schema is {connection.schema_name}")
+        uidb64 = kwargs.get('uidb64')
+        token = kwargs.get('token')
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            logger.warning(f"[DEBUG] Decoded PK from uidb64: {uid}")
+            User = get_user_model()
+            all_users = list(User.objects.all().values('id', 'email', 'is_active'))
+            logger.warning(f"[DEBUG] All users in schema: {all_users}")
+            user = User.objects.get(pk=uid)
+            logger.warning(f"[DEBUG] Loaded user: {user} (pk={uid})")
+            valid = default_token_generator.check_token(user, token)
+            logger.warning(f"[DEBUG] Token valid? {valid}")
+        except Exception as e:
+            logger.error(f"[DEBUG] Exception in token validation: {e}")
+        return super().dispatch(request, *args, **kwargs)
     form_class = CustomSetPasswordForm
     template_name = 'application/password_reset_confirm.html'
     success_url = reverse_lazy('password_reset_complete')
 
     def form_valid(self, form):
+        from django.db import connection
+        logger.warning(f"[DEBUG] PasswordResetConfirmView: current schema is {connection.schema_name}")
         logger.info(
             "PasswordResetConfirm.form_valid: resetting password for user=%s (id=%s)",
             self.user.username, self.user.pk,
@@ -201,6 +225,8 @@ class CustomPasswordResetConfirmView(PasswordResetConfirmView):
         return response
 
     def form_invalid(self, form):
+        from django.db import connection
+        logger.warning(f"[DEBUG] PasswordResetConfirmView (invalid): current schema is {connection.schema_name}")
         logger.warning(
             "PasswordResetConfirm.form_invalid: errors=%s",
             form.errors.as_json(),

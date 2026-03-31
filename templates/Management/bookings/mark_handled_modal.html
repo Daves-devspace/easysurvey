@@ -22,7 +22,7 @@
                            id="handle-s{{ surveyor.id }}"
                            {% if surveyor.id in assigned_ids %}checked{% endif %}>
                     <label class="form-check-label"
-                           for="handle-s{{ surveyor.id }}">{{ surveyor.get_full_name }}</label>
+                           for="handle-s{{ surveyor.id }}">{{ surveyor.get_full_name|default:surveyor.username|default:"User" }}</label>
                 </div>
             {% endfor %}
         </div>

@@ -343,16 +343,24 @@ class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
                 messages.error(request, f"User '{target_user.username}' has no email address.")
                 return redirect(self.success_url)
 
-            reset_form = CustomPasswordResetForm({'email': target_user.email})
-            if reset_form.is_valid():
-                reset_form.save(
-                    request=request,
-                    use_https=request.is_secure(),
-                    from_email=None,
-                )
-                messages.success(request, f"Password reset link sent to '{target_user.email}'.")
+            # Enforce correct tenant schema context
+            company = getattr(target_user, 'company', None)
+            schema_name = getattr(company, 'schema_name', None) if company else None
+            if schema_name:
+                from django_tenants.utils import schema_context
+                with schema_context(schema_name):
+                    reset_form = CustomPasswordResetForm({'email': target_user.email})
+                    if reset_form.is_valid():
+                        reset_form.save(
+                            request=request,
+                            use_https=request.is_secure(),
+                            from_email=None,
+                        )
+                        messages.success(request, f"Password reset link sent to '{target_user.email}'.")
+                    else:
+                        messages.error(request, f"Could not send reset for '{target_user.username}': {reset_form.errors.as_text()}")
             else:
-                messages.error(request, f"Could not send reset for '{target_user.username}': {reset_form.errors.as_text()}")
+                messages.error(request, f"Could not determine tenant schema for '{target_user.username}'.")
             return redirect(self.success_url)
 
         elif 'force_reset' in request.POST:
@@ -367,16 +375,24 @@ class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             profile.force_password_reset = True
             profile.save(update_fields=['force_password_reset'])
 
-            reset_form = CustomPasswordResetForm({'email': target_user.email})
-            if reset_form.is_valid():
-                reset_form.save(
-                    request=request,
-                    use_https=request.is_secure(),
-                    from_email=None,
-                )
-                messages.success(request, f"Forced reset enabled and reset link sent to '{target_user.email}'.")
+            # Enforce correct tenant schema context
+            company = getattr(target_user, 'company', None)
+            schema_name = getattr(company, 'schema_name', None) if company else None
+            if schema_name:
+                from django_tenants.utils import schema_context
+                with schema_context(schema_name):
+                    reset_form = CustomPasswordResetForm({'email': target_user.email})
+                    if reset_form.is_valid():
+                        reset_form.save(
+                            request=request,
+                            use_https=request.is_secure(),
+                            from_email=None,
+                        )
+                        messages.success(request, f"Forced reset enabled and reset link sent to '{target_user.email}'.")
+                    else:
+                        messages.warning(request, f"Forced reset enabled, but email send failed for '{target_user.username}'.")
             else:
-                messages.warning(request, f"Forced reset enabled, but email send failed for '{target_user.username}'.")
+                messages.error(request, f"Could not determine tenant schema for '{target_user.username}'.")
             return redirect(self.success_url)
 
         return super().get(request, *args, **kwargs)

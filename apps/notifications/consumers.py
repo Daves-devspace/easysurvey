@@ -7,8 +7,9 @@ from channels.db import database_sync_to_async
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        self.group_name = None  # Always define it
+        self.user = None
         user = self.scope['user']
-        
         from django.contrib.auth.models import AnonymousUser
 
         if user is None or isinstance(user, AnonymousUser):
@@ -16,20 +17,18 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             return
 
         self.user = user
-
-        # Normal user group
         self.group_name = f"user_{user.id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
-        # Superusers also join a global monitoring group
         if user.is_superuser:
             await self.channel_layer.group_add("superusers", self.channel_name)
 
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
-        if self.user.is_superuser:
+        if getattr(self, "group_name", None):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        if getattr(self, "user", None) and getattr(self.user, "is_superuser", False):
             await self.channel_layer.group_discard("superusers", self.channel_name)
 
     async def receive(self, text_data):

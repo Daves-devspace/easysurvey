@@ -4,7 +4,7 @@
     <h5 class="modal-title">
       {% if form.instance.pk %}Edit{% else %}Create{% endif %} Payroll
       {% if form.instance.pk %}
-        for {{ form.instance.employee.user.get_full_name }}
+        for {{ form.instance.employee.user.get_full_name|default:form.instance.employee.user.username|default:"User" }}
       {% endif %}
     </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

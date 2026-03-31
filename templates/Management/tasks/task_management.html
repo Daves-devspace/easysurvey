@@ -113,7 +113,7 @@
                                 <option value="">All employees</option>
                                 {% for employee in employees %}
                                     <option value="{{ employee.id }}" {% if filters.employee == employee.id|stringformat:'s' %}selected{% endif %}>
-                                        {{ employee.get_full_name|default:employee.username }}
+                                        {{ employee.get_full_name|default:employee.username|default:"User" }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -213,7 +213,7 @@
                                         <div class="d-flex flex-column gap-1">
                                             {% for pa in task.current_process_assignments %}
                                                 <span class="badge bg-light text-dark border text-start">
-                                                    {{ pa.assignee.get_full_name|default:pa.assignee.username }} ·
+                                                    {{ pa.assignee.get_full_name|default:pa.assignee.username|default:"User" }} ·
                                                     {% if pa.acceptance_status == 'accepted' and pa.completion_status == 'completed' %}
                                                         done
                                                     {% elif pa.acceptance_status == 'accepted' %}

@@ -588,6 +588,8 @@ def _ensure_bootstrap_tenant_users(company: Company):
     created_emails = []
     note = ""
 
+    import logging
+    logger = logging.getLogger(__name__)
     with tenant_context(company):
         from apps.Employee.models import EmployeeProfile
 
@@ -606,6 +608,7 @@ def _ensure_bootstrap_tenant_users(company: Company):
             full_name=it_name,
             fallback_username=f"{company.slug}_it",
         )
+        logger.info(f"[DEBUG] Created/Found IT Support user: pk={it_user.pk}, username={it_user.username}, email={it_user.email}, created={it_created}")
         _ensure_employee_role(EmployeeProfile, it_user, EmployeeProfile.RoleChoices.IT_SUPPORT)
         if it_created:
             created_users.append(f"IT Support ({it_user.username})")
@@ -620,12 +623,14 @@ def _ensure_bootstrap_tenant_users(company: Company):
                 full_name=admin_name,
                 fallback_username=f"{company.slug}_admin",
             )
+            logger.info(f"[DEBUG] Created/Found Tenant Admin user: pk={admin_user.pk}, username={admin_user.username}, email={admin_user.email}, created={admin_created}")
             _ensure_employee_role(EmployeeProfile, admin_user, EmployeeProfile.RoleChoices.ADMIN)
             if admin_created:
                 created_users.append(f"Tenant Admin ({admin_user.username})")
                 created_emails.append(admin_user.email)
         elif admin_email == it_email:
             note = "Admin email matches IT Support email; one bootstrap superuser is in use."
+    logger.info(f"[DEBUG] Final created_emails list for reset links: {created_emails}")
 
     return {
         "created_users": created_users,
@@ -644,24 +649,56 @@ def _send_bootstrap_reset_links(request, company: Company, emails):
     if not primary_domain:
         return {"sent": [], "failed": unique_emails}
 
+    # Always use SITE_DOMAIN's scheme and port, but swap hostname for tenant domain
+    import os
+    from urllib.parse import urlparse, urlunparse
+    site_domain = os.environ.get("SITE_DOMAIN", "http://localhost:8080")
+    parsed = urlparse(site_domain)
+    # Replace netloc with tenant domain + port (if present)
+    tenant_domain = primary_domain.domain
+    # If SITE_DOMAIN has a port, append it to tenant domain
+    if parsed.port:
+        netloc = f"{tenant_domain}:{parsed.port}"
+    else:
+        netloc = tenant_domain
+    domain_with_port = urlunparse((parsed.scheme, netloc, '', '', '', ''))  # Keep trailing slash if present
+
     from apps.EasyDocs.forms import CustomPasswordResetForm
 
+
+    User = get_user_model()
     sent = []
     failed = []
+    import logging
+    logger = logging.getLogger(__name__)
     for email in unique_emails:
+        logger.info(f"[DEBUG] Attempting reset link for email: {email} in tenant {company.schema_name}")
+        # Strict check: ensure user exists before sending reset link
+        user_qs = User.objects.filter(email__iexact=email)
+        if not user_qs.exists():
+            logger.warning(f"[SECURITY] Attempted to generate reset link for non-existent user email: {email} in tenant {company.schema_name}")
+            failed.append(email)
+            continue
+        user = user_qs.first()
+        logger.info(f"[DEBUG] Found user for reset: pk={user.pk}, username={user.username}, email={user.email}, is_active={user.is_active}")
+        # Extra strict: check user.pk exists in DB
+        if not User.objects.filter(pk=user.pk).exists():
+            logger.warning(f"[SECURITY] User object with pk={user.pk} for email {email} does not exist in DB in tenant {company.schema_name}")
+            failed.append(email)
+            continue
         form = CustomPasswordResetForm({"email": email})
         if not form.is_valid():
             failed.append(email)
             continue
-
         try:
             form.save(
                 request=request,
-                domain_override=primary_domain.domain,
+                domain_override=domain_with_port,
                 use_https=request.is_secure(),
             )
             sent.append(email)
         except Exception:
+            logger.warning(f"[SECURITY] Exception while sending reset link for user pk={user.pk}, email={email} in tenant {company.schema_name}")
             failed.append(email)
 
     return {"sent": sent, "failed": failed}

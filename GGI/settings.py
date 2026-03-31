@@ -526,7 +526,9 @@ BOT_MAX_PAYLOAD_BYTES = os.getenv("BOT_MAX_PAYLOAD_BYTES", 32 * 1024)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+# Robust parsing: strip whitespace from each host
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
+print("[Django] ALLOWED_HOSTS:", ALLOWED_HOSTS)
 #ALLOWED_HOSTS = ['*']
 
 if DEBUG:

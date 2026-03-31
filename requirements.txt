@@ -11,7 +11,8 @@ django-tenants==3.10.1
 # Databases
 psycopg2-binary==2.9.10
 django-crum
-
+pytest
+pytest-django
 # Celery + Redis
 celery==5.5.1
 django-celery-beat==2.8.0
