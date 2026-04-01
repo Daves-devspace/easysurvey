@@ -12,7 +12,7 @@ from .services import processes, services
 from apps.EasyDocs.accounts.accounts import AccountsDashboardView, ExpenseView, SubServiceFilterView, \
     LegalPayoutCreateView
 from apps.EasyDocs.services.sub_services import SubServicesStatusView
-from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView
+from apps.EasyDocs.auth_views import CustomPasswordResetConfirmView, LandingPageView, CustomLoginView, CustomPasswordResetView, logout_view
 
 
 from .communication import CommunicationView
@@ -74,7 +74,7 @@ urlpatterns = [
     path('', LandingPageView.as_view(), name='landing'),
     path('login/', CustomLoginView.as_view(), name='login'),
 
-    path('logout/', auth_views.logout_view, name='logout'),
+    path('logout/', logout_view, name='logout'),
     path('admin-dashboard/', HomeView.as_view(), name='home'),
     path('staff-dashboard/', StaffDashboardView.as_view(), name='staff-dashboard'),
 

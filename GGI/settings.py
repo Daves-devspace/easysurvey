@@ -1,3 +1,6 @@
+# --- SESSION COOKIE DOMAIN for Django Tenants ---
+# Ensures session cookie is valid for all subdomains (tenants)
+ # Set to your base domain, e.g. .example.com
 """
 Django settings for GGI project.
 
@@ -25,6 +28,7 @@ from cryptography.fernet import Fernet
 
 load_dotenv()
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,6 +40,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
+
+# --- SESSION COOKIE DOMAIN for Django Tenants ---
+SESSION_COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN', '.plotsync.co.ke')
+print("SESSION_COOKIE_DOMAIN =", SESSION_COOKIE_DOMAIN)
 
 SITE_DOMAIN = os.getenv("SITE_DOMAIN","http://localhost:8080")  # or your production domain
 TENANT_BASE_DOMAIN = os.getenv("TENANT_BASE_DOMAIN", "").strip()

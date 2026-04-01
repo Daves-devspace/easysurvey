@@ -39,10 +39,12 @@ class CustomLoginView(LoginView):
     success_url                 = reverse_lazy('home')
 
     def dispatch(self, request, *args, **kwargs):
-        logger.debug("CustomLoginView.dispatch: method=%s, user=%s, authenticated=%s",
+        logger.debug("CustomLoginView.dispatch: method=%s, user=%s, authenticated=%s, host=%s, path=%s",
                      request.method,
                      request.user,
-                     request.user.is_authenticated)
+                     request.user.is_authenticated,
+                     request.get_host(),
+                     request.path)
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -91,12 +93,11 @@ class CustomLoginView(LoginView):
 
         return response
 
-    def form_invalid(self, form):
-        # Called when credentials fail validation
-        logger.warning("CustomLoginView.form_invalid: login failed for username=%s; errors=%s",
-                       form.cleaned_data.get('username', '<none>'),
-                       form.errors.as_json())
-        return super().form_invalid(form)
+    def post(self, request, *args, **kwargs):
+        logger.debug("CustomLoginView.post: received POST request from host=%s, user_agent=%s",
+                     request.get_host(),
+                     request.META.get('HTTP_USER_AGENT', 'unknown'))
+        return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
         url = super().get_success_url() or str(self.success_url)

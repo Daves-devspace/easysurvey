@@ -1097,6 +1097,9 @@ def client_list(request):
 
 @login_required
 def add_client(request):
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f'[add_client] User: {request.user}, Authenticated: {request.user.is_authenticated}, Session: {request.session.session_key}')
     form = ClientForm(request.POST or None, request.FILES or None)
 
     # 🟢 AJAX submission (via modal)
