@@ -69,11 +69,14 @@ def draw_image_safe(c, image_field, x, y, width, height, preserve_aspect=True):
 def draw_icon_image(c, image_filename, x, y, width, height):
     """Attempts to draw a PNG icon from Django static files. Returns False if missing."""
     try:
-        # Check standard Django static directories for the icons
+        # Check standard Django static directories for the icons, specifically targeting static/assets/images
         image_paths = [
+            os.path.join(django_settings.BASE_DIR, 'static', 'assets', 'images', image_filename),
+            os.path.join(django_settings.BASE_DIR, 'staticfiles', 'assets', 'images', image_filename),
+            os.path.join(django_settings.STATIC_ROOT, 'assets', 'images', image_filename) if getattr(django_settings, 'STATIC_ROOT', None) else None,
+            # Fallbacks just in case
             os.path.join(django_settings.BASE_DIR, 'static', 'images', image_filename),
             os.path.join(django_settings.BASE_DIR, 'staticfiles', 'images', image_filename),
-            os.path.join(django_settings.STATIC_ROOT, 'images', image_filename) if getattr(django_settings, 'STATIC_ROOT', None) else None,
         ]
         
         path = next((p for p in image_paths if p and os.path.exists(p)), None)
