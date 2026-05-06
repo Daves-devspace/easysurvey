@@ -34,4 +34,4 @@ jobs:
           push: true
           # Tags the image with both 1.3 and latest for easier pulling on the VPS
           tags: |
-            davedevspace/smartsurveyor:1.3
+            davedevspace/smartsurveyor:1.4
