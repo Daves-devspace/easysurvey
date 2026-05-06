@@ -22,7 +22,7 @@ from reportlab.lib.utils import ImageReader
 
 logger = logging.getLogger(__name__)
 
-# Register Fonts
+# ─── FONT REGISTRATION ───
 try:
     font_paths = [
         os.path.join(django_settings.BASE_DIR, 'static', 'fonts', 'Roboto-Regular.ttf'),
@@ -47,6 +47,35 @@ except Exception as e:
     ROBOTO = "Helvetica"
     ROBOTO_BOLD = "Helvetica-Bold"
     ROBOTO_LIGHT = "Helvetica"
+
+# Try to register FontAwesome for the real icons
+HAS_FA = False
+try:
+    fa_brands_paths = [
+        os.path.join(django_settings.BASE_DIR, 'static', 'fonts', 'fa-brands-400.ttf'),
+        os.path.join(django_settings.BASE_DIR, 'staticfiles', 'fonts', 'fa-brands-400.ttf'),
+        os.path.join(django_settings.STATIC_ROOT, 'fonts', 'fa-brands-400.ttf') if django_settings.STATIC_ROOT else None,
+        'fa-brands-400.ttf'
+    ]
+    fa_solid_paths = [
+        os.path.join(django_settings.BASE_DIR, 'static', 'fonts', 'fa-solid-900.ttf'),
+        os.path.join(django_settings.BASE_DIR, 'staticfiles', 'fonts', 'fa-solid-900.ttf'),
+        os.path.join(django_settings.STATIC_ROOT, 'fonts', 'fa-solid-900.ttf') if django_settings.STATIC_ROOT else None,
+        'fa-solid-900.ttf'
+    ]
+    
+    brands_path = next((p for p in fa_brands_paths if p and os.path.exists(p)), None)
+    solid_path = next((p for p in fa_solid_paths if p and os.path.exists(p)), None)
+    
+    if brands_path and solid_path:
+        pdfmetrics.registerFont(TTFont('FA-Brands', brands_path))
+        pdfmetrics.registerFont(TTFont('FA-Solid', solid_path))
+        HAS_FA = True
+    else:
+        logger.warning("FontAwesome .ttf files not found in static/fonts/. Using text fallbacks for social icons.")
+except Exception as e:
+    logger.warning(f"Failed to load FontAwesome fonts: {e}")
+
 
 def safe_price(val):
     raw = val if val is not None else 0
@@ -78,8 +107,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     config = {
         "bank_name": "KCB BANK",
         "account_name": settings.company_name.upper() if settings and settings.company_name else "GEOSPOT SURVEYS",
-        "account_no": "7812000000",
-        "paybill": "123456",
+        "account_no": "7812470",
+        "paybill": "522533",
         "mpesa_phone": settings.company_phone if settings and settings.company_phone else "0792 944 218",
         "address_1": "29M7+M8G Nyahururu, Koinange Road & Kikuyu Kenya",
         "address_2": "Kikuyu Town & Othaya Building, First Floor, RM 25, Nyahururu Town",
@@ -133,7 +162,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     # ─── 2. HEADER CONTENT ───
     logo_drawn = False
     if settings and settings.logo:
-        logo_drawn = draw_image_safe(c, settings.logo, 10 * mm, height - 40 * mm, 50 * mm, 30 * mm, preserve_aspect=True)
+        # Increased Logo Size
+        logo_drawn = draw_image_safe(c, settings.logo, 10 * mm, height - 42 * mm, 60 * mm, 38 * mm, preserve_aspect=True)
     
     if not logo_drawn:
         c.setFillColor(HexColor("#FFFFFF"))
@@ -151,7 +181,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     y = height - 76 * mm
     c.setFillColor(text_dark)
     
-    # Safe string processing to prevent 500 errors on null database fields
     client_name = f"{client_service.client.first_name or ''} {client_service.client.last_name or ''}".strip() if client_service.client else "Unknown Client"
     land_desc = (client_service.land_description or "N/A")[:30].upper()
     req_date = client_service.requested_at.strftime('%d %b %Y').upper() if client_service.requested_at else "N/A"
@@ -162,16 +191,20 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawString(margin, y, "PAID BY :")
     c.setFont(ROBOTO_BOLD, 9)
     c.drawString(margin, y - 4 * mm, client_name)
-    c.setFont(ROBOTO_BOLD, 7)
-    c.drawString(margin, y - 8 * mm, f"REF: {land_desc}")
     
     # Center Block
     center_x = margin + 45 * mm
     c.setFont(ROBOTO_BOLD, 8)
     c.drawString(center_x, y, f"DATE: {req_date}")
     c.drawString(center_x, y - 4 * mm, f"RECEIPT NO: {receipt_no}") 
+    
+    # REF Block (Centered, Red, Increased Font Size)
+    c.setFillColor(brand_red)
+    c.setFont(ROBOTO_BOLD, 10.5) 
+    c.drawString(center_x, y - 9.5 * mm, f"REF: {land_desc}")
 
     # Right Block
+    c.setFillColor(text_dark)
     total_paid = safe_price(client_service.total_paid)
     c.setFont(ROBOTO_BOLD, 8)
     c.drawRightString(width - margin, y, "TOTAL PAID:")
@@ -179,7 +212,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawRightString(width - margin, y - 5 * mm, f"KSH {total_paid:,.0f}/=")
 
     # Red Dashed Separator Line
-    y -= 13 * mm
+    y -= 14 * mm
     c.setStrokeColor(brand_red)
     c.setLineWidth(1)
     c.setDash(3, 3) 
@@ -187,7 +220,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setDash()
 
     # ─── 4. TABLE HEADER ───
-    y -= 10 * mm
+    y -= 9 * mm
     c.setFillColor(brand_blue)
     c.rect(margin, y, width - (2 * margin), 7 * mm, fill=1, stroke=0)
     
@@ -212,7 +245,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 8) 
     
-    # Check if service is tied safely
     has_service = client_service.service is not None
 
     if has_service and client_service.service.category == ServiceCategory.TITLE:
@@ -287,9 +319,11 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawRightString(col_tot, y - 1 * mm, f"{total_price_val:,.0f}") 
     c.drawRightString(col_paid, y - 1 * mm, f"{total_paid:,.0f}") 
 
-    # ─── 7. FOOTER AREA ───
-    y_footer = y - 20 * mm 
-    
+    # ─── 7. FOOTER AREA (WITH SAFETY BOUNDARY) ───
+    y_footer = y - 18 * mm 
+    if y_footer < 54 * mm:
+        y_footer = 54 * mm
+
     c.setFillColor(brand_green)
     c.roundRect(margin, y_footer, 35 * mm, 5 * mm, 1.5 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#FFFFFF"))
@@ -321,10 +355,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(brand_red)
     c.drawString(margin + 22*mm, y_p, config['account_name'])
 
-    y_p -= 4 * mm
-    c.setFillColor(brand_green)
-    c.drawString(margin, y_p, f"Mpesa : {config['mpesa_phone']}")
-
     total_balance = safe_price(client_service.total_balance)
     c.setFillColor(brand_blue)
     c.rect(width - 55 * mm, y_footer - 1 * mm, 43 * mm, 7 * mm, fill=1, stroke=0)
@@ -343,48 +373,108 @@ def generate_service_receipt(client_service, printed_by_user: User):
 
     sig_drawn = False
     if settings and settings.stamp_signature:
-        sig_drawn = draw_image_safe(c, settings.stamp_signature, width - 55 * mm, y_sig - 20 * mm, 30 * mm, 12 * mm)
+        sig_drawn = draw_image_safe(c, settings.stamp_signature, width - 55 * mm, y_sig - 18 * mm, 30 * mm, 12 * mm)
     
-    # Safely get the user's name (Fallback to username or 'Admin' if first_name is empty)
     printed_by_name = printed_by_user.first_name or printed_by_user.username or "Admin"
 
     if not sig_drawn:
         c.setFillColor(brand_blue)
         c.setFont(ROBOTO_BOLD, 14) 
-        c.drawCentredString(width - 33 * mm, y_sig - 18 * mm, printed_by_name)
+        c.drawCentredString(width - 33 * mm, y_sig - 16 * mm, printed_by_name)
 
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 7)
     c.setStrokeColor(text_dark)
     c.setLineWidth(0.5)
     c.setDash(1, 1)
-    c.line(width - 55 * mm, y_sig - 24 * mm, width - 12 * mm, y_sig - 24 * mm)
+    c.line(width - 55 * mm, y_sig - 20 * mm, width - 12 * mm, y_sig - 20 * mm)
     c.setDash()
-    c.drawCentredString(width - 33 * mm, y_sig - 27 * mm, "AUTHORIZED SIGN")
+    c.drawCentredString(width - 33 * mm, y_sig - 23 * mm, "AUTHORIZED SIGN")
 
     # ─── 8. ABSOLUTE BOTTOM BARS ───
+    
+    # Addresses - Nyahururu strictly left, Kikuyu strictly right
     c.setFillColor(text_dark)
-    c.setFont(ROBOTO_BOLD, 6)
-    c.drawCentredString(width / 2, 16 * mm, config["address_1"])
-    c.drawCentredString(width / 2, 13 * mm, config["address_2"])
+    c.setFont(ROBOTO_BOLD, 5.5)
+    c.drawString(margin, 19 * mm, config["address_1"])
+    c.drawRightString(width - margin, 19 * mm, config["address_2"])
 
+    # Services Bar - Pushed up to leave a white margin below it
+    services_text = config["services_list"] + " | Land Conveyancing"
     c.setFillColor(brand_blue)
-    c.rect(0, 7 * mm, width, 4.5 * mm, fill=1, stroke=0)
+    c.rect(0, 11 * mm, width, 5 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#FFFFFF"))
     c.setFont(ROBOTO_BOLD, 6.5)
-    c.drawCentredString(width / 2, 8.2 * mm, config["services_list"])
+    c.drawCentredString(width / 2, 12.2 * mm, services_text)
 
+    # Contact Bar - Absolute bottom (Clean White Background)
+    icon_y = 3.5 * mm
+    x_pos = margin
+    
+    # Golden Social Icons (LinkedIn, Facebook, Instagram, X/Twitter, TikTok)
+    socials = [
+        ("\uf0e1", "in"), # LinkedIn
+        ("\uf39e", "f"),  # Facebook
+        ("\uf16d", "ig"), # Instagram
+        ("\ue61b", "X"),  # X / Twitter
+        ("\ue07b", "tt")  # TikTok
+    ]
+    
+    icon_width = 4.5
+    for fa_code, fallback_text in socials:
+        c.setFillColor(brand_gold)
+        c.roundRect(x_pos, icon_y - 1 * mm, icon_width * mm, 4.5 * mm, 1 * mm, fill=1, stroke=0)
+        c.setFillColor(HexColor("#FFFFFF"))
+        
+        # Draw Real FA Icon if loaded, otherwise fallback to text
+        if HAS_FA:
+            c.setFont('FA-Brands', 7.5)
+            c.drawCentredString(x_pos + (icon_width / 2.0) * mm, icon_y + 0.1 * mm, fa_code)
+        else:
+            c.setFont(ROBOTO_BOLD, 6.5)
+            c.drawCentredString(x_pos + (icon_width / 2.0) * mm, icon_y + 0.2 * mm, fallback_text)
+            
+        x_pos += (icon_width + 1.2) * mm
+
+    # Handle Name (Golden Badge)
     c.setFillColor(brand_gold)
-    c.rect(0, 0, width * 0.55, 7 * mm, fill=1, stroke=0)
-    c.setFillColor(brand_green)
-    c.rect(width * 0.55, 0, width * 0.45, 7 * mm, fill=1, stroke=0)
-    
-    c.setFillColor(brand_blue)
-    c.setFont(ROBOTO_BOLD, 7.5)
-    c.drawString(margin, 2 * mm, config["website"])
-    
+    c.roundRect(x_pos, icon_y - 1 * mm, 20 * mm, 4.5 * mm, 1 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#FFFFFF"))
-    c.drawRightString(width - margin, 2 * mm, config["mpesa_phone"])
+    c.setFont(ROBOTO_BOLD, 6.5)
+    c.drawCentredString(x_pos + 10 * mm, icon_y + 0.2 * mm, "geospot surveys")
+    
+    x_pos += 22 * mm
+    
+    # Website Text
+    c.setFillColor(brand_blue)
+    c.setFont(ROBOTO_BOLD, 7)
+    c.drawString(x_pos, icon_y + 0.2 * mm, config["website"])
+    
+    # Phone Numbers (Green Badge with custom White Call Icon)
+    phone_w = 40 * mm
+    phone_x = width - margin - phone_w
+    
+    # 1. Solid Green Box
+    c.setFillColor(brand_green)
+    c.roundRect(phone_x, icon_y - 1 * mm, phone_w, 4.5 * mm, 1 * mm, fill=1, stroke=0)
+    
+    # 2. White Circle representing the Call Icon boundary
+    c.setFillColor(HexColor("#FFFFFF"))
+    c.circle(phone_x + 3.5 * mm, icon_y + 1.25 * mm, 1.5 * mm, fill=1, stroke=0)
+    
+    # 3. Green Icon/Text inside the circle
+    c.setFillColor(brand_green)
+    if HAS_FA:
+        c.setFont('FA-Solid', 6)
+        c.drawCentredString(phone_x + 3.5 * mm, icon_y + 0.3 * mm, "\uf095") # Real Phone Icon
+    else:
+        c.setFont(ROBOTO_BOLD, 3.5)
+        c.drawCentredString(phone_x + 3.5 * mm, icon_y + 0.3 * mm, "TEL")    # Fallback Text
+    
+    # 4. White Phone Numbers
+    c.setFillColor(HexColor("#FFFFFF"))
+    c.setFont(ROBOTO_BOLD, 6.5)
+    c.drawRightString(phone_x + phone_w - 2 * mm, icon_y + 0.2 * mm, "0792 944 218 / 0759 618 519")
 
     c.showPage()
     c.save()
