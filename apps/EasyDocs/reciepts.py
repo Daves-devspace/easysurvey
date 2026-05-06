@@ -377,3 +377,15 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.save()
     buffer.seek(0)
     return buffer
+
+# ─── DJANGO VIEWS ─────────────────────────────────────────────────────────────
+@login_required
+def download_receipt(request, cs_id):
+    cs = get_object_or_404(ClientService, id=cs_id)
+    buf = generate_service_receipt(cs, request.user)
+
+    response = HttpResponse(buf, content_type='application/pdf')
+    filename = f"receipt_{cs.id}.pdf"
+    # Allow inline display in iframe
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
