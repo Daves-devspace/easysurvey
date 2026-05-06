@@ -105,8 +105,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     config = {
         "bank_name": "KCB BANK",
         "account_name": settings.company_name.upper() if settings and settings.company_name else "GEOSPOT SURVEYS",
-        "account_no": "7812000000",
-        "paybill": "123456",
+        "account_no": "7812470",
+        "paybill": "522533",
         "mpesa_phone": settings.company_phone if settings and settings.company_phone else "0792 944 218",
         "address_1": "29M7+M8G Nyahururu, Koinange Road & Kikuyu Kenya",
         "address_2": "Kikuyu Town & Othaya Building, First Floor, RM 25, Nyahururu Town",
