@@ -193,33 +193,95 @@ class AuditLogAdmin(admin.ModelAdmin):
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
     list_display = ("id", "company_name", "google_drive_enabled", "connection_status_badge", "updated_at")
-    readonly_fields = ("connection_status_badge", "company_email")
+    
+    # We add the diagnostic tracking fields as read-only so admins can't accidentally overwrite system logs
+    readonly_fields = (
+        "connection_status_badge", 
+        "company_email",
+        "drive_config_status",
+        "drive_last_test_status",
+        "drive_last_test_at",
+        "drive_config_updated_by"
+    )
+    
+    # Organized fieldsets for a clean admin UI
     fieldsets = (
-        (None, {
+        ("Company Info & Branding", {
             "fields": (
-                "company_name", "logo", "company_email", "company_phone", "allow_employee_sms",
-                "allow_employee_email", "tagline", "stamp_signature",
-                "google_drive_enabled", "google_oauth_client_id", "google_oauth_client_secret_encrypted",
-                "google_drive_root_folder_id", "google_drive_service_account_key_encrypted",
-                "google_oauth_redirect_uris", "connection_status_badge"
+                "company_name", "tagline", 
+                "logo", "stamp_signature", 
+                "company_phone", "company_email"
+            )
+        }),
+        ("Workflows & Notifications", {
+            "fields": (
+                "allow_service_tracking", 
+                "allow_task_assigning", 
+                "allow_document_assigning",
+                "allow_employee_sms", 
+                "allow_employee_email", 
+                "employee_sms_roles"
+            )
+        }),
+        ("Google Drive Authentication", {
+            "fields": (
+                "google_drive_enabled", 
+                "connection_status_badge",
+                "google_oauth_client_id", 
+                "google_oauth_client_secret_encrypted",
+                "google_oauth_redirect_uris",
+                "google_drive_service_account_email",
+                "google_drive_service_account_key_encrypted",
+            )
+        }),
+        ("Google Drive Configuration & Diagnostics", {
+            "fields": (
+                "google_drive_root_folder_id", 
+                "drive_auto_folder_creation", 
+                "drive_file_naming_pattern",
+                "drive_config_status", 
+                "drive_last_test_status", 
+                "drive_last_test_at", 
+                "drive_config_updated_by"
             )
         }),
     )
 
-    def email(self, obj): return obj.company_email
-    def has_add_permission(self, request): return not SiteSettings.objects.exists()
-    def has_delete_permission(self, request, obj=None): return False
+    def email(self, obj): 
+        return obj.company_email
+        
+    def has_add_permission(self, request): 
+        return not SiteSettings.objects.exists()
+        
+    def has_delete_permission(self, request, obj=None): 
+        return False
 
     def connection_status_badge(self, obj):
+        # Assuming get_connection_status is imported or defined in the file
         status = get_connection_status(obj)
         css_class = status.get("class", "warning")
         message = status.get("message", "Unknown")
         mode_display = status.get("storage_mode_display", "")
-        if mode_display and mode_display != "Unknown": message = f"{message} ({mode_display})"
-        color_map = {"success":"#28a745","warning":"#ffc107","error":"#dc3545","info":"#17a2b8"}
+        
+        if mode_display and mode_display != "Unknown": 
+            message = f"{message} ({mode_display})"
+            
+        color_map = {
+            "success": "#28a745",
+            "warning": "#ffc107",
+            "error": "#dc3545",
+            "info": "#17a2b8"
+        }
         bg_color = color_map.get(css_class, "#6c757d")
-        return format_html('<span style="padding:4px 8px; border-radius:6px; color:#fff; font-weight:bold; background:{};">{}</span>', bg_color, message)
+        return format_html(
+            '<span style="padding:4px 8px; border-radius:6px; color:#fff; font-weight:bold; background:{};">{}</span>', 
+            bg_color, message
+        )
+        
     connection_status_badge.short_description = "Drive Connection Status"
+
+
+
 
 # Inline for Processes in ClientService
 class ClientServiceProcessInline(admin.TabularInline):
