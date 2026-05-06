@@ -77,7 +77,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     
     config = {
         "bank_name": "KCB BANK",
-        "account_name": settings.company_name.upper() if settings else "GEOSPOT SURVEYS",
+        "account_name": settings.company_name.upper() if settings and settings.company_name else "GEOSPOT SURVEYS",
         "account_no": "7812000000",
         "paybill": "123456",
         "mpesa_phone": settings.company_phone if settings and settings.company_phone else "0792 944 218",
@@ -138,7 +138,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     if not logo_drawn:
         c.setFillColor(HexColor("#FFFFFF"))
         c.setFont(ROBOTO_BOLD, 14)
-        c.drawCentredString(37.5 * mm, height - 30 * mm, settings.company_name if settings else "GeoSPOT SURVEYS")
+        c.drawCentredString(37.5 * mm, height - 30 * mm, settings.company_name if settings and settings.company_name else "GeoSPOT SURVEYS")
         if settings and settings.tagline:
             c.setFont(ROBOTO, 8)
             c.drawCentredString(37.5 * mm, height - 35 * mm, settings.tagline)
@@ -147,23 +147,29 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFont(ROBOTO_BOLD, 30)
     c.drawRightString(width - 16 * mm, height - 36 * mm, "RECEIPT")
 
-    # ─── 3. META DATA (Fixed Overlap) ───
+    # ─── 3. META DATA (With Safe Fallbacks) ───
     y = height - 76 * mm
     c.setFillColor(text_dark)
+    
+    # Safe string processing to prevent 500 errors on null database fields
+    client_name = f"{client_service.client.first_name or ''} {client_service.client.last_name or ''}".strip() if client_service.client else "Unknown Client"
+    land_desc = (client_service.land_description or "N/A")[:30].upper()
+    req_date = client_service.requested_at.strftime('%d %b %Y').upper() if client_service.requested_at else "N/A"
+    receipt_no = f"{client_service.id + 10000}" if client_service.id else "N/A"
     
     # Left Block
     c.setFont(ROBOTO_BOLD, 8)
     c.drawString(margin, y, "PAID BY :")
     c.setFont(ROBOTO_BOLD, 9)
-    c.drawString(margin, y - 4 * mm, f"{client_service.client.first_name} {client_service.client.last_name}")
+    c.drawString(margin, y - 4 * mm, client_name)
     c.setFont(ROBOTO_BOLD, 7)
-    c.drawString(margin, y - 8 * mm, f"REF: {client_service.land_description[:30].upper()}")
+    c.drawString(margin, y - 8 * mm, f"REF: {land_desc}")
     
     # Center Block
     center_x = margin + 45 * mm
     c.setFont(ROBOTO_BOLD, 8)
-    c.drawString(center_x, y, f"DATE: {client_service.requested_at.strftime('%d %b %Y').upper()}")
-    c.drawString(center_x, y - 4 * mm, f"RECEIPT NO: {client_service.id + 10000}") 
+    c.drawString(center_x, y, f"DATE: {req_date}")
+    c.drawString(center_x, y - 4 * mm, f"RECEIPT NO: {receipt_no}") 
 
     # Right Block
     total_paid = safe_price(client_service.total_paid)
@@ -202,13 +208,16 @@ def generate_service_receipt(client_service, printed_by_user: User):
 
     y -= 7 * mm
 
-    # ─── 5. TABLE ROWS (Tighter padding to preserve footer) ───
+    # ─── 5. TABLE ROWS ───
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 8) 
     
-    if client_service.service.category == ServiceCategory.TITLE:
+    # Check if service is tied safely
+    has_service = client_service.service is not None
+
+    if has_service and client_service.service.category == ServiceCategory.TITLE:
         for csp in client_service.service_processes.all().order_by('process__step_order'):
-            name = csp.process.name[:35]
+            name = (csp.process.name or "Process")[:35] if csp.process else "Process"
             price = safe_price(csp.overridden_cost if csp.overridden_cost is not None else csp.process.cost)
             paid  = safe_price(csp.paid_amount)
             
@@ -219,8 +228,10 @@ def generate_service_receipt(client_service, printed_by_user: User):
             c.drawRightString(col_paid, y, f"{paid:,.0f}")
             y -= 6.5 * mm
     else:
-        name  = client_service.service.name[:35]
-        raw_price = client_service.overridden_total_price if client_service.overridden_total_price is not None else client_service.service.total_price
+        name  = (client_service.service.name or "Service")[:35] if has_service else "Unknown Service"
+        service_price = client_service.service.total_price if has_service else 0
+        raw_price = client_service.overridden_total_price if client_service.overridden_total_price is not None else service_price
+        
         price = safe_price(raw_price)
         paid  = safe_price(client_service.total_paid)
         
@@ -233,7 +244,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
 
     if client_service.sub_services.exists():
         for css in client_service.sub_services.all():
-            name = css.sub_service.name[:35]
+            name = (css.sub_service.name or "Sub-Service")[:35] if css.sub_service else "Sub-Service"
             price = safe_price(css.overridden_price if css.overridden_price is not None else css.sub_service.price)
             paid  = safe_price(css.paid_amount)
             
@@ -249,7 +260,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(bg_gray)
     c.rect(margin, y - 3 * mm, width - (2 * margin), 6 * mm, fill=1, stroke=0)
     
-    total_price_val = safe_price(client_service.overridden_total_price if client_service.overridden_total_price is not None else client_service.service.total_price)
+    base_total = client_service.service.total_price if has_service else 0
+    total_price_val = safe_price(client_service.overridden_total_price if client_service.overridden_total_price is not None else base_total)
     
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 9)
@@ -275,7 +287,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawRightString(col_tot, y - 1 * mm, f"{total_price_val:,.0f}") 
     c.drawRightString(col_paid, y - 1 * mm, f"{total_paid:,.0f}") 
 
-    # ─── 7. FOOTER AREA (Pulled Up To Guarantee Visibility) ───
+    # ─── 7. FOOTER AREA ───
     y_footer = y - 20 * mm 
     
     c.setFillColor(brand_green)
@@ -313,7 +325,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(brand_green)
     c.drawString(margin, y_p, f"Mpesa : {config['mpesa_phone']}")
 
-    # Added prominent Balance Box
     total_balance = safe_price(client_service.total_balance)
     c.setFillColor(brand_blue)
     c.rect(width - 55 * mm, y_footer - 1 * mm, 43 * mm, 7 * mm, fill=1, stroke=0)
@@ -334,10 +345,13 @@ def generate_service_receipt(client_service, printed_by_user: User):
     if settings and settings.stamp_signature:
         sig_drawn = draw_image_safe(c, settings.stamp_signature, width - 55 * mm, y_sig - 20 * mm, 30 * mm, 12 * mm)
     
+    # Safely get the user's name (Fallback to username or 'Admin' if first_name is empty)
+    printed_by_name = printed_by_user.first_name or printed_by_user.username or "Admin"
+
     if not sig_drawn:
         c.setFillColor(brand_blue)
         c.setFont(ROBOTO_BOLD, 14) 
-        c.drawCentredString(width - 33 * mm, y_sig - 18 * mm, printed_by_user.first_name)
+        c.drawCentredString(width - 33 * mm, y_sig - 18 * mm, printed_by_name)
 
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 7)
@@ -348,10 +362,9 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setDash()
     c.drawCentredString(width - 33 * mm, y_sig - 27 * mm, "AUTHORIZED SIGN")
 
-    # ─── 8. ABSOLUTE BOTTOM BARS (Stacked Addresses) ───
+    # ─── 8. ABSOLUTE BOTTOM BARS ───
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 6)
-    # Stack the addresses safely above the blue bar
     c.drawCentredString(width / 2, 16 * mm, config["address_1"])
     c.drawCentredString(width / 2, 13 * mm, config["address_2"])
 
