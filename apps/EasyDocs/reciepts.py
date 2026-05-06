@@ -48,40 +48,13 @@ except Exception as e:
     ROBOTO_BOLD = "Helvetica-Bold"
     ROBOTO_LIGHT = "Helvetica"
 
-# Try to register FontAwesome for the real icons
-HAS_FA = False
-try:
-    fa_brands_paths = [
-        os.path.join(django_settings.BASE_DIR, 'static', 'fonts', 'fa-brands-400.ttf'),
-        os.path.join(django_settings.BASE_DIR, 'staticfiles', 'fonts', 'fa-brands-400.ttf'),
-        os.path.join(django_settings.STATIC_ROOT, 'fonts', 'fa-brands-400.ttf') if django_settings.STATIC_ROOT else None,
-        'fa-brands-400.ttf'
-    ]
-    fa_solid_paths = [
-        os.path.join(django_settings.BASE_DIR, 'static', 'fonts', 'fa-solid-900.ttf'),
-        os.path.join(django_settings.BASE_DIR, 'staticfiles', 'fonts', 'fa-solid-900.ttf'),
-        os.path.join(django_settings.STATIC_ROOT, 'fonts', 'fa-solid-900.ttf') if django_settings.STATIC_ROOT else None,
-        'fa-solid-900.ttf'
-    ]
-    
-    brands_path = next((p for p in fa_brands_paths if p and os.path.exists(p)), None)
-    solid_path = next((p for p in fa_solid_paths if p and os.path.exists(p)), None)
-    
-    if brands_path and solid_path:
-        pdfmetrics.registerFont(TTFont('FA-Brands', brands_path))
-        pdfmetrics.registerFont(TTFont('FA-Solid', solid_path))
-        HAS_FA = True
-    else:
-        logger.warning("FontAwesome .ttf files not found in static/fonts/. Using text fallbacks for social icons.")
-except Exception as e:
-    logger.warning(f"Failed to load FontAwesome fonts: {e}")
-
-
+# ─── HELPER FUNCTIONS ───
 def safe_price(val):
     raw = val if val is not None else 0
     return Decimal(raw).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 def draw_image_safe(c, image_field, x, y, width, height, preserve_aspect=True):
+    """Draws Django ImageFields (like Logo and Signature) safely."""
     if image_field and image_field.name:
         try:
             path = image_field.path
@@ -93,6 +66,28 @@ def draw_image_safe(c, image_field, x, y, width, height, preserve_aspect=True):
             logger.warning(f"Failed to load image {image_field}: {e}")
     return False
 
+def draw_icon_image(c, image_filename, x, y, width, height):
+    """Attempts to draw a PNG icon from Django static files. Returns False if missing."""
+    try:
+        # Check standard Django static directories for the icons
+        image_paths = [
+            os.path.join(django_settings.BASE_DIR, 'static', 'images', image_filename),
+            os.path.join(django_settings.BASE_DIR, 'staticfiles', 'images', image_filename),
+            os.path.join(django_settings.STATIC_ROOT, 'images', image_filename) if getattr(django_settings, 'STATIC_ROOT', None) else None,
+        ]
+        
+        path = next((p for p in image_paths if p and os.path.exists(p)), None)
+        
+        if path:
+            img = ImageReader(path)
+            c.drawImage(img, x, y, width, height, mask='auto', preserveAspectRatio=True)
+            return True
+    except Exception as e:
+        logger.warning(f"Error loading icon {image_filename}: {e}")
+        
+    return False
+
+# ─── MAIN GENERATOR ───
 def generate_service_receipt(client_service, printed_by_user: User):
     """
     Generate an A5 geometric, fully branded receipt PDF.
@@ -107,8 +102,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     config = {
         "bank_name": "KCB BANK",
         "account_name": settings.company_name.upper() if settings and settings.company_name else "GEOSPOT SURVEYS",
-        "account_no": "7812470",
-        "paybill": "522533",
+        "account_no": "7812000000",
+        "paybill": "123456",
         "mpesa_phone": settings.company_phone if settings and settings.company_phone else "0792 944 218",
         "address_1": "29M7+M8G Nyahururu, Koinange Road & Kikuyu Kenya",
         "address_2": "Kikuyu Town & Othaya Building, First Floor, RM 25, Nyahururu Town",
@@ -162,7 +157,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     # ─── 2. HEADER CONTENT ───
     logo_drawn = False
     if settings and settings.logo:
-        # Increased Logo Size
         logo_drawn = draw_image_safe(c, settings.logo, 10 * mm, height - 42 * mm, 60 * mm, 38 * mm, preserve_aspect=True)
     
     if not logo_drawn:
@@ -177,7 +171,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFont(ROBOTO_BOLD, 30)
     c.drawRightString(width - 16 * mm, height - 36 * mm, "RECEIPT")
 
-    # ─── 3. META DATA (With Safe Fallbacks) ───
+    # ─── 3. META DATA ───
     y = height - 76 * mm
     c.setFillColor(text_dark)
     
@@ -411,26 +405,26 @@ def generate_service_receipt(client_service, printed_by_user: User):
     icon_y = 3.5 * mm
     x_pos = margin
     
-    # Golden Social Icons (LinkedIn, Facebook, Instagram, X/Twitter, TikTok)
-    socials = [
-        ("\uf0e1", "in"), # LinkedIn
-        ("\uf39e", "f"),  # Facebook
-        ("\uf16d", "ig"), # Instagram
-        ("\ue61b", "X"),  # X / Twitter
-        ("\ue07b", "tt")  # TikTok
+    # Define images to load and fallback text
+    social_icons = [
+        ("linkedin.png", "in"),
+        ("facebook.png", "f"),
+        ("instagram.png", "ig"),
+        ("twitter.png", "X"), 
+        ("tiktok.png", "tt")
     ]
     
     icon_width = 4.5
-    for fa_code, fallback_text in socials:
+    for img_filename, fallback_text in social_icons:
+        # Draw Gold Background Box
         c.setFillColor(brand_gold)
         c.roundRect(x_pos, icon_y - 1 * mm, icon_width * mm, 4.5 * mm, 1 * mm, fill=1, stroke=0)
-        c.setFillColor(HexColor("#FFFFFF"))
         
-        # Draw Real FA Icon if loaded, otherwise fallback to text
-        if HAS_FA:
-            c.setFont('FA-Brands', 7.5)
-            c.drawCentredString(x_pos + (icon_width / 2.0) * mm, icon_y + 0.1 * mm, fa_code)
-        else:
+        # Try to draw the PNG image. If it fails, draw the fallback text.
+        img_success = draw_icon_image(c, img_filename, x_pos + 0.5 * mm, icon_y - 0.5 * mm, 3.5 * mm, 3.5 * mm)
+        
+        if not img_success:
+            c.setFillColor(HexColor("#FFFFFF"))
             c.setFont(ROBOTO_BOLD, 6.5)
             c.drawCentredString(x_pos + (icon_width / 2.0) * mm, icon_y + 0.2 * mm, fallback_text)
             
@@ -450,7 +444,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFont(ROBOTO_BOLD, 7)
     c.drawString(x_pos, icon_y + 0.2 * mm, config["website"])
     
-    # Phone Numbers (Green Badge with custom White Call Icon)
+    # Phone Numbers (Green Badge)
     phone_w = 40 * mm
     phone_x = width - margin - phone_w
     
@@ -462,12 +456,11 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(HexColor("#FFFFFF"))
     c.circle(phone_x + 3.5 * mm, icon_y + 1.25 * mm, 1.5 * mm, fill=1, stroke=0)
     
-    # 3. Green Icon/Text inside the circle
-    c.setFillColor(brand_green)
-    if HAS_FA:
-        c.setFont('FA-Solid', 6)
-        c.drawCentredString(phone_x + 3.5 * mm, icon_y + 0.3 * mm, "\uf095") # Real Phone Icon
-    else:
+    # 3. Try to draw the Phone PNG inside the circle
+    phone_success = draw_icon_image(c, "phone.png", phone_x + 2.5 * mm, icon_y + 0.25 * mm, 2.0 * mm, 2.0 * mm)
+    
+    if not phone_success:
+        c.setFillColor(brand_green)
         c.setFont(ROBOTO_BOLD, 3.5)
         c.drawCentredString(phone_x + 3.5 * mm, icon_y + 0.3 * mm, "TEL")    # Fallback Text
     
