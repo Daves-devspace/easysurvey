@@ -1431,6 +1431,9 @@ class MessageLog(models.Model):
                 name='msglog_message_id_idx'
             ),
         ]
+        permissions = [
+            ('send_client_sms', 'Can send SMS to client'),
+        ]
 
     def __str__(self):
         client_repr = str(self.client) if self.client else f"(no client) {self.recipient_type}"

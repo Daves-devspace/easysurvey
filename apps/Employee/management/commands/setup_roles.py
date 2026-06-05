@@ -27,4 +27,15 @@ class Command(BaseCommand):
                     except Permission.DoesNotExist:
                         self.stdout.write(self.style.WARNING(f'Permission {codename} not found for {model}'))
 
+            # Handle custom permissions
+            custom_perms = config.get('custom_permissions', [])
+            for perm_string in custom_perms:
+                try:
+                    app_label, codename = perm_string.split('.')
+                    permission = Permission.objects.get(codename=codename, content_type__app_label=app_label)
+                    group.permissions.add(permission)
+                    self.stdout.write(self.style.SUCCESS(f'Assigned custom permission {perm_string} to {role}'))
+                except (ValueError, Permission.DoesNotExist) as e:
+                    self.stdout.write(self.style.WARNING(f'Custom permission {perm_string} not found for {role}: {e}'))
+
         self.stdout.write(self.style.SUCCESS('All roles and permissions have been set up.'))

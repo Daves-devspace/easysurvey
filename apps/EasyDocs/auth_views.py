@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import TemplateView
+from django.conf import settings
 
 from apps.EasyDocs.forms import CustomPasswordResetForm, CustomSetPasswordForm, CustomAuthenticationForm
 logger = logging.getLogger(__name__)
@@ -130,6 +131,22 @@ class CustomPasswordResetView(SuccessMessageMixin, PasswordResetView):
     def form_invalid(self, form):
         logger.warning("PRV.form_invalid ➞ errors=%s", form.errors.as_json())
         return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        """Override to use SITE_DOMAIN setting instead of Sites framework"""
+        context = super().get_context_data(**kwargs)
+        # Get domain from SITE_DOMAIN setting instead of Sites framework
+        site_domain = getattr(settings, 'SITE_DOMAIN', 'http://localhost:8080').rstrip('/')
+        # Extract just the domain part (without protocol)
+        if site_domain.startswith('http://'):
+            domain = site_domain.replace('http://', '')
+        elif site_domain.startswith('https://'):
+            domain = site_domain.replace('https://', '')
+        else:
+            domain = site_domain
+        context['domain'] = domain
+        context['protocol'] = 'https' if 'https' in site_domain else 'http'
+        return context
 
 
 

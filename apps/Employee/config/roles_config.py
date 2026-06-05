@@ -36,7 +36,10 @@ ROLE_PERMISSIONS = {
             SmsProviderToken: ['change', 'view'],  # typically one row, so no 'add' or 'delete'
             SiteSettings: ['change', 'view'],  # typically one row, so no 'add' or 'delete'
 
-        }
+        },
+        'custom_permissions': [
+            'easydocs.send_client_sms',
+        ]
     },
 
     EmployeeProfile.RoleChoices.SURVEYOR: {
@@ -48,7 +51,10 @@ ROLE_PERMISSIONS = {
             ClientDoc: ['add', 'change', 'view', 'delete'],  # no delete
             MessageLog: ['view'],
             Document: ['add', 'view'],  # ❌ can't delete/change office documents
-        }
+        },
+        'custom_permissions': [
+            'easydocs.send_client_sms',
+        ]
     },
 
     EmployeeProfile.RoleChoices.FRONTOFFICE: {
@@ -63,7 +69,10 @@ ROLE_PERMISSIONS = {
             ClientDoc: ['add', 'view'],
             Payment: ['add', 'view'],
             Document: ['add', 'view'],  # e.g., receptionist uploads scans
-        }
+        },
+        'custom_permissions': [
+            'easydocs.send_client_sms',
+        ]
     },
 
     EmployeeProfile.RoleChoices.IT_SUPPORT: {
