@@ -115,6 +115,14 @@ class CommunicationView(FormMixin, ListView):
         ).order_by('scheduled_time')[:50]
         ctx['scheduled_tasks'] = scheduled_tasks
 
+        # Get failed logs for template (filters the logs queryset)
+        failed_cache_key = 'failed_logs_cache'
+        failed_logs = cache.get(failed_cache_key)
+        if failed_logs is None:
+            failed_logs = list(MessageLog.objects.filter(send_status='failed').order_by('-timestamp')[:50])
+            cache.set(failed_cache_key, failed_logs, self.CACHE_TIMEOUT)
+        ctx['failed_logs'] = failed_logs
+
         ctx['previews'] = getattr(self, 'previews', [])
         ctx['employee_preview'] = getattr(self, 'employee_preview', '')
         ctx['company_preview'] = getattr(self, 'company_preview', '')

@@ -358,8 +358,8 @@
                                         <tbody>
                                             {% for log in failed_logs %}
                                             <tr>
-                                                {% if log.client_name %}
-                                                <td>{{ log.client_name }}</td>
+                                                {% if log.client %}
+                                                <td>{{ log.client.first_name }} {{ log.client.last_name }}</td>
                                                 {% else %}
                                                 <td><em class="text-muted">(Staff)</em></td>
                                                 {% endif %}

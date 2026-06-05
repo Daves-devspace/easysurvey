@@ -26,19 +26,9 @@ def site_settings(request):
     logo_ts = None
     logo_url = None
 
-    logo_field = getattr(settings, 'logo', None)
-
-    if logo_field:
-        try:
-            mtime = logo_field.storage.get_modified_time(logo_field.name)
-            logo_ts = int(mtime.timestamp())
-            logo_url = logo_field.url
-        except Exception:
-            logger.exception("Failed to resolve SiteSettings logo; using fallback logo.")
-
-    # Fallback logo
-    if not logo_url:
-        logo_url = static('assets/images/plotsync.png')  # Fallback image path
+    # Always use fallback logo for logo_url (sidebar/auth pages)
+    # Company logo is only for receipts via site_settings.logo
+    logo_url = static('assets/images/plotsync.png')  # Always use fallback
 
     # Fallback company name
     company_name = settings.company_name if settings and settings.company_name else "Plotsync"

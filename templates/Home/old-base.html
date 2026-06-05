@@ -99,16 +99,10 @@
 
         <div class="m-header1 d-flex align-items-center bg-green-100 p-3">
                 <a href="{% url 'home' %}" class="b-brand d-flex align-items-center">
-                    {% if site_settings.logo %}
-                        <img src="{{ site_settings.logo.url }}{% if logo_ts %}?v={{ logo_ts }}{% endif %}" 
-                            alt="{{ site_settings.company_name }} logo"
-                            class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
-                    {% else %}
-                        <img src="{{ logo_url }}"
-                            alt="{{ company_name }} logo"
-                            class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
-
-                    {% endif %}
+                    {# Company logo disabled - only used in receipts. Display fallback Plotsync logo only #}
+                    <img src="{{ logo_url }}"
+                        alt="{{ company_name }} logo"
+                        class="logo-lg" style="height:45px; object-fit: contain; background-color: transparent;">
                 </a>
             </div>
 
