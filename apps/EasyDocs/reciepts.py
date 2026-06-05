@@ -104,10 +104,9 @@ def generate_service_receipt(client_service, printed_by_user: User):
     
     config = {
         "bank_name": "KCB BANK",
-        "account_name": settings.company_name.upper() if settings and settings.company_name else "GEOSPOT SURVEYS",
-        "account_no": "7812000000",
-        "paybill": "123456",
-        "mpesa_phone": settings.company_phone if settings and settings.company_phone else "0792 944 218",
+        "account_name": "GEOSPOT SURVEYS",
+        "account_no": "7812470",
+        "paybill": "522533",
         "address_1": "29M7+M8G Nyahururu, Koinange Road & Kikuyu Kenya",
         "address_2": "Kikuyu Town & Othaya Building, First Floor, RM 25, Nyahururu Town",
         "services_list": "Land Surveyors | Geospatial Engineers | Valuation | Planners | GIS | Real Estate",
@@ -364,9 +363,15 @@ def generate_service_receipt(client_service, printed_by_user: User):
 
     y_p -= 4 * mm
     c.setFillColor(text_dark)
-    c.drawString(margin, y_p, "M-PESA PAYBILL : ")
-    c.setFillColor(brand_green)
-    c.drawString(margin + 26*mm, y_p, config['paybill'])
+    mpesa_icon_drawn = draw_icon_image(c, "mpesaicon.png", margin, y_p - 1 * mm, 16 * mm, 4.5 * mm)
+    if mpesa_icon_drawn:
+        c.drawString(margin + 17 * mm, y_p, "PAYBILL : ")
+        c.setFillColor(brand_green)
+        c.drawString(margin + 32 * mm, y_p, config['paybill'])
+    else:
+        c.drawString(margin, y_p, "M-PESA PAYBILL : ")
+        c.setFillColor(brand_green)
+        c.drawString(margin + 26*mm, y_p, config['paybill'])
 
     y_p -= 4 * mm
     c.setFillColor(text_dark)
@@ -379,10 +384,6 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawString(margin, y_p, "Account Name: ")
     c.setFillColor(brand_red)
     c.drawString(margin + 22*mm, y_p, config['account_name'])
-
-    y_p -= 4 * mm
-    c.setFillColor(brand_green)
-    c.drawString(margin, y_p, f"Mpesa : {config['mpesa_phone']}")
 
     # Balance Box
     total_balance = safe_price(client_service.total_balance)
