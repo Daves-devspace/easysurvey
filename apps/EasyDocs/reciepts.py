@@ -48,9 +48,11 @@ except Exception as e:
     ROBOTO_BOLD = "Helvetica-Bold"
     ROBOTO_LIGHT = "Helvetica"
 
+
 def safe_price(val):
     raw = val if val is not None else 0
     return Decimal(raw).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
 
 def draw_image_safe(c, image_field, x, y, width, height, preserve_aspect=True):
     if image_field and image_field.name:
@@ -63,6 +65,7 @@ def draw_image_safe(c, image_field, x, y, width, height, preserve_aspect=True):
         except Exception as e:
             logger.warning(f"Failed to load image {image_field}: {e}")
     return False
+
 
 def draw_icon_image(c, image_filename, x, y, width, height):
     """Attempts to draw a PNG icon from Django static files. Returns False if missing."""
@@ -126,7 +129,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.rect(0, height - 6 * mm, width, 6 * mm, fill=1, stroke=0)
     c.rect(width - 6 * mm, height - 40 * mm, 6 * mm, 40 * mm, fill=1, stroke=0)
 
-    # REFINED/REDUCED BLUE POLYGON (Pushed higher up)
+    # REFINED/REDUCED BLUE POLYGON
     c.setFillColor(brand_blue)
     p = c.beginPath()
     p.moveTo(0, height)
@@ -146,38 +149,45 @@ def generate_service_receipt(client_service, printed_by_user: User):
     p.close()
     c.drawPath(p, fill=1, stroke=0)
 
-    # ─── NEW EXACT BOTTOM SHAPES (Gold/Blue/White Layering) ───
-    # 1. Solid Gold Base at the absolute bottom
+    # ─── NEW EXACT BOTTOM SHAPES ───
+    # 1. Solid Gold Base at the absolute bottom (Now stops at 0 to fill the white space)
     c.setFillColor(brand_gold)
-    c.rect(0, 0, width, 50 * mm, fill=1, stroke=0)
+    p = c.beginPath()
+    p.moveTo(0, 59 * mm)      
+    p.lineTo(width, 29 * mm)  
+    p.lineTo(width, 0 * mm)   
+    p.lineTo(0, 0 * mm)       
+    p.close()
+    c.drawPath(p, fill=1, stroke=0)
 
-    # 2. Sleek Blue Diagonal Stripe
+    # 2. Sleek Blue Diagonal Stripe (TOP/START on the left)
     c.setFillColor(brand_blue)
     p = c.beginPath()
-    p.moveTo(0, 50 * mm)      
-    p.lineTo(width, 20 * mm)  
-    p.lineTo(width, 12 * mm)  
-    p.lineTo(0, 42 * mm)      
+    p.moveTo(0, 59 * mm)      
+    p.lineTo(width, 29 * mm)  
+    p.lineTo(width, 21 * mm)  
+    p.lineTo(0, 51 * mm)      
     p.close()
     c.drawPath(p, fill=1, stroke=0)
 
-    # 3. Thin White Diagonal Stripe
+    # 3. Thin White Diagonal Stripe (Directly BELOW the Blue stripe)
     c.setFillColor(HexColor("#FFFFFF"))
     p = c.beginPath()
-    p.moveTo(0, 42 * mm)      
-    p.lineTo(width, 12 * mm)  
-    p.lineTo(width, 9 * mm)   
-    p.lineTo(0, 39 * mm)
+    p.moveTo(0, 51 * mm)      
+    p.lineTo(width, 21 * mm)  
+    p.lineTo(width, 18 * mm)   
+    p.lineTo(0, 48 * mm)
     p.close()
     c.drawPath(p, fill=1, stroke=0)
 
-    # 4. The White Shape covering the Footer Content
+    # 4. The White Shape covering the Footer Content!
+    # Lifted to start at y=4mm leaving a clean gold paper border at the bottom edge
     c.setFillColor(HexColor("#FFFFFF"))
-    c.roundRect(5 * mm, 1.5 * mm, width - 10 * mm, 65 * mm, 3 * mm, fill=1, stroke=0)
+    c.roundRect(5 * mm, 4 * mm, width - 10 * mm, 73 * mm, 3 * mm, fill=1, stroke=0)
 
     c.restoreState()
 
-    # ─── 2. HEADER CONTENT (Pushed Up & Resized) ───
+    # ─── 2. HEADER CONTENT ───
     logo_drawn = False
     if settings and settings.logo:
         logo_drawn = draw_image_safe(c, settings.logo, 5 * mm, height - 28 * mm, 40 * mm, 24 * mm, preserve_aspect=True)
@@ -194,8 +204,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFont(ROBOTO_BOLD, 28)
     c.drawRightString(width - 16 * mm, height - 26 * mm, "RECEIPT")
 
-    # ─── 3. META DATA (Pushed dramatically up) ───
-    y = height - 52 * mm # Saved 24mm of space
+    # ─── 3. META DATA ───
+    y = height - 52 * mm 
     c.setFillColor(text_dark)
     
     client_name = f"{client_service.client.first_name or ''} {client_service.client.last_name or ''}".strip() if client_service.client else "Unknown Client"
@@ -236,7 +246,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.line(margin, y, width - margin, y)
     c.setDash()
 
-    # ─── 4. TABLE HEADER (Tighter) ───
+    # ─── 4. TABLE HEADER ───
     y -= 7 * mm
     c.setFillColor(brand_blue)
     c.rect(margin, y, width - (2 * margin), 6 * mm, fill=1, stroke=0)
@@ -252,13 +262,13 @@ def generate_service_receipt(client_service, printed_by_user: User):
 
     c.drawString(col_desc, y + 1.5 * mm, "Description")
     c.drawRightString(col_rate, y + 1.5 * mm, "Rate")
-    c.drawRightString(col_qty, y + 1.5 * mm, "Quantity")
+    c.drawRightString(col_qty, y + 1.5 * mm, "Qty")
     c.drawRightString(col_tot, y + 1.5 * mm, "Total")
     c.drawRightString(col_paid, y + 1.5 * mm, "Paid")
 
     y -= 6 * mm
 
-    # ─── 5. TABLE ROWS (Optimized line height 5.5mm) ───
+    # ─── 5. TABLE ROWS ───
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 8) 
     
@@ -304,7 +314,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
             c.drawRightString(col_paid, y, f"{paid:,.0f}")
             y -= 5.5 * mm
 
-    # ─── 6. SUBTOTAL & FINAL TOTAL (Tighter boxes) ───
+    # ─── 6. SUBTOTAL & FINAL TOTAL ───
     y -= 1.5 * mm
     c.setFillColor(bg_gray)
     c.rect(margin, y - 2.5 * mm, width - (2 * margin), 5 * mm, fill=1, stroke=0)
@@ -336,11 +346,8 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.drawRightString(col_tot, y - 1 * mm, f"{total_price_val:,.0f}") 
     c.drawRightString(col_paid, y - 1 * mm, f"{total_paid:,.0f}") 
 
-    # ─── 7. FOOTER AREA (Dynamic & Safe Limit) ───
-    y_footer = y - 14 * mm 
-    # HARD LIMIT: Footer will not drop below 50mm, protecting the bottom branding!
-    if y_footer < 50 * mm:
-        y_footer = 50 * mm
+    # ─── 7. FOOTER AREA (PERMANENTLY ANCHORED) ───
+    y_footer = 59 * mm 
 
     c.setFillColor(brand_green)
     c.roundRect(margin, y_footer, 35 * mm, 5 * mm, 1.5 * mm, fill=1, stroke=0)
@@ -373,7 +380,11 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setFillColor(brand_red)
     c.drawString(margin + 22*mm, y_p, config['account_name'])
 
-    # Added prominent Balance Box
+    y_p -= 4 * mm
+    c.setFillColor(brand_green)
+    c.drawString(margin, y_p, f"Mpesa : {config['mpesa_phone']}")
+
+    # Balance Box
     total_balance = safe_price(client_service.total_balance)
     c.setFillColor(brand_blue)
     c.rect(width - 55 * mm, y_footer - 1 * mm, 43 * mm, 7 * mm, fill=1, stroke=0)
@@ -399,7 +410,7 @@ def generate_service_receipt(client_service, printed_by_user: User):
     if not sig_drawn:
         c.setFillColor(brand_blue)
         c.setFont(ROBOTO_BOLD, 14) 
-        c.drawCentredString(width - 33 * mm, y_sig - 16 * mm, printed_by_name)
+        c.drawCentredString(width - 33 * mm, y_sig - 19 * mm, printed_by_name)
 
     c.setFillColor(text_dark)
     c.setFont(ROBOTO_BOLD, 7)
@@ -410,22 +421,24 @@ def generate_service_receipt(client_service, printed_by_user: User):
     c.setDash()
     c.drawCentredString(width - 33 * mm, y_sig - 27 * mm, "AUTHORIZED SIGN")
 
-    # ─── 8. ABSOLUTE BOTTOM BARS (Stacked Addresses) ───
+    # ─── 8. ABSOLUTE BOTTOM BARS (Raised by 4mm) ───
+    
+    # Addresses - Nyahururu Left, Kikuyu Right
     c.setFillColor(text_dark)
-    c.setFont(ROBOTO_BOLD, 6)
-    # Stack the addresses safely above the blue bar
-    c.drawCentredString(width / 2, 16 * mm, config["address_1"])
-    c.drawCentredString(width / 2, 13 * mm, config["address_2"])
+    c.setFont(ROBOTO_BOLD, 5.5)
+    c.drawString(margin, 23 * mm, config["address_1"])
+    c.drawRightString(width - margin, 23 * mm, config["address_2"])
 
+    # Services Bar
     services_text = config["services_list"] + " | Land Conveyancing"
     c.setFillColor(brand_blue)
-    c.rect(5 * mm, 7 * mm, width - 10 * mm, 4.5 * mm, fill=1, stroke=0)
+    c.rect(margin, 15 * mm, width - (2 * margin), 4.5 * mm, fill=1, stroke=0)
     c.setFillColor(HexColor("#FFFFFF"))
     c.setFont(ROBOTO_BOLD, 6.5)
-    c.drawCentredString(width / 2, 8.2 * mm, services_text)
+    c.drawCentredString(width / 2, 16.2 * mm, services_text)
 
     # ─── BOTTOM CONTACT BAR (Perfect Circles & Pills) ───
-    icon_y = 3.5 * mm
+    icon_y = 8 * mm
     x_pos = margin
     
     social_icons = [
