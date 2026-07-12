@@ -421,15 +421,15 @@ REFINE_HIGH_CONFIDENCE_ONLY = True  # Only refine good matches (save API calls)
 # BOT CONFIGURATION
 # ============================================================================
 
-HF_API_KEY=os.getenv("HF_API_KEY", "your_huggingface_api_key_here") 
-OPENROUTER_KEY=os.getenv("OPENROUTER_KEY", "your_openrouter_key_here")
+HF_API_KEY = os.getenv("HF_API_KEY", "")
+OPENROUTER_KEY = os.getenv("OPENROUTER_KEY", "")
 
 # Bot / n8n settings
 #N8N_BOT_WEBHOOK_URL = os.getenv("N8N_BOT_WEBHOOK_URL", "https://n8n.example.com/webhook/bot")
-BOT_SECRET = os.getenv("BOT_SECRET", "replace-with-strong-secret")
+BOT_SECRET = os.getenv("BOT_SECRET", "")
 
-CLIENT_SECRET = os.getenv("CLIENT_SECRET", None)
-VERIFY_N8N_CERT =os.getenv("VERIFY_N8N_CERT", True)
+CLIENT_SECRET = os.getenv("CLIENT_SECRET", "")
+VERIFY_N8N_CERT = os.getenv("VERIFY_N8N_CERT", "True") == "True"
 
 BOT_CONNECT_TIMEOUT = os.getenv("BOT_CONNECT_TIMEOUT", 3.0)
 BOT_READ_TIMEOUT = os.getenv("BOT_READ_TIMEOUT", 8.0)
@@ -440,9 +440,9 @@ BOT_MAX_PAYLOAD_BYTES = os.getenv("BOT_MAX_PAYLOAD_BYTES", 32 * 1024)
 
 
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-development-key")
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS").split(",")
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 #ALLOWED_HOSTS = ['*']
 
 if DEBUG:
