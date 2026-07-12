@@ -7,6 +7,35 @@ from django.templatetags.static import static
 from django.utils.functional import SimpleLazyObject
 from django.core.cache import cache
 
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_logo_url(settings_obj):
+    logo_field = getattr(settings_obj, 'logo', None)
+    if not logo_field:
+        return None
+
+    try:
+        name = getattr(logo_field, 'name', None)
+        if not name:
+            return None
+
+        storage = getattr(logo_field, 'storage', None)
+        if storage is not None and hasattr(storage, 'exists') and not storage.exists(name):
+            return None
+
+        mtime = logo_field.storage.get_modified_time(name)
+        if mtime is None:
+            return None
+
+        return logo_field.url
+    except FileNotFoundError:
+        return None
+    except Exception:
+        logger.warning("Failed to resolve SiteSettings logo; using fallback logo.")
+        return None
+
 def get_fallback_settings():
     return SiteSettings(company_name="Plotsync")
 
@@ -27,14 +56,19 @@ def site_settings(request):
     logo_url = None
 
     logo_field = getattr(settings, 'logo', None)
-
     if logo_field:
         try:
-            mtime = logo_field.storage.get_modified_time(logo_field.name)
-            logo_ts = int(mtime.timestamp())
-            logo_url = logo_field.url
+            resolved_url = _resolve_logo_url(settings)
+            if resolved_url:
+                logo_url = resolved_url
+                logo_name = getattr(logo_field, 'name', None)
+                if logo_name:
+                    storage = getattr(logo_field, 'storage', None)
+                    if storage is not None and hasattr(storage, 'get_modified_time'):
+                        mtime = storage.get_modified_time(logo_name)
+                        logo_ts = int(mtime.timestamp())
         except Exception:
-            logger.exception("Failed to resolve SiteSettings logo; using fallback logo.")
+            logger.warning("Failed to resolve SiteSettings logo; using fallback logo.")
 
     # Fallback logo
     if not logo_url:
@@ -51,9 +85,6 @@ def site_settings(request):
     }
     
 
-
-
-logger = logging.getLogger(__name__)
 
 def employee_profile_context(request):
     """

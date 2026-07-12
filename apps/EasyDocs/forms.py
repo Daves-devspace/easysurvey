@@ -250,7 +250,11 @@ class CustomPasswordResetForm(PasswordResetForm):
         logo_url = None
         if settings_obj and settings_obj.logo:
             try:
-                logo_url = settings_obj.logo.url
+                logo_name = getattr(settings_obj.logo, 'name', None)
+                if logo_name:
+                    storage = getattr(settings_obj.logo, 'storage', None)
+                    if storage is None or not hasattr(storage, 'exists') or storage.exists(logo_name):
+                        logo_url = settings_obj.logo.url
             except Exception:
                 pass
 
