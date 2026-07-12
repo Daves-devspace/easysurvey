@@ -1,6 +1,13 @@
 .env
-.service-account.json
-.firebase-admin.json
+.env.*
+!.env.example
+
+service-account.json
+service-account*.json
+smartsurveyor-*.json
+firebase-admin*.json
+*.firebase-admin.json
+
 .csv
 *.log
 node_modules/
